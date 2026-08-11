@@ -1,0 +1,304 @@
+:root,
+:root[data-theme="terminal-dark"] {
+
+  --font-display:   "JetBrains Mono", ui-monospace, monospace;
+  --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:      "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+                    Menlo, Monaco, Consolas, monospace;
+
+  --text-xs:    0.75rem;
+  --text-sm:    0.8125rem;
+  --text-base:  0.875rem;
+  --text-md:    1rem;
+  --text-lg:    1.125rem;
+  --text-xl:    1.25rem;
+  --text-2xl:   1.5rem;
+  --text-3xl:   1.875rem;
+  --text-4xl:   2.25rem;
+
+  --font-light:    300;
+  --font-normal:   400;
+  --font-medium:   500;
+  --font-semibold: 600;
+  --font-bold:     700;
+
+  /* Nền Đen Tím (Dark Purple) */
+  --color-bg-primary:    #09090e;
+  --color-bg-secondary:  #0d0c14;
+  --color-bg-surface:    #13111c;
+  --color-bg-hover:      #1a1826;
+  --color-bg-active:     #221f33;
+  --color-bg-overlay:    rgba(9, 9, 14, 0.88);
+  --color-bg-terminal:   #050508;
+
+  --color-text-primary:   rgba(255, 255, 255, 0.92);
+  --color-text-heading:   #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-muted:     rgba(255, 255, 255, 0.45);
+  --color-text-disabled:  rgba(255, 255, 255, 0.2);
+  --color-text-inverse:   #09090e;
+
+  /* Đổi Accent Primary sang màu Tím rực rỡ (Violet) */
+  --color-accent-primary:       #8b5cf6;
+  --color-accent-primary-light: #a78bfa;
+  --color-accent-primary-dark:  #7c3aed;
+  --color-accent-primary-text:  #a78bfa;
+  --color-accent-primary-glow:  rgba(139, 92, 246, 0.2);
+  --color-accent-primary-dim:   rgba(139, 92, 246, 0.1);
+
+  --color-accent-green:       #10b981;
+  --color-accent-green-light: #34d399;
+  --color-accent-green-glow:  rgba(16, 185, 129, 0.12);
+  --color-accent-green-dim:   rgba(16, 185, 129, 0.06);
+
+  --color-accent-red:       #ef4444;
+  --color-accent-red-light: #f87171;
+  --color-accent-red-glow:  rgba(239, 68, 68, 0.12);
+  --color-accent-red-dim:   rgba(239, 68, 68, 0.06);
+
+  --color-accent-yellow:       #eab308;
+  --color-accent-yellow-light: #facc15;
+  --color-accent-yellow-glow:  rgba(234, 179, 8, 0.12);
+  --color-accent-yellow-dim:   rgba(234, 179, 8, 0.06);
+
+  --color-accent-cyan:       #06b6d4;
+  --color-accent-cyan-light: #22d3ee;
+  --color-accent-cyan-glow:  rgba(6, 182, 212, 0.12);
+  --color-accent-cyan-dim:   rgba(6, 182, 212, 0.06);
+
+  --color-accent-purple:       #8b5cf6;
+  --color-accent-purple-light: #a78bfa;
+  --color-accent-purple-glow:  rgba(139, 92, 246, 0.2);
+  --color-accent-purple-dim:   rgba(139, 92, 246, 0.1);
+
+  --color-accent-emerald:       #10b981;
+  --color-accent-emerald-light: #34d399;
+  --color-accent-emerald-glow:  rgba(16, 185, 129, 0.12);
+  --color-accent-emerald-dim:   rgba(16, 185, 129, 0.06);
+
+  --color-accent-secondary: var(--color-accent-cyan);
+
+  --color-bg-base:      #09090e;
+  --color-bg-tertiary:  #1a1826;
+  --color-border-color: rgba(255, 255, 255, 0.08);
+
+  /* Syntax Highlighting tinh chỉnh hợp với Dark Purple */
+  --color-syntax-keyword:    #a78bfa;
+  --color-syntax-string:     #34d399;
+  --color-syntax-number:     #facc15;
+  --color-syntax-comment:    rgba(255, 255, 255, 0.35);
+  --color-syntax-type:       #22d3ee;
+  --color-syntax-variable:   rgba(255, 255, 255, 0.95);
+  --color-syntax-function:   #a78bfa;
+  --color-syntax-operator:   rgba(255, 255, 255, 0.6);
+  --color-syntax-punctuation:rgba(255, 255, 255, 0.4);
+
+  --color-dot-close:   #ef4444;
+  --color-dot-min:     #eab308;
+  --color-dot-max:     #8b5cf6;
+
+  --color-border-subtle:     rgba(255, 255, 255, 0.04);
+  --color-border-default:    rgba(255, 255, 255, 0.08);
+  --color-border-strong:     rgba(255, 255, 255, 0.15);
+  --color-border-focus:      #8b5cf6;
+  --color-border-accent:     rgba(139, 92, 246, 0.3);
+  --color-border-card:       rgba(255, 255, 255, 0.06);
+  --color-border-card-hover: rgba(139, 92, 246, 0.25);
+
+  --glass-bg:      rgba(13, 12, 20, 0.7);
+  --glass-border:  rgba(255, 255, 255, 0.08);
+  --glass-blur:    20px;
+  --glass-shadow:  0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --radius-none: 0px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-2xl:  24px;
+  --radius-full: 9999px;
+
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --shadow-sm:     0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md:     0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg:     0 12px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl:     0 24px 48px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 0 25px rgba(139, 92, 246, 0.15);
+  --shadow-cyan:   0 0 25px rgba(6, 182, 212, 0.1);
+
+  --transition-fast:   all 0.15s ease;
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-base:    0;
+  --z-raised:  10;
+  --z-overlay: 100;
+  --z-modal:   1000;
+  --z-toast:   2000;
+  --z-tooltip: 3000;
+
+  --header-bg:         #0d0c14;
+  --header-border:     rgba(255, 255, 255, 0.05);
+  --header-height:     80px;
+  --header-logo-color: #8b5cf6;
+
+  --tab-bg-default:    transparent;
+  --tab-bg-hover:      rgba(255, 255, 255, 0.05);
+  --tab-bg-active:     rgba(139, 92, 246, 0.15);
+  --tab-text-default:  rgba(255, 255, 255, 0.45);
+  --tab-text-hover:    rgba(255, 255, 255, 0.8);
+  --tab-text-active:   #a78bfa;
+  --tab-border-active: #8b5cf6;
+
+  --card-bg:         #13111c;
+  --card-border:     rgba(255, 255, 255, 0.06);
+  --card-radius:     var(--radius-xl);
+  --card-shadow:     var(--shadow-md);
+  --card-header-bg:  #1a1826;
+
+  --btn-primary-bg:       #8b5cf6;
+  --btn-primary-bg-hover: #7c3aed;
+  --btn-primary-text:     #ffffff;
+  --btn-primary-shadow:   0 0 20px rgba(139, 92, 246, 0.3);
+
+  --btn-ghost-bg:       transparent;
+  --btn-ghost-bg-hover: rgba(139, 92, 246, 0.1);
+  --btn-ghost-text:     rgba(255, 255, 255, 0.7);
+  --btn-ghost-border:   rgba(255, 255, 255, 0.1);
+
+  --input-bg:           #050508;
+  --input-border:       rgba(255, 255, 255, 0.1);
+  --input-border-focus: #8b5cf6;
+  --input-text:         rgba(255, 255, 255, 0.92);
+  --input-placeholder:  rgba(255, 255, 255, 0.3);
+
+  --badge-bg:     rgba(139, 92, 246, 0.1);
+  --badge-text:   #a78bfa;
+  --badge-border: rgba(139, 92, 246, 0.2);
+
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  --scrollbar-track:       transparent;
+
+  --code-bg:         #050508;
+  --code-border:     rgba(255, 255, 255, 0.05);
+  --code-header-bg:  #0d0c14;
+  --code-radius:     var(--radius-lg);
+
+  --canvas-bg:           #09090e;
+  --canvas-grid-color:   rgba(139, 92, 246, 0.05);
+  --canvas-node-default: #8b5cf6;
+  --canvas-node-active:  #a78bfa;
+  --canvas-edge-default: rgba(255, 255, 255, 0.15);
+  --canvas-edge-active:  #8b5cf6;
+
+  --vis-panel-bg:        #13111c;
+  --vis-panel-bg-deep:   #0d0c14;
+  --vis-panel-bg-inner:  #1a1826;
+  --vis-panel-border:    rgba(255, 255, 255, 0.08);
+  --vis-panel-header-bg: #1a1826;
+
+  --vis-color-pivot:   #facc15;
+  --vis-color-active:  #8b5cf6;
+  --vis-color-sorted:  #34d399;
+  --vis-color-swap:    #ef4444;
+  --vis-color-compare: rgba(255, 255, 255, 0.8);
+  --vis-color-bucket:  rgba(139, 92, 246, 0.6);
+  --vis-color-default: rgba(255, 255, 255, 0.3);
+}
+
+/* Light Theme (Tạm thời giữ nguyên hoặc đổi tông tím nhẹ) */
+:root[data-theme="light"] {
+  --color-bg-primary:    #ffffff;
+  --color-bg-secondary:  #f8f7fa;
+  --color-bg-surface:    #ffffff;
+  --color-bg-hover:      #f1eff5;
+  --color-bg-active:     #e5e1ef;
+  --color-bg-overlay:    rgba(0, 0, 0, 0.4);
+  --color-bg-terminal:   #f8f7fa;
+
+  --color-text-primary:   rgba(0, 0, 0, 0.9);
+  --color-text-heading:   rgba(0, 0, 0, 1);
+  --color-text-secondary: rgba(0, 0, 0, 0.6);
+  --color-text-muted:     rgba(0, 0, 0, 0.4);
+  --color-text-disabled:  rgba(0, 0, 0, 0.2);
+  --color-text-inverse:   #ffffff;
+
+  --color-border-subtle:     rgba(0, 0, 0, 0.06);
+  --color-border-default:    rgba(0, 0, 0, 0.1);
+  --color-border-strong:     rgba(0, 0, 0, 0.15);
+  --color-border-focus:      #8b5cf6;
+  --color-border-accent:     rgba(139, 92, 246, 0.25);
+  --color-border-card:       rgba(0, 0, 0, 0.08);
+  --color-border-card-hover: rgba(139, 92, 246, 0.2);
+
+  --glass-bg:     rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+
+  --header-bg:      #ffffff;
+  --header-border:  rgba(0, 0, 0, 0.08);
+
+  --code-bg:         #1a1826;
+  --code-header-bg:  #221f33;
+  --canvas-bg:       #ffffff;
+  --canvas-grid-color: rgba(139, 92, 246, 0.05);
+
+  --vis-panel-bg:       #ffffff;
+  --vis-panel-bg-deep:  #f8f7fa;
+  --vis-panel-bg-inner: #f1eff5;
+  --vis-panel-border:   rgba(0, 0, 0, 0.1);
+
+  --color-accent-primary:       #7c3aed;
+  --color-accent-primary-light: #8b5cf6;
+  --color-accent-primary-dark:  #5b21b6;
+  --color-accent-primary-text:  #7c3aed;
+  --color-accent-primary-glow:  rgba(124, 58, 237, 0.15);
+  --color-accent-primary-dim:   rgba(124, 58, 237, 0.08);
+
+  /* Mapping the rest similarly */
+  --color-accent-green:       #10b981;
+  --color-accent-red:         #ef4444;
+  --color-accent-yellow:      #eab308;
+  --color-accent-cyan:        #06b6d4;
+  --color-accent-purple:      #7c3aed;
+  
+  --card-bg:         #ffffff;
+  --card-border:     rgba(0, 0, 0, 0.08);
+  --card-shadow:     0 4px 15px rgba(0, 0, 0, 0.05);
+
+  --btn-primary-bg:       #8b5cf6;
+  --btn-primary-bg-hover: #7c3aed;
+  --btn-primary-text:     #ffffff;
+  --btn-primary-shadow:   0 0 16px rgba(139, 92, 246, 0.2);
+
+  --input-bg:           #ffffff;
+  --input-border:       rgba(0, 0, 0, 0.15);
+  --input-border-focus: #8b5cf6;
+  --input-text:         rgba(0, 0, 0, 0.9);
+  --input-placeholder:  rgba(0, 0, 0, 0.3);
+
+  --canvas-node-default: #7c3aed;
+  --canvas-node-active:  #8b5cf6;
+  --canvas-edge-default: rgba(0, 0, 0, 0.15);
+  --canvas-edge-active:  #7c3aed;
+
+  --vis-color-pivot:   #eab308;
+  --vis-color-active:  #7c3aed;
+  --vis-color-sorted:  #10b981;
+  --vis-color-swap:    #ef4444;
+  --vis-color-compare: rgba(0, 0, 0, 0.7);
+  --vis-color-bucket:  rgba(139, 92, 246, 0.5);
+  --vis-color-default: rgba(0, 0, 0, 0.25);
+}

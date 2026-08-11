@@ -1,0 +1,806 @@
+@import "./styles/theme.css";
+
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+
+@import "./styles/cinematic.css";
+
+
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden; /* phải set cả html lẫn body mới chặn được scroll ngang */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-primary);
+  background-image: linear-gradient(135deg, var(--color-bg-gradient-start), var(--color-bg-gradient-end));
+  background-attachment: fixed;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--font-normal);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+#app {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+
+
+
+
+.glass-panel {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-smooth);
+}
+
+.glass-panel:hover {
+  border-color: var(--color-border-default);
+  box-shadow: var(--glass-shadow), 0 0 0 1px var(--color-border-accent);
+}
+
+
+.terminal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+/* UI/UX Pro Max Claymorphism styles */
+.clay-card {
+  background: var(--clay-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--clay-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--clay-radius, 24px);
+  box-shadow: var(--clay-shadow);
+  transition: var(--transition-smooth);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.clay-card:hover {
+  box-shadow: var(--clay-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.clay-card:active {
+  box-shadow: var(--clay-shadow-active);
+  transform: scale(0.98);
+}
+
+
+.terminal-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--card-header-bg);
+  border-bottom: 1px solid var(--card-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+
+.terminal-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.terminal-dot--close  { background: var(--color-dot-close); }
+.terminal-dot--min    { background: var(--color-dot-min); }
+.terminal-dot--max    { background: var(--color-dot-max); }
+
+
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+.font-sans    { font-family: var(--font-sans); }
+
+
+.terminal-prompt::before {
+  content: '> ';
+  color: var(--color-accent-primary);
+  font-family: var(--font-mono);
+  font-weight: var(--font-bold);
+}
+
+.terminal-path::before {
+  content: '~/';
+  color: var(--color-accent-primary);
+  font-family: var(--font-display);
+}
+
+
+.text-accent   { color: var(--color-accent-primary); }
+.text-success  { color: var(--color-accent-green); }
+.text-info     { color: var(--color-accent-blue); }
+.text-warning  { color: var(--color-accent-yellow); }
+.text-danger   { color: var(--color-accent-red); }
+.text-cyan     { color: var(--color-accent-cyan); }
+.text-purple   { color: var(--color-accent-purple); }
+.text-muted    { color: var(--color-text-muted); }
+.text-secondary { color: var(--color-text-secondary); }
+
+
+.dot-grid-bg {
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+
+
+
+
+
+:root {
+  
+  --slate-400: #939bb4;
+  
+  --slate-500: #6b7385;
+  
+  --slate-200: #d9dde8;
+  
+  --slate-50:  #ffffff;
+  --slate-100: #d9dde8;
+}
+
+
+body, #app {
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-text-heading, #ffffff);
+}
+
+
+.text-accent   { color: var(--color-accent-primary-text, #7b89f4); }
+.text-heading  { color: var(--color-text-heading, #ffffff); }
+
+
+
+
+
+.monaco-pseudocode-active-line-glow {
+  background: var(--color-accent-yellow-dim, rgba(212, 168, 50, 0.08)) !important;
+  border-left: 4px solid var(--color-accent-yellow, #d4a832) !important;
+}
+
+.monaco-pseudocode-gutter-decorator {
+  background-color: var(--color-accent-yellow, #d4a832) !important;
+  width: 5px !important;
+  margin-left: 3px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 10px var(--color-accent-yellow, #d4a832);
+}
+
+
+
+
+
+@media (max-width: 768px) {
+  html { font-size: 14px; }
+
+  .dash-grid { grid-template-columns: 1fr !important; }
+
+  .stats-bar { gap: 1.5rem; padding: 1.5rem 1rem; }
+  .stat-item__value { font-size: 1.4rem; }
+
+  .analytics-grid { grid-template-columns: 1fr !important; }
+
+  .workspace-split,
+  .workspace-layout { flex-direction: column !important; }
+
+  .graph-sidebar { max-height: 40vh; overflow-y: auto; }
+  
+  /* U8: Prevent horizontal overflow */
+  body, html {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  /* U8: Improve form inputs on mobile */
+  input, select, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+  
+  /* U8: Better tap targets for interactive elements */
+  button, 
+  [role="button"], 
+  .btn,
+  .nav-item,
+  .nav-link,
+  .tab,
+  .dropdown-item,
+  .menu-item {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* U8: Improve sidebar on mobile */
+  .app-sidebar {
+    width: 280px;
+    max-width: 85vw;
+  }
+  
+  /* U8: Bottom nav spacing for content */
+  .app-main {
+    padding-bottom: 100px;
+  }
+  
+  /* U8: Modal improvements */
+  .modal-overlay .modal-box,
+  .modal-box {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    margin: 0 !important;
+  }
+  
+  /* U8: Toast above bottom nav */
+  .toast-container { 
+    left: 0.5rem; 
+    right: 0.5rem; 
+    width: auto; 
+    bottom: 100px; 
+  }
+  
+  /* U8: Improve select dropdowns */
+  select {
+    padding-right: 40px;
+  }
+  
+  /* U8: Better table scrolling */
+  .table-container,
+  .data-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 13px; }
+
+  /* U8: Landing hero */
+  .hero { min-height: 50vh; padding: 2rem 1rem; }
+  .hero__title { font-size: 2rem; }
+  .hero__tagline { font-size: 1rem; }
+  .hero__actions { flex-direction: column; align-items: stretch; }
+  .hero__cta { text-align: center; }
+
+  /* U8: Feature cards 1-col */
+  .features { padding: 2rem 1rem; }
+  .features__grid { grid-template-columns: 1fr; }
+
+  /* U8: Quick links 2-col */
+  .quicklinks { grid-template-columns: 1fr 1fr !important; }
+
+  /* U8: Toast above bottom nav */
+  .toast-container { left: 0.5rem; right: 0.5rem; width: auto; bottom: 84px; }
+
+  /* U8: Bottom sheet modal pattern */
+  .modal-overlay .modal-box {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  /* U8: Minimum touch target 44px for buttons */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  /* Except for very small inline icons */
+  .nav-tab__icon, .terminal-dot {
+    min-height: unset;
+  }
+  
+  /* U8: Prevent text selection on UI elements */
+  .nav-item, .btn, .tab, button[role="tab"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* U8: Improve card layouts */
+  .card, .glass-panel, .clay-card {
+    margin: 0 0.5rem;
+    border-radius: 12px;
+  }
+  
+  /* U8: Better spacing for content */
+  .page-content, .main-content {
+    padding: 1rem;
+  }
+  
+  /* U8: Fix header height on mobile */
+  .app-header {
+    height: auto;
+    min-height: 56px;
+    padding: 0 1rem;
+  }
+}
+
+/* U8: Global touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .spring-hover:hover,
+  .btn:hover,
+  .nav-item:hover,
+  .card:hover,
+  .glass-panel:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Active state for touch feedback */
+  .spring-hover:active,
+  .btn:active,
+  .nav-item:active,
+  .card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* U8: Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .app-shell {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .bottom-mobile-nav {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* U8: Focus visible for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* U8: Reduce motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* U8: High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border-default: currentColor;
+    --color-border-subtle: currentColor;
+  }
+  
+  .glass-panel,
+  .card,
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* U8: Print styles */
+@media print {
+  .app-header,
+  .app-sidebar,
+  .bottom-mobile-nav,
+  .toast-container,
+  .modal-overlay,
+  .sidebar-overlay {
+    display: none !important;
+  }
+  
+  .app-main {
+    padding: 0 !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* ── O5: Accessibility Improvements ── */
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: var(--color-accent-primary);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  z-index: 10000;
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  outline: none;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Better focus styles for keyboard navigation */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Ensure sufficient color contrast for text */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+/* Ensure interactive elements have sufficient size */
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+summary {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure form elements are accessible */
+input,
+textarea,
+select {
+  font-size: 16px; /* Prevents zoom on iOS */
+}
+
+label {
+  cursor: pointer;
+}
+
+/* Improve link accessibility */
+a:not([class]) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Better contrast for disabled states */
+:disabled,
+[disabled],
+[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Live region for announcements */
+[aria-live="polite"],
+[aria-live="assertive"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ensure proper heading hierarchy visually */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+}
+
+/* Improve table accessibility */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+}
+
+/* Improve form validation accessibility */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--color-accent-red);
+}
+
+input[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--color-accent-red-dim);
+}
+
+/* Loading states */
+[aria-busy="true"] {
+  cursor: wait;
+}
+
+/* Improve tooltip accessibility */
+[role="tooltip"] {
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+/* Ensure dialog/modal focus trap */
+[role="dialog"],
+[role="alertdialog"] {
+  outline: none;
+}
+
+[role="dialog"]:focus,
+[role="alertdialog"]:focus {
+  outline: none;
+}
+
+/* Improve tab navigation */
+[role="tablist"] {
+  display: flex;
+  gap: var(--space-2);
+}
+
+[role="tab"] {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+[role="tab"][aria-selected="true"] {
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-accent-primary);
+}
+
+/* Better progress bar accessibility */
+progress,
+[role="progressbar"] {
+  min-height: 8px;
+}
+
+/* Improve meter accessibility */
+meter {
+  min-height: 8px;
+  width: 100%;
+}
+
+/* Ensure images have alt text reminder */
+img:not([alt]) {
+  outline: 2px solid var(--color-accent-red);
+}
+
+/* Improve video accessibility */
+video {
+  max-width: 100%;
+}
+
+/* High contrast mode improvements */
+@media (prefers-contrast: high) {
+  :focus-visible {
+    outline-width: 3px;
+    outline-offset: 3px;
+  }
+  
+  .glass-panel,
+  .card,
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .skip-link {
+    transition: none;
+  }
+}
+
+/* Dark mode specific accessibility */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Light mode specific accessibility */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+  }
+}
+
+/* Print styles improvements */
+@media print {
+  .app-header,
+  .app-sidebar,
+  .bottom-mobile-nav,
+  .toast-container,
+  .modal-overlay,
+  .sidebar-overlay {
+    display: none !important;
+  }
+  
+  .app-main {
+    padding: 0 !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+}
+
+.is-embed .app-header,
+.is-embed .app-sidebar,
+.is-embed .algo-header,
+.is-embed .algo-intro,
+.is-embed .back-to-dashboard,
+.is-embed .theory-panel-toggle,
+.is-embed .course-header-banner,
+.is-embed .lesson-back-btn,
+.is-embed .page-header {
+  display: none !important;
+}
+
+.is-embed .app-main {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.is-embed .app-body {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.is-embed .app-shell {
+  min-height: 100vh !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
