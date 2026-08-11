@@ -28,3 +28,15 @@
 | 1 | ... | ... | [ ] |
 
 > Hướng dẫn: mỗi mục mới do agent thêm kèm ngày giờ `[YYYY-MM-DD HH:MM]` và tên task. Đừng xóa mục cũ — đánh dấu [x] khi xong.
+
+## 4. Session C — Git + Push (2026-08-12, đã init + push xong)
+
+| # | Việc | Ghi chú | Trạng thái |
+|---|---|---|---|
+| 1 | Xác nhận email GitHub THẬT của **Thu** (thuhlmtd01131@gmail.com) và **Phuc** (robintran51128@gmail.com) trong `commit-as.ps1` | Commit đã hiện đúng TÊN (đã push), nhưng avatar/liên kết GitHub chỉ khớp nếu email đúng là email GitHub của người đó. Son (thaiquangson@gmail.com) và Bao (maitieubao@gmail.com) cũng nên xác nhận lại. | [ ] |
+| 2 | Verify repo GitHub: https://github.com/Tqson3118/Visualization — nhánh `main` + `dev` đã push (8 commit) | Push đã thành công bằng credential có sẵn trên máy (không cần nhập lại). Nếu muốn đổi repo public/private → Settings trên GitHub. | [ ] |
+| 3 | (Tùy chọn) Xóa backup 3 .git cũ (~115MB) sau khi xác nhận repo mới ổn | `C:\Users\ADMINI~1\AppData\Local\Temp\opencode\git-backup-20260812\` — giữ lịch sử gốc của 3 source repo | [ ] |
+| 4 | Khi Session B xong: commit `backend/` + `frontend/` root (skeleton v2) theo quy trình feature branch → PR → dev | Hiện UNTRACKED do Session B đang chạy song song | [ ] |
+| 5 | (Tùy chọn) Đổi branch mặc định của GitHub repo thành `main` nếu GitHub tạo mặc định khác | GitHub tự nhận `main` khi push — thường không cần | [ ] |
+
+> Cập nhật bởi Session C (PM --auto). Đừng xóa mục cũ — đánh dấu [x] khi xong.
