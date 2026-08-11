@@ -1,0 +1,13 @@
+{
+  "name": "visualizationdsa-screenshots",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "UI screenshot tool for VisualizationDSA (dark/light x 4 breakpoints)",
+  "scripts": {
+    "shot": "node screenshot.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}
