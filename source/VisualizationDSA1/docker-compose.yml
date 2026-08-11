@@ -1,0 +1,121 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────
+  database:
+    image: postgres:15-alpine
+    container_name: vdsa-database
+    environment:
+      POSTGRES_DB: visualization_dsa_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_INITDB_ARGS: --auth-host=md5
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d visualization_dsa_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── .NET 9 Backend API ───────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vdsa-backend
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5055
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING:?Set DB_CONNECTION_STRING in .env (docker-compose file at repo root)}
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY in .env}
+      - Jwt__Issuer=${JWT_ISSUER:-VisualizationDSA}
+      - Jwt__Audience=${JWT_AUDIENCE:-VisualizationDSAUsers}
+      - SePay__WebhookSecret=${SEPAY__WEBHOOKSECRET:-VisualizationDSA_SePay_Dev_Secret_2026}
+      - Cloudinary__ApiSecret=${CLOUDINARY__APISECRET:-CHANGE_ME_cloudinary_api_secret}
+      - SMTP__Host=${SMTP__HOST:-CHANGE_ME_smtp_host}
+      - SMTP__Port=${SMTP__PORT:-587}
+      - SMTP__User=${SMTP__USER:-CHANGE_ME_smtp_user}
+      - SMTP__Password=${SMTP__PASSWORD:-CHANGE_ME_smtp_password}
+      - SMTP__FromEmail=${SMTP__FROMEMAIL:-noreply@visualizationdsa.dev}
+      - Google__ClientId=${GOOGLE__CLIENTID:-CHANGE_ME_google_client_id.apps.googleusercontent.com}
+      - Google__ClientSecret=${GOOGLE__CLIENTSECRET:-CHANGE_ME_google_client_secret}
+    ports:
+      - "5055:5055"
+    restart: unless-stopped
+
+  # ── Vue 3 Frontend (nginx) ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5055
+    container_name: vdsa-frontend
+    ports:
+      - "5173:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Redis (For Judge0) ──────────────────────────────────
+  redis:
+    image: redis:6.0
+    container_name: vdsa-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # ── Judge0 API ──────────────────────────────────────────
+  judge0-leetcode:
+    image: judge0/judge0:1.13.0
+    container_name: vdsa-judge0-api
+    ports:
+      - "2358:2358"
+    environment:
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MAX_CPU_TIME_LIMIT=5
+      - MAX_MEMORY_LIMIT=262144
+      - ENABLE_NETWORK=false
+    depends_on:
+      - redis
+      - database
+      - judge0-leetcode-worker
+    restart: unless-stopped
+
+  # ── Judge0 Worker ───────────────────────────────────────
+  judge0-leetcode-worker:
+    image: judge0/judge0:1.13.0
+    container_name: vdsa-judge0-worker
+    command: ["./scripts/workers"]
+    environment:
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - database
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local

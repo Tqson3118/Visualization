@@ -1,0 +1,214 @@
+version: "3.9"
+
+# Production docker-compose for VisualizationDSA
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────
+  database:
+    image: postgres:15-alpine
+    container_name: vdsa-database
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-visualization_dsa_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: --auth-host=md5
+      POSTGRES_HOST_AUTH_METHOD: md5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-visualization_dsa_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Redis (For Judge0 & Caching) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vdsa-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ── .NET 9 Backend API ───────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vdsa-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5055
+      - ConnectionStrings__DefaultConnection=Host=database;Database=${POSTGRES_DB:-visualization_dsa_prod};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER:-VisualizationDSA}
+      - Jwt__Audience=${JWT_AUDIENCE:-VisualizationDSAUsers}
+      - VITE_API_BASE_URL=https://${DOMAIN:-localhost}/api
+      - Cors__AllowedOrigins=https://${DOMAIN:-localhost}
+    ports:
+      - "5055:5055"
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5055/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── Vue 3 Frontend (nginx) ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://${DOMAIN:-localhost}/api
+    container_name: vdsa-frontend
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Judge0 API ──────────────────────────────────────────
+  judge0-leetcode:
+    image: judge0/judge0:1.13.0
+    container_name: vdsa-judge0-api
+    environment:
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-visualization_dsa_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MAX_CPU_TIME_LIMIT=5
+      - MAX_MEMORY_LIMIT=262144
+      - ENABLE_NETWORK=false
+    depends_on:
+      - redis
+      - database
+      - judge0-leetcode-worker
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ── Judge0 Worker ───────────────────────────────────────
+  judge0-leetcode-worker:
+    image: judge0/judge0:1.13.0
+    container_name: vdsa-judge0-worker
+    command: ["./scripts/workers"]
+    environment:
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-visualization_dsa_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - database
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ── Nginx Reverse Proxy (SSL Termination) ───────────────
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: vdsa-nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-proxy.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx-proxy-entrypoint.sh:/docker-entrypoint.d/99-envsubst.sh:ro
+      - ./certs:/etc/nginx/certs:ro
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
