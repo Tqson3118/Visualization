@@ -1,0 +1,513 @@
+using Asp.Versioning;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
+using VisualizationDSA.Application;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using Serilog.Events;
+using System.IO.Compression;
+using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
+using VisualizationDSA.Application.Common.Interfaces;
+using VisualizationDSA.Application.Services;
+using VisualizationDSA.Domain.Interfaces;
+using VisualizationDSA.Infrastructure.Data;
+using VisualizationDSA.Infrastructure.Extensions;
+using VisualizationDSA.Infrastructure.Interceptors;
+using VisualizationDSA.Infrastructure.Repositories;
+using VisualizationDSA.Infrastructure.Services;
+using VisualizationDSA.WebApi.Middlewares;
+using VisualizationDSA.WebApi.Filters;
+
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System",    LogEventLevel.Warning)
+    .WriteTo.Console(outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+    .CreateBootstrapLogger();
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)   
+        .ReadFrom.Services(services)                     
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        .MinimumLevel.Override("System",    LogEventLevel.Warning)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "VisualizationDSA")
+        .WriteTo.Console(outputTemplate:
+            "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+        .WriteTo.File(
+            path:              "logs/app-.log",
+            rollingInterval:   RollingInterval.Day,
+            retainedFileCountLimit: 7,           
+            outputTemplate:    "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
+});
+
+
+builder.Services.AddApplicationServices();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddControllers(options =>
+    {
+        
+        options.Filters.Add<VisualizationDSA.WebApi.Filters.AuditEventActionFilter>();
+    })
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.DefaultIgnoreCondition =
+            System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new UrlSegmentApiVersionReader();
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title       = "VisualizationDSA API",
+        Version     = "v1",
+        Description = "Backend API cho ứng dụng trực quan hóa DSA & OOP",
+    });
+
+    
+    var jwtScheme = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme       = "bearer",
+        BearerFormat = "JWT",
+        In           = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description  = "Nhập JWT token (không cần prefix 'Bearer ')",
+    };
+    options.AddSecurityDefinition("Bearer", jwtScheme);
+
+    
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Id   = "Bearer",
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/json" });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// Configure Database (PostgreSQL)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' chưa được cấu hình. Set biến môi trường ConnectionStrings__DefaultConnection (đầy đủ kèm Password) trước khi khởi động.");
+}
+builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
+{
+    options.UseNpgsql(connectionString);
+    
+    // Bảo vệ tính bất biến của Event Sourcing Ledger (chặn UPDATE/DELETE).
+    options.AddInterceptors(new ImmutableAuditInterceptor());
+});
+
+builder.Services.AddScoped<VisualizationDSA.Application.Interfaces.IApplicationDbContext>(provider => provider.GetRequiredService<VisualizationDSA.Infrastructure.Data.ApplicationDbContext>());
+
+
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGemsShopService, GemsShopService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IUploadService, CloudinaryUploadService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IGamificationService, GamificationService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+builder.Services.AddScoped<IDailyQuestService, DailyQuestService>();
+
+// Register Background Service
+builder.Services.AddHostedService<CoreBackgroundJobsService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<ISemanticGraphService, SemanticGraphService>();
+builder.Services.AddScoped<IAuditEventService, AuditEventService>();
+
+// Domain services (G0.3 - DI registrations còn thiếu)
+builder.Services.AddScoped<IHeartService, HeartService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<ITeacherApplicationService, TeacherApplicationService>();
+builder.Services.AddScoped<VisualizationDSA.Application.Services.INotificationService, NotificationService>();
+builder.Services.AddScoped<IPracticeLadderService, PracticeLadderService>();
+builder.Services.AddHttpClient<ISandboxService, SandboxService>();
+builder.Services.AddHttpClient<IJudge0Service, Judge0Service>();
+builder.Services.AddScoped<IRoadmapAuditService, RoadmapAuditService>();
+builder.Services.AddScoped<IContentModerationService, ContentModerationService>();
+builder.Services.AddScoped<ITeacherStudioService, TeacherStudioService>();
+builder.Services.AddScoped<IRoadmapReviewService, RoadmapReviewService>();
+
+
+builder.Services.Configure<JudgeOptions>(builder.Configuration.GetSection(JudgeOptions.SectionName));
+builder.Services.AddHttpClient<PistonCodeJudgeService>((sp, client) =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<JudgeOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(Math.Max(5, options.HttpTimeoutSeconds));
+});
+builder.Services.AddScoped<ICodeJudgeService>(sp => sp.GetRequiredService<PistonCodeJudgeService>());
+builder.Services.AddScoped<VisualizationDSA.Application.Services.IProgressRuleEngine, VisualizationDSA.Infrastructure.Services.ProgressRuleEngine>();
+
+
+builder.Services.AddScoped<VisualizationDSA.Application.Services.IClassroomProgressService, VisualizationDSA.Infrastructure.Services.ClassroomProgressService>();
+builder.Services.AddScoped<VisualizationDSA.Application.Services.IClassroomUnlockRuleEngine, VisualizationDSA.Infrastructure.Services.ClassroomUnlockRuleEngine>();
+builder.Services.AddScoped<VisualizationDSA.Application.Services.IClassroomGradingService, VisualizationDSA.Infrastructure.Services.ClassroomGradingService>();
+
+
+builder.Services.AddAlgorithmStrategies();
+
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        Console.WriteLine("[WARN] Jwt:Key chưa cấu hình - đã sinh key ngẫu nhiên cho Development (token sẽ hết hạn khi restart). Để token ổn định, set Jwt__Key.");
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Key chưa được cấu hình. Set biến môi trường Jwt__Key (>= 32 ký tự) trước khi khởi động.");
+    }
+}
+
+JwtHelper.Initialize(jwtKey);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+
+
+
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+
+                
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    (path.StartsWithSegments("/hubs/notifications") || path.StartsWithSegments("/hubs/quiz-room")))
+                {
+                    
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+
+builder.Services.AddHealthChecks()
+    .AddCheck<VisualizationDSA.WebApi.Filters.DatabaseHealthCheck>("Database");
+
+
+builder.Services.AddRateLimiter(options =>
+{
+    
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "global",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit          = 10,
+                Window               = TimeSpan.FromMinutes(1),
+                QueueLimit           = 0,  
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    
+    options.AddPolicy("api", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "global",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit          = 60,
+                Window               = TimeSpan.FromMinutes(1),
+                QueueLimit           = 10,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    
+    options.AddPolicy("heavy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "global",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit          = 15,
+                Window               = TimeSpan.FromMinutes(1),
+                QueueLimit           = 0,  
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync(
+            JsonSerializer.Serialize(new { message = "Quá nhiều yêu cầu. Vui lòng thử lại sau." }),
+            token);
+    };
+});
+
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+
+app.UseGlobalErrorHandling();
+
+
+app.UseSerilogRequestLogging(options =>
+{
+    
+    options.GetLevel = (ctx, elapsed, ex) =>
+        ctx.Request.Path.StartsWithSegments("/health")
+            ? LogEventLevel.Verbose
+            : LogEventLevel.Information;
+});
+
+
+app.UseSecurityHeaders();
+
+app.UseResponseCompression();
+app.UseStaticFiles(); 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseUserLogging();
+app.UseRateLimiter();
+app.MapControllers();
+
+
+app.MapHub<VisualizationDSA.WebApi.Hubs.LeaderboardHub>("/hubs/leaderboard");
+app.MapHub<VisualizationDSA.WebApi.Hubs.NotificationHub>("/hubs/notifications");
+app.MapHub<VisualizationDSA.WebApi.Hubs.QuizRoomHub>("/hubs/quiz-room");
+
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = JsonSerializer.Serialize(new
+        {
+            status      = report.Status.ToString(),
+            checks      = report.Entries.Select(e => new
+            {
+                name    = e.Key,
+                status  = e.Value.Status.ToString(),
+                latency = e.Value.Duration.TotalMilliseconds,
+            }),
+            totalDuration = report.TotalDuration.TotalMilliseconds,
+            timestamp     = DateTime.UtcNow,
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
+
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        // Migration order của repo bị sai (Sprint4 chạy trước Initial) nên MigrateAsync không dùng được.
+        // EnsureCreatedAsync: nếu DB chưa có bảng model thì tạo đủ schema theo model hiện tại (bảng mới kèm theo).
+        // DB dev này chỉ có bảng Judge0 (không thuộc model EF) → EnsureCreated sẽ tạo bảng app bổ sung.
+        await context.Database.EnsureCreatedAsync();
+        await ApplySchemaPatchesAsync(context);
+        
+        var seeder = new DbSeeder(context);
+        await seeder.SeedAsync();
+        Console.WriteLine("[DB SEEDER SUCCESS]: Đã nạp dữ liệu seed (roadmaps, quizzes, courses, users).");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[DB SEED ERROR]: {ex}");
+    Log.Warning(ex, "Không thể kết nối cơ sở dữ liệu local để chạy migrations. Hệ thống vẫn khởi động bình thường.");
+}
+
+app.Run();
+
+// ── Idempotent schema patch cho các bảng/cột MỚI (G3.2 Enrollment, G3.8 reset token) ──
+static async Task ApplySchemaPatchesAsync(ApplicationDbContext context)
+{
+    try
+    {
+        // 1. Cột password reset token trên Users
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetToken\" text NULL");
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetTokenExpiry\" timestamptz NULL");
+
+        // 2. Bảng RoadmapEnrollments (nếu chưa có)
+        await context.Database.ExecuteSqlRawAsync(
+            @"CREATE TABLE IF NOT EXISTS ""RoadmapEnrollments"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""UserId"" uuid NOT NULL,
+                ""RoadmapId"" uuid NOT NULL,
+                ""Status"" text NOT NULL DEFAULT 'Active',
+                ""EnrolledAt"" timestamptz NOT NULL DEFAULT now(),
+                ""CompletedAt"" timestamptz NULL
+            )");
+        await context.Database.ExecuteSqlRawAsync(
+            @"DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_Enrollment_User_Roadmap') THEN
+                    ALTER TABLE ""RoadmapEnrollments"" ADD CONSTRAINT ""UQ_Enrollment_User_Roadmap"" UNIQUE (""UserId"", ""RoadmapId"");
+                END IF;
+            END $$;");
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS \"IX_Enrollments_UserId_Status\" ON \"RoadmapEnrollments\" (\"UserId\", \"Status\")");
+
+        // 3. Cột visualizerConfig trên CustomNodes (G3.5.6 — teacher gắn visualizer cho bài)
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"CustomNodes\" ADD COLUMN IF NOT EXISTS \"VisualizerConfig\" text NULL");
+
+        // 3b. Cột IsHidden trên CustomNodes (E — moderation ẩn bài vi phạm; thiếu cột này → GET published 500)
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"CustomNodes\" ADD COLUMN IF NOT EXISTS \"IsHidden\" boolean NOT NULL DEFAULT false");
+
+        // 4. Cột CoverUrl trên Users (ProfileView upload ảnh bìa)
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CoverUrl\" text NULL");
+
+        // 5. Bảng RoadmapReviews (G3.9 — D15, UC-50/51)
+        await context.Database.ExecuteSqlRawAsync(
+            @"CREATE TABLE IF NOT EXISTS ""RoadmapReviews"" (
+                ""Id"" uuid NOT NULL PRIMARY KEY,
+                ""UserId"" uuid NOT NULL,
+                ""RoadmapId"" uuid NOT NULL,
+                ""Rating"" int NOT NULL CHECK (""Rating"" BETWEEN 1 AND 5),
+                ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
+                ""UpdatedAt"" timestamptz NULL
+            )");
+        await context.Database.ExecuteSqlRawAsync(
+            @"DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_Review_User_Roadmap') THEN
+                    ALTER TABLE ""RoadmapReviews"" ADD CONSTRAINT ""UQ_Review_User_Roadmap"" UNIQUE (""UserId"", ""RoadmapId"");
+                END IF;
+            END $$;");
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS \"IX_Reviews_RoadmapId\" ON \"RoadmapReviews\" (\"RoadmapId\")");
+
+        // 6. ModuleItems: nới check constraint cho phép "Lesson + Codelab" (liên kết Lab ↔ bài giảng, legacy mapping)
+        await context.Database.ExecuteSqlRawAsync(
+            @"DO $$ BEGIN
+                IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CK_ModuleItem_OneReference') THEN
+                    ALTER TABLE ""ModuleItems"" DROP CONSTRAINT ""CK_ModuleItem_OneReference"";
+                END IF;
+            END $$;");
+        await context.Database.ExecuteSqlRawAsync(
+            @"ALTER TABLE ""ModuleItems"" ADD CONSTRAINT ""CK_ModuleItem_OneReference"" CHECK (
+                (""LessonId"" IS NOT NULL AND ""QuizId"" IS NULL AND ""CodelabId"" IS NULL) OR
+                (""LessonId"" IS NULL AND ""QuizId"" IS NOT NULL AND ""CodelabId"" IS NULL) OR
+                (""LessonId"" IS NULL AND ""QuizId"" IS NULL AND ""CodelabId"" IS NOT NULL) OR
+                (""LessonId"" IS NOT NULL AND ""QuizId"" IS NULL AND ""CodelabId"" IS NOT NULL))");
+
+        Console.WriteLine("[DB SCHEMA PATCH]: OK");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DB SCHEMA PATCH WARN]: {ex.Message}");
+    }
+}
