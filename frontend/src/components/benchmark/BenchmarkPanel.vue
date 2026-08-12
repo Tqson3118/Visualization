@@ -12,7 +12,7 @@ import {
   worstArray,
   type BenchmarkMeasure,
 } from '@/engines/benchmark/codeTemplates';
-import { runMeasure } from '@/engines/core/stepExecutor';
+import { runMeasureInWorker } from '@/engines/worker/compileWorker';
 import { useUiStore } from '@/stores/ui';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -98,16 +98,21 @@ async function run(): Promise<void> {
       for (const key of selectedKeys.value) {
         const def = BENCHMARK_ALGORITHMS[key];
         const input = inputFor(dataMode.value, size);
-        // runMeasure: timeout 5s/độ đo → null → hiển thị N/A (SDD Màn 17)
-        const result = runMeasure(def.code, input);
-        measures[key] = result
-          ? {
-              durationMs: result.durationMs,
-              comparisons: result.comparisons,
-              swaps: result.swaps,
-              writes: result.writes,
-            }
-          : null;
+        // runMeasureInWorker: đo trong Web Worker (ADR-012) — không chặn UI;
+        // timeout 5s/độ đo → null → hiển thị N/A (SDD Màn 17)
+        try {
+          const result = await runMeasureInWorker(def.code, input);
+          measures[key] = result
+            ? {
+                durationMs: result.durationMs,
+                comparisons: result.comparisons,
+                swaps: result.swaps,
+                writes: result.writes,
+              }
+            : null;
+        } catch {
+          measures[key] = null; // phòng hờ: lỗi bất ngờ → N/A
+        }
         await new Promise((resolve) => setTimeout(resolve, 0)); // nhường UI
       }
       rows.value = [...rows.value, { size, measures }];

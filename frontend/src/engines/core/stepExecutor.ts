@@ -1307,10 +1307,13 @@ export function runCode(code: CodeSimulation, input: unknown): RunResult {
 }
 
 /**
+ * ⚠️ DEPRECATED (ADR-012) — dùng `runMeasureInWorker` từ `engines/worker/compileWorker`.
+ * Bản này chạy MAIN-THREAD nên CHẶN UI khi đo (VD bubble O(n²) n=500 mất nhiều giây).
+ * Chỉ giữ cho test/fallback an toàn — BenchmarkPanel đã chuyển sang Web Worker.
+ *
  * Chế độ ĐO không trace (SDD §4.0.3 v2.5 — Benchmark Lab FR-3.20):
  * chạy code thật, KHÔNG sinh TraceEvent[], timeout 5 giây → vượt trả null (UI hiện N/A).
  * Bộ đếm chặn vòng lặp vô hạn (MAX_STEPS/MAX_LOOP_ITERATIONS) vẫn hoạt động.
- * TODO (task engine nâng cao): di chuyển vào Web Worker (ADR-012) để không chặn UI.
  */
 export function runMeasure(code: string, input: unknown): { durationMs: number; comparisons: number; swaps: number; writes: number } | null {
   const counters: MeasureCounters = { comparisons: 0, swaps: 0, writes: 0 };
