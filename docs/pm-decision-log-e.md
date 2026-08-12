@@ -45,3 +45,9 @@ eww-sqlserver-1 (Up healthy) cho integration test; nếu Testcontainers cần im
 ## [2026-08-12 10:15] Task E6 hoàn thành — Review + fix (thu)
 - Quyết định: dev-review verdict CHANGES REQUESTED (1 Major: hashTableRenderer width âm → IndexSizeError; 1 Minor: README sai số 26→27). Sửa qua feature/e2-fixes: clamp hw ≥ 12 + test m=11/w=200 + README đúng 27. Verify sau fix: FE 72/72 + build PASS, BE 44+27. Merge vào dev → chốt APPROVE.
 - Ảnh hưởng: hashTableRenderer.ts, renderers.spec.ts, IntegrationTests README.
+
+## [2026-08-12 10:40] Fix canvas phình 10.535px — ResizeObserver loop (son)
+- Quyết định: chọn phương án A (user duyệt): .canvas-area__viewport height:420px cố định (bỏ min-height, giữ overflow:hidden) + guard delta <2px trong resize() (lastView) — 2 lớp chặn vòng lặp. Root cause: viewport flex:1 + cha height auto → canvas.style.height = parent.clientHeight → observer fire → phình.
+- Verify: 4 màn (sort.heap/sort.bubble/structure.avl/graph.bfs) canvas 417.6px bất biến sau 2s, console 0 lỗi; scrollbar trang còn lại do layout app-shell (footer/main) — KHÔNG phải canvas (canvas-area bottom 574 < viewport 674). npm run build PASS + npm test 72/72. Account test: univ123@university.edu.vn / MatKhau@123 (register mới).
+- Commit ba62a33 (son) → merge dev 090accf → push origin OK.
+- Ảnh hưởng: frontend/src/components/simulator/CanvasArea.vue (6 insertions/2 deletions).
