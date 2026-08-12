@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -68,6 +69,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // BUG FIX (production): mặc định MapInboundClaims=true map claim "sub" (ngắn) thành
+        // ClaimTypes.NameIdentifier (URI dài) → controllers đọc User.FindFirst(JwtRegisteredClaimNames.Sub)
+        // trả null → NullReferenceException → 500 trên MỌI endpoint [Authorize].
+        // Tắt mapping để giữ claim "sub" đúng chuẩn JWT như TokenService ghi (SDD §5.3.5).
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -77,7 +83,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["DSA:Jwt:Issuer"],
             ValidAudience = builder.Configuration["DSA:Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            ClockSkew = TimeSpan.FromMinutes(1)
+            ClockSkew = TimeSpan.FromMinutes(1),
+            // Tường minh: role claim dùng ClaimTypes.Role (URI dài) như TokenService ghi —
+            // đảm bảo [Authorize(Roles = "TEACHER,ADMIN")] hoạt động khi MapInboundClaims=false
+            // (giá trị này trùng default, khai báo để tự bảo vệ trước hồi quy claim mapping).
+            RoleClaimType = ClaimTypes.Role
         };
     });
 builder.Services.AddAuthorization();
@@ -182,3 +192,9 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+/// <summary>
+/// Entry point công khai — cần cho WebApplicationFactory&lt;Program&gt; trong integration tests (E2).
+/// Top-level statements sinh class Program internal; khai báo partial public để test host được.
+/// </summary>
+public partial class Program { }
