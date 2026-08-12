@@ -660,24 +660,28 @@ public sealed class GamificationService(
         }
 
         var now = clock.UtcNow;
+        // GP-T7: mã CK tự động DSV{userId}T{months} (VD DSV1002T3) — QR MB Bank + log giao dịch map được.
+        // Không còn MOCK-{guid}: OrderRef phải trùng nội dung CK để đối soát.
+        var orderRef = $"DSV{userId}T{months.Value}";
         var subscription = new PremiumSubscription
         {
             UserId = userId,
             PlanId = request.PlanId,
             StartedAt = now,
-            Status = 2,                          // mock-paid — chờ thanh toán mô phỏng
-            OrderRef = $"MOCK-{Guid.NewGuid():N}",
+            Status = 2,                          // chờ thanh toán mô phỏng (GP-T7: xác nhận đã chuyển khoản)
+            OrderRef = orderRef,
             CreatedAt = now
         };
         db.PremiumSubscriptions.Add(subscription);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Premium order {OrderId} created for user {UserId} ({PlanId})", subscription.Id, userId, request.PlanId);
+        logger.LogInformation("Premium order {OrderId} created for user {UserId} ({PlanId}, orderRef={OrderRef})", subscription.Id, userId, request.PlanId, orderRef);
         return Result<PremiumUpgradeResultDto>.Ok(new PremiumUpgradeResultDto
         {
             OrderId = subscription.Id,
             PlanId = request.PlanId,
-            ExpiresAt = now.AddMonths(months.Value)
+            ExpiresAt = now.AddMonths(months.Value),
+            ContentRef = orderRef
         });
     }
 

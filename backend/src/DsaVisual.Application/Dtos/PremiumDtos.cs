@@ -21,6 +21,9 @@ public sealed class PremiumUpgradeResultDto
     public int OrderId { get; set; }
     public string PlanId { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
+
+    /// <summary>Mã CK tự động DSV{userId}T{months} (VD DSV1002T3) — GP-T7: hiển thị trên QR chuyển khoản MB Bank.</summary>
+    public string ContentRef { get; set; } = string.Empty;
 }
 
 /// <summary>Thanh toán mô phỏng — POST /premium/mock-pay {orderId}.</summary>

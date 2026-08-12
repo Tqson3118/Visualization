@@ -1,4 +1,5 @@
 ﻿using DsaVisual.Application.Common;
+using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Services;
@@ -383,5 +384,42 @@ public class GamificationServiceTests
         Assert.Equal(3, items[1].UserId);
         Assert.Equal(600, items[1].Value);
         Assert.DoesNotContain(items, i => i.UserId == 1);   // user 1 không phải thành viên
+    }
+
+    // ── GP-T7: OrderRef/ContentRef = DSV{userId}T{months} (QR MB Bank) ──────────
+
+    [Fact]
+    public async Task UpgradePremium_CreatesOrder_WithDsvOrderRef()
+    {
+        var (service, db) = await SetupAsync(nameof(UpgradePremium_CreatesOrder_WithDsvOrderRef));
+
+        var result = await service.UpgradePremiumAsync(1, new PremiumUpgradeRequest { PlanId = "3m" }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal("DSV1T3", result.Value!.ContentRef);
+        Assert.True(result.Value.OrderId > 0, "OrderId phải > 0 (đã lưu DB)");
+
+        var order = await db.PremiumSubscriptions.AsNoTracking().FirstAsync(s => s.Id == result.Value.OrderId);
+        Assert.Equal("DSV1T3", order.OrderRef);      // log giao dịch map được mã CK
+        Assert.Equal(2, order.Status);               // chờ xác nhận chuyển khoản (GP-T7)
+        Assert.Equal("3m", order.PlanId);
+        Assert.Equal(_clock.UtcNow.AddMonths(3), result.Value.ExpiresAt);
+    }
+
+    [Theory]
+    [InlineData("1m", "DSV1T1")]
+    [InlineData("3m", "DSV1T3")]
+    [InlineData("12m", "DSV1T12")]
+    public async Task UpgradePremium_OrderRefFormat_MatchesPlan(string planId, string expectedRef)
+    {
+        var (service, db) = await SetupAsync($"UpgradePremium_OrderRefFormat_{planId}");
+
+        var result = await service.UpgradePremiumAsync(1, new PremiumUpgradeRequest { PlanId = planId }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(expectedRef, result.Value!.ContentRef);
+
+        var order = await db.PremiumSubscriptions.AsNoTracking().FirstAsync(s => s.Id == result.Value.OrderId);
+        Assert.Equal(expectedRef, order.OrderRef);
     }
 }
