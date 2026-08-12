@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 1.2 |
+| Phiên bản | 1.3 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Nguồn | PRODUCTION_PROMPT.md (v2.5) — single source of truth |
@@ -13,17 +13,17 @@
 
 | # | File | Nội dung | Độc giả | Độ dài (dòng) |
 |---|---|---|---|---|
-| 1 | `docs/SRS.md` | Đặc tả yêu cầu phần mềm: 10 module A-J, master matrix, 32 UC, 36 NFR, AC-1..8 | Giảng viên, hội đồng, PM | 1543 |
-| 2 | `docs/SDD.md` | Thiết kế hệ thống: EDV/StepExecutor, frontend, backend, API, 32 bảng DB, 32 màn | Kiến trúc sư, lập trình viên | 2992 |
+| 1 | `docs/SRS.md` | Đặc tả yêu cầu phần mềm: 10 module A-J, master matrix, 32 UC, 36 NFR, AC-1..8 | Giảng viên, hội đồng, PM | 1544 |
+| 2 | `docs/SDD.md` | Thiết kế hệ thống: EDV/StepExecutor, frontend, backend, API, 32 bảng DB, 32 màn | Kiến trúc sư, lập trình viên | 3015 |
 | 3 | `docs/API_REFERENCE.md` | Tham chiếu API: mọi endpoint, DTO, error code catalog, RBAC 36 | Lập trình viên, tester | 596 |
 | 4 | `docs/USER_GUIDE.md` | Hướng dẫn sử dụng (sinh viên + giảng viên + admin) | Người dùng cuối | 355 |
-| 5 | `docs/TEST_PLAN.md` | Kế hoạch kiểm thử + golden data + ma trận truy vết | Tester, QA, hội đồng | 599 |
+| 5 | `docs/TEST_PLAN.md` | Kế hoạch kiểm thử + golden data + ma trận truy vết | Tester, QA, hội đồng | 602 |
 | 6 | `docs/DEPLOY.md` | Triển khai & vận hành: biến env, nginx, systemd, backup, runbook | DevOps, admin | 306 |
 | 7 | `docs/GLOSSARY.md` | Thuật ngữ 3 nhóm: nghiệp vụ / kỹ thuật / DSA | Tất cả | 94 |
-| 8 | `docs/README.md` | Mục lục tài liệu + ma trận ánh xạ yêu cầu → tài liệu (17.8) | Tất cả | 179 |
+| 8 | `docs/README.md` | Mục lục tài liệu + ma trận ánh xạ yêu cầu → tài liệu (17.8) | Tất cả | 183 |
 | 9 | `docs/SCREEN_MAP.md` | Bản đồ màn hình Màn 01-32 + N-1..N-16, ma trận FR→Màn | Lập trình viên, hội đồng | 268 |
 | 10 | `shared/simulation-catalog.json` | Danh mục mô phỏng dùng chung FE/BE — nguồn duy nhất khóa `key` (9.9) | Lập trình viên | 46 |
-| 11 | `THIRD_PARTY.md` | Danh sách thư viện mã nguồn mở + license (NFR-36) | Tất cả | 88 |
+| 11 | `THIRD_PARTY.md` | Danh sách thư viện mã nguồn mở + license (NFR-36) | Tất cả | 108 |
 | 12 | `README.md` (root) | Hướng dẫn dev: cài đặt, lệnh chạy, quy tắc nhóm Git/Conventional Commits (2.7, 14.4) | Lập trình viên | 154 |
 
 > Cách đếm: PowerShell `Measure-Object -Line` (dòng có nội dung — không tính dòng trống), chạy 12/08/2026 — cùng cách đếm của audit §17.9 (F2a).
@@ -32,20 +32,20 @@
 
 | File | Tối thiểu | Kỳ vọng | Thực tế 12/08/2026 |
 |---|---|---|---|
-| SRS.md | 900 | 1200-1600 | ✔ 1543 (trong kỳ vọng) |
-| SDD.md | 1400 | 1800-2500 | ✔ 2992 (trên kỳ vọng) |
+| SRS.md | 900 | 1200-1600 | ✔ 1544 (trong kỳ vọng) |
+| SDD.md | 1400 | 1800-2500 | ✔ 3015 (trên kỳ vọng) |
 | API_REFERENCE.md | 700 | 900-1200 | ⚠ 596 (dưới ngưỡng — nội dung bắt buộc đủ: ~60 endpoint + ví dụ JSON, RBAC 36, error catalog; rà soát F2a §17.9) |
 | USER_GUIDE.md | 500 | 600-900 | ⚠ 355 (dưới ngưỡng — nội dung đủ cho 33 màn thật, đối chiếu 12/08/2026) |
-| TEST_PLAN.md | 600 | 800-1100 | ⚠ 599 (dưới ngưỡng 1 dòng — nội dung đủ: 130+ test case, ma trận truy vết; rà soát F2a §17.9) |
+| TEST_PLAN.md | 600 | 800-1100 | ⚠ 602 (dưới ngưỡng — nội dung đủ: 130+ test case, ma trận truy vết; rà soát F2a §17.9) |
 | DEPLOY.md | 300 | 400-600 | ✔ 306 (đạt tối thiểu) |
 | GLOSSARY.md | 100 | 150-250 | ⚠ 94 (dưới ngưỡng — đủ 3 nhóm thuật ngữ; rà soát F2a §17.9) |
 | SCREEN_MAP.md | 300 | 400-600 | ⚠ 268 (dưới ngưỡng — đủ Màn 01-32 + N-1..N-16; rà soát F2a §17.9) |
 
 > Cách đếm: PowerShell `Measure-Object -Line` (dòng có nội dung — không tính dòng trống), chạy 12/08/2026 — cùng cách đếm của audit §17.9 (F2a). Số trước đây (SRS 1771, SDD 3725, API 735...) là **tổng dòng kể cả dòng trống** — đã thống nhất dùng cách đếm không trống để khớp audit.
 | shared/simulation-catalog.json | 40 | 60-100 | ✔ 46 (44 entries) |
-| THIRD_PARTY.md | 40 | 60-100 | ✔ 83 |
+| THIRD_PARTY.md | 40 | 60-100 | ✔ 108 |
 | README.md (root) | 200 | 300-500 | ✔ 194 |
-| docs/README.md | (mục lục) | — | ✔ 209 |
+| docs/README.md | (mục lục) | — | ✔ 183 |
 
 ## 2. Quy tắc dùng tài liệu
 
@@ -211,4 +211,5 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Tạo mới: mục lục 12 file + ma trận ánh xạ 17.8 + ma trận FR↔UC↔Module + trạng thái sản xuất |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: cập nhật bảng độ dài tài liệu theo số dòng thực tế sau khi vá lỗi review (SRS 1302, SDD 2079, API 735, TEST 780, DEPLOY 404, SCREEN_MAP 326, THIRD_PARTY 83, README root 194) |
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: thống nhất cách đếm `Measure-Object -Line` (dòng không trống — khớp audit §17.9 F2a) và cập nhật số dòng thật toàn bộ bảng §1 + §1.1 (SRS 1543, SDD 2992, API 596, USER_GUIDE 355, TEST_PLAN 599, DEPLOY 306, GLOSSARY 94, SCREEN_MAP 268, README root 154, THIRD_PARTY 88); ghi trạng thái ⚠ cho file dưới ngưỡng dòng kèm lý do nội dung đủ |
+| 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật version + số dòng thật của các docs đã sửa — SRS 1.3 (1544), SDD 1.4 (3015), TEST_PLAN 1.3 (602), THIRD_PARTY 1.2 (108); ghi chú stack UI/UX mới (Tailwind 4 + shadcn-vue + vue-echarts + font Geist) — chi tiết tại SDD §3.8/§3.9, THIRD_PARTY §1, REUSE_REPORT §6 |
 

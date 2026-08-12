@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | SRS (Software Requirements Specification) |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.3 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -23,6 +23,7 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 247 dòng, không đủ khuôn 17.3.1) |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review (đồng bộ prompt v2.10): NFR-12 thay "sinh bước 20 req/phút" (endpoint đã cắt — bước sinh client-side ADR-001) bằng "code-runs (sandbox) 20 req/phút/user" |
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu theo khuôn 17.13/6: mở rộng TOÀN BỘ 75 FR lên đủ 7 thuộc tính (Mô tả/Luồng hoạt động/Ngoại lệ/AC/Ràng buộc/Nguồn/Ghi chú — FR-9.3 dùng mục "3. Nơi chấm — QUYẾT ĐỊNH CHỐT" thay cho Ngoại lệ, số hiệu đẩy xuống); mở rộng TOÀN BỘ 32 UC lên đủ 10 mục (Tóm tắt → Nguồn FR); bảng NFR-8..36 bổ sung cột "Giá trị mục tiêu" + "Cách đo/kiểm tra" |
+| 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): NFR-5 nới giới hạn bundle theo thực tế build — Tổng JS gốc tải lần đầu ≤ 1.5MB + engine chunk ≤ 500KB gốc (trước: tổng ≤ 500KB, vượt thực tế engine 476KB + stack UI/UX mới); ghi số liệu thật tại SDD §3.9 / TEST_PLAN TEST-PERF-007 |
 
 ---
 
@@ -977,7 +978,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 | NFR-2 | Sinh chuỗi bước mô phỏng | Mảng 100 phần tử ≤ 500ms; đồ thị 50 đỉnh ≤ 1s | Unit test đo thời gian (Vitest) + profiler |
 | NFR-3 | Độ mượt điều hướng bước | ≥ 55 FPS chuyển bước liên tục (i5, 8GB, Chrome) | DevTools FPS meter |
 | NFR-4 | Tải trang lần đầu (SPA) | ≤ 3s trên 10Mbps; FCP ≤ 1.5s | Lighthouse (mobile & desktop) |
-| NFR-5 | Kích thước bundle JS | Tổng JS gốc ≤ 500KB; lõi mô phỏng tải trước | `vite build --report` |
+| NFR-5 | Kích thước bundle JS | Tổng JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc; lõi mô phỏng tải trước (nới theo thực tế đợt G — xem TEST_PLAN TEST-PERF-007) | `vite build --report` |
 | NFR-6 | Truy vấn danh sách | 10.000 bản ghi + phân trang ≤ 300ms | Benchmark API dữ liệu giả |
 | NFR-7 | Đồng thời | ≥ 200 người dùng đồng thời không suy giảm | k6: 200 VU × 15 phút |
 
