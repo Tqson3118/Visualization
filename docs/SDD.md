@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | SDD (Software Design Document) |
-| Phiên bản | 1.4 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.5 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 364 dòng, thiếu Phần 8 EDV/31 bảng/32 màn) |
 | 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
+| 1.5 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): Màn 25/26 — checkout 2 bước mới (chọn gói → QR VietQR EMVCo + nội dung CK `DSV{userId}T{months}` + nút "Tôi đã chuyển khoản" sau đếm ngược 60s; `qrcode` npm MIT); §7.3.28 PremiumSubscriptions.OrderRef = `DSV{userId}T{months}`; API `POST /premium/upgrade` trả `contentRef`; §3.9 cập nhật bundle thật 13/08 (qrcode vào chunk lazy PremiumView, JS lần đầu ≈ 852KB không đổi) |
 
 ---
 
@@ -311,7 +312,7 @@ export default defineConfig({
 ```
 
 - Lazy-load router các trang lớn (SimulatorView, ExerciseView, admin/*); vue-echarts lazy qua `defineAsyncComponent` (chunk `echarts-*` tách riêng).
-- **Bundle thật (build 12/08/2026 — đợt G):** engine `476 KB` gốc (`120 KB` gzip), echarts `324 KB` gốc (`110 KB` gzip, lazy), vendor `143 KB` gốc (`54 KB` gzip); JS gốc tải lần đầu ≈ `852 KB`; tổng JS gốc toàn dist ≈ `1.95 MB` (gồm chunk lazy). Giới hạn NFR-5 (đã nới): engine ≤ 500KB gốc, tổng JS gốc tải lần đầu ≤ 1.5MB — xem SRS §4.1 / TEST_PLAN TEST-PERF-007. Lệnh đo: `vite build --mode production && npx vite-bundle-visualizer`.
+- **Bundle thật (build 13/08/2026 — GP-T8, sau khi thêm `qrcode`):** engine `476 KB` gốc (`120 KB` gzip), echarts `324 KB` gốc (`110 KB` gzip, lazy), vendor `143 KB` gốc (`54 KB` gzip), chunk `PremiumView` `32 KB` gốc (`12.5 KB` gzip, lazy — gồm `qrcode` ~30KB, KHÔNG vào bundle chính); JS gốc tải lần đầu ≈ `852 KB` (không đổi so với đợt G); tổng JS gốc toàn dist ≈ `2.08 MB` (gồm chunk lazy: view, echarts, compiler.worker). Giới hạn NFR-5 (đã nới): engine ≤ 500KB gốc, tổng JS gốc tải lần đầu ≤ 1.5MB — xem SRS §4.1 / TEST_PLAN TEST-PERF-007. Lệnh đo: `vite build --mode production && npx vite-bundle-visualizer`.
 
 # 4. MÔ-ĐUN TRỰC QUAN HÓA (CỐT LÕI — EXECUTION-DRIVEN VISUALIZATION)
 
@@ -1556,7 +1557,7 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 
 ### 7.3.28 `PremiumSubscriptions` [FR-10.7]
 
-Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job downgrade khi hết hạn); Status int default 0 (0=active, 1=expired, 2=mock-paid); OrderRef nvarchar(100) NULL; CreatedAt. Index (UserId, Status), Users.PremiumUntil (job).
+Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job downgrade khi hết hạn); Status int default 0 (0=active, 1=expired, 2=mock-paid); OrderRef nvarchar(100) NULL (**GP-T7: `DSV{userId}T{months}`** — VD DSV1002T3, trùng nội dung CK QR MB Bank để đối soát; trước đây MOCK-{guid}); CreatedAt. Index (UserId, Status), Users.PremiumUntil (job).
 
 ### 7.3.29 `NodeSessions` [FR-10.1 — v2.4, v2.5]
 
@@ -1790,8 +1791,8 @@ graph LR
 | 22 | `/shop` | Gems Shop: lưới item + mua (atomic) | FR-10.2 | |
 | 23 | `/quests` | Daily Quest: 5 thẻ + tiến độ + claim + banner 5/5 | FR-10.3 | |
 | 24 | `/leaderboard` | Bảng xếp hạng 3 tab + vị trí của mình | FR-10.6 | |
-| 25 | `/premium` | Bảng giá 3 gói + so sánh quyền lợi + checkout mô phỏng 2 bước (modal) | FR-10.7 | |
-| 26 | (gộp 25) | Checkout mô phỏng | FR-10.7 | modal 2 bước |
+| 25 | `/premium` | Bảng giá 3 gói + so sánh quyền lợi + checkout QR chuyển khoản MB Bank 2 bước (modal) | FR-10.7 | |
+| 26 | (gộp 25) | Checkout QR MB Bank (QR VietQR EMVCo + nội dung CK DSV + đếm ngược 60s) | FR-10.7 | modal 2 bước |
 | 27 | `/account/subscription` | Quản lý gói + hủy gia hạn | FR-10.7 | |
 | 28 | (overlay) | Modal "Hết tim": đếm ngược + nút xem node đã pass + nâng cấp | FR-10.1 | overlay toàn cục |
 | 29 | (tab 10) | Tab "Chờ duyệt Teacher" | FR-1.8 | gộp Màn 10 |
@@ -3043,7 +3044,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 **Mục đích**: Giới thiệu quyền lợi Premium, bảng giá 3 gói (1/3/12 tháng — giá tham khảo) và so sánh Free vs Premium; nút "Chọn gói" mở checkout mô phỏng (Màn 26).
 
-**Nguồn yêu cầu**: FR-10.7 (Premium P1), UC-32; quyền lợi 19.4 (30 tim, hồi 10 phút, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = backlog).
+**Nguồn yêu cầu**: FR-10.7 (Premium P1), UC-32; quyền lợi 19.4 (30 tim, hồi 10 phút, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); GP-T7 — checkout hiện QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386, BIN 970422) + nội dung CK tự động `DSV{userId}T{months}`; KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán — tăng tính thực tế demo).
 
 **Bố cục**: Header → hero quyền lợi nổi bật → bảng giá 3 thẻ gói (gói 12 tháng đánh dấu "Tiết kiệm nhất") → bảng so sánh Free vs Premium (2 cột) → FAQ ngắn (3-4 mục).
 
@@ -3060,7 +3061,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| Nhấn "Chọn gói" (1/3/12 tháng) | Mở modal checkout 2 bước (Màn 26) với gói đã chọn | Nút active; đã chọn xong gói → nút "Đang dùng" (nếu gói trùng) |
+| Nhấn "Chọn gói" (1/3/12 tháng) | Mở modal checkout QR 2 bước (Màn 26) với gói đã chọn | Nút active; đã chọn xong gói → nút "Đang dùng" (nếu gói trùng) |
 | Nhấn FAQ | Accordion mở/đóng từng mục | Icon ▾ xoay |
 | Nhấn "Quản lý gói" (đã Premium) | Điều hướng `/account/subscription` | — |
 
@@ -3070,7 +3071,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 **Responsive**: ≥ 768px 3 thẻ gói ngang; < 768px xếp dọc, bảng so sánh chuyển dạng hàng/cột gọn (2 cột Free/Premium giữ nguyên, cuộn ngang nếu cần).
 
-**Điều kiện truy cập**: Đã đăng nhập; query `?plan=1|3|12` (tự chọn sẵn gói khi đến từ Màn 28 hoặc HeartsGemsWidget).
+**Điều kiện truy cập**: Đã đăng nhập; query `?plan=1|3|12` hoặc `?plan=1m|3m|12m` (GP-T7 — deep link tự chọn sẵn gói khi đến từ Màn 28 hoặc HeartsGemsWidget).
 
 **Lỗi có thể gặp**:
 
@@ -3081,39 +3082,44 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 ---
 
-### Màn 26 — Checkout mô phỏng (modal 2 bước — gộp Màn 25)
+### Màn 26 — Checkout QR chuyển khoản MB Bank (modal 2 bước — gộp Màn 25)
 
-**Mục đích**: Modal thanh toán giả lập 2 bước trên cùng route `/premium` (không tách trang để giữ ngữ cảnh giá đã chọn): Bước 1 xác nhận gói + giá, Bước 2 "Thanh toán mô phỏng" → loading 1-2s → màn thành công + tự động điều hướng.
+**Mục đích**: Modal checkout 2 bước trên cùng route `/premium` (không tách trang để giữ ngữ cảnh giá đã chọn): Bước 1 xác nhận gói + giá, Bước 2 hiện **QR VietQR EMVCo** (sinh bằng `qrcode` — npm MIT) + thông tin chuyển khoản MB Bank + nội dung CK tự động → đếm ngược 60s → nút "Tôi đã chuyển khoản" → kích hoạt Premium tự động + màn thành công.
 
-**Nguồn yêu cầu**: FR-10.7, UC-32; 19.4 (kích hoạt ngay sau mock-pay + ghi log giao dịch; KHÔNG trừ tiền thật — cảnh báo rõ trên UI).
+**Nguồn yêu cầu**: FR-10.7, UC-32; 19.4 (kích hoạt ngay sau xác nhận chuyển khoản + ghi log giao dịch; KHÔNG trừ tiền thật — cảnh báo rõ trên UI); GP-T7 (TK **NGUYEN THI NHU HOA · MB Bank · STK 83863112088386** (BIN 970422); nội dung CK `DSV{userId}T{months}`; QR tự sinh VietQR EMVCo — KHÔNG gọi API ngân hàng/webhook, không dùng vietqr.io online).
 
-**Bố cục**: Modal trung tâm: header "Xác nhận đăng ký" → **Bước 1** (tóm tắt gói, giá, danh sách quyền lợi, nút "Tiếp tục" + "Quay lại") → **Bước 2** (nút "Thanh toán mô phỏng" + dòng chú thích "Mô phỏng — không trừ tiền thật", nút "Quay lại") → **Màn kết quả** (icon ✔, "Nâng cấp thành công!", nút "Vào học tiếp").
+**Bố cục**: Modal trung tâm: header "Xác nhận đăng ký" → **Bước 1** (tóm tắt gói, giá, danh sách quyền lợi, nút "Tiếp tục" + "Quay lại") → **Bước 2** (QR canvas 208×208 (`qrcode.toCanvas`, errorCorrectionLevel M) + chủ TK/STK formatted `8386 3112 0883 86` + số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK" (toast khi copy) + đếm ngược 60s + nút "Tôi đã chuyển khoản" (disabled trong 60s) + chú thích "Mô phỏng — không xác minh ngân hàng thật", nút "Quay lại") → **Màn kết quả** (icon ✔, "Nâng cấp thành công!", nút "Vào học tiếp").
 
 **Thành phần**:
 
 | Vùng | Thành phần | Hành vi |
 |---|---|---|
 | Bước 1 | Tóm tắt gói đã chọn (tên, giá/tháng, tổng) + quyền lợi | Giữ ngữ cảnh giá; nút "Tiếp tục" validate |
-| Bước 2 | Nút "Thanh toán mô phỏng" + cảnh báo mô phỏng | Loading spinner 1-2s → `POST /premium/mock-pay` → kích hoạt ngay + ghi log |
+| Bước 2 — QR | QR VietQR EMVCo tự sinh (`qrcode`, payload từ `lib/vietqr.ts`: BIN 970422 + STK + số tiền + `DSV{userId}T{months}`) | `qrcode.toCanvas` 208px; QR theo gói đã chọn |
+| Bước 2 — CK | Chủ TK/STK/số tiền/nội dung CK + nút "Sao chép nội dung CK" | Copy → toast xác nhận |
+| Bước 2 — xác nhận | Đếm ngược 60s + nút "Tôi đã chuyển khoản" | Nút disabled 60s ("Nút khả dụng sau 00:45"); bấm → `POST /premium/mock-pay` {orderId} → kích hoạt ngay + ghi log |
 | Kết quả | ✔ + confetti + nút "Vào học tiếp" | Tự động điều hướng sau 2-3s (về node đang chờ nếu đến từ Màn 28) |
 | Nút phụ | "Quay lại" ở mỗi bước | Về bước trước / đóng modal |
+
+> **API liên quan (GP-T7)**: `POST /premium/upgrade` `{planId}` (`1m|3m|12m`) → tạo đơn: `OrderRef` = `DSV{userId}T{months}` (VD DSV1002T3 — khớp nội dung CK để đối soát) + response trả `contentRef` (nội dung CK — FE hiển thị trên QR và tự tính lại để khớp 2 nguồn). `POST /premium/mock-pay` `{orderId}` → kích hoạt Premium + log giao dịch (PremiumSubscriptions.Status=0, OrderRef lưu DSV...).
 
 **Tương tác**:
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| "Tiếp tục" (Bước 1) | Chuyển Bước 2 | — |
-| "Thanh toán mô phỏng" | Loading 1-2s → thành công | Nút disabled + spinner khi loading |
+| "Tiếp tục" (Bước 1) | Chuyển Bước 2 (sinh QR + đếm ngược 60s) | — |
+| "Sao chép nội dung CK" | Copy `DSV<UserId>T<months>` → toast | — |
+| "Tôi đã chuyển khoản" (sau 60s) | Loading → kích hoạt Premium + confetti | Nút disabled khi loading / disabled trong đếm ngược |
 | "Quay lại" | Về Bước 1 / đóng modal (giữ gói đã chọn) | — |
 | Thành công | Điều hướng tự động; HeartsGemsWidget cập nhật 30❤ | Nút "Vào học tiếp" |
 
-**Trạng thái**: `bước 1` → `bước 2` → `loading (1-2s)` → `success` / `error` (mock-pay 409 → quay Bước 1 kèm thông báo).
+**Trạng thái**: `bước 1` → `bước 2 (QR + đếm ngược 60s)` → `loading` → `success` / `error` (mock-pay 409 → quay Bước 1 kèm thông báo).
 
 **Phím tắt**: Esc đóng modal (có xác nhận nếu đang ở Bước 2).
 
-**Responsive**: Modal 90% chiều rộng < 480px; cuộn nội dung trong modal khi màn ngắn.
+**Responsive**: Modal 90% chiều rộng < 480px; cuộn nội dung trong modal khi màn ngắn; QR giữ nguyên 208×208.
 
-**Điều kiện truy cập**: Đã đăng nhập; mở từ: `/premium` (nút "Chọn gói"), Màn 28 (nút "Nâng cấp Premium"), HeartsGemsWidget (link `/premium`); query `?plan=` truyền gói.
+**Điều kiện truy cập**: Đã đăng nhập; mở từ: `/premium` (nút "Chọn gói"), Màn 28 (nút "Nâng cấp Premium"), HeartsGemsWidget (link `/premium`); query `?plan=1|3|12` hoặc `?plan=1m|3m|12m` truyền gói.
 
 **Lỗi có thể gặp**:
 
@@ -3121,7 +3127,8 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 |---|---|---|
 | mock-pay thất bại (phiên hết hạn) | Toast đỏ + quay Bước 1 | Chọn lại gói |
 | Đóng modal giữa chừng Bước 2 | Modal xác nhận "Bỏ thanh toán?" | Đóng hoặc tiếp tục |
-| Double-click "Thanh toán" | Nút disabled trong loading — không gửi 2 lần | Idempotent |
+| Double-click "Tôi đã chuyển khoản" | Nút disabled trong loading — không gửi 2 lần | Idempotent |
+| `qrcode.toCanvas` lỗi (không sinh được QR) | Toast đỏ + nút "Thử lại" | Tải lại payload QR |
 
 ---
 
