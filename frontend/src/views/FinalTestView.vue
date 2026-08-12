@@ -36,10 +36,10 @@ onMounted(async () => {
 });
 
 async function fetchLocalFinalTest(): Promise<ExerciseDto> {
-  // Thử lấy exercise theo path: nếu API chưa có, fallback buildLocalFinalTest
+  // Lấy danh sách theo stage=1 (Quiz) → lấy chi tiết theo id (đề có kèm câu hỏi — GET /exercises/{id})
   const pathId = Number(topicId.value);
   const exercises = await exercisesApi.fetchExercises({ stage: 1 });
-  if (exercises.length > 0) return exercises[0];
+  if (exercises.length > 0) return exercisesApi.fetchExercise(exercises[0].id);
   void pathId;
   return buildLocalFinalTest();
 }

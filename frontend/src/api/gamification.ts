@@ -1,4 +1,5 @@
 import { client, getData } from './client';
+import { useAuthStore } from '@/stores/auth';
 import type { PagedResponse } from './types';
 
 /** Endpoint theo API_REFERENCE §4.14 (gamification, premium, leaderboard) */
@@ -68,6 +69,7 @@ export interface LeaderboardDto {
   rows: LeaderboardEntryDto[];
   myRank: LeaderboardEntryDto | null;
   page: number;
+  total: number;
   totalPages: number;
 }
 
@@ -141,7 +143,22 @@ export async function fetchStreak(): Promise<StreakDto> {
 }
 
 export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class'; classId?: number; page?: number } = {}): Promise<LeaderboardDto> {
-  return getData<LeaderboardDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.leaderboard, params });
+  // BE trả PagedResponse<LeaderboardEntryDto> { items, page, pageSize, total, totalPages } — KHÔNG có rows/myRank
+  // (SETUP_TODO §8.1, F3-NEW-1). Map items → rows; myRank = dòng của user hiện tại (nếu có) hoặc null.
+  const paged = await getData<PagedResponse<LeaderboardEntryDto>>({
+    method: 'GET',
+    url: GAMIFICATION_ENDPOINTS.leaderboard,
+    params,
+  });
+  const rows = Array.isArray(paged.items) ? paged.items : [];
+  let currentUserId: number | null = null;
+  try {
+    currentUserId = useAuthStore().user?.id ?? null;
+  } catch {
+    currentUserId = null; // chưa có pinia active (test/edge) — không đánh dấu dòng "Bạn"
+  }
+  const myRank = currentUserId === null ? null : (rows.find((item) => item.userId === currentUserId) ?? null);
+  return { rows, myRank, page: paged.page, total: paged.total, totalPages: paged.totalPages };
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {

@@ -105,9 +105,19 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
       lastOutput.value = result.output;
       lastStats.value = result.stats;
       runState.value = 'passed';
-      // Lưu vết lần chạy lên server (bỏ qua lỗi mạng — chạy client vẫn OK)
+      // Lưu vết lần chạy lên server (bỏ qua lỗi mạng — chạy client vẫn OK).
+      // Contract CodeRunRequest = {exerciseId?, key, code, input? (string), status, durationMs, ...} — ADR-012 (SETUP_TODO §6.7)
       try {
-        lastRun.value = await codeRunnerApi.saveCodeRun({ code: editorCode.value, input: defaultArray });
+        lastRun.value = await codeRunnerApi.saveCodeRun({
+          key: key.value,
+          code: editorCode.value,
+          input: JSON.stringify(defaultArray),
+          status: 'Success',
+          durationMs: result.stats?.durationMs ?? 0,
+          stats: result.stats
+            ? { comparisons: result.stats.comparisons, swaps: result.stats.swaps }
+            : undefined,
+        });
       } catch {
         lastRun.value = null;
       }
