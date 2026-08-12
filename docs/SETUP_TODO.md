@@ -50,3 +50,16 @@
 | 3 | Xác nhận cột MustChangePassword (Users) — SDD §7.5 "ép đổi mật khẩu lần đầu" | Entity chưa có cột; seeder chỉ set IsPrimaryAdmin + mật khẩu tạm. Cần migration bổ sung nếu giữ tính năng. | [ ] |
 | 4 | (Tùy chọn) Cài monaco-editor + chart.js khi cần Code Runner/benchmark hoàn chỉnh | Code Runner đang dùng textarea thay Monaco; benchmark vẽ SVG thay Chart.js (không có gói). | [ ] |
 | 5 | (Tùy chọn) PR GitHub: 4 nhánh feature/backend-services, feature/backend-seed, feature/engine-generators, feature/views → dev | Đã merge + push thẳng lên dev bằng git local (không có gh CLI). | [ ] |
+
+## 6. Session E — E2E thực tế phát hiện bug (2026-08-12, cần sửa đợt sau)
+
+| # | Mức | Bug | File:dòng (tham chiếu) | Ghi chú |
+|---|---|---|---|---|
+| 1 | P1 | Mất phiên khi reload — không gọi auth.refresh() lúc boot (ADR-004) | frontend/src/main.ts, App.vue | sửa đợt sau |
+| 2 | P1 | POST /lessons/{id}/mark-viewed → 404 — backend thiếu endpoint | backend Controllers/LessonsController.cs | thêm endpoint + test |
+| 3 | P1 | Nút "Làm bài" chết — emit open-exercise không ai lắng nghe | LessonDetail.vue:154, NodeHubView.vue:113 | |
+| 4 | P1 | Canvas simulator phình ~15.000px — vòng ResizeObserver | CanvasArea.vue:324-326, 285-290 | |
+| 5 | P2 | Submit exercise thiếu câu → 400 QUESTION_ANSWER_MISMATCH, UX khó hiểu | ExerciseView | |
+| 6 | P1 | Ladder stage rỗng — quiz/code-exercise-id hardcode null | LadderView.vue:60-62, NodeHubView.vue:133-135 | |
+| 7 | P2 | POST /code-runs 400 — contract lệch FE/BE (code,input vs Key+Input:string) | api/codeRuns + CodeRunsController | cần PM chốt contract |
+| 8 | P2 | POST /benchmarks/run 400 — thiếu results | api/benchmark + BenchmarksController | |
