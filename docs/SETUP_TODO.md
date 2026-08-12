@@ -7,7 +7,7 @@
 
 | # | Key/Biến | File cần sửa | Vị trí | Lấy ở đâu | Trạng thái |
 |---|---|---|---|---|---|
-| 0 | **Email GitHub 4 thành viên** (son/bao/thu/phuc) | `commit-as.ps1` | 4 dòng Email=... | ✅ ĐÃ ĐIỀN ĐỦ (12/08): son=thaiquangson@gmail.com · bao=maitieubao@gmail.com · thu=thuhlmtd01131@gmail.com · phuc=robintran51128@gmail.com. ⚠ Email trước đó (tuananhmaiv2006@gmail.com) đã thay bằng maitieubao@gmail.com — nếu đó là account GitHub khác bạn muốn dùng thì báo. Chưa xác nhận email thu/phuc đúng chưa (đoán theo pattern username@gmail.com) | [ ] |
+| 0 | **Email GitHub 4 thành viên** (son/bao/thu/phuc) | `commit-as.ps1` | 4 dòng Email=... | ✅ ĐÃ XÁC NHẬN (12/08, user): son=thaiquangson@gmail.com · bao=maitieubao@gmail.com · thu=thuhlmtd01131@gmail.com · phuc=robintran51128@gmail.com — đúng email GitHub thật của cả 4 | [x] |
 | 1 | `DSA__Jwt__Secret` | `backend/.../appsettings.Production.json` hoặc `.env` | dòng ... | tự sinh 32+ ký tự | [ ] |
 | 2 | `ConnectionStrings__Default` | `.env` | dòng ... | SQL Server của nhóm | [ ] |
 | 3 | `DSA__Email__*` (SMTP thật) | `.env` | dòng ... | Gmail App Password / SMTP trường — **chỉ cần khi deploy production; dev dùng MailHog** | [ ] |
@@ -33,7 +33,7 @@
 
 | # | Việc | Ghi chú | Trạng thái |
 |---|---|---|---|
-| 1 | Xác nhận email GitHub THẬT của **Thu** (thuhlmtd01131@gmail.com) và **Phuc** (robintran51128@gmail.com) trong `commit-as.ps1` | Commit đã hiện đúng TÊN (đã push), nhưng avatar/liên kết GitHub chỉ khớp nếu email đúng là email GitHub của người đó. Son (thaiquangson@gmail.com) và Bao (maitieubao@gmail.com) cũng nên xác nhận lại. | [ ] |
+| 1 | Xác nhận email GitHub THẬT của **Thu** (thuhlmtd01131@gmail.com) và **Phuc** (robintran51128@gmail.com) trong `commit-as.ps1` | ✅ ĐÃ XÁC NHẬN (12/08): cả 4 email đúng (mục 0 ở trên) | [x] |
 | 2 | Verify repo GitHub: https://github.com/Tqson3118/Visualization — nhánh `main` + `dev` đã push (8 commit) | Push đã thành công bằng credential có sẵn trên máy (không cần nhập lại). Nếu muốn đổi repo public/private → Settings trên GitHub. | [ ] |
 | 3 | (Tùy chọn) Xóa backup 3 .git cũ (~115MB) sau khi xác nhận repo mới ổn | `C:\Users\ADMINI~1\AppData\Local\Temp\opencode\git-backup-20260812\` — giữ lịch sử gốc của 3 source repo | [ ] |
 | 4 | Khi Session B xong: commit `backend/` + `frontend/` root (skeleton v2) theo quy trình feature branch → PR → dev | Hiện UNTRACKED do Session B đang chạy song song | [ ] |
