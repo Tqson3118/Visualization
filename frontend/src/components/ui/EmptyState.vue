@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// EmptyState — component UI chung: trạng thái rỗng + icon + CTA (design tokens — SDD §8.1)
+// EmptyState — giữ API cũ, restyle bằng tailwind/shadcn tokens (G-F1b).
 import BaseIcon from './BaseIcon.vue';
 
 withDefaults(
@@ -23,55 +23,22 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="ui-empty" role="status">
-    <div class="ui-empty__icon">
+  <div
+    class="flex flex-col items-center justify-center gap-3 px-4 py-14 text-center text-muted-foreground"
+    role="status"
+  >
+    <div class="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-muted text-muted-foreground/70">
       <BaseIcon :name="icon" :size="36" />
     </div>
-    <h3 class="ui-empty__title">{{ title }}</h3>
-    <p v-if="description" class="ui-empty__desc">{{ description }}</p>
-    <button v-if="actionLabel" type="button" class="ui-empty__action" @click="emit('action')">
+    <h3 class="text-base font-semibold text-foreground">{{ title }}</h3>
+    <p v-if="description" class="max-w-2xl text-sm text-muted-foreground">{{ description }}</p>
+    <button
+      v-if="actionLabel"
+      type="button"
+      class="mt-2 inline-flex items-center justify-center rounded-md border border-primary px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-accent"
+      @click="emit('action')"
+    >
       {{ actionLabel }}
     </button>
   </div>
 </template>
-
-<style scoped>
-.ui-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-2xl) var(--space-md);
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-.ui-empty__icon {
-  color: var(--color-text-disabled);
-  background: var(--color-muted);
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ui-empty__title { font-size: var(--text-md); color: var(--color-foreground); }
-
-.ui-empty__desc { max-width: 36rem; font-size: var(--text-sm); }
-
-.ui-empty__action {
-  margin-top: var(--space-sm);
-  background: none;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
-  padding: 0.5rem 1.25rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-.ui-empty__action:hover { background: var(--color-surface-hover); }
-</style>
