@@ -273,6 +273,29 @@ describe('HashTableRenderer', () => {
     expect(mock.ctx.fillText).toHaveBeenCalled();
     expect(mock.ctx.lineTo).toHaveBeenCalled(); // mũi tên nối chuỗi
   });
+
+  test('render m=11 bucket trên canvas hẹp 200px không throw, header roundRect width > 0', () => {
+    const renderer = new HashTableRenderer();
+    // m=11: colW = (200 - 2*margin)/11 ≈ 12.7 → colW - 16 < 0 (regression: IndexSizeError).
+    const elements: Structure['elements'] = [];
+    for (let b = 0; b < 11; b++) {
+      elements.push({ id: `bucket:${b}`, label: `[${b}]`, status: 'default', group: `bucket:${b}` });
+      elements.push({ id: `node:${b}`, label: String(b), status: 'default', group: `bucket:${b}`, meta: { chainPos: 0 } });
+    }
+    const structure: Structure = { kind: 'hashtable', elements, links: [] };
+    const mock = createMockContext();
+    const canvas = { getContext: vi.fn(() => mock.ctx), width: 200, height: 600 } as unknown as HTMLCanvasElement;
+    renderer.mount(canvas);
+    renderer.resize(200, 600);
+
+    expect(() => renderer.render(structure, OPTS)).not.toThrow();
+    // Mọi roundRect phải có width > 0 — trước fix, header có width âm (IndexSizeError).
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const args of calls) {
+      expect(args[2]).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('rendererRegistry', () => {
