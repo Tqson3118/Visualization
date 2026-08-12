@@ -58,7 +58,7 @@
 | 12 | 40 bài `content-drafts/v2/lesson-01..40` | Chưa bê — chỉ LIỆT KÊ nguồn trong Seed README (content.md + quiz.json); task triển khai nội dung sau |
 | 13 | V1/V3 `stores/` cũ (classroomCurriculum.ts...) | SDD §3.2 cấm — viết mới 9 store theo bảng |
 | 14 | V1/V3 `Program.cs`, Controllers, Validators C# | Kiến trúc cũ (4 tầng + Repository) — viết mới theo SDD §5.7 |
-| 15 | Font Baloo 2 / Comic Neue (MASTER.md) | Font trẻ em, không hợp đối tượng đại học → font hệ thống |
+| 15 | Font Baloo 2 / Comic Neue (MASTER.md) | Font trẻ em, không hợp đối tượng đại học → font hệ thống (đợt G: thay tiếp bằng Geist + JetBrains Mono — xem §6) |
 
 ## 4. GHI CHÚ ĐIỂM CẦN CHỈNH (code cũ ≠ kiến trúc v2 — SDD ghi "đặc tả dự kiến")
 
@@ -74,3 +74,30 @@
 - Build/test: frontend build PASS + 39/39 test; backend build PASS 0 warning + 8/8 test; smoke /health + /swagger OK.
 - Check cấm: **KHÔNG vi phạm** — không Npgsql/PostgreSQL/Supabase/MediatR/AspNetUsers/Judge0; "Repository" chỉ xuất hiện trong comment "KHÔNG dùng Repository"; không có file .env thật (chỉ .env.example + .env.development/.production đúng SDD §3.1).
 - Catalog: `shared/simulation-catalog.json` = 44 key ↔ `frontend/src/engines/catalog.ts` = 44 key — KHỚP.
+
+## 6. GHI CHÚ ĐỢT G (ux-finalize — 12/08/2026): thay component tự xây bằng stack UI/UX mới
+
+> Quyết định G (pm-decision-log-g.md): cài tailwindcss 4 + shadcn-vue + motion-v + gsap + vue-echarts + lenis + vue-sonner + phosphor/lucide; font Geist + JetBrains Mono self-host; tokens OKLCH + dark mode `class="dark"`. Chỉ đụng UI layer — **KHÔNG đụng canvas simulator/engine** (giữ nguyên §2 bảng 8-11, 12-13).
+
+| Component/trước (tự xây — §2, SDD §3.1 cũ) | Thay bằng | Gói | File mới |
+|---|---|---|---|
+| `ToastContainer.vue` (§2 #14) | `<Toaster>` (vue-sonner, mount tại App.vue) | vue-sonner@2.0.9 | `src/lib/toast.ts` + `src/composables/useToast.ts` (giữ API cũ) |
+| `BaseButton`/`Button.vue` | `ui/button` | shadcn-vue (reka-ui, class-variance-authority) | `src/components/ui/button/` |
+| `BaseInput`/`Input.vue` | `ui/input` | shadcn-vue | `src/components/ui/input/` |
+| `BaseModal`/`Modal.vue` | `ui/dialog` | shadcn-vue (reka-ui) | `src/components/ui/dialog/` |
+| `BottomSheet.vue`/`ConfirmModal.vue` (§2 #15) | `ui/drawer` + `ui/dialog` | shadcn-vue (vaul-vue) | `src/components/ui/drawer/`, `dialog/` |
+| `BaseCard`/`Card.vue` | `ui/card` | shadcn-vue | `src/components/ui/card/` |
+| `BaseTabs`/`Tabs.vue` | `ui/tabs` | shadcn-vue (reka-ui) | `src/components/ui/tabs/` |
+| `BaseTooltip`/`Tooltip.vue` | `ui/tooltip` | shadcn-vue (reka-ui) | `src/components/ui/tooltip/` |
+| `BaseSelect`/`Select.vue` | `ui/select` | shadcn-vue (reka-ui) | `src/components/ui/select/` |
+| `BaseBadge`/`Badge.vue` | `ui/badge` | shadcn-vue (class-variance-authority) | `src/components/ui/badge/` |
+| `ProgressBar.vue` | `ui/progress` | shadcn-vue (reka-ui) | `src/components/ui/progress/` |
+| `Skeleton.vue` | `ui/skeleton` | shadcn-vue | `src/components/ui/skeleton/` |
+| `BaseIcon.vue` (§2 #16) | giữ tự xây + thêm icon từ | @lucide/vue + lucide-vue-next + @phosphor-icons/vue | `src/components/ui/BaseIcon.vue` |
+| Chart (SVG tự vẽ — trước không có gói) | `VChartLazy.vue` (lazy vue-echarts) | vue-echarts@8.1.0 + echarts@6.1.0 | `src/components/ui/VChartLazy.vue` |
+| Font hệ thống (§3 #15) | Geist (UI) + JetBrains Mono (mã giả) self-host | — (file woff2) | `public/fonts/GeistVariable.woff2`, `JetBrainsMonoVariable.woff2` |
+| CSS global/tokens (đợt B §2 #1-2) | tokens OKLCH + Tailwind 4 CSS-first + dark mode | tailwindcss@4.3.3 + @tailwindcss/vite + tw-animate-css | `src/styles/tokens.css`, `tailwind.css`, `palettes.css` |
+| Smooth scroll / animation | Lenis + motion-v + GSAP | lenis@1.3.26, motion-v@2.3.0, gsap@3.15.0 | composables + directive |
+
+- **Không thay đổi**: engine EDV (stepExecutor, renderer canvas — §2 #7-11), 9 store Pinia, api modules, router, i18n — chỉ sửa call site UI theo wrapper shadcn-vue.
+- Bundle thật sau đợt G (build 12/08/2026): engine 476KB gốc / 120KB gzip; echarts 324KB / 110KB (lazy); vendor 143KB / 54KB; JS tải lần đầu ≈ 852KB — NFR-5 đã nới (xem SRS §4.1, TEST_PLAN TEST-PERF-007).

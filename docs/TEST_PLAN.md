@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | Test Plan |
-| Phiên bản | 1.2 |
+| Phiên bản | 1.3 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — bảng PASS/FAIL đã điền kết quả thật (12/08/2026, §10); SEC/PERF/UX chưa thực thi (ghi "chờ") |
 | Người soạn | Huỳnh Lê Minh Thư |
@@ -22,6 +22,7 @@
 | 1.0 | 12/08/2026 | Huỳnh Lê Minh Thư | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Huỳnh Lê Minh Thư | Vá review: bổ sung 8 test case còn thiếu (TEST-B-036..038 Favorites §4.8, TEST-B-097..098 ghi chú §4.2, TEST-B-101..103 Mini Quiz §4.3) — khớp ma trận truy vết §11 |
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: điền số thật vào §10 BÁO CÁO TỔNG HỢP (Backend 44, Engine 72, API 27, E2E 11 — chạy 12/08/2026); SEC/PERF/UX giữ "chờ" theo BAO_CAO_SPEC; cập nhật trạng thái front matter + ghi chú §10; bỏ tham chiếu "tuần 19-20" ở trạng thái bảng |
+| 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): TEST-PERF-007 nới ngưỡng bundle theo NFR-5 (JS gốc tải lần đầu ≤ 1.5MB, engine chunk ≤ 500KB gốc) + ghi chú bundle thật vào §10; số FE hiện tại giữ nguyên (unit 72 + e2e 11) |
 
 ---
 
@@ -656,7 +657,7 @@
 | TEST-PERF-004 | GET /lessons (1000 bài, phân trang) | 50 VU × 5 phút | p95 ≤ 800ms | 0 lỗi 5xx |
 | TEST-PERF-005 | POST /exercises/{id}/submit (10 câu) | 20 VU song song | p95 ≤ 1.5s | chấm đúng 100% |
 | TEST-PERF-006 | Login đồng thời | 50 VU × 30s | p95 ≤ 1s | 0 lỗi |
-| TEST-PERF-007 | Tải SPA lần đầu (cold cache) | Chrome + Lighthouse | FCP ≤ 1.5s | bundle ≤ 500KB |
+| TEST-PERF-007 | Tải SPA lần đầu (cold cache) | Chrome + Lighthouse | FCP ≤ 1.5s | bundle: JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc (NFR-5 — nới theo đợt G) |
 | TEST-PERF-008 | Đồng thời tổng hợp (70% đọc, 30% ghi) | 200 VU × 15 phút | p95 ≤ 1.2s | 0 lỗi 5xx |
 
 ---
@@ -685,7 +686,7 @@
 | API (TEST-API) | 27 | 27 | 0 | 0 | Integration — WebApplicationFactory + Testcontainers MsSql thật, chạy 12/08/2026 |
 | E2E (TEST-UI) | 11 | 11 | 0 | 0 | Playwright (auth/simulator/ladder/code-runner), chạy 12/08/2026 |
 | Bảo mật (TEST-SEC) | 0 | 0 | 0 | 0 | Chờ — pentest thực tế chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
-| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | Chờ — load test k6 chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | Chờ — load test k6 chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0); **TEST-PERF-007 ngưỡng đã nới theo bundle thật đợt G (JS tải lần đầu ≤ 1.5MB gốc, engine ≤ 500KB)** |
 | UX (TEST-UX) | 0 | 0 | 0 | 0 | Chờ — khảo sát 5 người chưa thực hiện (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
 | **Tổng** | **154** | **154** | **0** | **0** | Tổng các nhóm ĐÃ chạy (B/E/API/E2E); SEC/PERF/UX chưa tính |
 

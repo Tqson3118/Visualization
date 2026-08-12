@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | SDD (Software Design Document) |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.4 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -19,6 +19,7 @@
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 364 dòng, thiếu Phần 8 EDV/31 bảng/32 màn) |
+| 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
 
 ---
 
@@ -122,9 +123,11 @@ graph TB
 ```
 frontend/
 ├── index.html
-├── vite.config.ts
+├── vite.config.ts                             # vue() + @tailwindcss/vite (bảng §3.9)
 ├── package.json
 ├── .env.development / .env.production        # VITE_API_BASE_URL
+├── public/
+│   └── fonts/                                 # GeistVariable.woff2, JetBrainsMonoVariable.woff2 (self-host)
 ├── src/
 │   ├── main.ts
 │   ├── App.vue
@@ -148,8 +151,10 @@ frontend/
 │   │   └── admin/ (AdminUsersView.vue, AdminStatsView.vue, AdminSettingsView.vue,
 │   │               AdminContentView.vue, AdminLadderView.vue)
 │   ├── components/
-│   │   ├── ui/                                # BaseButton, BaseInput, BaseModal, BaseToast,
-│   │   │                                      # BaseTable, BaseCard, BaseTabs, BaseTooltip, ...
+│   │   ├── ui/                                # shadcn-vue wrapper (mỗi bộ 1 thư mục con + index.ts):
+│   │   │   │                                  # button/, badge/, card/, dialog/, drawer/, input/,
+│   │   │   │                                  # progress/, select/, skeleton/, tabs/, tooltip/
+│   │   │   ├── BaseIcon.vue, EmptyState.vue, VChartLazy.vue   # còn lại tự xây/đặc thù
 │   │   ├── simulator/                         # SimulatorShell, ControlBar, PseudocodePanel,
 │   │   │                                      # ExplainPanel, VisualizationCanvas, InputConfigModal,
 │   │   │                                      # StatsBadge, LegendPanel, CallStackPanel, BreakpointBar,
@@ -163,7 +168,10 @@ frontend/
 │   ├── composables/                           # useSimulation, usePagination, useDebounce,
 │   │                                          # useKeyboardShortcuts, useInterval, useToast, useConfirm
 │   ├── i18n/vi.ts                             # mọi chuỗi giao diện (bản MVP chỉ vi)
-│   ├── styles/                                # tokens.css (màu 7.2), global.css
+│   ├── lib/                                   # utils.ts (cn = clsx + tailwind-merge), toast.ts (vue-sonner)
+│   ├── styles/                                # tokens.css (token OKLCH §8.1), tailwind.css (Tailwind 4 +
+│   │                                          # dark mode class="dark"), palettes.css (3 gradient OKLCH),
+│   │                                          # global.css
 │   └── utils/                                 # format.ts (Intl vi-VN), validators.ts
 └── tests/                                     # unit (engines + stores) + e2e (playwright)
 ```
@@ -272,25 +280,38 @@ describe('auth store', () => {
 4. Component UI không chứa logic nghiệp vụ; giao tiếp cha-con qua props/events; trạng thái dùng chung qua Pinia.
 5. Mọi chuỗi giao diện trong `src/i18n/vi.ts` — không nhúng chuỗi cứng (i18n sẵn sàng).
 6. Tên file: PascalCase component, camelCase hook.
-7. Không CSS global tràn lan; biến thiết kế trong `tokens.css`.
-8. NFR-31/32: hàm ≤ 40 dòng, class ≤ 400 dòng.
+7. **Stack UI (đợt G — quyết định G):**
+   - **Tailwind CSS 4** (CSS-first, qua plugin `@tailwindcss/vite`) + **shadcn-vue** (wrapper component trong `src/components/ui/<name>/`); utility gộp class = `cn()` (`src/lib/utils.ts` — clsx + tailwind-merge).
+   - **Dark mode** qua class `class="dark"` trên `<html>`; token màu dùng **OKLCH** (`src/styles/tokens.css` + `tailwind.css`); 3 gradient nền OKLCH trong `palettes.css`.
+   - **Hoạt ảnh**: motion-v (page transition/hover), GSAP (canvas/cần kiểm soát frame), Lenis (smooth scroll).
+   - **Biểu đồ**: vue-echarts (echarts, lazy-load — chunk riêng, KHÔNG vào bundle chính).
+   - **Toast**: vue-sonner (thay `ToastContainer` tự xây); **Icon**: `@lucide/vue` + `lucide-vue-next` + `@phosphor-icons/vue`.
+   - **Font**: Geist (variable, self-host `public/fonts/`) cho UI; JetBrains Mono (variable) cho mã giả/editor.
+   - Cấm nhập trực tiếp `reka-ui`/`vaul-vue` ở view — chỉ qua wrapper shadcn-vue trong `components/ui/`.
+8. Không CSS global tràn lan; biến thiết kế trong `tokens.css`; không hardcode hex màu (dùng token OKLCH).
+9. NFR-31/32: hàm ≤ 40 dòng, class ≤ 400 dòng.
 
 ## 3.9 Vite config (điểm quan trọng)
 
 ```ts
+import tailwindcss from '@tailwindcss/vite';
+// plugins: [vue(), tailwindcss()]
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   build: {
     target: 'es2020',
-    rollupOptions: { output: { manualChunks: {
-      engine: ['@/engines/core'], vendor: ['vue', 'pinia', 'vue-router'] } } },
+    rollupOptions: { output: { manualChunks(id: string) {
+      if (id.includes('/src/engines/')) return 'engine';
+      if (id.includes('/node_modules/vue/') || id.includes('/node_modules/@vue/')
+       || id.includes('/node_modules/pinia') || id.includes('/node_modules/vue-router')) return 'vendor';
+    } } },
   },
   server: { port: 5173, proxy: { '/api': { target: 'http://localhost:5000', changeOrigin: true } } },
 });
 ```
 
-- Lazy-load router các trang lớn (SimulatorView, ExerciseView, admin/*).
-- Bundle JS gốc ≤ 500KB (NFR-5); `vite build --mode production && npx vite-bundle-visualizer`.
+- Lazy-load router các trang lớn (SimulatorView, ExerciseView, admin/*); vue-echarts lazy qua `defineAsyncComponent` (chunk `echarts-*` tách riêng).
+- **Bundle thật (build 12/08/2026 — đợt G):** engine `476 KB` gốc (`120 KB` gzip), echarts `324 KB` gốc (`110 KB` gzip, lazy), vendor `143 KB` gốc (`54 KB` gzip); JS gốc tải lần đầu ≈ `852 KB`; tổng JS gốc toàn dist ≈ `1.95 MB` (gồm chunk lazy). Giới hạn NFR-5 (đã nới): engine ≤ 500KB gốc, tổng JS gốc tải lần đầu ≤ 1.5MB — xem SRS §4.1 / TEST_PLAN TEST-PERF-007. Lệnh đo: `vite build --mode production && npx vite-bundle-visualizer`.
 
 # 4. MÔ-ĐUN TRỰC QUAN HÓA (CỐT LÕI — EXECUTION-DRIVEN VISUALIZATION)
 
@@ -980,7 +1001,7 @@ Với mỗi bộ dữ liệu: (1) danh sách bước mong đợi dạng ngắn g
 | Tái vẽ toàn bộ mỗi bước | Renderer diff: chỉ vẽ phần tử có status/annotation thay đổi; cache layer nền tĩnh |
 | Đồ thị lớn | Culling ngoài viewport; giới hạn 50 đỉnh/200 cạnh; batch vẽ theo nhóm trạng thái |
 | Hoạt ảnh chuyển bước | `requestAnimationFrame`; mỗi bước tối đa 2 frame; không setTimeout cho vẽ |
-| Chữ tiếng Việt trên Canvas | Font `Inter` tải trước qua `document.fonts.load`; fallback sans-serif; đo chữ trước khi vẽ |
+| Chữ tiếng Việt trên Canvas | Font **Geist** (self-host, `public/fonts/GeistVariable.woff2`) tải trước qua `document.fonts.load`; fallback sans-serif; đo chữ trước khi vẽ |
 | DPR cao | Canvas scale theo devicePixelRatio (tối đa 2) |
 | Giảm khởi tạo | Lazy-load generator/renderer theo key (`import()` động); bundle engine core nhỏ riêng |
 | Tránh GC khi điều hướng nhanh | Không tạo object mới mỗi bước trong render; tái sử dụng painter |
@@ -1688,15 +1709,16 @@ GROUP BY es.UserId, es.ExerciseId;
 | Mục | Đặc tả |
 |---|---|
 | Ngôn ngữ | Tiếng Việt có dấu |
-| Font | `Inter`/`Roboto` + fallback `Segoe UI, Arial`; mã giả `JetBrains Mono`/`Consolas` |
-| Cỡ chữ | 14px nội dung, 16px form, tiêu đề 20/24/32px |
-| Màu chủ đạo | Primary `#2563EB`, Secondary `#0F172A`, Success `#16A34A`, Warning `#D97706`, Danger `#DC2626`, Background `#F8FAFC`, Surface `#FFFFFF`, Text `#0F172A`, Muted `#64748B` |
-| Màu trạng thái mô phỏng | default `#CBD5E1`, active `#FACC15`, highlight `#FB923C`, swap `#EF4444`, done `#22C55E`, error `#B91C1C`, muted `#E2E8F0` (+ palette tối cho Dark Mode FR-3.18) |
-| Bo góc / Shadow | 8px thẻ, 6px nút; shadow nhẹ / modal 0 10px 25px |
-| Component library | tự xây: Button, Input, Select, Modal, Toast, Table, Card, Tabs, Tooltip, Skeleton, EmptyState, Badge, ProgressBar, Drawer |
-| Icon | lucide-vue-next (16/20/24px) |
+| Font | **Geist** (variable, self-host `public/fonts/GeistVariable.woff2`) + fallback hệ thống; mã giả/editor **JetBrains Mono** (variable, `public/fonts/JetBrainsMonoVariable.woff2`) |
+| Cỡ chữ | 14px nội dung, 16px form, tiêu đề 20/24/32px (token text-xs..4xl) |
+| Màu chủ đạo | Token **OKLCH** trong `src/styles/tokens.css` (đợt G): Primary teal `#0D9488`, Secondary `#2DD4BF`, Accent `#D97706`, Background `#F0FDFA`, Foreground `#134E4A`, Muted `#E8F1F4`, Border `#5EEAD4`, Destructive `#DC2626`, Ring `#0D9488`; dark mode qua `class="dark"` — bảng màu tối trong `tailwind.css` |
+| Màu trạng thái mô phỏng | default `#CBD5E1`, active `#FACC15`, highlight `#FB923C`, swap `#EF4444`, done `#22C55E`, error `#B91C1C`, muted `#E2E8F0` (+ palette tối cho Dark Mode FR-3.18 — canvas renderer đọc token OKLCH) |
+| Bo góc / Shadow | 8px thẻ, 6px nút; shadow nhẹ / modal 0 10px 25px (token radius-md/lg + shadow-md/lg) |
+| Component library | **shadcn-vue** (wrapper trong `src/components/ui/<name>/`): Button, Input, Select, Dialog, Drawer, Card, Tabs, Tooltip, Skeleton, Badge, Progress + tự xây: BaseIcon, EmptyState, VChartLazy |
+| Icon | `@lucide/vue` + `lucide-vue-next` (16/20/24px) + `@phosphor-icons/vue` |
 | Rich text editor | Quill (quyết định 17.7) |
-| Chart | Chart.js (Màn 08, Màn 17, báo cáo) |
+| Chart | **vue-echarts** (echarts — lazy-load, chunk riêng) cho Màn 08, Màn 17, Benchmark, Profile radar; so sánh/hover animation = GSAP/motion-v |
+| Toast | **vue-sonner** (`src/lib/toast.ts`) — thay ToastContainer tự xây (đợt G) |
 
 ## 8.2 Sơ đồ luồng màn hình
 
@@ -2194,7 +2216,7 @@ graph LR
 | Vùng | Thành phần | Hành vi |
 |---|---|---|
 | 4 KPI | Tổng người dùng · Người dùng hoạt động (7/30 ngày) · Số bài học/bài tập · Số phiên mô phỏng | Mỗi thẻ: số lớn + nhãn + icon + xu hướng so với kỳ trước (mũi tên ▲▼) |
-| Biểu đồ đường | Lượt truy cập 30 ngày (Chart.js) | Hover → tooltip ngày + giá trị; trục ngang 30 ngày |
+| Biểu đồ đường | Lượt truy cập 30 ngày (vue-echarts) | Hover → tooltip ngày + giá trị; trục ngang 30 ngày |
 | Biểu đồ tròn | Phân bố vai trò: Student / Teacher / Admin (+ TeacherPending) | Legend + tooltip phần trăm |
 | Bộ lọc | Dropdown khoảng thời gian (7/30/90 ngày) | Đổi → gọi lại API, cập nhật KPI + biểu đồ |
 
@@ -3718,6 +3740,7 @@ graph LR
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review (đồng bộ prompt v2.10): bổ sung index `ExerciseSubmissions.ClassAssignmentId` (báo cáo lớp FR-8.3/8.4) |
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu Phần 8 (Thiết kế giao diện): bổ sung §8.4A — đặc tả chi tiết 33 màn theo khuôn 17.14 (Mục đích/Nguồn yêu cầu/Bố cục/Thành phần/Tương tác/Trạng thái/Phím tắt/Responsive/Điều kiện truy cập/Lỗi có thể gặp) + wireframe ASCII Màn 13, 14 (đầy đủ 3 bậc), 16, 17, 22, 23, 24 |
 | 1.3 | 12/08/2026 | Mai Tiểu Bảo | Rà soát tối ưu CSDL (đồng bộ prompt v2.12): thêm `Users.TwoFactorEnabled` (FR-1.11); `Achievements.Name nvarchar(200)` + `Description nvarchar(500)` (sửa thiếu length — nvarchar mặc định nvarchar(1)); `ContentFeedback.Comment nvarchar(500)→200` (khớp FR-7.4 ≤ 200 ký tự); bổ sung 5 index: Topics(ParentId,Name) UNIQUE, UserAchievements(UserId,AchievementId) UNIQUE, Classes.OwnerId, Lessons.CreatedBy, PremiumSubscriptions(Status,ExpiresAt) |
+| 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
 
 
 
