@@ -157,6 +157,34 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-heading: var(--font-sans);
+
+  /* ── Gradient palettes G-F2a (xem palettes.css) ──
+     --background-image-* → utility bg-* (bg-aurora-gradient, …) */
+  --background-image-aurora-gradient: var(--gradient-aurora);
+  --background-image-sunset-gradient: var(--gradient-sunset);
+  --background-image-mint-gradient: var(--gradient-mint);
+}
+
+/* ── Text gradient utilities (background-clip: text) — G-F2a ── */
+@utility text-gradient-aurora {
+  background-image: var(--gradient-aurora);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-sunset {
+  background-image: var(--gradient-sunset);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-mint {
+  background-image: var(--gradient-mint);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ── Base shadcn (layer base → global.css unlayered vẫn thắng,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // ExerciseView — Màn 06: bài tập trắc nghiệm (Bậc 1 / kiểm tra) tại /exercise/:id
 // Tái sử dụng QuizStage + nút chuyển chế độ luyện tập (FR-4.6) + liên kết lý thuyết.
+// G-F2b: header tiến độ (ProgressBar trong QuizStage) + confetti 'success' khi pass + toast kết quả.
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -10,6 +11,7 @@ import QuizStage from '@/components/ladder/QuizStage.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { fireConfetti } from '@/composables/useConfetti';
 import { useUiStore } from '@/stores/ui';
 
 const route = useRoute();
@@ -33,6 +35,8 @@ onMounted(async () => {
 });
 
 function onPassed(): void {
+  // G-F2b: confetti khi pass (QuizStage cũng toast kết quả lúc nộp)
+  fireConfetti('success');
   ui.showToast('🎉 Hoàn thành bài tập!', 'success');
 }
 
@@ -63,8 +67,14 @@ function onFinished(): void {
     />
 
     <template v-else>
-      <div class="exercise__toolbar">
-        <h1 class="exercise__title">{{ exercise?.title ?? 'Bài tập' }}</h1>
+      <header class="exercise__toolbar card">
+        <div class="exercise__toolbar-info">
+          <p class="exercise__toolbar-kicker">Bài tập trắc nghiệm</p>
+          <h1 class="exercise__title">{{ exercise?.title ?? 'Bài tập' }}</h1>
+          <p v-if="exercise?.description" class="text-muted exercise__toolbar-desc">
+            {{ exercise.description }}
+          </p>
+        </div>
         <Button
           size="sm"
           :variant="practiceMode ? 'primary' : 'secondary'"
@@ -72,7 +82,7 @@ function onFinished(): void {
         >
           {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
         </Button>
-      </div>
+      </header>
 
       <QuizStage
         :exercise="exercise"
@@ -105,9 +115,21 @@ function onFinished(): void {
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
+  padding: var(--space-lg);
+}
+
+.exercise__toolbar-info { display: flex; flex-direction: column; gap: 4px; }
+
+.exercise__toolbar-kicker {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
 }
 
 .exercise__title { font-size: var(--text-xl); }
+.exercise__toolbar-desc { font-size: var(--text-sm); }
 
 .exercise__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 </style>

@@ -9,6 +9,7 @@ import { useUiStore } from '@/stores/ui';
 import * as gamificationApi from '@/api/gamification';
 import type { LearningPathNodeDto } from '@/api/gamification';
 import { CATALOG } from '@/engines/catalog';
+import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -154,12 +155,19 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
 <template>
   <main class="path-view container">
     <header class="path-view__header">
-      <div>
-        <h1 class="path-view__title">🎯 {{ topicMeta.name }}</h1>
-        <p class="text-muted path-view__sub">{{ topicMeta.description }}</p>
-      </div>
-      <div class="path-view__progress">
-        <ProgressBar :value="progressPct" show-label :variant="progressPct >= 100 ? 'success' : 'default'" />
+      <div class="path-view__hero">
+        <div class="path-view__hero-main">
+          <p class="path-view__hero-kicker">Learning Path</p>
+          <h1 class="path-view__title">🎯 {{ topicMeta.name }}</h1>
+          <p class="text-muted path-view__sub">{{ topicMeta.description }}</p>
+        </div>
+        <div class="path-view__progress">
+          <p class="path-view__progress-label">Tiến độ tổng</p>
+          <ProgressBar :value="progressPct" show-label :variant="progressPct >= 100 ? 'success' : 'default'" />
+          <p class="path-view__progress-count text-muted">
+            {{ nodes.filter((n) => n.status === 'passed').length }}/{{ nodes.length }} node đã qua
+          </p>
+        </div>
       </div>
     </header>
 
@@ -188,6 +196,7 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
               'path-view__node--active': node.status === 'active',
               'path-view__node--passed': node.status === 'passed',
               'path-view__node--locked': node.status === 'locked',
+              'hover-lift': node.status !== 'locked',
             }"
             :disabled="node.status === 'locked'"
             :aria-label="node.title"
@@ -197,6 +206,12 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
               {{ node.status === 'locked' ? '🔒' : node.status === 'passed' ? starLabel(node.stars) || '⭐' : '▶' }}
             </span>
             <span class="path-view__node-label">{{ idx + 1 }}. {{ node.title }}</span>
+            <Badge
+              class="path-view__node-badge"
+              :variant="node.status === 'passed' ? 'success' : node.status === 'active' ? 'primary' : 'muted'"
+            >
+              {{ node.status === 'passed' ? 'Đã qua' : node.status === 'active' ? 'Đang học' : 'Khóa' }}
+            </Badge>
           </button>
         </template>
 
@@ -205,13 +220,16 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
         <button
           type="button"
           class="path-view__node path-view__node--final"
-          :class="{ 'path-view__node--locked': !finalTestUnlocked }"
+          :class="{ 'path-view__node--locked': !finalTestUnlocked, 'hover-lift': finalTestUnlocked }"
           :disabled="!finalTestUnlocked"
           :title="finalTestUnlocked ? 'Mở kiểm tra cuối lộ trình' : 'Hoàn thành toàn bộ node để mở'"
           @click="router.push({ name: 'final-test', params: { topicId: String(topicId) } })"
         >
           <span class="path-view__node-icon" aria-hidden="true">🏁</span>
           <span class="path-view__node-label">Kiểm tra cuối lộ trình</span>
+          <Badge :variant="finalTestUnlocked ? 'success' : 'muted'" class="path-view__node-badge">
+            {{ finalTestUnlocked ? 'Mở được' : 'Khóa' }}
+          </Badge>
         </button>
       </div>
 
@@ -260,18 +278,70 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
   gap: var(--space-lg);
 }
 
-.path-view__header {
+.path-view__header { display: flex; }
+
+/* ── Hero gradient nhẹ (G-F2b) ── */
+.path-view__hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   align-items: flex-start;
   flex-wrap: wrap;
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  background-color: var(--aurora-soft);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+.path-view__hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: -1;
+  background-image: var(--gradient-aurora);
+}
+
+.path-view__hero-main { display: flex; flex-direction: column; gap: 4px; }
+
+.path-view__hero-kicker {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
 }
 
 .path-view__title { font-size: var(--text-2xl); }
-.path-view__sub { font-size: var(--text-sm); margin-top: 4px; }
+.path-view__sub { font-size: var(--text-sm); }
 
-.path-view__progress { width: 280px; }
+.path-view__progress {
+  width: min(300px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.path-view__progress-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.path-view__progress-count { font-size: var(--text-xs); }
 
 .path-view__map {
   display: flex;
@@ -299,7 +369,6 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
   background: var(--color-surface);
   cursor: pointer;
   max-width: 100%;
-  transition: var(--transition-fast);
 }
 
 .path-view__node--active {
@@ -312,11 +381,11 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
 
 .path-view__node--locked { opacity: 0.55; cursor: not-allowed; }
 
-.path-view__node:hover:not(:disabled) { transform: translateY(-2px); }
-
-.path-view__node-icon { font-size: var(--text-md); }
+.path-view__node-icon { font-size: var(--text-md); flex-shrink: 0; }
 
 .path-view__node-label { font-weight: 700; font-size: var(--text-sm); }
+
+.path-view__node-badge { flex-shrink: 0; }
 
 .path-view__node--final { border-style: dashed; }
 

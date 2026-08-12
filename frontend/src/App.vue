@@ -1,12 +1,35 @@
 <script setup lang="ts">
+import { onBeforeUnmount } from 'vue';
 import { RouterView } from 'vue-router';
 import { Toaster } from 'vue-sonner';
 
 import AppHeader from '@/components/layout/AppHeader.vue';
+import { useLenis } from '@/composables/useLenis';
 import { messages } from '@/i18n/vi';
 import { useUiStore } from '@/stores/ui';
 
 const ui = useUiStore();
+
+// G-F2a: smooth scroll toàn cục (singleton — App đời là tạo 1 lần duy nhất).
+const { scrollToTop } = useLenis();
+
+// Đánh dấu điều hướng back/forward (popstate) → không reset scroll về đầu,
+// giữ vị trí cũ như savedPosition.
+let isHistoryNavigation = false;
+function onPopState(): void {
+  isHistoryNavigation = true;
+}
+window.addEventListener('popstate', onPopState);
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState));
+
+/** Sau khi trang mới enter xong → về đầu trang (bỏ qua nếu là back/forward). */
+function onPageEnter(): void {
+  if (isHistoryNavigation) {
+    isHistoryNavigation = false;
+    return;
+  }
+  scrollToTop(true);
+}
 </script>
 
 <template>
@@ -14,7 +37,14 @@ const ui = useUiStore();
     <AppHeader />
 
     <main class="app-shell__main">
-      <RouterView />
+      <!-- G-F2a: page transition theo route.fullPath — fade + slide nhẹ,
+           mode out-in tránh nhảy layout, tôn trọng prefers-reduced-motion
+           (global.css đã cắt transition khi reduce). -->
+      <RouterView v-slot="{ Component, route }">
+        <Transition name="page" mode="out-in" @after-enter="onPageEnter">
+          <component :is="Component" :key="route.fullPath" />
+        </Transition>
+      </RouterView>
     </main>
 
     <footer class="app-shell__footer">
@@ -27,7 +57,7 @@ const ui = useUiStore();
       </div>
     </footer>
 
-    <!-- Toast G-F1b: vue-sonner (thay ToastContainer tự xây) -->
+    <!-- Toast G-F1b: vue-sonner (thay ToastContainer tự xây) — G-F2a giữ mount hoàn chỉnh -->
     <Toaster position="top-right" :theme="ui.theme" rich-colors close-button />
   </div>
 </template>

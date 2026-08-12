@@ -9,17 +9,26 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
   const tab = ref<'week' | 'level' | 'class'>('week');
   const rows = ref<LeaderboardEntryDto[]>([]);
   const myRank = ref<LeaderboardEntryDto | null>(null);
+  // G-F2d: phân trang thật (BE trả totalPages từ PagedResponse) — additive, giữ nguyên rows/myRank.
+  const page = ref(1);
+  const totalPages = ref(1);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function fetchBoard(nextTab?: 'week' | 'level' | 'class', classId?: number): Promise<void> {
-    if (nextTab) tab.value = nextTab;
+  async function fetchBoard(nextTab?: 'week' | 'level' | 'class', classId?: number, nextPage?: number): Promise<void> {
+    // Đổi tab → về trang 1 (hành vi cũ giữ nguyên); nextPage chỉ dùng khi bấm phân trang.
+    if (nextTab) {
+      tab.value = nextTab;
+      page.value = 1;
+    }
+    if (nextPage !== undefined) page.value = nextPage;
     loading.value = true;
     error.value = null;
     try {
-      const board = await gamificationApi.fetchLeaderboard({ tab: tab.value, classId });
+      const board = await gamificationApi.fetchLeaderboard({ tab: tab.value, classId, page: page.value });
       rows.value = board.rows;
       myRank.value = board.myRank;
+      totalPages.value = board.totalPages > 0 ? board.totalPages : 1;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Không tải được bảng xếp hạng';
       rows.value = [];
@@ -29,5 +38,5 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     }
   }
 
-  return { tab, rows, myRank, loading, error, fetchBoard };
+  return { tab, rows, myRank, page, totalPages, loading, error, fetchBoard };
 });

@@ -5,6 +5,7 @@
 import { computed, ref } from 'vue';
 
 import { useUiStore } from '@/stores/ui';
+import { fireConfetti } from '@/composables/useConfetti';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 
@@ -100,6 +101,7 @@ function submit(): void {
   if (isSorted.value && stepsUsed.value <= limit.value) {
     won.value = true;
     ui.showToast('🎉 Chúc mừng qua Bậc 2!', 'success');
+    fireConfetti('node-pass'); // hoàn thành stage → pháo mint-teal (G-F2c)
     emit('passed');
   } else {
     feedback.value = isSorted.value
@@ -164,9 +166,22 @@ function submit(): void {
 <style scoped>
 .lab-stage { display: flex; flex-direction: column; gap: var(--space-lg); }
 
-.lab-stage__header { display: flex; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+.lab-stage__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
 
-.lab-stage__title { font-size: var(--text-lg); }
+.lab-stage__title {
+  font-size: var(--text-lg);
+  background-image: var(--gradient-mint);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .lab-stage__prompt { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: 4px; }
 
 .lab-stage__canvas {
@@ -174,12 +189,17 @@ function submit(): void {
   flex-wrap: wrap;
   gap: var(--space-sm);
   padding: var(--space-lg);
-  border: 1px dashed var(--color-border);
+  border: 2px dashed color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
   border-radius: var(--radius-lg);
-  background: var(--color-muted);
+  background: color-mix(in srgb, var(--color-background) 55%, var(--color-muted));
   min-height: 140px;
   align-items: center;
   justify-content: center;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+.lab-stage__canvas:has(.lab-stage__cell--done) {
+  border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border));
 }
 
 .lab-stage__cell {
@@ -198,18 +218,51 @@ function submit(): void {
   justify-content: center;
   gap: 2px;
   transition: var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
-.lab-stage__cell:hover:not(:disabled) { border-color: var(--color-primary); transform: translateY(-2px); }
-.lab-stage__cell--selected { border-color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 14%, transparent); }
-.lab-stage__cell--done { border-color: var(--color-success); }
+.lab-stage__cell:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.lab-stage__cell--selected {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  transform: translateY(-2px);
+}
+
+.lab-stage__cell--done {
+  border-color: transparent;
+  background-image: var(--gradient-mint);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.lab-stage__cell--done .lab-stage__cell-idx { color: color-mix(in srgb, var(--color-on-primary) 80%, transparent); }
 
 .lab-stage__cell-idx { font-size: 10px; color: var(--color-text-muted); }
 
-.lab-stage__feedback { font-size: var(--text-sm); color: var(--color-warning); }
+.lab-stage__feedback {
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
 
 .lab-stage__controls { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
-.lab-stage__win { color: var(--color-success); font-weight: 700; }
+.lab-stage__win {
+  color: var(--color-success);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
 .lab-stage__fail { color: var(--color-warning); font-weight: 600; }
 </style>

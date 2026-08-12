@@ -7,9 +7,12 @@ import { useAuthStore } from '@/stores/auth';
 // Thứ tự CSS (Phase 1a G): tokens → tailwind → global.
 // tokens.css: biến --color-* legacy (component scoped cũ).
 // tailwind.css: @import "tailwindcss" + tw-animate-css + theme OKLCH shadcn + font.
+// palettes.css: 3 gradient OKLCH (Aurora/Sunset/Cyber Mint) — G-F2a.
 // global.css: reset/base/component class cũ — unlayered thắng preflight Tailwind.
 import './styles/tokens.css';
 import './styles/tailwind.css';
+import './styles/palettes.css';
+import 'lenis/dist/lenis.css';
 import './styles/global.css';
 
 /**
