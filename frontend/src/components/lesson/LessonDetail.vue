@@ -14,6 +14,8 @@ import Drawer from '@/components/ui/Drawer.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { getCatalogMeta } from '@/engines/catalog';
+import { toast } from '@/lib/toast';
+import { submitLessonFeedback } from '@/api/lessons';
 
 const props = withDefaults(
   defineProps<{
@@ -88,11 +90,16 @@ async function markViewed(): Promise<void> {
   }
 }
 
-function submitRating(): void {
+async function submitRating(): Promise<void> {
   if (rating.value === 0) return;
-  ratingSubmitted.value = true;
-  // TODO (v2.9): POST /lessons/{id}/feedback — endpoint backend ở đợt sau
-  ui.showToast('Cảm ơn bạn đã đánh giá!', 'success');
+  try {
+    // POST /lessons/{id}/feedback (FR-7.4) — upsert, 1 lần/người
+    await submitLessonFeedback(Number(props.lessonId), { rating: rating.value });
+    ratingSubmitted.value = true;
+    toast.success('Cảm ơn bạn đã đánh giá!');
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Không thể gửi đánh giá.');
+  }
 }
 
 onBeforeUnmount(() => {
