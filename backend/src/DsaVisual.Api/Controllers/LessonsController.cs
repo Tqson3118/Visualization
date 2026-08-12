@@ -78,6 +78,14 @@ public class LessonsController(ILessonService service) : ControllerBase
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpPost("{id:int}/feedback")]
+    public async Task<ActionResult<FeedbackSavedDto>> SubmitFeedback(
+        [FromRoute] int id, [FromBody] LessonFeedbackRequest request, CancellationToken ct)
+    {
+        var result = await _service.AddFeedbackAsync(CurrentUserId(), CurrentRole(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     private int CurrentUserId() => int.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 
     private string CurrentRole() => User.FindFirst(ClaimTypes.Role)!.Value;

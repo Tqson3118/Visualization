@@ -142,6 +142,7 @@ builder.Services.AddScoped<IValidator<ExerciseUpsertRequest>, ExerciseUpsertRequ
 builder.Services.AddScoped<IValidator<ClassUpsertRequest>, ClassUpsertRequestValidator>();
 builder.Services.AddScoped<IValidator<SubmitRequest>, SubmitRequestValidator>();
 builder.Services.AddScoped<IValidator<FeedbackRequest>, FeedbackRequestValidator>();
+builder.Services.AddScoped<IValidator<LessonFeedbackRequest>, LessonFeedbackRequestValidator>();
 
 var app = builder.Build();
 

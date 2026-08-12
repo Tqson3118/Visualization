@@ -18,6 +18,7 @@ namespace DsaVisual.Application.Services;
 public sealed class LessonService(
     AppDbContext db,
     IValidator<LessonUpsertRequest> validator,
+    IValidator<LessonFeedbackRequest> feedbackValidator,
     IHtmlSanitizer htmlSanitizer,
     IDateTimeProvider clock,
     ILogger<LessonService> logger) : ILessonService
@@ -276,6 +277,67 @@ public sealed class LessonService(
 
         logger.LogInformation("User {UserId} marked lesson {LessonId} as viewed", userId, lessonId);
         return Result.Ok();
+    }
+
+    public async Task<Result<FeedbackSavedDto>> AddFeedbackAsync(
+        int userId, string role, int lessonId, LessonFeedbackRequest request, CancellationToken ct)
+    {
+        var validation = await feedbackValidator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            return Result<FeedbackSavedDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Dữ liệu đánh giá không hợp lệ", ToFieldErrors(validation));
+        }
+
+        var lesson = await db.Lessons.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
+        if (lesson is null)
+        {
+            return Result<FeedbackSavedDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
+        {
+            // Student không được đánh giá bản nháp/ẩn
+            return Result<FeedbackSavedDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        // FR-7.4 (v2.9 — API_REFERENCE §4.15): chỉ đánh giá sau khi đã "Đánh dấu đã học" bài đó
+        var viewed = await db.UserProgress.AsNoTracking()
+            .AnyAsync(p => p.UserId == userId && p.LessonId == lessonId && p.Viewed, ct);
+        if (!viewed)
+        {
+            return Result<FeedbackSavedDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn cần học bài này trước khi đánh giá");
+        }
+
+        var comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim();
+        var now = clock.UtcNow;
+        var feedback = await db.ContentFeedback
+            .FirstOrDefaultAsync(f => f.UserId == userId && f.LessonId == lessonId, ct);
+
+        // Upsert ContentFeedback — 1 bản ghi/1 (User, Lesson) (UNIQUE IX_ContentFeedback_UserId_LessonId);
+        // lần 2 chỉ update Rating/Comment (TEST-B-076/077)
+        if (feedback is null)
+        {
+            db.ContentFeedback.Add(new ContentFeedback
+            {
+                UserId = userId,
+                LessonId = lessonId,
+                Rating = request.Rating,
+                Comment = comment,
+                CreatedAt = now
+            });
+        }
+        else
+        {
+            feedback.Rating = request.Rating;
+            feedback.Comment = comment;
+            feedback.UpdatedAt = now;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("User {UserId} submitted feedback for lesson {LessonId} (rating {Rating})", userId, lessonId, request.Rating);
+        return Result<FeedbackSavedDto>.Ok(new FeedbackSavedDto { LessonId = lessonId, Rating = request.Rating });
     }
 
     // ── Private ─────────────────────────────────────────────

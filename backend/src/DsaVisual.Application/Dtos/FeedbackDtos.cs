@@ -15,3 +15,17 @@ public sealed class FeedbackSummaryDto
     public double AvgRating { get; set; }
     public int Count { get; set; }
 }
+
+/// <summary>Gửi/chỉnh đánh giá bài học — POST /lessons/{id}/feedback (FR-7.4). LessonId lấy từ route.</summary>
+public sealed class LessonFeedbackRequest
+{
+    public int Rating { get; set; }        // 1-5
+    public string? Comment { get; set; }   // ≤ 1000
+}
+
+/// <summary>Kết quả lưu đánh giá — POST /lessons/{id}/feedback.</summary>
+public sealed class FeedbackSavedDto
+{
+    public int LessonId { get; set; }
+    public int Rating { get; set; }
+}
