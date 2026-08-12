@@ -1,0 +1,31 @@
+# ── .NET ──
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+
+# ── Build output ──
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# ── Environment / secrets ──
+.env
+.env.*
+!.env.example
+
+# ── Logs (Serilog rolling file) ──
+logs/
+*.log
+
+# ── Test results ──
+TestResults/
+[Tt]est[Rr]esult*/
+coverage*.xml
+coverage*.json
+
+# ── IDE ──
+.idea/
+.vscode/
