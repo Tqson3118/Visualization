@@ -82,13 +82,124 @@ const MOCK_LEARNING_PATH: LearningPathDto = {
 
 /** GET /progress/me — PathRedirectView + ProfileView (progressStore.fetchOverview) */
 const MOCK_PROGRESS_OVERVIEW: ProgressOverviewDto = {
-  lessonsViewed: 0,
-  lessonsTotal: 0,
-  exercisesCompleted: 0,
-  exercisesTotal: 0,
-  avgScore: null,
-  topics: [],
+  // G-F2d: seed vài chủ đề + số liệu để skill radar / level progress render ảnh verify §6.2
+  lessonsViewed: 3,
+  lessonsTotal: 12,
+  exercisesCompleted: 2,
+  exercisesTotal: 10,
+  avgScore: 7.5,
+  topics: [
+    {
+      id: 1,
+      name: 'Sắp xếp & Tìm kiếm',
+      progressPct: 45,
+      lessons: [
+        { id: 1, title: 'Sắp xếp nổi bọt (Bubble Sort)', viewed: true, bestScore: 8, completed: true },
+        { id: 2, title: 'Tìm kiếm nhị phân', viewed: false, bestScore: null, completed: false },
+      ],
+    },
+    {
+      id: 2,
+      name: 'CTDL tuyến tính',
+      progressPct: 30,
+      lessons: [
+        { id: 3, title: 'Ngăn xếp (Stack)', viewed: true, bestScore: 6, completed: false },
+        { id: 4, title: 'Hàng đợi (Queue)', viewed: false, bestScore: null, completed: false },
+      ],
+    },
+    {
+      id: 3,
+      name: 'Cây',
+      progressPct: 15,
+      lessons: [
+        { id: 5, title: 'Cây nhị phân tìm kiếm', viewed: false, bestScore: null, completed: false },
+      ],
+    },
+    {
+      id: 4,
+      name: 'Bảng băm',
+      progressPct: 5,
+      lessons: [
+        { id: 6, title: 'Bảng băm cơ bản', viewed: false, bestScore: null, completed: false },
+      ],
+    },
+    {
+      id: 5,
+      name: 'Đồ thị',
+      progressPct: 10,
+      lessons: [
+        { id: 7, title: 'Duyệt BFS/DFS', viewed: false, bestScore: null, completed: false },
+      ],
+    },
+  ],
 };
+
+/**
+ * GET /leaderboard — LeaderboardView (Màn 24). G-F2d mock: PagedResponse shape
+ * (items/page/pageSize/total/totalPages), 14 người, pageSize 10. Thứ tự theo tab
+ * KHÁC nhau để ảnh verify chứng minh reorder animation khi đổi tab.
+ * userId 1 = "E2E Student" (MOCK_USER) → api tự suy myRank → dòng "Bạn" ghim cuối.
+ */
+const MOCK_LEADERBOARD_PLAYERS: Array<{
+  id: number;
+  name: string;
+  streak?: number;
+  level?: number;
+  week: number;
+  levelScore: number;
+  classScore: number;
+}> = [
+  { id: 11, name: 'Nguyễn Minh Anh', streak: 12, level: 24, week: 1280, levelScore: 2450, classScore: 980 },
+  { id: 12, name: 'Trần Quốc Bảo', streak: 9, level: 21, week: 1150, levelScore: 2100, classScore: 940 },
+  { id: 13, name: 'Lê Thị Cẩm Tú', streak: 15, level: 26, week: 1090, levelScore: 2680, classScore: 920 },
+  { id: 14, name: 'Phạm Văn Dũng', streak: 6, level: 18, week: 940, levelScore: 1850, classScore: 890 },
+  { id: 15, name: 'Hoàng Thu Hà', streak: 11, level: 22, week: 870, levelScore: 1980, classScore: 860 },
+  { id: 16, name: 'Võ Ngọc Khánh', streak: 4, level: 15, week: 760, levelScore: 1490, classScore: 830 },
+  { id: 17, name: 'Đặng Minh Long', streak: 8, level: 19, week: 690, levelScore: 1720, classScore: 800 },
+  { id: 1, name: 'E2E Student', streak: 3, level: 9, week: 620, levelScore: 980, classScore: 770 },
+  { id: 18, name: 'Bùi Thanh Mai', streak: 5, level: 16, week: 580, levelScore: 1410, classScore: 750 },
+  { id: 19, name: 'Đỗ Xuân Nam', streak: 2, level: 12, week: 510, levelScore: 1120, classScore: 720 },
+  { id: 20, name: 'Cao Thị Ngọc', streak: 7, level: 17, week: 470, levelScore: 1550, classScore: 700 },
+  { id: 21, name: 'Lâm Vĩnh Phúc', streak: 1, level: 10, week: 410, levelScore: 1020, classScore: 680 },
+  { id: 22, name: 'Hồ Nhật Quang', streak: 0, level: 8, week: 360, levelScore: 860, classScore: 650 },
+  { id: 23, name: 'Vương Gia Thịnh', streak: 0, level: 7, week: 300, levelScore: 740, classScore: 620 },
+];
+
+function mockLeaderboardPage(tab: string, page: number): {
+  items: Array<{
+    rank: number;
+    userId: number;
+    displayName: string;
+    avatarUrl: null;
+    value: number;
+    streak?: number;
+    level?: number;
+  }>;
+  totalPages: number;
+  total: number;
+} {
+  // Thứ tự theo tab (khác nhau → reorder animation khi đổi tab):
+  // week: xếp theo week desc · level: theo levelScore desc · class: theo classScore desc
+  const ordered = [...MOCK_LEADERBOARD_PLAYERS].sort((a, b) => {
+    if (tab === 'level') return b.levelScore - a.levelScore;
+    if (tab === 'class') return b.classScore - a.classScore;
+    return b.week - a.week;
+  });
+  const pageSize = 10;
+  const total = ordered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const slice = ordered.slice((page - 1) * pageSize, page * pageSize);
+  const items = slice.map((player, i) => ({
+    rank: (page - 1) * pageSize + i + 1,
+    userId: player.id,
+    displayName: player.name,
+    avatarUrl: null,
+    value: tab === 'level' ? player.levelScore : tab === 'class' ? player.classScore : player.week,
+    streak: tab === 'week' ? player.streak : undefined,
+    level: tab === 'level' ? player.level : undefined,
+  }));
+  return { items, totalPages, total };
+}
 
 /** GET /lessons/{id} — NodeHubView (lessonStore.fetchLesson) */
 const MOCK_LESSON: LessonDto = {
@@ -286,6 +397,20 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
     if (method === 'GET' && /^\/learning-path\/\d+$/.test(path)) {
       await json(route, 200, MOCK_LEARNING_PATH);
+      return;
+    }
+
+    // ── Leaderboard (API_REFERENCE §4.14 — G-F2d: PagedResponse, thứ tự theo tab) ──
+    if (method === 'GET' && path === '/leaderboard') {
+      const tab = url.searchParams.get('tab') ?? 'week';
+      const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+      await json(route, 200, {
+        items: mockLeaderboardPage(tab, page).items,
+        page,
+        pageSize: 10,
+        total: mockLeaderboardPage(tab, page).total,
+        totalPages: mockLeaderboardPage(tab, page).totalPages,
+      });
       return;
     }
     if (method === 'POST' && /^\/learning-path\/\d+\/nodes\/\d+\/enter$/.test(path)) {
