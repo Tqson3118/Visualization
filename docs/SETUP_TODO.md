@@ -40,3 +40,13 @@
 | 5 | (Tùy chọn) Đổi branch mặc định của GitHub repo thành `main` nếu GitHub tạo mặc định khác | GitHub tự nhận `main` khi push — thường không cần | [ ] |
 
 > Cập nhật bởi Session C (PM --auto). Đừng xóa mục cũ — đánh dấu [x] khi xong.
+
+## 5. Session D — Code thật (2026-08-12, đã merge vào dev)
+
+| # | Việc | Ghi chú | Trạng thái |
+|---|---|---|---|
+| 1 | Chạy backend + seed khi demo/deploy: dotnet run --project backend/src/DsaVisual.Api -- --seed (kèm env DSA__Jwt__Secret + ConnectionStrings__Default) | Seed idempotent đã chạy thật lên SQL Server docker local (5 topics/8 lessons/29 exercises/76 questions/5 paths). Khi deploy môi trường khác phải chạy lại --seed + dotnet ef database update. | [ ] |
+| 2 | Đổi mật khẩu seed DEV khi deploy: admin@system.local / teacher@demo.local / student@demo.local (ghi trong backend/.../Seed/README.md — DEV-ONLY) | Bắt buộc đổi trước khi demo chính thức/bảo vệ. | [ ] |
+| 3 | Xác nhận cột MustChangePassword (Users) — SDD §7.5 "ép đổi mật khẩu lần đầu" | Entity chưa có cột; seeder chỉ set IsPrimaryAdmin + mật khẩu tạm. Cần migration bổ sung nếu giữ tính năng. | [ ] |
+| 4 | (Tùy chọn) Cài monaco-editor + chart.js khi cần Code Runner/benchmark hoàn chỉnh | Code Runner đang dùng textarea thay Monaco; benchmark vẽ SVG thay Chart.js (không có gói). | [ ] |
+| 5 | (Tùy chọn) PR GitHub: 4 nhánh feature/backend-services, feature/backend-seed, feature/engine-generators, feature/views → dev | Đã merge + push thẳng lên dev bằng git local (không có gh CLI). | [ ] |
