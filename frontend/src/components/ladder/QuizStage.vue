@@ -293,12 +293,13 @@ function finish(): void {
 
 .quiz-stage__options { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-/* Option dạng nút selectable (G-F2b): hover nâng nhẹ, active = viền primary + check */
+/* Option dạng nút selectable (G-F2b): hover nâng nhẹ, active = viền primary + check.
+   GP-T9b (#17): padding ≥ 12px theo gợi ý review. */
 .quiz-stage__option {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: 0.75rem var(--space-md);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;

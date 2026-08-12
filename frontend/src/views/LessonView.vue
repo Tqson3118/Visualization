@@ -216,6 +216,12 @@ async function onMarkViewed(): Promise<void> {
   background: linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 55%);
 }
 
+/* GP-T9b (#12): dark mode gradient Sunset sáng (0.75-0.88) làm chữ trắng khó đọc
+   → phủ lớp tối để chữ trắng ≥ 4.5:1. */
+.dark .lesson-view__hero::after {
+  background: rgba(4, 47, 46, 0.62);
+}
+
 .lesson-view__hero-badges {
   display: flex;
   gap: var(--space-sm);
@@ -223,7 +229,7 @@ async function onMarkViewed(): Promise<void> {
 }
 
 .lesson-view__hero-title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   margin: 0;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }

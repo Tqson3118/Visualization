@@ -429,7 +429,7 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   max-width: 56ch;
 }
 
-.simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+.simulator__actions { display: flex; gap: var(--space-md); flex-wrap: wrap; align-items: center; }
 
 .simulator__icon-btn {
   width: 36px;

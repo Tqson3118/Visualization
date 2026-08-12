@@ -149,6 +149,16 @@ const BRAND_POINTS = [
   isolation: isolate;
 }
 
+/* GP-T9b (#8): dark mode gradient Aurora sáng → phủ lớp tối để chữ trắng ≥ 4.5:1. */
+.dark .login__aside {
+  background-image: linear-gradient(rgba(4, 47, 46, 0.62), rgba(4, 47, 46, 0.62)), var(--gradient-aurora);
+}
+
+.dark .login__aside::before,
+.dark .login__aside::after {
+  opacity: 0.12;
+}
+
 .login__aside::before,
 .login__aside::after {
   content: '';
@@ -237,7 +247,7 @@ const BRAND_POINTS = [
   max-width: 24rem;
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   box-shadow: none;
   border: none;
   background: transparent;
@@ -245,7 +255,7 @@ const BRAND_POINTS = [
 }
 
 .login__title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   margin: 0;
 }
 

@@ -334,13 +334,15 @@ async function toggleHistory(): Promise<void> {
 
 .code-runner__panel-title svg { color: var(--color-primary); }
 
-/* ── Editor: gutter số dòng + textarea ── */
+/* ── Editor: gutter số dòng + textarea ──
+   GP-T9b (#27): nền editor theo theme (light = sáng, dark = tối) thay vì
+   hardcode #0f172a → đồng bộ tương phản với trang. */
 .code-runner__editor-wrap {
   display: flex;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: color-mix(in srgb, #0f172a 92%, transparent);
+  background: var(--color-surface);
 }
 
 .code-runner__gutter {
@@ -348,8 +350,8 @@ async function toggleHistory(): Promise<void> {
   flex-shrink: 0;
   overflow: hidden;
   padding: 12px 8px 12px 0;
-  background: color-mix(in srgb, #1e293b 85%, transparent);
-  border-right: 1px solid color-mix(in srgb, #ffffff 8%, transparent);
+  background: var(--color-muted);
+  border-right: 1px solid var(--color-border);
   text-align: right;
   user-select: none;
 }
@@ -359,7 +361,7 @@ async function toggleHistory(): Promise<void> {
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .code-runner__textarea {
@@ -371,7 +373,7 @@ async function toggleHistory(): Promise<void> {
   border: none;
   outline: none;
   background: transparent;
-  color: #e2e8f0;
+  color: var(--color-foreground);
   padding: 12px 14px;
   resize: vertical;
   tab-size: 2;

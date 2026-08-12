@@ -139,7 +139,7 @@ const INFO_CARDS = [
 
 .lab-view__info-title { font-size: var(--text-md); }
 
-.lab-view__info-text { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.6; }
+.lab-view__info-text { font-size: var(--text-base); color: var(--color-text-muted); line-height: 1.6; }
 
 .lab-view__actions {
   display: flex;
