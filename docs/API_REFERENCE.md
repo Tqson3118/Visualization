@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | API Reference |
-| Phiên bản | 1.2 |
+| Phiên bản | 1.4 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -21,6 +21,7 @@
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: bổ sung error code `LESSON_HAS_EXERCISES` (409); ghi phiên bản v2.4 cho 4 mã bổ sung ngoài §9.7; thay placeholder `"..."` trong ví dụ resume session bằng JSON thực |
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: (1) §4.2 xóa endpoint `/public/simulations/{key}/run` đã cắt theo ADR-001 (quyết định A-4) — ghi chú thay thế; (2) §4.4 ghi rõ trạng thái "chưa triển khai" cho 3 endpoint Lessons (progress/mark-viewed/simulations) — theo dõi SETUP_TODO §6; (3) §5 dòng 12 sửa route viết tắt `GET /submissions?exerciseId` → `GET /exercises/{id}/submissions` khớp code |
 | 1.3 | 13/08/2026 | Mai Tiểu Bảo | GP-T2 (2FA email — FR-1.11): (1) §4.12 bổ sung `POST /auth/2fa/send` + `POST /auth/2fa/verify`, làm rõ PUT /auth/2fa (tắt trực tiếp; bật qua mã OTP); (2) §2.2 bổ sung 5 error code 2FA `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` (400) — [v2.13] |
+| 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §4.14 bổ sung chi tiết `POST /premium/upgrade` — `{planId}` `1m|3m|12m`; OrderRef đơn hàng = `DSV{userId}T{months}` (VD DSV1002T3 — trùng nội dung CK trên QR) + response trả `contentRef` (nội dung CK hiển thị trên QR); thêm ví dụ response; §8 thêm dòng thay đổi |
 
 ---
 
@@ -541,10 +542,19 @@
 | GET | `/me/inventory` | Vật phẩm đã mua + trang bị | Đã đăng nhập |
 | PUT | `/me/inventory/equip` | `{itemId, slot}` — set `IsEquipped=true` item, set false các item cùng loại (v2.9) | Đã đăng nhập |
 | GET | `/premium/status` | Gói hiện tại + ngày hết hạn | Đã đăng nhập |
-| POST | `/premium/upgrade` | `{planId}` → tạo đơn checkout mô phỏng | Đã đăng nhập |
-| POST | `/premium/mock-pay` | `{orderId}` → kích hoạt Premium + log giao dịch | Đã đăng nhập |
+| POST | `/premium/upgrade` | `{planId}` (`1m`/`3m`/`12m`) → tạo đơn checkout QR MB Bank: OrderRef = `DSV{userId}T{months}` (VD DSV1002T3) + trả `contentRef` (nội dung CK hiển thị trên QR) — GP-T7 | Đã đăng nhập |
+| POST | `/premium/mock-pay` | `{orderId}` → kích hoạt Premium sau xác nhận "Tôi đã chuyển khoản" + log giao dịch (OrderRef DSV...) | Đã đăng nhập |
 | GET | `/cheatsheet?structure=` | Bảng Big-O + snippet + deep-link mô phỏng | Đã đăng nhập |
 | POST | `/benchmarks/run` | `{keys[], sizes[], language?}` → kết quả đo nhiều n + fit lý thuyết | Đã đăng nhập |
+
+**Ví dụ — POST /premium/upgrade (FR-10.7, GP-T7 — QR chuyển khoản MB Bank)**
+
+```json
+// Request: { "planId": "3m" }
+// Response 200 — OrderRef DSV{userId}T{months} khớp nội dung CK hiển thị trên QR
+{ "orderId": 1002, "planId": "3m", "expiresAt": "2026-11-12T00:00:00Z",
+  "contentRef": "DSV1002T3" }
+```
 
 **Ví dụ — POST /learning-path/{id}/nodes/{nodeId}/enter (FR-10.1, v2.5)**
 
@@ -610,7 +620,7 @@
 | 30 | Vào node (trừ tim), xem tim | /me/hearts, /learning-path/*/enter | ✔ | ✔ | ✔ |
 | 31 | Làm Daily Quest và nhận thưởng | /me/quests | ✔ | ✔ | ✔ |
 | 32 | Mua vật phẩm Shop bằng Gems | /shop/buy | ✔ | ✔ | ✔ |
-| 33 | Nâng cấp Premium (checkout mô phỏng) | /premium/* | ✔ | ✔ | ✔ |
+| 33 | Nâng cấp Premium (checkout QR MB Bank) | /premium/* | ✔ | ✔ | ✔ |
 | 34 | Xem Leaderboard | /leaderboard | ✔ | ✔ | ✔ |
 | 35 | Chạy Benchmark Lab | /benchmarks/run | ✔ | ✔ | ✔ |
 | 36 | Xem CheatSheet + deep-link | /cheatsheet | ✔ | ✔ | ✔ |
@@ -744,4 +754,6 @@
 |---|---|---|---|---|
 | 12/08/2026 | (tạo mới toàn bộ) | Tạo | 1.0 | Mai Tiểu Bảo |
 | — | `POST /simulations/run` | CẮT (A-4) | — | đã cắt trước v1.0 |
+| 13/08/2026 | `POST /premium/upgrade` | SỬA — bổ sung response `contentRef` (nội dung CK `DSV{userId}T{months}`); OrderRef đổi `MOCK-{guid}` → `DSV{userId}T{months}` (GP-T7) | 1.4 | Trần Viết Tâm Phúc |
+| 13/08/2026 | `POST /premium/mock-pay` | SỬA — làm rõ: kích hoạt sau xác nhận "Tôi đã chuyển khoản" (GP-T7) | 1.4 | Trần Viết Tâm Phúc |
 

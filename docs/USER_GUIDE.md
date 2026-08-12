@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | Hướng dẫn sử dụng |
-| Phiên bản | 1.1 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.2 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo |
 | Người soạn | Thái Quang Sơn |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -21,6 +21,7 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Thái Quang Sơn | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: cập nhật cảnh báo trạng thái — hướng dẫn đã đối chiếu với ứng dụng v2 thật (33 màn, 12/08/2026); bỏ ghi chú "đặc tả UI dự kiến / chờ UI hoàn thiện (tuần 19-20)" |
+| 1.2 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §3.10 viết lại luồng nâng cấp — quét QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) bằng app ngân hàng, nội dung CK tự động `DSV<userId>T<months>`, chờ 60s rồi bấm "Tôi đã chuyển khoản" → kích hoạt tự động (mô phỏng, không xác minh ngân hàng thật); cập nhật bảng route `/premium` |
 
 ---
 
@@ -202,7 +203,14 @@ Khi hoàn thành toàn bộ node của một lộ trình, mở **"Kiểm tra cu�
 
 ## 3.10 Premium (nâng cấp)
 
-Premium mở khóa: **30 ❤** (thay vì 10), hồi tim nhanh gấp 3, gợi ý nâng cao, khung đại diện VIP, tải **Cheatsheet PDF**, benchmark nâng cao. Nâng cấp bằng nút "Nâng cấp Premium" → chọn gói 1/3/12 tháng → bấm **"Thanh toán mô phỏng"** (đây chỉ là thao tác trình diễn, **không thu tiền thật**) → quyền lợi áp dụng ngay. Khi hết hạn, hệ thống tự chuyển về gói miễn phí (giữ nguyên gems, avatar, vật phẩm đã mua).
+Premium mở khóa: **30 ❤** (thay vì 10), hồi tim nhanh gấp 3, gợi ý nâng cao, khung đại diện VIP, tải **Cheatsheet PDF**, benchmark nâng cao. Cách nâng cấp:
+
+1. Bấm **"Nâng cấp Premium"** → chọn gói 1/3/12 tháng.
+2. Màn hình hiện **mã QR chuyển khoản MB Bank** (chủ tài khoản **NGUYEN THI NHU HOA** · số tài khoản **8386 3112 0883 86**) kèm số tiền theo gói và **nội dung chuyển khoản tự động** dạng `DSV<số tài khoản của bạn>T<số tháng>` (ví dụ `DSV1002T3` — có nút **"Sao chép nội dung CK"**).
+3. Mở **app ngân hàng** (MB Bank hoặc bất kỳ app nào hỗ trợ quét QR) → **quét mã QR** (hoặc chuyển khoản thủ công đúng chủ TK/số TK/số tiền/nội dung CK như trên).
+4. Chờ đồng hồ đếm ngược **60 giây** (nút bấm sẽ khả dụng sau đó) → bấm **"Tôi đã chuyển khoản"** → quyền lợi Premium **kích hoạt tự động** ngay.
+
+> ⚠ **Lưu ý**: đây là thao tác **trình diễn mô phỏng** — hệ thống **không xác minh giao dịch ngân hàng thật** và **không thu tiền thật**; chỉ cần quét QR + bấm xác nhận để xem luồng demo. Khi hết hạn, hệ thống tự chuyển về gói miễn phí (giữ nguyên gems, avatar, vật phẩm đã mua).
 
 ## 3.11 Lớp học phần
 
@@ -285,7 +293,7 @@ Hồ sơ → tab Cài đặt → bật **"Chế độ tối"** (hoặc chọn "T
 | Hồ sơ | `/profile` | Tổng quan (level, XP, streak, tim, gems), Tiến độ, Thành tích, Cài đặt |
 | Thử thách | `/quests` | 5 nhiệm vụ hằng ngày + nhận thưởng; tab Bảng xếp hạng |
 | Cửa hàng | `/shop` | Mua vật phẩm bằng gems |
-| Premium | `/premium` | Nâng cấp tài khoản (thanh toán mô phỏng) |
+| Premium | `/premium` | Nâng cấp tài khoản (QR chuyển khoản MB Bank — mô phỏng) |
 | Lớp học | `/classes` | Tham gia lớp (mã mời) hoặc quản lý lớp (giảng viên) |
 | Trợ giúp | `/help` | Câu hỏi thường gặp + gửi báo lỗi |
 

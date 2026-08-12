@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | SRS (Software Requirements Specification) |
-| Phiên bản | 1.3 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.4 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -24,6 +24,7 @@
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review (đồng bộ prompt v2.10): NFR-12 thay "sinh bước 20 req/phút" (endpoint đã cắt — bước sinh client-side ADR-001) bằng "code-runs (sandbox) 20 req/phút/user" |
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu theo khuôn 17.13/6: mở rộng TOÀN BỘ 75 FR lên đủ 7 thuộc tính (Mô tả/Luồng hoạt động/Ngoại lệ/AC/Ràng buộc/Nguồn/Ghi chú — FR-9.3 dùng mục "3. Nơi chấm — QUYẾT ĐỊNH CHỐT" thay cho Ngoại lệ, số hiệu đẩy xuống); mở rộng TOÀN BỘ 32 UC lên đủ 10 mục (Tóm tắt → Nguồn FR); bảng NFR-8..36 bổ sung cột "Giá trị mục tiêu" + "Cách đo/kiểm tra" |
 | 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): NFR-5 nới giới hạn bundle theo thực tế build — Tổng JS gốc tải lần đầu ≤ 1.5MB + engine chunk ≤ 500KB gốc (trước: tổng ≤ 500KB, vượt thực tế engine 476KB + stack UI/UX mới); ghi số liệu thật tại SDD §3.9 / TEST_PLAN TEST-PERF-007 |
+| 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §3.10B FR-10.7 + §5.33 UC-32 — bỏ câu cũ "KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = backlog)" → checkout hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386, BIN 970422) + nội dung CK tự động `DSV{userId}T{months}` + kích hoạt tự động sau xác nhận (đếm ngược 60s) — KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán, tăng tính thực tế demo); §1.3.2 mục 3 làm rõ; NFR-5 đo lại bundle sau khi thêm `qrcode` (JS gốc tải lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng) |
 
 ---
 
@@ -64,7 +65,7 @@ Bản cũ (VisualizationDSA) bị hội đồng chấm phản hồi 3 lỗi gố
 |---|---|---|
 | 1 | Biên dịch/chạy mã nguồn tự do tùy biến (online judge) | Module I chỉ nhận "sửa tham số/hoàn thiện hàm theo signature cố định" trong code mẫu (quyết định G-6) |
 | 2 | Diễn đàn, bình luận công khai giữa người học | Ưu tiên lõi học tập |
-| 3 | Thanh toán thật / cổng thanh toán (SePay/VietQR) | Premium checkout là MÔ PHỎNG (FR-10.7) — luồng nghiệp vụ/UI đầy đủ để demo mô hình kiếm tiền, không có giao dịch tiền thật |
+| 3 | Thanh toán thật / cổng thanh toán (SePay/VietQR) | Premium checkout MÔ PHỎNG (FR-10.7): hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) để tăng tính thực tế demo nhưng KHÔNG gọi API ngân hàng/webhook — không có giao dịch tiền thật |
 | 4 | Ứng dụng di động native | Web responsive đủ nhu cầu; mobile < 768px ngoài MVP |
 | 5 | Đa ngôn ngữ hoàn chỉnh (chỉ tiếng Việt) | Giai đoạn đầu; sẵn sàng i18n |
 | 6 | AI sinh câu hỏi tự động / AI chấm điểm | Chỉ PoC GĐ3 (backlog §9.5) — AI không chấm điểm, không sinh nội dung chính thức |
@@ -946,11 +947,11 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 **6. Nguồn**: FR-10.6 (19.3), UC-31.
 
 ### FR-10.7 | Premium (P1) + hết hạn | TB [BỔ SUNG]
-**1. Mô tả**: Gói 1/3/12 tháng, checkout MÔ PHỎNG (không cổng thanh toán thật — ngoài phạm vi §1.3.2); quyền lợi: 30❤, hồi 10p, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao. Hết hạn → job downgrade về Free: clamp Hearts về 10 (v2.4), ẩn khung VIP; GIỮ gems/avatar/items đã mua.
-**2. Luồng hoạt động**: (1) bấm "Nâng cấp Premium" → Màn 25 bảng giá 3 gói (1/3/12 tháng, giá tham khảo); (2) chọn gói → checkout mô phỏng 2 bước (Màn 26: xác nhận gói + giá → nút "Thanh toán mô phỏng", loading 1-2s); (3) kích hoạt NGAY + ghi log giao dịch (PremiumSubscriptions); (4) quyền lợi áp dụng ngay (30❤, hồi 10p, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); (5) hết hạn → job downgrade về Free: clamp Hearts về 10, ẩn khung VIP, GIỮ gems/avatar/items; (6) Màn 27 `/account/subscription`: xem trạng thái gói + ngày hết hạn + "Hủy gia hạn" (modal xác nhận).
-**3. Ngoại lệ**: KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = mở rộng tương lai — backlog); hủy gia hạn → mất quyền lợi khi hết hạn nhưng GIỮ gems/avatar/items đã mua.
-**4. AC**: AC-10.7.1 kích hoạt ngay sau "Thanh toán mô phỏng" + log giao dịch; AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
-**5. Ràng buộc**: HeartsMax theo gói (Free 10 / Premium 30); downgrade → clamp Hearts về 10 nếu Hearts > 10 (v2.4); job downgrade chạy đúng ngày hết hạn; GIỮ gems/avatar/items khi hết hạn (19.4); quyền lợi áp dụng ngay sau "Thanh toán mô phỏng".
+**1. Mô tả**: Gói 1/3/12 tháng, checkout hiện mã QR chuyển khoản MB Bank (chủ TK **NGUYEN THI NHU HOA · STK 83863112088386**, BIN 970422) + nội dung CK tự động `DSV<UserId>T<months>` + kích hoạt tự động sau khi người dùng xác nhận đã chuyển (đếm ngược 60s) — KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán, tăng tính thực tế demo; vẫn thuộc mô hình không có giao dịch tiền thật §1.3.2); quyền lợi: 30❤, hồi 10p, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao. Hết hạn → job downgrade về Free: clamp Hearts về 10 (v2.4), ẩn khung VIP; GIỮ gems/avatar/items đã mua.
+**2. Luồng hoạt động**: (1) bấm "Nâng cấp Premium" → Màn 25 bảng giá 3 gói (1/3/12 tháng, giá tham khảo); (2) chọn gói → bước 2 hiện QR VietQR EMVCo (qrcode — npm MIT) + chủ TK/STK/số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK"; (3) đếm ngược 60s → bấm "Tôi đã chuyển khoản" → kích hoạt NGAY + ghi log giao dịch (PremiumSubscriptions — OrderRef = nội dung CK `DSV{userId}T{months}`); (4) quyền lợi áp dụng ngay (30❤, hồi 10p, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); (5) hết hạn → job downgrade về Free: clamp Hearts về 10, ẩn khung VIP, GIỮ gems/avatar/items; (6) Màn 27 `/account/subscription`: xem trạng thái gói + ngày hết hạn + "Hủy gia hạn" (modal xác nhận).
+**3. Ngoại lệ**: KHÔNG gọi API ngân hàng/webhook — việc "đã chuyển khoản" do người dùng tự khai báo (mô phỏng thanh toán, không xác minh giao dịch thật); hủy gia hạn → mất quyền lợi khi hết hạn nhưng GIỮ gems/avatar/items đã mua.
+**4. AC**: AC-10.7.1 kích hoạt tự động sau khi bấm "Tôi đã chuyển khoản" (khả dụng sau đếm ngược 60s) + log giao dịch (OrderRef `DSV{userId}T{months}`); AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
+**5. Ràng buộc**: HeartsMax theo gói (Free 10 / Premium 30); downgrade → clamp Hearts về 10 nếu Hearts > 10 (v2.4); job downgrade chạy đúng ngày hết hạn; GIỮ gems/avatar/items khi hết hạn (19.4); quyền lợi áp dụng ngay sau khi xác nhận đã chuyển khoản; nội dung CK/OrderRef chuẩn `DSV{userId}T{months}` để đối soát người chuyển (GP-T7).
 **6. Nguồn**: FR-10.7 (19.4), UC-32.
 
 ## 3.11 Điểm node, sao ⭐ & hoàn thành lộ trình (số liệu chốt — nguồn 19.10)
@@ -978,7 +979,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 | NFR-2 | Sinh chuỗi bước mô phỏng | Mảng 100 phần tử ≤ 500ms; đồ thị 50 đỉnh ≤ 1s | Unit test đo thời gian (Vitest) + profiler |
 | NFR-3 | Độ mượt điều hướng bước | ≥ 55 FPS chuyển bước liên tục (i5, 8GB, Chrome) | DevTools FPS meter |
 | NFR-4 | Tải trang lần đầu (SPA) | ≤ 3s trên 10Mbps; FCP ≤ 1.5s | Lighthouse (mobile & desktop) |
-| NFR-5 | Kích thước bundle JS | Tổng JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc; lõi mô phỏng tải trước (nới theo thực tế đợt G — xem TEST_PLAN TEST-PERF-007) | `vite build --report` |
+| NFR-5 | Kích thước bundle JS | Tổng JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc; lõi mô phỏng tải trước (nới theo thực tế đợt G — GP-T8 13/08/2026 đo lại sau khi thêm `qrcode`: JS gốc lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng — xem TEST_PLAN TEST-PERF-007) | `vite build --report` |
 | NFR-6 | Truy vấn danh sách | 10.000 bản ghi + phân trang ≤ 300ms | Benchmark API dữ liệu giả |
 | NFR-7 | Đồng thời | ≥ 200 người dùng đồng thời không suy giảm | k6: 200 VU × 15 phút |
 
@@ -1604,15 +1605,15 @@ sequenceDiagram
 **(10) Nguồn FR**: FR-10.6.
 
 ## 5.33 UC-32 | Nâng cấp Premium (checkout mô phỏng) | Nguồn: FR-10.7
-**(1) Tóm tắt**: Người học bấm "Nâng cấp Premium" → chọn gói 1/3/12 tháng → màn thanh toán giả lập (2 bước) → bấm "Thanh toán mô phỏng" → kích hoạt quyền lợi NGAY + log giao dịch; khi hết hạn, job downgrade về Free (giữ gems/avatar/items, clamp Hearts về 10 — v2.4).
+**(1) Tóm tắt**: Người học bấm "Nâng cấp Premium" → chọn gói 1/3/12 tháng → bước 2 hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) + nội dung CK tự động `DSV<UserId>T<months>` → bấm "Tôi đã chuyển khoản" (khả dụng sau đếm ngược 60s) → kích hoạt quyền lợi NGAY + log giao dịch; khi hết hạn, job downgrade về Free (giữ gems/avatar/items, clamp Hearts về 10 — v2.4).
 **(2) Tác nhân**: Người học (chính); Hệ thống — job downgrade (phụ).
 **(3) Tiền điều kiện**: Đã đăng nhập; đang ở gói Free (hoặc gói đã hết hạn); chưa có gói Premium active.
-**(4) Hậu điều kiện**: `PremiumSubscriptions` active (gói + ngày hết hạn); quyền lợi áp dụng ngay: HeartsMax 30, hồi 10 phút/tim, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao; log giao dịch ghi lại; hết hạn → HeartsMax về 10, clamp Hearts hiện tại về 10, ẩn khung VIP, GIỮ gems/avatar/items.
-**(5) Luồng chính**: (1) bấm "Nâng cấp Premium"; (2) chọn gói 1/3/12 tháng (bảng giá so sánh quyền lợi Free vs Premium); (3) màn thanh toán giả lập → bấm "Thanh toán mô phỏng" (loading giả lập 1-2s); (4) kích hoạt ngay + log giao dịch; (5) hết hạn → job downgrade về Free.
-**(6) Luồng thay thế**: 3a. hủy tại màn xác nhận → quay lại bảng giá, không kích hoạt; 4a. "Hủy gia hạn" tại `/account/subscription` (modal xác nhận nêu rõ hậu quả: giữ gems/item, mất quyền lợi tim/hint/khung VIP).
-**(7) Ngoại lệ**: Đã là Premium active → chuyển tới trang trạng thái gói (không mua chồng); lỗi mô phỏng thanh toán → thông báo + không ghi log giao dịch.
-**(8) Ràng buộc nghiệp vụ**: KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = mở rộng tương lai, backlog); downgrade đúng ngày hết hạn (server clock); Hearts > 10 khi downgrade → clamp về 10 (v2.4 — không mâu thuẫn với Free 10❤); giữ gems, avatar, vật phẩm Shop đã mua; báo hiệu bằng toast phía client (không hệ thống thông báo).
-**(9) Tiêu chí chấp nhận**: AC-10.7.1 kích hoạt ngay sau "Thanh toán mô phỏng" + log giao dịch; AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
+**(4) Hậu điều kiện**: `PremiumSubscriptions` active (gói + ngày hết hạn, OrderRef = nội dung CK `DSV{userId}T{months}`); quyền lợi áp dụng ngay: HeartsMax 30, hồi 10 phút/tim, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao; log giao dịch ghi lại; hết hạn → HeartsMax về 10, clamp Hearts hiện tại về 10, ẩn khung VIP, GIỮ gems/avatar/items.
+**(5) Luồng chính**: (1) bấm "Nâng cấp Premium"; (2) chọn gói 1/3/12 tháng (bảng giá so sánh quyền lợi Free vs Premium); (3) bước 2: QR VietQR EMVCo tự sinh (qrcode — npm MIT) — chủ TK/STK MB Bank + số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK" (toast khi copy); (4) đếm ngược 60s (nút "Tôi đã chuyển khoản" disabled) → bấm "Tôi đã chuyển khoản" → `POST /premium/upgrade` (nhận `contentRef`) + `POST /premium/mock-pay` → kích hoạt ngay + log giao dịch; (5) hết hạn → job downgrade về Free.
+**(6) Luồng thay thế**: 3a. bấm "Quay lại" tại bước QR → quay lại bảng giá, không kích hoạt; 4a. "Hủy gia hạn" tại `/account/subscription` (modal xác nhận nêu rõ hậu quả: giữ gems/item, mất quyền lợi tim/hint/khung VIP).
+**(7) Ngoại lệ**: Đã là Premium active → chuyển tới trang trạng thái gói (không mua chồng); lỗi khi xác nhận đã chuyển (API lỗi) → thông báo + không ghi log giao dịch.
+**(8) Ràng buộc nghiệp vụ**: KHÔNG gọi API ngân hàng/webhook — thanh toán MÔ PHỎNG (QR chuyển khoản MB Bank hiển thị để tăng tính thực tế demo; xác nhận chuyển khoản do người dùng tự khai báo, không xác minh giao dịch thật); nội dung CK/OrderRef chuẩn `DSV{userId}T{months}` để đối soát người chuyển; downgrade đúng ngày hết hạn (server clock); Hearts > 10 khi downgrade → clamp về 10 (v2.4 — không mâu thuẫn với Free 10❤); giữ gems, avatar, vật phẩm Shop đã mua; báo hiệu bằng toast phía client (không hệ thống thông báo).
+**(9) Tiêu chí chấp nhận**: AC-10.7.1 kích hoạt tự động sau khi bấm "Tôi đã chuyển khoản" (khả dụng sau 60s) + log giao dịch (OrderRef `DSV{userId}T{months}`); AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
 **(10) Nguồn FR**: FR-10.7.
 
 ---

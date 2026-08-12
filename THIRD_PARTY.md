@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | Danh sách thư viện mã nguồn mở + license |
-| Phiên bản | 1.2 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.3 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo |
 | Người soạn | Trần Viết Tâm Phúc |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -19,6 +19,7 @@
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): bổ sung 19 gói frontend mới của stack UI/UX (tailwindcss 4, shadcn-vue, reka-ui, motion-v, gsap, vue-echarts, echarts, lenis, vue-sonner, @phosphor-icons/vue, @lucide/vue, lucide-vue-next, class-variance-authority, clsx, tailwind-merge, tw-animate-css, @tailwindcss/vite, @vueuse/core, vaul-vue) — phiên bản + license THẬT theo `npm ls --depth=0`; license vaul-vue xác nhận từ GitHub LICENSE (package.json không có license field) |
+| 1.3 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): bổ sung `qrcode` 1.5.4 + `@types/qrcode` 1.5.6 (sinh QR VietQR EMVCo cho checkout Premium — license MIT xác nhận từ `node_modules/<gói>/package.json` đã cài + `npm ls`); tổng 41 gói top-level |
 | 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | Cập nhật phiên bản thật theo `npm ls` + `dotnet list package` (đợt F): thay phiên bản ước lượng bằng số chính xác, xóa thư viện không cài, bổ sung thư viện mới (Testcontainers.MsSql, HtmlSanitizer, Swashbuckle, coverlet...), xác nhận license từ nuspec/package.json đã cài |
 | 1.0 | 12/08/2026 | Trần Viết Tâm Phúc | Tạo mới (danh sách thư viện + license); bổ sung front matter đầy đủ theo khuôn §17.11 + Lịch sử thay đổi (vá review) |
 
@@ -28,7 +29,7 @@
 
 # 1. FRONTEND (NPM)
 
-Nguồn: `npm ls --depth=0` chạy tại `frontend/` ngày 12/08/2026 (39 gói top-level — đợt G bổ sung 19 gói stack UI/UX). License trích từ `node_modules/<gói>/package.json` bản đã cài; vaul-vue không có license field trong package.json → xác nhận từ GitHub LICENSE (MIT).
+Nguồn: `npm ls --depth=0` chạy tại `frontend/` ngày 13/08/2026 (41 gói top-level — đợt G bổ sung 19 gói stack UI/UX + GP-T8 bổ sung `qrcode`/`@types/qrcode`). License trích từ `node_modules/<gói>/package.json` bản đã cài; vaul-vue không có license field trong package.json → xác nhận từ GitHub LICENSE (MIT).
 
 | Thư viện | Phiên bản (thật) | Mục đích | License |
 |---|---|---|---|
@@ -42,6 +43,8 @@ Nguồn: `npm ls --depth=0` chạy tại `frontend/` ngày 12/08/2026 (39 gói t
 | @babel/types | 7.29.8 | AST types cho Babel | MIT |
 | @types/canvas-confetti | 1.9.0 | Type definitions cho canvas-confetti (dev) | MIT |
 | @types/node | 24.13.3 | Type definitions cho Node.js (dev) | MIT |
+| qrcode | 1.5.4 | Sinh mã QR VietQR EMVCo cho Premium checkout (GP-T7) | MIT |
+| @types/qrcode | 1.5.6 | Type definitions cho qrcode (dev, GP-T7) | MIT |
 | vite | 8.2.1 | Build tool (dev) | MIT |
 | @vitejs/plugin-vue | 6.0.8 | Plugin Vue cho Vite (dev) | MIT |
 | typescript | 6.0.3 | Ngôn ngữ + typecheck (dev) | Apache-2.0 |
@@ -119,7 +122,7 @@ Nguồn: `dotnet list package` chạy trên 4 project (Api, Application, UnitTes
 
 - Mọi thư viện liệt kê ở trên là mã nguồn mở (hoặc miễn phí sử dụng), không phát sinh chi phí bản quyền → **NFR-36 đạt** (không có thư viện thương mại trả phí nào được cài).
 - **Ghi chú nguồn số liệu (đợt G, ngày chạy 12/08/2026):**
-  - Frontend: `npm ls --depth=0` (workdir `frontend/`) — **39 gói top-level** (đợt F: 20 → đợt G: +19 gói stack UI/UX: tailwindcss 4 + @tailwindcss/vite + tw-animate-css + shadcn-vue + reka-ui + class-variance-authority + clsx + tailwind-merge + @lucide/vue + lucide-vue-next + @phosphor-icons/vue + motion-v + gsap + vue-echarts + echarts + lenis + vue-sonner + @vueuse/core + vaul-vue).
+  - Frontend: `npm ls --depth=0` (workdir `frontend/`) — **41 gói top-level** (đợt F: 20 → đợt G: +19 gói stack UI/UX: tailwindcss 4 + @tailwindcss/vite + tw-animate-css + shadcn-vue + reka-ui + class-variance-authority + clsx + tailwind-merge + @lucide/vue + lucide-vue-next + @phosphor-icons/vue + motion-v + gsap + vue-echarts + echarts + lenis + vue-sonner + @vueuse/core + vaul-vue → GP-T8: +2 gói `qrcode` + `@types/qrcode` — GP-T7, QR VietQR EMVCo).
   - Backend: `dotnet list backend/src/DsaVisual.Api/DsaVisual.Api.csproj package` (8 gói), `dotnet list backend/src/DsaVisual.Application/DsaVisual.Application.csproj package` (6 gói), `dotnet list backend/tests/DsaVisual.UnitTests/DsaVisual.UnitTests.csproj package` (6 gói), `dotnet list backend/tests/DsaVisual.IntegrationTests/DsaVisual.IntegrationTests.csproj package` (6 gói) — tổng 22 gói duy nhất.
-  - License: trích từ `frontend/node_modules/<gói>/package.json` và `.nuspec` trong NuGet cache (`C:\Users\Administrator\.nuget\packages\<gói>\<phiên bản>\`) của bản đã cài; vaul-vue xác nhận từ GitHub LICENSE (`Elliot-Alexander/vaul-vue`, MIT) vì package.json không có license field.
+  - License: trích từ `frontend/node_modules/<gói>/package.json` và `.nuspec` trong NuGet cache (`C:\Users\Administrator\.nuget\packages\<gói>\<phiên bản>\`) của bản đã cài; vaul-vue xác nhận từ GitHub LICENSE (`Elliot-Alexander/vaul-vue`, MIT) vì package.json không có license field; **GP-T8 (13/08/2026)**: `qrcode@1.5.4` + `@types/qrcode@1.5.6` xác nhận license MIT từ `node_modules/<gói>/package.json` bản đã cài.
   - Cập nhật danh sách theo phiên bản thực tế khi cài đặt (`npm ls` / `dotnet list package`).
