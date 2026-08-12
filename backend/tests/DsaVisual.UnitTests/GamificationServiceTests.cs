@@ -289,4 +289,99 @@ public class GamificationServiceTests
         var userAfter = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
         Assert.Equal(3, userAfter.Gems);
     }
+
+    // ── G-F3E-NEW-1: GetLeaderboardAsync map Value theo tab (FE đọc row.value) ──
+
+    [Fact]
+    public async Task GetLeaderboard_LevelTab_MapsValueToTotalXp()
+    {
+        var (service, db) = await SetupAsync(nameof(GetLeaderboard_LevelTab_MapsValueToTotalXp));
+
+        db.Users.AddRange(
+            new User { Id = 2, Email = "b@university.edu.vn", PasswordHash = "x", DisplayName = "B", Xp = 500, CreatedAt = _clock.UtcNow },
+            new User { Id = 3, Email = "c@university.edu.vn", PasswordHash = "x", DisplayName = "C", Xp = 1200, CreatedAt = _clock.UtcNow },
+            new User { Id = 4, Email = "d@university.edu.vn", PasswordHash = "x", DisplayName = "D", Xp = 300, CreatedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetLeaderboardAsync("level", null, 1, 20, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var items = result.Value!.Items;
+        Assert.Equal(4, items.Count);
+        // Xếp theo Xp giảm dần; Value = tổng XP cho mọi tab (cách tính hiện có)
+        Assert.Equal(1200, items[0].Value);
+        Assert.Equal(1200, items[0].Xp);
+        Assert.Equal(1, items[0].Rank);
+        Assert.Equal(500, items[1].Value);
+        Assert.Equal(300, items[2].Value);
+        // Level = ComputeLevel(Xp): 1 + floor(sqrt(Xp/100))
+        Assert.Equal(4, items[0].Level);   // 1 + floor(sqrt(12)) = 4
+        Assert.Equal(3, items[1].Level);   // 1 + floor(sqrt(5)) = 3
+    }
+
+    [Fact]
+    public async Task GetLeaderboard_WeekTab_MapsValue_OnlyActiveThisWeek()
+    {
+        var (service, db) = await SetupAsync(nameof(GetLeaderboard_WeekTab_MapsValue_OnlyActiveThisWeek));
+
+        // clock = 2026-08-12 08:00 UTC (= thứ Tư 15:00 UTC+7) → tuần bắt đầu thứ Hai 00:00 UTC+7
+        db.Users.Add(new User
+        {
+            Id = 2, Email = "b@university.edu.vn", PasswordHash = "x", DisplayName = "B",
+            Xp = 640, LastActivityDate = _clock.UtcNow.AddHours(-6), CreatedAt = _clock.UtcNow
+        });
+        db.Users.Add(new User
+        {
+            Id = 3, Email = "c@university.edu.vn", PasswordHash = "x", DisplayName = "C",
+            Xp = 999, LastActivityDate = new DateTime(2026, 8, 5, 0, 0, 0, DateTimeKind.Utc), CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetLeaderboardAsync("week", null, 1, 20, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var items = result.Value!.Items;
+        // User 1 (không LastActivityDate) và user 3 (hoạt động tuần trước) bị loại
+        Assert.Single(items);
+        Assert.Equal(2, items[0].UserId);
+        Assert.Equal(640, items[0].Value);
+        Assert.Equal(640, items[0].Xp);
+    }
+
+    [Fact]
+    public async Task GetLeaderboard_ClassTab_RequiresClassId_ReturnsValidationFailed()
+    {
+        var (service, db) = await SetupAsync(nameof(GetLeaderboard_ClassTab_RequiresClassId_ReturnsValidationFailed));
+
+        var result = await service.GetLeaderboardAsync("class", null, 1, 20, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task GetLeaderboard_ClassTab_MapsValue_OnlyClassMembers()
+    {
+        var (service, db) = await SetupAsync(nameof(GetLeaderboard_ClassTab_MapsValue_OnlyClassMembers));
+
+        db.Users.AddRange(
+            new User { Id = 2, Email = "b@university.edu.vn", PasswordHash = "x", DisplayName = "B", Xp = 800, CreatedAt = _clock.UtcNow },
+            new User { Id = 3, Email = "c@university.edu.vn", PasswordHash = "x", DisplayName = "C", Xp = 600, CreatedAt = _clock.UtcNow });
+        db.Classes.Add(new Class { Id = 1, Name = "Lớp DSA 01", InviteCode = "ABC123", OwnerId = 1, CreatedAt = _clock.UtcNow });
+        db.ClassMembers.AddRange(
+            new ClassMember { ClassId = 1, UserId = 2, JoinedAt = _clock.UtcNow },
+            new ClassMember { ClassId = 1, UserId = 3, JoinedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetLeaderboardAsync("class", 1, 1, 20, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var items = result.Value!.Items;
+        Assert.Equal(2, items.Count);
+        Assert.Equal(2, items[0].UserId);     // Xp 800 > 600
+        Assert.Equal(800, items[0].Value);
+        Assert.Equal(3, items[1].UserId);
+        Assert.Equal(600, items[1].Value);
+        Assert.DoesNotContain(items, i => i.UserId == 1);   // user 1 không phải thành viên
+    }
 }
