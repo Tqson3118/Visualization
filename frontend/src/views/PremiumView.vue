@@ -33,10 +33,11 @@ const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
+// id = planId theo contract backend ("1m"|"3m"|"12m" — PremiumDtos.cs / API_REFERENCE §4.14)
 const PLANS = [
-  { id: 'monthly', name: '1 tháng', price: '49.000₫', amount: 49000, months: 1, highlight: false },
-  { id: 'quarterly', name: '3 tháng', price: '129.000₫', amount: 129000, months: 3, highlight: false },
-  { id: 'yearly', name: '12 tháng', price: '399.000₫', amount: 399000, months: 12, highlight: true, badge: 'Tiết kiệm nhất' },
+  { id: '1m', name: '1 tháng', price: '49.000₫', amount: 49000, months: 1, highlight: false },
+  { id: '3m', name: '3 tháng', price: '129.000₫', amount: 129000, months: 3, highlight: false },
+  { id: '12m', name: '12 tháng', price: '399.000₫', amount: 399000, months: 12, highlight: true, badge: 'Tiết kiệm nhất' },
 ];
 
 const BENEFITS = [
@@ -81,7 +82,8 @@ onMounted(() => {
   void gamification.fetchPremium();
   const planQuery = route.query.plan;
   if (typeof planQuery === 'string') {
-    const found = PLANS.find((p) => p.id === planQuery);
+    // Deep link theo SDD Màn 25: ?plan=1 (số tháng) hoặc ?plan=1m (planId contract)
+    const found = PLANS.find((p) => p.id === planQuery || String(p.months) === planQuery);
     if (found) {
       checkoutPlan.value = found;
       step.value = 1;
