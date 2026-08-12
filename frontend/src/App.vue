@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
 
+import AppHeader from '@/components/layout/AppHeader.vue';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
 
@@ -9,7 +10,21 @@ const ui = useUiStore();
 
 <template>
   <div class="app-shell">
-    <RouterView />
+    <AppHeader />
+
+    <main class="app-shell__main">
+      <RouterView />
+    </main>
+
+    <footer class="app-shell__footer">
+      <div class="container app-shell__footer-inner">
+        <span>{{ messages.app.name }} — {{ messages.app.tagline }}</span>
+        <nav aria-label="Footer">
+          <RouterLink :to="{ name: 'help' }">Trợ giúp</RouterLink>
+          <RouterLink :to="{ name: 'privacy' }">Chính sách bảo mật</RouterLink>
+        </nav>
+      </div>
+    </footer>
 
     <!-- Toast container (qua uiStore) -->
     <div class="toast-container" aria-live="polite" aria-atomic="false">
@@ -42,6 +57,31 @@ const ui = useUiStore();
   display: flex;
   flex-direction: column;
 }
+
+.app-shell__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__footer {
+  margin-top: var(--space-2xl);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding-block: var(--space-md);
+}
+
+.app-shell__footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.app-shell__footer nav { display: flex; gap: var(--space-md); }
 
 .toast-container {
   position: fixed;

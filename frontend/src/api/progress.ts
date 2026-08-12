@@ -1,3 +1,5 @@
+import { getData } from './client';
+
 /** Endpoint theo API_REFERENCE §4.7 */
 export const PROGRESS_ENDPOINTS = {
   overview: '/progress/me',
@@ -30,6 +32,11 @@ export interface ProgressOverviewDto {
 
 export interface TeacherReportDto {
   lessonId: number;
+  lessonTitle?: string;
+  totalLearners?: number;
+  learnersViewed?: number;
+  completionPct?: number;
+  avgScore?: number | null;
   rows: Array<{
     studentId: number;
     displayName: string;
@@ -41,19 +48,25 @@ export interface TeacherReportDto {
   }>;
 }
 
-// ── Stub CRUD (body TODO) ──
+// ── CRUD (API_REFERENCE §4.7) ──
 
 export async function fetchOverview(): Promise<ProgressOverviewDto> {
-  // TODO: getData({ method: 'GET', url: PROGRESS_ENDPOINTS.overview })
-  return Promise.reject(new Error('TODO: progressApi.fetchOverview chưa triển khai'));
+  return getData<ProgressOverviewDto>({ method: 'GET', url: PROGRESS_ENDPOINTS.overview });
 }
 
 export async function fetchLessonProgress(lessonId: number): Promise<{ viewed: boolean; bestScore: number | null; completed: boolean }> {
-  // TODO: getData({ method: 'GET', url: PROGRESS_ENDPOINTS.lesson(lessonId) })
-  return Promise.reject(new Error('TODO: progressApi.fetchLessonProgress chưa triển khai'));
+  return getData<{ viewed: boolean; bestScore: number | null; completed: boolean }>({
+    method: 'GET',
+    url: PROGRESS_ENDPOINTS.lesson(lessonId),
+  });
 }
 
 export async function fetchReport(params: { lessonId: number }): Promise<TeacherReportDto> {
-  // TODO: getData({ method: 'GET', url: PROGRESS_ENDPOINTS.report, params })
-  return Promise.reject(new Error('TODO: progressApi.fetchReport chưa triển khai'));
+  return getData<TeacherReportDto>({ method: 'GET', url: PROGRESS_ENDPOINTS.report, params });
+}
+
+/** Xuất CSV báo cáo giảng viên — trả về text CSV (UTF-8 BOM). */
+export async function fetchReportCsv(params: { lessonId: number }): Promise<string> {
+  const response = await getData<unknown>({ method: 'GET', url: PROGRESS_ENDPOINTS.reportExport, params });
+  return typeof response === 'string' ? response : '';
 }
