@@ -72,3 +72,18 @@
 | 2 | Quy trình | **Duyệt merge nhánh `feature/final-review` → `main`** | Nhánh chứa toàn bộ code + tài liệu đợt D/E/F đã verify (17/17 checklist §17.9 còn lại + build/test thật). Sau khi user duyệt → merge + tag bản bàn giao. | [ ] |
 
 > Cập nhật bởi Session F (dev-docs F2b, 12/08/2026). Đừng xóa mục cũ — đánh dấu [x] khi xong.
+
+## 8. Session F — Bug bàn giao từ Final Review (12/08/2026, sửa đợt sau — không nằm trong phạm vi F)
+
+| # | Mức | Bug | File:dòng (tham chiếu) | Ghi chú |
+|---|---|---|---|---|
+| 1 | P1 | **Leaderboard crash** — `TypeError: Cannot read properties of undefined (reading 'length')` → 3 tab Tuần/Level/Lớp trống (F3-NEW-1) | frontend/src/views/LeaderboardView.vue:59, stores/leaderboard.ts:21 | Contract lệch: FE đọc `rows`/`myRank`, backend trả `PagedResponse.items` — chặn ảnh báo cáo §6.2 |
+| 2 | P1 | **Heart regen ảo không persist** — ComputeHearts tính regen từ elapsed nhưng không ghi lại DB; user hết tim (DB=0) → UI hiện tim đầy nhưng vào node vẫn HEARTS_EMPTY (F5-Major) | backend/src/DsaVisual.Application/Services/GamificationService.cs:177,800-830 | Sửa trước demo chính thức (FR-10.1) |
+| 3 | P2 | SubmitCodeAsync thiếu SubmissionLockRegistry + không check Status Active (F5-Minor) | ExerciseService.cs:489 | |
+| 4 | P2 | Duplicate QuestionId trong answers → 500 thay vì 400 (F5-Minor) | ExerciseService.cs:275 | |
+| 5 | P2 | Router cho TEACHER vào /admin/users + /admin/settings nhưng backend ADMIN-only (F5-Minor) | frontend/src/router/index.ts:260,272 | Backend vẫn chặn đúng — FE nên ẩn/chuyển hướng |
+| 6 | P3 | Cookie refresh không set khi dev chạy HTTP — cookie Secure=true (F5-Minor) | AuthController.cs:25 | Dev-only annoyance |
+| 7 | P3 | TEST_PLAN §10 cột "Không kiểm thử" = 0 cho SEC/PERF/UX "chờ" (F5-Nit) | docs/TEST_PLAN.md | điền "chờ" thay vì 0 |
+
+> Ghi chú thêm: commit docker fix (a1b8bd8/7ac5896 — bao) do session khác tạo lúc 19:52-19:53, nội dung trùng nhau (backend/Dockerfile + docker-compose frontend 8081), đã nằm trong dev + feature/final-review — merge không xung đột.
+> Cập nhật bởi Session F (PM, 12/08/2026). Đừng xóa mục cũ — đánh dấu [x] khi xong.

@@ -17,3 +17,15 @@
 ## [2026-08-12 10:10] Xử lý F4 phát hiện
 - Quyết định: Api.Tests project trống ("No test available") giữ nguyên trong solution (khớp cấu trúc SDD, đã ghi chú pm-report-b); không sửa code.
 - Ảnh hưởng: không.
+
+## [2026-08-12 20:05] Merge feature/final-review vào dev
+- Quyết định: Merge --no-ff feature/final-review → dev (commit 5ea0846) sau khi F5 APPROVE (0 Critical). Merge main CHỜ user duyệt (đã ghi SETUP_TODO §7.2).
+- Ảnh hưởng: dev có đủ docs đợt F; git log dev: 5ea0846.
+
+## [2026-08-12 20:05] Commit docker lạ (a1b8bd8/7ac5896)
+- Quyết định: Commit "fix(docker): built-in app user + frontend 8081" (bao, 19:52-19:53) xuất hiện trên CẢ feature/final-review (a1b8bd8) và dev (7ac5896) do session khác tạo — nội dung trùng nhau (verified git diff rỗng phần docker), merge không xung đột. Giữ nguyên, không hoàn tác.
+- Ảnh hưởng: không.
+
+## [2026-08-12 20:05] Bàn giao bug cho đợt sau
+- Quyết định: KHÔNG sửa code trong đợt F (phạm vi bàn giao): F3-NEW-1 Leaderboard crash (P1), F5-Major Heart regen không persist, 4 minor + 1 nit → ghi SETUP_TODO §8. Session G sẽ xử lý (session/PROMPT_G.md tồn tại).
+- Ảnh hưởng: docs/SETUP_TODO.md §8.
