@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!-- Nen trang -->
+  <rect x="0" y="0" width="1920" height="1080" fill="#FFFFFF"/>
+
+  <!-- Khung he thong -->
+  <rect id="system-boundary" x="300" y="30" width="1580" height="1020" rx="28" fill="#FFFFFF" stroke="#0D9488" stroke-width="2.5"/>
+  <text x="1090" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#0D9488">Hệ thống DSA-Visual</text>
+
+  <!-- Ghi chu khach (goc phai duoi) -->
+  <text x="1855" y="1042" text-anchor="end" font-family="Arial, sans-serif" font-size="15" font-style="italic" fill="#6B7280">Ghi chú: UC-02, UC-03, UC-14, UC-15: mở cho Khách chưa đăng nhập</text>
+
+  <!-- Duong noi: Nguoi hoc (Student) -->
+  <g id="lines-hoc-vien" stroke="#6B7280" stroke-width="1.5">
+    <line x1="212" y1="380" x2="512.5" y2="195"/>
+    <line x1="212" y1="380" x2="1667.5" y2="195"/>
+    <line x1="212" y1="380" x2="512.5" y2="305"/>
+    <line x1="212" y1="380" x2="897.5" y2="305"/>
+    <line x1="212" y1="380" x2="1282.5" y2="305"/>
+    <line x1="212" y1="380" x2="1667.5" y2="305"/>
+    <line x1="212" y1="380" x2="1667.5" y2="525"/>
+    <line x1="212" y1="380" x2="512.5" y2="635"/>
+    <line x1="212" y1="380" x2="897.5" y2="635"/>
+    <line x1="212" y1="380" x2="1282.5" y2="635"/>
+    <line x1="212" y1="380" x2="512.5" y2="745"/>
+    <line x1="212" y1="380" x2="897.5" y2="745"/>
+    <line x1="212" y1="380" x2="1282.5" y2="745"/>
+    <line x1="212" y1="380" x2="1667.5" y2="745"/>
+    <line x1="212" y1="380" x2="512.5" y2="855"/>
+    <line x1="212" y1="380" x2="897.5" y2="855"/>
+    <line x1="212" y1="380" x2="1282.5" y2="855"/>
+    <line x1="212" y1="380" x2="1667.5" y2="855"/>
+    <line x1="212" y1="380" x2="512.5" y2="965"/>
+    <line x1="212" y1="380" x2="897.5" y2="965"/>
+    <line x1="212" y1="380" x2="1282.5" y2="965"/>
+    <line x1="212" y1="380" x2="1667.5" y2="965"/>
+  </g>
+
+  <!-- Duong noi: Giang vien (Teacher) -->
+  <g id="lines-giang-vien" stroke="#6B7280" stroke-width="1.5">
+    <line x1="212" y1="660" x2="1667.5" y2="195"/>
+    <line x1="212" y1="660" x2="512.5" y2="305"/>
+    <line x1="212" y1="660" x2="512.5" y2="415"/>
+    <line x1="212" y1="660" x2="897.5" y2="415"/>
+    <line x1="212" y1="660" x2="1282.5" y2="415"/>
+    <line x1="212" y1="660" x2="1667.5" y2="635"/>
+    <line x1="212" y1="660" x2="1667.5" y2="745"/>
+  </g>
+
+  <!-- Duong noi: Quan tri vien (Admin) -->
+  <g id="lines-admin" stroke="#6B7280" stroke-width="1.5">
+    <line x1="212" y1="880" x2="1667.5" y2="415"/>
+    <line x1="212" y1="880" x2="512.5" y2="525"/>
+    <line x1="212" y1="880" x2="1667.5" y2="745"/>
+  </g>
+
+  <!-- Tac nhan: Nguoi hoc (Student) -->
+  <g id="actor-hoc-vien">
+    <circle cx="170" cy="380" r="22" fill="#FFFFFF" stroke="#0D9488" stroke-width="5"/>
+    <line x1="170" y1="402" x2="170" y2="448" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="138" y1="420" x2="202" y2="420" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="448" x2="148" y2="492" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="448" x2="192" y2="492" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <text x="170" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#0D9488">Người học</text>
+    <text x="170" y="550" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#4B5563">(Student)</text>
+  </g>
+
+  <!-- Tac nhan: Giang vien (Teacher) -->
+  <g id="actor-giang-vien">
+    <circle cx="170" cy="660" r="22" fill="#FFFFFF" stroke="#0D9488" stroke-width="5"/>
+    <line x1="170" y1="682" x2="170" y2="728" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="138" y1="700" x2="202" y2="700" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="728" x2="148" y2="772" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="728" x2="192" y2="772" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <text x="170" y="805" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#0D9488">Giảng viên</text>
+    <text x="170" y="830" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#4B5563">(Teacher)</text>
+  </g>
+
+  <!-- Tac nhan: Quan tri vien (Admin) -->
+  <g id="actor-admin">
+    <circle cx="170" cy="880" r="22" fill="#FFFFFF" stroke="#0D9488" stroke-width="5"/>
+    <line x1="170" y1="902" x2="170" y2="948" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="138" y1="920" x2="202" y2="920" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="948" x2="148" y2="992" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <line x1="170" y1="948" x2="192" y2="992" stroke="#0D9488" stroke-width="5" stroke-linecap="round"/>
+    <text x="170" y="1025" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#0D9488">Quản trị viên</text>
+    <text x="170" y="1050" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#4B5563">(Admin)</text>
+  </g>
+
+  <!-- 32 Use cases -->
+  <g id="uc-01"><ellipse cx="512.5" cy="195" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="186" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-01</text>
+    <text x="512.5" y="211" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Chạy mô phỏng giải thuật</text></g>
+  <g id="uc-02"><ellipse cx="897.5" cy="195" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="186" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-02</text>
+    <text x="897.5" y="211" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Tạo tài khoản</text></g>
+  <g id="uc-03"><ellipse cx="1282.5" cy="195" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="186" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-03</text>
+    <text x="1282.5" y="211" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Đăng nhập và duy trì phiên</text></g>
+  <g id="uc-04"><ellipse cx="1667.5" cy="195" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="186" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-04</text>
+    <text x="1667.5" y="211" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem bài học</text></g>
+  <g id="uc-05"><ellipse cx="512.5" cy="305" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="296" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-05</text>
+    <text x="512.5" y="321" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Tìm kiếm bài học</text></g>
+  <g id="uc-06"><ellipse cx="897.5" cy="305" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="296" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-06</text>
+    <text x="897.5" y="321" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Làm bài tập trắc nghiệm</text></g>
+  <g id="uc-07"><ellipse cx="1282.5" cy="305" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="296" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-07</text>
+    <text x="1282.5" y="321" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Làm bài tập dự đoán bước (Bậc 2 Lab)</text></g>
+  <g id="uc-08"><ellipse cx="1667.5" cy="305" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="296" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-08</text>
+    <text x="1667.5" y="321" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem tiến độ cá nhân</text></g>
+  <g id="uc-09"><ellipse cx="512.5" cy="415" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-09</text>
+    <text x="512.5" y="431" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Biên soạn bài học</text></g>
+  <g id="uc-10"><ellipse cx="897.5" cy="415" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-10</text>
+    <text x="897.5" y="431" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Biên soạn bài tập</text></g>
+  <g id="uc-11"><ellipse cx="1282.5" cy="415" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-11</text>
+    <text x="1282.5" y="431" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem báo cáo giảng dạy</text></g>
+  <g id="uc-12"><ellipse cx="1667.5" cy="415" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-12</text>
+    <text x="1667.5" y="431" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Quản lý người dùng</text></g>
+  <g id="uc-13"><ellipse cx="512.5" cy="525" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-13</text>
+    <text x="512.5" y="541" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Quản trị cấu hình</text></g>
+  <g id="uc-14"><ellipse cx="897.5" cy="525" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-14</text>
+    <text x="897.5" y="541" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem demo công khai</text></g>
+  <g id="uc-15"><ellipse cx="1282.5" cy="525" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-15</text>
+    <text x="1282.5" y="541" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Khôi phục mật khẩu</text></g>
+  <g id="uc-16"><ellipse cx="1667.5" cy="525" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-16</text>
+    <text x="1667.5" y="541" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem chi tiết bài học và mở module riêng</text></g>
+  <g id="uc-17"><ellipse cx="512.5" cy="635" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="626" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-17</text>
+    <text x="512.5" y="651" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Viết và chạy code trong sandbox</text></g>
+  <g id="uc-18"><ellipse cx="897.5" cy="635" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="626" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-18</text>
+    <text x="897.5" y="651" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Nộp bài tập lập trình</text></g>
+  <g id="uc-19"><ellipse cx="1282.5" cy="635" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="626" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-19</text>
+    <text x="1282.5" y="651" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem lịch sử nộp bài code</text></g>
+  <g id="uc-20"><ellipse cx="1667.5" cy="635" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="626" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-20</text>
+    <text x="1667.5" y="651" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Quản lý lớp học phần</text></g>
+  <g id="uc-21"><ellipse cx="512.5" cy="745" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="736" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-21</text>
+    <text x="512.5" y="761" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Tham gia lớp bằng mã mời</text></g>
+  <g id="uc-22"><ellipse cx="897.5" cy="745" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="736" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-22</text>
+    <text x="897.5" y="761" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Ghi chú cá nhân</text></g>
+  <g id="uc-23"><ellipse cx="1282.5" cy="745" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="736" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-23</text>
+    <text x="1282.5" y="761" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem thành tích và huy hiệu</text></g>
+  <g id="uc-24"><ellipse cx="1667.5" cy="745" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="736" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-24</text>
+    <text x="1667.5" y="761" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Gửi phản hồi và báo lỗi</text></g>
+  <g id="uc-25"><ellipse cx="512.5" cy="855" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="846" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-25</text>
+    <text x="512.5" y="871" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Học theo Learning Path</text></g>
+  <g id="uc-26"><ellipse cx="897.5" cy="855" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="846" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-26</text>
+    <text x="897.5" y="871" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Làm Practice Ladder</text></g>
+  <g id="uc-27"><ellipse cx="1282.5" cy="855" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="846" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-27</text>
+    <text x="1282.5" y="871" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Làm bài kiểm tra cuối lộ trình</text></g>
+  <g id="uc-28"><ellipse cx="1667.5" cy="855" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="846" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-28</text>
+    <text x="1667.5" y="871" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Chạy Benchmark Lab</text></g>
+  <g id="uc-29"><ellipse cx="512.5" cy="965" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="512.5" y="956" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-29</text>
+    <text x="512.5" y="981" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Làm Daily Quest và giữ Streak</text></g>
+  <g id="uc-30"><ellipse cx="897.5" cy="965" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="897.5" y="956" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-30</text>
+    <text x="897.5" y="981" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Mua vật phẩm Gems Shop</text></g>
+  <g id="uc-31"><ellipse cx="1282.5" cy="965" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1282.5" y="956" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-31</text>
+    <text x="1282.5" y="981" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Xem Leaderboard</text></g>
+  <g id="uc-32"><ellipse cx="1667.5" cy="965" rx="180" ry="46" fill="#E6F7F5" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1667.5" y="956" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#0F172A">UC-32</text>
+    <text x="1667.5" y="981" text-anchor="middle" font-family="Arial, sans-serif" font-size="13.5" fill="#1F2937">Nâng cấp Premium</text></g>
+</svg>
