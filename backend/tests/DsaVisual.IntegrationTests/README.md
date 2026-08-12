@@ -12,8 +12,8 @@ Kiểm thử tích hợp — **WebApplicationFactory + Testcontainers (SQL Serve
   (≥ 32 ký tự), Serilog min Warning.
 - `IntegrationTestBase` — helper JWT HS256 đúng issuer/audience/secret của app, seed qua DbContext,
   JSON helpers.
-- 4 file test: `AuthIntegrationTests` (7), `LessonsIntegrationTests` (10),
-  `TopicsIntegrationTests` (7), `PublicApiTests` (2) — tổng 26 test.
+- 4 file test: `AuthIntegrationTests` (8), `LessonsIntegrationTests` (10),
+  `TopicsIntegrationTests` (7), `PublicApiTests` (2) — tổng 27 test.
 
 ## Quy tắc bắt buộc khi viết test
 
@@ -34,7 +34,7 @@ Yêu cầu: Docker đang chạy, image SQL Server 2022 có sẵn local.
 ```powershell
 # Từ backend/
 dotnet build DsaVisual.sln
-dotnet test DsaVisual.sln --no-build          # UnitTests 44 + IntegrationTests 26
+dotnet test DsaVisual.sln --no-build          # UnitTests 44 + IntegrationTests 27
 # Hoặc chỉ integration tests:
 dotnet test tests/DsaVisual.IntegrationTests/DsaVisual.IntegrationTests.csproj --no-build
 ```

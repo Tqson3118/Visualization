@@ -79,10 +79,11 @@ export class HashTableRenderer implements Renderer {
       const colX = CANVAS_LAYOUT.margin + col * colW;
       const centerX = colX + colW / 2;
 
-      // Header bucket.
+      // Header bucket. Clamp hw ≥ 12: với nhiều bucket (vd m=11) + canvas hẹp,
+      // colW - 16 có thể âm → roundRect(width âm) ném IndexSizeError (SDD §8.3).
       if (rec.header) {
-        const hx = colX + (colW - Math.min(70, colW - 16)) / 2;
-        const hw = Math.min(70, colW - 16);
+        const hw = Math.max(12, Math.min(70, colW - 16));
+        const hx = colX + (colW - hw) / 2;
         const headerFill = this.painter.statusColorWithAlpha(rec.header.status, 0.22);
         const headerStroke = this.painter.statusColor(rec.header.status);
         this.painter.roundRect(hx, HEADER_Y, hw, HEADER_H, CANVAS_LAYOUT.borderRadius, headerFill, headerStroke);
