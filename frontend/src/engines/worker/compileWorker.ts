@@ -19,8 +19,27 @@ interface CompileWorkerResponse {
   error?: string;
 }
 
+/** Kết quả chế độ ĐO không trace (SDD §4.0.3 v2.5 — Benchmark Lab FR-3.20). */
+export interface MeasureResult {
+  durationMs: number;
+  comparisons: number;
+  swaps: number;
+  writes: number;
+}
+
+interface MeasureWorkerResponse {
+  requestId: number;
+  ok: boolean;
+  /** Kết quả đo hợp lệ; null = vượt timeout (MeasureTimeoutError) → UI hiện N/A. */
+  measure?: MeasureResult | null;
+  error?: string;
+}
+
 /** Thời gian tối đa cho một lần biên dịch trong worker (ms). */
 export const COMPILE_TIMEOUT_MS = 15000;
+
+/** Thời gian tối đa cho một lần đo trong worker (ms) — theo SDD §4.0.3: 5 giây/độ đo. */
+export const MEASURE_TIMEOUT_MS = 5000;
 
 let worker: Worker | null = null;
 let requestCounter = 0;
@@ -68,6 +87,50 @@ export function compileInWorker(
     };
 
     target.postMessage({ requestId, sourceCode, initialArray, options });
+  });
+}
+
+/**
+ * Chế độ ĐO không trace trong Web Worker (ADR-012 — SDD §4.0.3 v2.5):
+ * chạy code thật trong worker (KHÔNG sinh TraceEvent[]), đo durationMs/comparisons/swaps/writes.
+ * KHÔNG bao giờ reject:
+ *  - vượt timeout → kill-switch terminate worker + resolve `null` (UI hiện N/A);
+ *  - MeasureTimeoutError bên trong worker (worker trả `measure: null`) → resolve `null`;
+ *  - code lỗi / worker lỗi → resolve `null` (không có số đo hợp lệ).
+ */
+export function runMeasureInWorker(
+  code: string,
+  input: unknown,
+  timeoutMs: number = MEASURE_TIMEOUT_MS,
+): Promise<MeasureResult | null> {
+  return new Promise<MeasureResult | null>((resolve) => {
+    const requestId = ++requestCounter;
+    const target = getWorker();
+
+    const timer = setTimeout(() => {
+      // Kill switch cuối cùng: terminate worker để chống code treo vô hạn ở phía worker.
+      target.terminate();
+      worker = null;
+      resolve(null);
+    }, timeoutMs);
+
+    target.onmessage = (event: MessageEvent<MeasureWorkerResponse>) => {
+      if (event.data.requestId !== requestId) return;
+      clearTimeout(timer);
+      if (event.data.ok) {
+        resolve(event.data.measure ?? null);
+      } else {
+        // Code lỗi → không có số đo hợp lệ → null (N/A).
+        resolve(null);
+      }
+    };
+
+    target.onerror = (event: ErrorEvent) => {
+      clearTimeout(timer);
+      resolve(null);
+    };
+
+    target.postMessage({ requestId, kind: 'measure', code, input, timeoutMs });
   });
 }
 
