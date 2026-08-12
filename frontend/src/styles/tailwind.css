@@ -1,0 +1,172 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
+
+/* ════════════════════════════════════════════════════════════════
+   TAILWIND CSS v4 + shadcn-vue THEME (OKLCH) — Phase 1a (G)
+   Được import SAU tokens.css và TRƯỚC global.css trong main.ts:
+     tokens.css  →  các biến --color-* legacy (KHÔNG xóa, component
+                    scoped cũ vẫn dùng)
+     tailwind.css → @import "tailwindcss" + tw-animate-css + theme
+                    OKLCH shadcn + font self-host
+     global.css  →  reset/base/component class cũ (unlayered — thắng
+                    preflight của Tailwind → UI cũ không đổi)
+   ════════════════════════════════════════════════════════════════ */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Dark mode native: class="dark" trên <html> (USER_GUIDE §3.15) */
+@custom-variant dark (&:is(.dark *));
+
+/* ── FONTS SELF-HOSTED (variable, subset latin) ──
+   Geist — UI font (--font-sans)
+   JetBrains Mono — code runner font (--font-mono)                */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/GeistVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMonoVariable.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SHADCN-VUE TOKENS — OKLCH (light: :root / dark: .dark)
+   Primary = teal #0D9488 → oklch(0.60 0.12 185)
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  --background: oklch(0.978 0.014 187); /* ~ #F0FDFA (teal-50) */
+  --foreground: oklch(0.41 0.052 187); /* ~ #134E4A (teal-900) */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.41 0.052 187);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.41 0.052 187);
+
+  --primary: oklch(0.6 0.12 185); /* teal #0D9488 */
+  --primary-foreground: oklch(0.985 0 0); /* white */
+
+  --secondary: oklch(0.93 0.04 186);
+  --secondary-foreground: oklch(0.45 0.09 185);
+
+  --muted: oklch(0.945 0.012 190);
+  --muted-foreground: oklch(0.55 0.024 190);
+
+  --accent: oklch(0.93 0.04 186);
+  --accent-foreground: oklch(0.45 0.09 185);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.9 0.025 186);
+  --input: oklch(0.9 0.025 186);
+  --ring: oklch(0.6 0.12 185);
+
+  --radius: 0.625rem; /* 10px → md = 8px khớp tokens --radius-md */
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  --background: oklch(0.185 0.028 190);
+  --foreground: oklch(0.945 0.02 186);
+
+  --card: oklch(0.215 0.03 190);
+  --card-foreground: oklch(0.945 0.02 186);
+
+  --popover: oklch(0.215 0.03 190);
+  --popover-foreground: oklch(0.945 0.02 186);
+
+  --primary: oklch(0.72 0.12 185); /* teal sáng hơn cho tương phản */
+  --primary-foreground: oklch(0.22 0.06 186);
+
+  --secondary: oklch(0.29 0.04 190);
+  --secondary-foreground: oklch(0.93 0.02 186);
+
+  --muted: oklch(0.27 0.032 190);
+  --muted-foreground: oklch(0.72 0.025 190);
+
+  --accent: oklch(0.29 0.04 190);
+  --accent-foreground: oklch(0.93 0.02 186);
+
+  --destructive: oklch(0.637 0.237 25.331);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.32 0.04 190);
+  --input: oklch(0.32 0.04 190);
+  --ring: oklch(0.72 0.12 185);
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MAP TOKENS → TAILWIND UTILITIES (@theme inline)
+   Utilities (bg-primary, text-muted-foreground, rounded-lg…) trỏ
+   trực tiếp var(--primary, …) → đổi theme lúc runtime, không cần
+   rebuild. Font map: font-sans/font-mono trỏ var(--font-sans/--font-mono)
+   khai báo trong tokens.css (giữ nguyên fallback).
+   ════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-heading: var(--font-sans);
+}
+
+/* ── Base shadcn (layer base → global.css unlayered vẫn thắng,
+   UI hiện tại giữ nguyên vẻ ngoài; phase 2 dùng dần) ── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
