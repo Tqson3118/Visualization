@@ -83,7 +83,7 @@ public sealed class ContentFeedbackConfiguration : IEntityTypeConfiguration<Cont
     {
         builder.ToTable("ContentFeedback");
 
-        builder.Property(f => f.Comment).HasMaxLength(200);
+        builder.Property(f => f.Comment).HasMaxLength(1000);
         builder.Property(f => f.CreatedAt).HasColumnType("datetime2");
         builder.Property(f => f.UpdatedAt).HasColumnType("datetime2");
 

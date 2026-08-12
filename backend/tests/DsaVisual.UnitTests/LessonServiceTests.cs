@@ -1,4 +1,5 @@
 using DsaVisual.Application.Common;
+using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Services;
@@ -110,5 +111,100 @@ public class LessonServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
         Assert.Equal(0, await db.UserProgress.CountAsync());
+    }
+
+    // ── AddFeedbackAsync — POST /lessons/{id}/feedback (TEST-B-076/077, FR-7.4) ──
+
+    private async Task SeedViewedProgressAsync(AppDbContext db)
+    {
+        db.UserProgress.Add(new UserProgress { UserId = 1, LessonId = 1, Viewed = true, UpdatedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task AddFeedback_FirstCall_CreatesFeedback()
+    {
+        var (service, db) = await SetupAsync(nameof(AddFeedback_FirstCall_CreatesFeedback));
+        await SeedViewedProgressAsync(db);
+
+        var result = await service.AddFeedbackAsync(
+            1, "STUDENT", 1, new LessonFeedbackRequest { Rating = 5, Comment = "Bài giảng hay" }, CancellationToken.None);
+
+        // TEST-B-076: gửi feedback → upsert ContentFeedback đúng
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(1, result.Value!.LessonId);
+        Assert.Equal(5, result.Value.Rating);
+
+        var feedback = await db.ContentFeedback.AsNoTracking()
+            .FirstAsync(f => f.UserId == 1 && f.LessonId == 1);
+        Assert.Equal(5, feedback.Rating);
+        Assert.Equal("Bài giảng hay", feedback.Comment);
+        Assert.Equal(_clock.UtcNow, feedback.CreatedAt);
+        Assert.Null(feedback.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task AddFeedback_SecondCall_Updates_NoDuplicate()
+    {
+        var (service, db) = await SetupAsync(nameof(AddFeedback_SecondCall_Updates_NoDuplicate));
+        await SeedViewedProgressAsync(db);
+
+        var first = await service.AddFeedbackAsync(
+            1, "STUDENT", 1, new LessonFeedbackRequest { Rating = 4 }, CancellationToken.None);
+        Assert.True(first.IsSuccess, first.ErrorMessage);
+
+        _clock.UtcNow = _clock.UtcNow.AddMinutes(5);
+        var second = await service.AddFeedbackAsync(
+            1, "STUDENT", 1, new LessonFeedbackRequest { Rating = 5, Comment = "Cập nhật sau khi học lại" }, CancellationToken.None);
+
+        // TEST-B-077: feedback lần 2 → KHÔNG nhân đôi bản ghi, chỉ update Rating/Comment/UpdatedAt
+        Assert.True(second.IsSuccess, second.ErrorMessage);
+        Assert.Equal(1, await db.ContentFeedback.CountAsync(f => f.UserId == 1 && f.LessonId == 1));
+
+        var feedback = await db.ContentFeedback.AsNoTracking()
+            .FirstAsync(f => f.UserId == 1 && f.LessonId == 1);
+        Assert.Equal(5, feedback.Rating);
+        Assert.Equal("Cập nhật sau khi học lại", feedback.Comment);
+        Assert.Equal(_clock.UtcNow, feedback.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task AddFeedback_InvalidRating_ReturnsValidationFailed()
+    {
+        var (service, db) = await SetupAsync(nameof(AddFeedback_InvalidRating_ReturnsValidationFailed));
+        await SeedViewedProgressAsync(db);
+
+        var result = await service.AddFeedbackAsync(
+            1, "STUDENT", 1, new LessonFeedbackRequest { Rating = 6 }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.Equal(0, await db.ContentFeedback.CountAsync());
+    }
+
+    [Fact]
+    public async Task AddFeedback_NotViewed_ReturnsForbidden()
+    {
+        var (service, db) = await SetupAsync(nameof(AddFeedback_NotViewed_ReturnsForbidden));
+
+        // Chưa "Đánh dấu đã học" → 403 (FR-7.4 / v2.9 — API_REFERENCE §4.15)
+        var result = await service.AddFeedbackAsync(
+            1, "STUDENT", 1, new LessonFeedbackRequest { Rating = 5 }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
+        Assert.Equal(0, await db.ContentFeedback.CountAsync());
+    }
+
+    [Fact]
+    public async Task AddFeedback_MissingLesson_ReturnsNotFound()
+    {
+        var (service, db) = await SetupAsync(nameof(AddFeedback_MissingLesson_ReturnsNotFound));
+
+        var result = await service.AddFeedbackAsync(
+            1, "STUDENT", 9999, new LessonFeedbackRequest { Rating = 5 }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
     }
 }

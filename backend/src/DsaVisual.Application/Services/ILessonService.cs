@@ -22,4 +22,11 @@ public interface ILessonService
 
     /// <summary>Đánh dấu đã học — upsert UserProgress (Viewer=true), không trùng bản ghi (TEST-B-033/034).</summary>
     Task<Result> MarkViewedAsync(int userId, string role, int lessonId, CancellationToken ct);
+
+    /// <summary>
+    /// Gửi/chỉnh đánh giá bài học — upsert ContentFeedback, 1 bản ghi/1 (User, Lesson),
+    /// lần 2 chỉ update Rating/Comment (FR-7.4, TEST-B-076/077).
+    /// </summary>
+    Task<Result<FeedbackSavedDto>> AddFeedbackAsync(
+        int userId, string role, int lessonId, LessonFeedbackRequest request, CancellationToken ct);
 }

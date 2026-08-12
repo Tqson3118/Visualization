@@ -9,6 +9,7 @@ export const LESSON_ENDPOINTS = {
   lesson: (id: number) => `/lessons/${id}`,
   lessonProgress: (id: number) => `/lessons/${id}/progress`,
   markViewed: (id: number) => `/lessons/${id}/mark-viewed`,
+  feedback: (id: number) => `/lessons/${id}/feedback`,
   attachSimulation: (id: number) => `/lessons/${id}/simulations`,
   detachSimulation: (id: number, simKey: string) => `/lessons/${id}/simulations/${simKey}`,
 } as const;
@@ -84,6 +85,23 @@ export async function fetchLessonProgress(id: number): Promise<LessonProgressDto
 
 export async function markViewed(id: number): Promise<void> {
   await client.post(LESSON_ENDPOINTS.markViewed(id));
+}
+
+export interface LessonFeedbackRequest {
+  /** 1-5 sao */
+  rating: number;
+  /** Nhận xét tùy chọn, tối đa 1000 ký tự */
+  comment?: string;
+}
+
+export interface LessonFeedbackResult {
+  lessonId: number;
+  rating: number;
+}
+
+/** Gửi/chỉnh đánh giá bài học (FR-7.4) — upsert, 1 lần/người; 403 nếu chưa "Đánh dấu đã học" */
+export async function submitLessonFeedback(id: number, payload: LessonFeedbackRequest): Promise<LessonFeedbackResult> {
+  return getData<LessonFeedbackResult>({ method: 'POST', url: LESSON_ENDPOINTS.feedback(id), data: payload });
 }
 
 /** Admin/Teacher: tạo bài học (API_REFERENCE §4.4) */
