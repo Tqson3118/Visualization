@@ -108,6 +108,7 @@ export const messages = {
     inputConfig: 'Cấu hình đầu vào',
     dataTooLarge: 'Dữ liệu lớn, mô phỏng có thể chậm',
     controlsTitle: 'Điều khiển mô phỏng',
+    subtitle: 'Xem từng bước chạy, theo dõi bộ đếm thống kê và tự thực hành thao tác.',
     canvasPlaceholder: 'Khu vực vẽ cấu trúc dữ liệu — renderer sẽ được gắn ở task renderer (SDD §4.4)',
     notFound: 'Không tìm thấy mô phỏng với key này',
     simError: 'Không thể nạp mô phỏng',

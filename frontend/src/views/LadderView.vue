@@ -9,6 +9,7 @@ import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta } from '@/engines/catalog';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
 const route = useRoute();
@@ -71,17 +72,23 @@ function onPassed(stage: number): void {
 
 <template>
   <main class="ladder container">
-    <nav class="ladder__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path-topic', params: { topicId: String(topicId) } }">Lộ trình</RouterLink>
-      <span aria-hidden="true">/</span>
-      <span>{{ nodeTitle }}</span>
-    </nav>
+    <!-- Hero gradient Sunset (G-F2a palette 2) -->
+    <header class="ladder__hero">
+      <nav class="ladder__breadcrumb" aria-label="Breadcrumb">
+        <RouterLink :to="{ name: 'path-topic', params: { topicId: String(topicId) } }">Lộ trình</RouterLink>
+        <span aria-hidden="true">/</span>
+        <span>{{ nodeTitle }}</span>
+      </nav>
 
-    <header class="ladder__header">
-      <h1 class="ladder__title">🪜 Practice Ladder — {{ nodeTitle }}</h1>
-      <p class="text-muted ladder__sub">
-        Quiz (20%) → Lab (30%) → Code (50%) · giữ MAX mỗi bậc · session 30 phút
-      </p>
+      <div class="ladder__hero-body">
+        <div class="ladder__hero-title-wrap">
+          <h1 class="ladder__title">🪜 Practice Ladder</h1>
+          <p class="ladder__sub">
+            {{ nodeTitle }} · Quiz (20%) → Lab (30%) → Code (50%) · giữ MAX mỗi bậc · session 30 phút
+          </p>
+        </div>
+        <Badge variant="primary" class="ladder__hero-badge">Đang học · Node {{ nodeId }}</Badge>
+      </div>
     </header>
 
     <div v-if="quizLoading" class="ladder__loading">
@@ -117,6 +124,42 @@ function onPassed(stage: number): void {
   gap: var(--space-lg);
 }
 
+/* ── Hero gradient Sunset (palette 2 — amber → rose) ── */
+.ladder__hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 32%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background-image: var(--gradient-sunset);
+  padding: var(--space-lg) var(--space-xl);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ladder__hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-background) 60%, transparent);
+}
+
+.ladder__hero::before {
+  content: '';
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  top: -110px;
+  right: -50px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-warning) 26%, transparent);
+  filter: blur(56px);
+}
+
 .ladder__breadcrumb {
   display: flex;
   gap: var(--space-sm);
@@ -124,8 +167,29 @@ function onPassed(stage: number): void {
   color: var(--color-text-muted);
 }
 
-.ladder__title { font-size: var(--text-xl); }
-.ladder__sub { font-size: var(--text-sm); margin-top: 4px; }
+.ladder__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+
+.ladder__hero-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.ladder__hero-title-wrap { display: flex; flex-direction: column; gap: 6px; }
+
+.ladder__title {
+  font-size: var(--text-2xl);
+  background-image: var(--gradient-sunset);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ladder__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+
+.ladder__hero-badge { align-self: flex-start; }
 
 .ladder__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 

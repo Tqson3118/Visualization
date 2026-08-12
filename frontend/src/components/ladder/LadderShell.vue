@@ -10,6 +10,7 @@ import QuizStage from './QuizStage.vue';
 import LabStage from './LabStage.vue';
 import CodeStage from './CodeStage.vue';
 import { getCatalogMeta } from '@/engines/catalog';
+import Card from '@/components/ui/Card.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -99,7 +100,7 @@ const simMeta = computed(() => (props.simulationKey ? getCatalogMeta(props.simul
   <section class="ladder-shell">
     <LadderStepper :stages="stageStatus" :active-key="activeKey" @select="selectStage" />
 
-    <div class="ladder-shell__body">
+    <Card class="ladder-shell__body-card">
       <QuizStage
         v-if="activeKey === 'quiz'"
         :exercise="quizExercise"
@@ -126,14 +127,31 @@ const simMeta = computed(() => (props.simulationKey ? getCatalogMeta(props.simul
           @passed="onStagePassed('code')"
         />
       </div>
-    </div>
+    </Card>
   </section>
 </template>
 
 <style scoped>
 .ladder-shell { display: flex; flex-direction: column; gap: var(--space-lg); }
 
-.ladder-shell__body { min-height: 320px; }
+/* Card bọc stage (shadcn Card — hover-lift nhẹ) */
+.ladder-shell__body-card {
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
 
-.ladder-shell__note { color: var(--color-text-muted); font-size: var(--text-sm); }
+.ladder-shell__body-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.ladder-shell__lab-wrap { min-height: 200px; }
+
+.ladder-shell__note {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  background: var(--color-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
 </style>

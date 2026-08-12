@@ -3,6 +3,12 @@
 // + lưu qua POST /benchmarks/run (API_REFERENCE §4.14). MIỄN PHÍ tim (20.4).
 import { computed, ref } from 'vue';
 
+import VChart from 'vue-echarts';
+import { use } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
+import { LineChart } from 'echarts/charts';
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+
 import { runBenchmark } from '@/api/benchmark';
 import {
   BENCHMARK_ALGORITHMS,
@@ -15,8 +21,12 @@ import {
 import { runMeasureInWorker } from '@/engines/worker/compileWorker';
 import { useUiStore } from '@/stores/ui';
 import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+
+// Đăng ký module ECharts dùng riêng (tree-shaking) — G-F2c: chart line DurationMs theo n
+use([CanvasRenderer, LineChart, GridComponent, LegendComponent, TooltipComponent]);
 
 const props = defineProps<{
   /** Keys mặc định (từ route /benchmark/:k1/:k2) */
@@ -47,17 +57,6 @@ const sizes = computed(() => {
     }
   }
   return [...set].sort((a, b) => a - b);
-});
-
-const maxDuration = computed(() => {
-  let max = 0;
-  for (const row of rows.value) {
-    for (const key of selectedKeys.value) {
-      const measure = row.measures[key];
-      if (measure) max = Math.max(max, measure.durationMs);
-    }
-  }
-  return Math.max(1, max);
 });
 
 async function toggleKey(key: string): Promise<void> {
@@ -179,38 +178,85 @@ const conclusion = computed(() => {
   return parts.join(' ');
 });
 
-// ── Biểu đồ SVG overlay lý thuyết ──
-const CHART_W = 640;
-const CHART_H = 280;
-const CHART_PAD = 40;
+// ── Biểu đồ ECharts (vue-echarts 8.1 + echarts 6.1 — G-F2c) ──
+// Line chart: DurationMs theo n, overlay nhiều thuật toán; giữ bảng số liệu + kết luận.
+// Màu đọc từ CSS variables lúc dựng option → đổi theme không cần reload.
 
-interface ChartLine {
-  key: string;
-  color: string;
-  points: Array<{ x: number; y: number }>;
+const LINE_PALETTE = ['#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#06b6d4'];
+
+/** Đọc CSS variable thành màu cụ thể (ECharts canvas không hiểu var()). */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return val || fallback;
 }
 
-interface ChartData {
-  lines: ChartLine[];
-  xLabels: Array<{ size: number; x: number }>;
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 }
 
-const chartPoints = computed<ChartData>(() => {
-  if (rows.value.length === 0) return { lines: [], xLabels: [] };
-  const keys = selectedKeys.value;
-  const xMax = sizes.value[sizes.value.length - 1];
-  const x = (size: number): number => CHART_PAD + ((size - sizes.value[0]) / Math.max(1, xMax - sizes.value[0])) * (CHART_W - CHART_PAD * 2);
-  const y = (ms: number): number => CHART_H - CHART_PAD - (ms / maxDuration.value) * (CHART_H - CHART_PAD * 2);
-  const lines: ChartLine[] = keys.map((key) => ({
-    key,
-    color: key.includes('merge') || key.includes('quick') || key.includes('heap')
-      ? 'var(--color-primary)'
-      : 'var(--color-destructive)',
-    points: rows.value
-      .filter((row) => row.measures[key])
-      .map((row) => ({ x: x(row.size), y: y((row.measures[key] as BenchmarkMeasure).durationMs) })),
+const chartOption = computed(() => {
+  // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
+  void ui.theme;
+  const textColor = cssVar('--color-text-muted', '#5E7A77');
+  const axisColor = cssVar('--color-border', '#cbd5e1');
+  const cardColor = cssVar('--color-card', '#ffffff');
+  const foreground = cssVar('--color-foreground', '#134e4a');
+
+  const series = selectedKeys.value.map((key, idx) => ({
+    name: BENCHMARK_ALGORITHMS[key].title,
+    type: 'line' as const,
+    symbol: 'circle',
+    symbolSize: 7,
+    lineStyle: { width: 2.5 },
+    itemStyle: { color: LINE_PALETTE[idx % LINE_PALETTE.length] },
+    data: rows.value.map((row) =>
+      row.measures[key] ? [String(row.size), (row.measures[key] as BenchmarkMeasure).durationMs] : null,
+    ),
+    connectNulls: false,
   }));
-  return { lines, xLabels: sizes.value.map((size) => ({ size, x: x(size) })) };
+
+  return {
+    color: LINE_PALETTE,
+    animation: !prefersReducedMotion(),
+    animationDuration: 400,
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: cardColor,
+      borderColor: axisColor,
+      textStyle: { color: foreground, fontSize: 12 },
+    },
+    legend: {
+      bottom: 0,
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: textColor, fontSize: 12 },
+    },
+    grid: { left: 8, right: 16, top: 28, bottom: 44, containLabel: true },
+    xAxis: {
+      type: 'category' as const,
+      name: 'n',
+      nameLocation: 'middle' as const,
+      nameGap: 30,
+      nameTextStyle: { color: textColor, fontWeight: 600 },
+      data: sizes.value.map(String),
+      axisLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: textColor },
+    },
+    yAxis: {
+      type: 'value' as const,
+      name: 'ms',
+      nameTextStyle: { color: textColor, fontWeight: 600 },
+      splitLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: textColor },
+    },
+    series,
+  };
 });
 
 function exportCsv(): void {
@@ -233,7 +279,7 @@ function exportCsv(): void {
   <section class="benchmark">
     <header class="benchmark__header">
       <h2 class="benchmark__title">⚖ Benchmark Lab</h2>
-      <span class="benchmark__free">Miễn phí tim (20.4)</span>
+      <Badge variant="success">Miễn phí tim (20.4)</Badge>
     </header>
 
     <div class="benchmark__controls card">
@@ -308,36 +354,16 @@ function exportCsv(): void {
       </div>
 
       <div class="benchmark__chart card">
-        <h3 class="benchmark__chart-title">Thời gian thực tế (ms) theo n</h3>
-        <svg :viewBox="`0 0 ${CHART_W} ${CHART_H}`" class="benchmark__svg" role="img" aria-label="Biểu đồ benchmark">
-          <line v-for="i in 4" :key="i" x1="40" :y1="CHART_H - 40 - ((CHART_H - 80) / 4) * i" x2="600" :y2="CHART_H - 40 - ((CHART_H - 80) / 4) * i" stroke="#e2e8f0" stroke-width="1" />
-          <template v-for="line in chartPoints.lines" :key="line.key">
-            <polyline
-              :points="line.points.map((p) => `${p.x},${p.y}`).join(' ')"
-              :fill="'none'"
-              :stroke="line.color"
-              stroke-width="2.5"
-            />
-            <circle
-              v-for="p in line.points"
-              :key="`${line.key}-${p.x}`"
-              :cx="p.x"
-              :cy="p.y"
-              r="3.5"
-              :fill="line.color"
-            />
-          </template>
-          <text v-for="label in chartPoints.xLabels" :key="label.size" :x="label.x" :y="CHART_H - 18" font-size="11" fill="#5E7A77" text-anchor="middle">
-            {{ label.size }}
-          </text>
-          <text x="20" :y="20" font-size="12" fill="#5E7A77">ms</text>
-        </svg>
-        <div class="benchmark__legend">
-          <span v-for="line in chartPoints.lines" :key="line.key" class="benchmark__legend-item">
-            <span class="benchmark__legend-dot" :style="{ background: line.color }" />
-            {{ BENCHMARK_ALGORITHMS[line.key].title }}
-          </span>
-        </div>
+        <h3 class="benchmark__chart-title">Thời gian thực tế (ms) theo n — overlay nhiều thuật toán</h3>
+        <VChart
+          v-if="rows.length > 0"
+          :option="chartOption"
+          autoresize
+          class="benchmark__echarts"
+          role="img"
+          aria-label="Biểu đồ benchmark thời gian thực tế theo n"
+        />
+        <p class="benchmark__chart-note">Hover để xem giá trị · dữ liệu N/A (quá 5s) hiển thị dạng khoảng trống</p>
       </div>
 
       <div v-if="conclusion" class="benchmark__conclusion card">
@@ -356,8 +382,13 @@ function exportCsv(): void {
 .benchmark { display: flex; flex-direction: column; gap: var(--space-lg); }
 
 .benchmark__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
-.benchmark__title { font-size: var(--text-xl); }
-.benchmark__free { font-size: var(--text-xs); color: var(--color-success); font-weight: 700; }
+.benchmark__title {
+  font-size: var(--text-2xl);
+  background-image: var(--gradient-mint);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 .benchmark__controls { display: flex; flex-direction: column; gap: var(--space-md); }
 
@@ -374,9 +405,17 @@ function exportCsv(): void {
   font-weight: 600;
   cursor: pointer;
   color: var(--color-text-muted);
+  transition: var(--transition-fast);
 }
 
-.benchmark__chip--on { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+.benchmark__chip:hover { border-color: var(--color-primary); color: var(--color-primary); transform: translateY(-1px); }
+
+.benchmark__chip--on {
+  background-image: var(--gradient-mint);
+  color: var(--color-on-primary);
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
+}
 
 .benchmark__runbar { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
 
@@ -412,12 +451,16 @@ function exportCsv(): void {
 
 .benchmark__chart-title { font-size: var(--text-md); }
 
-.benchmark__svg { width: 100%; height: auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.benchmark__echarts {
+  width: 100%;
+  height: 320px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+}
 
-.benchmark__legend { display: flex; flex-wrap: wrap; gap: var(--space-md); font-size: var(--text-xs); color: var(--color-text-muted); }
-
-.benchmark__legend-item { display: inline-flex; align-items: center; gap: 6px; }
-.benchmark__legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.benchmark__chart-note { font-size: var(--text-xs); color: var(--color-text-muted); }
 
 .benchmark__conclusion { border-color: var(--color-secondary); }
 .benchmark__conclusion-text { font-size: var(--text-sm); line-height: 1.7; }

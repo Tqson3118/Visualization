@@ -252,6 +252,17 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 200, MOCK_EXERCISE);
       return;
     }
+    // G-F2c: GET /exercises?nodeId&stage — LadderView (Bậc 1 quiz + Bậc 3 code) → trả summary
+    if (method === 'GET' && path === '/exercises') {
+      const nodeIdParam = url.searchParams.get('nodeId');
+      const stageParam = url.searchParams.get('stage');
+      const items = [
+        { id: 1, title: 'Trắc nghiệm Bubble Sort', type: 'MCQ', lessonId: 1, nodeId: 1, stage: 1, durationMinutes: 10, maxScore: 4, status: 'active' },
+        { id: 2, title: 'Code Bubble Sort', type: 'CODE', lessonId: 1, nodeId: 1, stage: 3, durationMinutes: 15, maxScore: 10, status: 'active' },
+      ].filter((item) => (!nodeIdParam || String(item.nodeId) === nodeIdParam) && (!stageParam || String(item.stage) === stageParam));
+      await json(route, 200, { items, page: 1, pageSize: 20, total: items.length, totalPages: 1 });
+      return;
+    }
 
     // ── Progress (API_REFERENCE §4.7) ──
     if (method === 'GET' && path === '/progress/me') {
@@ -312,6 +323,19 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
     if (method === 'GET' && /^\/exercises\/\d+\/code-submissions\/me$/.test(path)) {
       await json(route, 200, []);
+      return;
+    }
+
+    // ── Benchmark (API_REFERENCE §4.14 — G-F2c: POST /benchmarks/run lưu kết quả đo client) ──
+    if (method === 'POST' && path === '/benchmarks/run') {
+      const body = request.postDataJSON() as { keys?: string[]; sizes?: number[] } | null;
+      await json(route, 201, {
+        keys: body?.keys ?? [],
+        sizes: body?.sizes ?? [],
+        rows: [],
+        conclusion: null,
+        measuredAt: '2026-08-12T00:00:00.000Z',
+      });
       return;
     }
 

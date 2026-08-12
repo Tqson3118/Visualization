@@ -22,8 +22,8 @@ import { useUiStore } from '@/stores/ui';
 import * as favoritesApi from '@/api/favorites';
 import { getCatalogMeta } from '@/engines/catalog';
 import { messages } from '@/i18n/vi';
+import { Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
-import BaseIcon from '@/components/ui/BaseIcon.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -170,34 +170,43 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
 <template>
   <main class="simulator container">
-    <header class="simulator__header">
-      <div class="simulator__title-block">
-        <nav class="simulator__breadcrumb" aria-label="Breadcrumb">
-          <RouterLink :to="{ name: 'simulations' }">Khám phá</RouterLink>
-          <span aria-hidden="true">/</span>
-          <span>{{ currentSim?.title ?? key }}</span>
-        </nav>
-        <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
-      </div>
-      <div class="simulator__actions">
-        <button
-          type="button"
-          class="simulator__icon-btn"
-          :class="{ 'simulator__icon-btn--on': favorite }"
-          :aria-label="favorite ? 'Bỏ yêu thích' : 'Yêu thích'"
-          @click="toggleFavorite"
-        >
-          <BaseIcon name="star" :size="18" />
-        </button>
-        <button type="button" class="simulator__icon-btn" aria-label="Chia sẻ" @click="shareLink">
-          <BaseIcon name="share" :size="18" />
-        </button>
-        <Button size="sm" variant="secondary" @click="configOpen = true">
-          ⚙ {{ messages.simulator.inputConfig }}
-        </Button>
-        <Button size="sm" variant="ghost" @click="practiceMode = !practiceMode">
-          {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
-        </Button>
+    <!-- Chrome header — Cyber Mint (palette 3, G-F2a): chrome UI, không đè canvas -->
+    <header class="simulator__chrome">
+      <div class="simulator__header">
+        <div class="simulator__title-block">
+          <nav class="simulator__breadcrumb" aria-label="Breadcrumb">
+            <RouterLink :to="{ name: 'simulations' }">Khám phá</RouterLink>
+            <span aria-hidden="true">/</span>
+            <span>{{ currentSim?.title ?? key }}</span>
+          </nav>
+          <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
+          <p class="simulator__subtitle">
+            <template v-if="generator">
+              {{ generator.dataStructure }} · Độ phức tạp TB {{ generator.complexity.average }}
+            </template>
+            <template v-else>{{ messages.simulator.subtitle }}</template>
+          </p>
+        </div>
+        <div class="simulator__actions">
+          <button
+            type="button"
+            class="simulator__icon-btn"
+            :class="{ 'simulator__icon-btn--on': favorite }"
+            :aria-label="favorite ? 'Bỏ yêu thích' : 'Yêu thích'"
+            @click="toggleFavorite"
+          >
+            <Star :size="18" aria-hidden="true" :fill="favorite ? 'currentColor' : 'none'" />
+          </button>
+          <button type="button" class="simulator__icon-btn" aria-label="Chia sẻ" @click="shareLink">
+            <Share2 :size="18" aria-hidden="true" />
+          </button>
+          <Button size="sm" variant="secondary" @click="configOpen = true">
+            {{ messages.simulator.inputConfig }}
+          </Button>
+          <Button size="sm" variant="ghost" @click="practiceMode = !practiceMode">
+            {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
+          </Button>
+        </div>
       </div>
     </header>
 
@@ -234,13 +243,19 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
         <!-- Giữa: canvas + điều khiển -->
         <div class="simulator__center">
-          <CanvasArea
-            :structure="currentStep?.structure ?? null"
-            v-model:show-index="renderOptions.showIndex"
-            v-model:show-values="renderOptions.showValues"
-            v-model:zoom="renderOptions.zoom"
-            :empty-text="messages.simulator.canvasPlaceholder"
-          />
+          <div class="simulator__canvas-wrap">
+            <CanvasArea
+              :structure="currentStep?.structure ?? null"
+              v-model:show-index="renderOptions.showIndex"
+              v-model:show-values="renderOptions.showValues"
+              v-model:zoom="renderOptions.zoom"
+              :empty-text="messages.simulator.canvasPlaceholder"
+            />
+            <div class="simulator__canvas-meta">
+              <span class="simulator__canvas-dot" aria-hidden="true" />
+              <span class="simulator__canvas-label">Khu vực vẽ — renderer cấu trúc dữ liệu</span>
+            </div>
+          </div>
           <StatsBar
             :comparisons="currentStep?.stats.comparisons ?? 0"
             :swaps="currentStep?.stats.swaps ?? 0"
@@ -331,6 +346,42 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   padding-block: var(--space-md) var(--space-2xl);
 }
 
+/* ── Chrome header — Cyber Mint (G-F2a palette 3: mint → teal) ──
+   Dùng làm chrome UI; phần vẽ (canvas) nằm riêng phía dưới — không bị đè. */
+.simulator__chrome {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background-image: var(--gradient-mint);
+  padding: var(--space-lg) var(--space-xl);
+  box-shadow: var(--shadow-md);
+}
+
+/* Overlay giữ độ tương phản text cho cả light (trắng) & dark (gần đen) */
+.simulator__chrome::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-background) 62%, transparent);
+}
+
+/* Đốm sáng trang trí (không chặn tương tác) */
+.simulator__chrome::before {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  top: -120px;
+  right: -60px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  filter: blur(56px);
+}
+
 .simulator__header {
   display: flex;
   align-items: flex-start;
@@ -347,21 +398,43 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   margin-bottom: 4px;
 }
 
-.simulator__title { font-size: var(--text-xl); color: var(--color-foreground); }
+.simulator__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+
+.simulator__title {
+  font-size: var(--text-2xl);
+  color: var(--color-foreground);
+  background-image: var(--gradient-mint);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.simulator__subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  max-width: 56ch;
+}
 
 .simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
 
 .simulator__icon-btn {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-background) 70%, transparent);
   color: var(--color-text-muted);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.simulator__icon-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
 .simulator__icon-btn--on { color: var(--color-warning); border-color: var(--color-warning); }
@@ -374,6 +447,33 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 }
 
 .simulator__center { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+/* Khung vẽ — NGUYÊN CanvasArea bên trong, chỉ thêm backdrop/padding/border bên ngoài */
+.simulator__canvas-wrap {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-background) 55%, var(--color-muted));
+  padding: var(--space-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.simulator__canvas-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.simulator__canvas-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-image: var(--gradient-mint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
 
 .simulator__right { display: flex; flex-direction: column; gap: var(--space-sm); }
 
