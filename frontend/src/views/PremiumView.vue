@@ -1,24 +1,43 @@
 <script setup lang="ts">
-// PremiumView — Màn 25: 3 gói + so sánh quyền lợi + checkout mô phỏng 2 bước (Màn 26)
-import { computed, onMounted, ref } from 'vue';
+// PremiumView — Màn 25: 3 gói + so sánh quyền lợi + checkout QR chuyển khoản MB Bank 2 bước (GP-T7)
+// Bước 1: chọn gói → Bước 2: QR VietQR EMVCo (qrcode) + nội dung CK DSV{userId}T{months} + đếm ngược 60s
+// → "Tôi đã chuyển khoản" → upgradePremium + mockPayPremium kích hoạt ngay (demo, không xác minh ngân hàng).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import QRCode from 'qrcode';
 
 import * as gamificationApi from '@/api/gamification';
+import { fireConfetti } from '@/composables/useConfetti';
+import { buildVietQrPayload } from '@/lib/vietqr';
+import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
 
+// ── TK nhận tiền (pm-decision-log-gp.md — ĐÃ CHỐT, KHÔNG đổi) ──
+const MB_BENEFICIARY = {
+  bankBin: '970422', // MB Bank
+  bankNumber: '83863112088386',
+  name: 'NGUYEN THI NHU HOA',
+} as const;
+const ACCOUNT_DISPLAY = '8386 3112 0883 86';
+
+// ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược ──
+const COUNTDOWN_SECONDS = 60;
+
 const gamification = useGamificationStore();
 const ui = useUiStore();
+const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
+// id = planId theo contract backend ("1m"|"3m"|"12m" — PremiumDtos.cs / API_REFERENCE §4.14)
 const PLANS = [
-  { id: 'monthly', name: '1 tháng', price: '49.000₫', months: 1, highlight: false },
-  { id: 'quarterly', name: '3 tháng', price: '129.000₫', months: 3, highlight: false },
-  { id: 'yearly', name: '12 tháng', price: '399.000₫', months: 12, highlight: true, badge: 'Tiết kiệm nhất' },
+  { id: '1m', name: '1 tháng', price: '49.000₫', amount: 49000, months: 1, highlight: false },
+  { id: '3m', name: '3 tháng', price: '129.000₫', amount: 129000, months: 3, highlight: false },
+  { id: '12m', name: '12 tháng', price: '399.000₫', amount: 399000, months: 12, highlight: true, badge: 'Tiết kiệm nhất' },
 ];
 
 const BENEFITS = [
@@ -35,11 +54,36 @@ const step = ref<1 | 2>(1);
 const paying = ref(false);
 const success = ref(false);
 
+const qrCanvas = ref<HTMLCanvasElement | null>(null);
+const qrError = ref(false);
+const countdown = ref(COUNTDOWN_SECONDS);
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+const userId = computed(() => auth.user?.id ?? null);
+
+// Nội dung CK tự động DSV{userId}T{months} — user KHÔNG tự ghi (pm-decision-log-gp.md)
+const transferContent = computed(() => {
+  if (!checkoutPlan.value || userId.value === null) return '';
+  return `DSV${userId.value}T${checkoutPlan.value.months}`;
+});
+
+const qrPayload = computed(() => {
+  if (!checkoutPlan.value || !transferContent.value) return '';
+  return buildVietQrPayload(MB_BENEFICIARY, checkoutPlan.value.amount, transferContent.value);
+});
+
+const countdownText = computed(() => {
+  const s = Math.max(0, countdown.value);
+  return `00:${String(s).padStart(2, '0')}`;
+});
+const confirmEnabled = computed(() => countdown.value <= 0 && !paying.value);
+
 onMounted(() => {
   void gamification.fetchPremium();
   const planQuery = route.query.plan;
   if (typeof planQuery === 'string') {
-    const found = PLANS.find((p) => p.id === planQuery);
+    // Deep link theo SDD Màn 25: ?plan=1 (số tháng) hoặc ?plan=1m (planId contract)
+    const found = PLANS.find((p) => p.id === planQuery || String(p.months) === planQuery);
     if (found) {
       checkoutPlan.value = found;
       step.value = 1;
@@ -47,9 +91,25 @@ onMounted(() => {
   }
 });
 
+onBeforeUnmount(stopCountdown);
+
+// Vào bước 2 → render QR + chạy đếm ngược; rời bước 2 / đóng modal → dừng đếm ngược
+watch([step, checkoutPlan, transferContent], () => {
+  if (step.value === 2 && checkoutPlan.value && transferContent.value) {
+    startCountdown();
+    void nextTick(renderQr);
+  } else {
+    stopCountdown();
+  }
+});
+
 const isPremiumActive = computed(() => gamification.isPremium);
 
 function openCheckout(plan: (typeof PLANS)[number]): void {
+  if (userId.value === null) {
+    ui.showToast('Vui lòng đăng nhập để thanh toán Premium', 'error');
+    return;
+  }
   if (isPremiumActive.value) {
     if (!window.confirm('Gói Premium hiện tại sẽ được thay thế. Tiếp tục?')) return;
   }
@@ -58,19 +118,75 @@ function openCheckout(plan: (typeof PLANS)[number]): void {
   success.value = false;
 }
 
-async function pay(): Promise<void> {
-  if (!checkoutPlan.value) return;
+function goToStep2(): void {
+  if (userId.value === null) {
+    ui.showToast('Vui lòng đăng nhập để thanh toán Premium', 'error');
+    return;
+  }
+  step.value = 2;
+}
+
+function backToStep1(): void {
+  stopCountdown();
+  step.value = 1;
+}
+
+function startCountdown(): void {
+  stopCountdown();
+  countdown.value = COUNTDOWN_SECONDS;
+  countdownTimer = setInterval(() => {
+    countdown.value -= 1;
+    if (countdown.value <= 0) stopCountdown();
+  }, 1000);
+}
+
+function stopCountdown(): void {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+}
+
+async function renderQr(): Promise<void> {
+  qrError.value = false;
+  const canvas = qrCanvas.value;
+  if (!canvas || !qrPayload.value) return;
+  try {
+    await QRCode.toCanvas(canvas, qrPayload.value, {
+      width: 208,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+    });
+  } catch {
+    qrError.value = true;
+  }
+}
+
+async function copyContent(): Promise<void> {
+  const content = transferContent.value;
+  if (!content) return;
+  try {
+    await navigator.clipboard.writeText(content);
+    ui.showToast('Đã sao chép nội dung chuyển khoản', 'success');
+  } catch {
+    ui.showToast('Không thể sao chép — hãy ghi tay nội dung CK', 'error');
+  }
+}
+
+async function confirmPaid(): Promise<void> {
+  if (!checkoutPlan.value || !confirmEnabled.value) return;
   paying.value = true;
   try {
-    // Bước 1: tạo đơn checkout mô phỏng → Bước 2: mock-pay kích hoạt
+    // Bước 1: tạo đơn checkout (OrderRef = DSV{userId}T{months}) → Bước 2: mock-pay kích hoạt ngay
     const order = await gamificationApi.upgradePremium(checkoutPlan.value.id);
     await gamificationApi.mockPayPremium(order.orderId);
     success.value = true;
+    fireConfetti('success');
     await gamification.fetchPremium();
     ui.showToast('🎉 Nâng cấp Premium thành công!', 'success');
     setTimeout(() => void router.replace({ name: 'home' }), 2500);
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Thanh toán mô phỏng thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : 'Xác nhận chuyển khoản thất bại.', 'error');
   } finally {
     paying.value = false;
   }
@@ -81,7 +197,7 @@ async function pay(): Promise<void> {
   <main class="premium container">
     <header class="premium__header">
       <h1 class="premium__title">⭐ Premium</h1>
-      <p class="text-muted premium__sub">Mở khóa toàn bộ quyền lợi học tập — thanh toán MÔ PHỎNG, không trừ tiền thật.</p>
+      <p class="text-muted premium__sub">Mở khóa toàn bộ quyền lợi học tập — thanh toán qua QR chuyển khoản MB Bank (demo).</p>
     </header>
 
     <div class="premium__plans">
@@ -148,18 +264,63 @@ async function pay(): Promise<void> {
           </ul>
           <div class="premium__checkout-actions">
             <Button variant="ghost" @click="checkoutPlan = null">Quay lại</Button>
-            <Button @click="step = 2">Tiếp tục →</Button>
+            <Button @click="goToStep2">Tiếp tục →</Button>
           </div>
         </template>
 
-        <!-- Bước 2 -->
+        <!-- Bước 2: QR chuyển khoản MB Bank + đếm ngược 60s (GP-T7) -->
         <template v-else>
+          <div class="premium__qr">
+            <canvas
+              ref="qrCanvas"
+              class="premium__qr-canvas"
+              role="img"
+              aria-label="Mã QR chuyển khoản MB Bank"
+            ></canvas>
+            <p v-if="qrError" class="premium__qr-error">Không thể tạo mã QR — vui lòng thử lại.</p>
+          </div>
+
+          <div class="premium__qr-info">
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">Ngân hàng</span>
+              <span class="premium__qr-value">MB Bank</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">Chủ tài khoản</span>
+              <span class="premium__qr-value">{{ MB_BENEFICIARY.name }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">Số tài khoản</span>
+              <span class="premium__qr-value premium__qr-value--mono">{{ ACCOUNT_DISPLAY }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">Số tiền</span>
+              <span class="premium__qr-value">{{ checkoutPlan.price }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">Nội dung CK</span>
+              <span class="premium__qr-value premium__qr-value--mono">{{ transferContent }}</span>
+            </div>
+          </div>
+
+          <div class="premium__qr-actions">
+            <Button variant="ghost" size="sm" :disabled="paying || !transferContent" @click="copyContent">
+              Sao chép nội dung CK
+            </Button>
+          </div>
+
           <p class="premium__checkout-note">
-            Thanh toán MÔ PHỎNG — <strong>không trừ tiền thật</strong>. Bấm nút bên dưới để kích hoạt Premium.
+            Thanh toán qua QR chuyển khoản — kích hoạt ngay sau khi xác nhận
+            (demo, không xác minh ngân hàng thật).
           </p>
+
+          <p v-if="!confirmEnabled" class="premium__countdown" role="status">
+            Nút khả dụng sau <strong>{{ countdownText }}</strong>
+          </p>
+
           <div class="premium__checkout-actions">
-            <Button variant="ghost" :disabled="paying" @click="step = 1">← Quay lại</Button>
-            <Button :loading="paying" @click="pay">Thanh toán mô phỏng</Button>
+            <Button variant="ghost" :disabled="paying" @click="backToStep1">← Quay lại</Button>
+            <Button :loading="paying" :disabled="!confirmEnabled" @click="confirmPaid">Tôi đã chuyển khoản</Button>
           </div>
         </template>
       </template>
@@ -250,6 +411,66 @@ async function pay(): Promise<void> {
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-sm);
+}
+
+/* GP-T7: QR chuyển khoản MB Bank */
+.premium__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+}
+
+.premium__qr-canvas {
+  width: 208px;
+  height: 208px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  background: #fff;
+}
+
+.premium__qr-error { color: var(--color-danger); font-size: var(--text-xs); }
+
+.premium__qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+.premium__qr-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.premium__qr-label { color: var(--color-text-muted); flex-shrink: 0; }
+
+.premium__qr-value { font-weight: 600; text-align: right; word-break: break-all; }
+
+.premium__qr-value--mono { font-family: var(--font-mono, monospace); }
+
+.premium__qr-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-xs);
+}
+
+.premium__countdown {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+}
+
+.premium__countdown strong {
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .premium__checkout-actions {
