@@ -331,7 +331,7 @@ graph TD
     Admin --> X
 ```
 
-![Hình 3.1 - Sơ đồ use case tổng thể](placeholders/01-usecase-tong-quan.png)
+![Hình 3.1 - Sơ đồ use case tổng thể](diagrams/01-usecase-tong-quan.png)
 
 *Hình 3.1: Sơ đồ use case tổng thể — 3 tác nhân và các chức năng chính của hệ thống. (ảnh placeholder — sinh ảnh thật bằng prompt NHÓM B #1)*
 
@@ -395,7 +395,7 @@ graph TD
     NguoiHoc --> AF
 ```
 
-![Hình 3.2 - Sơ đồ use case nhóm người học](placeholders/02-usecase-hoc-vien.png)
+![Hình 3.2 - Sơ đồ use case nhóm người học](diagrams/02-usecase-hoc-vien.png)
 
 *Hình 3.2: Sơ đồ use case dành cho người học — 24 chức năng học tập và luyện tập chính. (ảnh placeholder — sinh ảnh thật bằng prompt NHÓM B #1)*
 
@@ -450,7 +450,7 @@ graph TD
     NguoiDay --> T
 ```
 
-![Hình 3.3 - Sơ đồ use case nhóm giảng viên](placeholders/03-usecase-giang-vien.png)
+![Hình 3.3 - Sơ đồ use case nhóm giảng viên](diagrams/03-usecase-giang-vien.png)
 
 *Hình 3.3: Sơ đồ use case dành cho giảng viên — 4 chức năng biên soạn, báo cáo và quản lý lớp. (ảnh placeholder — sinh ảnh thật bằng prompt NHÓM B #1)*
 
@@ -479,7 +479,7 @@ graph TD
     Admin --> M
 ```
 
-![Hình 3.4 - Sơ đồ use case nhóm quản trị viên](placeholders/04-usecase-admin.png)
+![Hình 3.4 - Sơ đồ use case nhóm quản trị viên](diagrams/04-usecase-admin.png)
 
 *Hình 3.4: Sơ đồ use case dành cho quản trị viên — quản lý người dùng và cấu hình hệ thống. (ảnh placeholder — sinh ảnh thật bằng prompt NHÓM B #1)*
 
@@ -913,7 +913,7 @@ erDiagram
     UserNodeProgress { int Id PK; int UserId FK; int NodeId FK; int Status; int Stars; int NodeScore; datetime? UnlockedAt; datetime? PassedAt; datetime UpdatedAt }
 ```
 
-![Hình 4.13 - ERD tổng quan](placeholders/05-erd-tong-quan.png)
+![Hình 4.13 - ERD tổng quan](diagrams/05-erd-tong-quan.png)
 *Hình 4.13: ERD tổng quan lõi học tập 24 bảng. (ảnh placeholder — chụp thật thay sau)*
 
 (b) ERD gamification/code (8 bảng + Users tham chiếu):
@@ -942,7 +942,7 @@ erDiagram
     CodeSubmissions { int Id PK; int UserId FK; int ExerciseId FK; string Code; int Score; int PassedTests; int TotalTests; string ResultJson; datetime SubmittedAt }
 ```
 
-![Hình 4.14 - ERD chi tiết](placeholders/06-erd-chi-tiet.png)
+![Hình 4.14 - ERD chi tiết](diagrams/06-erd-chi-tiet.png)
 *Hình 4.14: ERD chi tiết nhóm gamification và code runner 8 bảng. (ảnh placeholder — chụp thật thay sau)*
 
 Hai nhóm bảng được tách để dễ đọc: nhóm lõi phục vụ nội dung học và tiến độ, nhóm gamification phục vụ động lực học (tim, đá quý, nhiệm vụ, bảng xếp hạng) và lịch sử chấm code. Bảng giao dịch như GemTransactions và CodeRuns chỉ ghi thêm, không sửa xóa, phục vụ đối soát sau này.

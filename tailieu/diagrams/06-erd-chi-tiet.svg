@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+<rect x="0" y="0" width="1920" height="1080" fill="#FFFFFF"/>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0D9488"/></marker></defs>
+<rect x="40" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Users</text>
+<text x="52" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Email (UK)</text>
+<text x="52" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">DisplayName</text>
+<text x="52" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Role</text>
+<text x="52" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">IsActive</text>
+<text x="52" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Gems</text>
+<rect x="348" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">RefreshTokens</text>
+<text x="360" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="360" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">TokenHash (UK)</text>
+<text x="360" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ExpiresAt</text>
+<text x="360" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">RevokedAt</text>
+<text x="360" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedByIp</text>
+<rect x="656" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="656" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="806" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">PasswordResetTokens</text>
+<text x="668" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="668" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="668" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">TokenHash (UK)</text>
+<text x="668" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ExpiresAt</text>
+<text x="668" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Used</text>
+<text x="668" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedAt</text>
+<rect x="964" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="964" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1114" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Topics</text>
+<text x="976" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="976" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ParentId → Topics.Id</text>
+<text x="976" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK CreatedBy → Users</text>
+<text x="976" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Name</text>
+<text x="976" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Description</text>
+<text x="976" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SortOrder</text>
+<rect x="1272" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1272" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1422" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Lessons</text>
+<text x="1284" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1284" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK TopicId → Topics</text>
+<text x="1284" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK CreatedBy → Users</text>
+<text x="1284" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Title</text>
+<text x="1284" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<text x="1284" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SortOrder</text>
+<rect x="1580" y="40" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1580" y="40" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1730" y="58" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LessonSimulations</text>
+<text x="1592" y="78" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1592" y="97" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="1592" y="116" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SimulationKey</text>
+<text x="1592" y="135" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Title</text>
+<text x="1592" y="154" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">DefaultInputJson</text>
+<text x="1592" y="173" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SortOrder</text>
+<rect x="40" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LessonNotes</text>
+<text x="52" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="52" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="52" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ContentHtml</text>
+<text x="52" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">UpdatedAt</text>
+<rect x="348" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Exercises</text>
+<text x="360" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="360" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK NodeId → LearningPathNodes</text>
+<text x="360" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK CreatedBy → Users</text>
+<text x="360" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Stage</text>
+<text x="360" y="329" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Type</text>
+<rect x="656" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="656" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="806" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Questions</text>
+<text x="668" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="668" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ExerciseId → Exercises</text>
+<text x="668" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Content</text>
+<text x="668" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">OptionsJson</text>
+<text x="668" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">AnswerJson</text>
+<text x="668" y="329" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Points</text>
+<rect x="964" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="964" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1114" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ExerciseSubmissions</text>
+<text x="976" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="976" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="976" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ExerciseId → Exercises</text>
+<text x="976" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ClassAssignmentId → ClassAssignments</text>
+<text x="976" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Score</text>
+<text x="976" y="329" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ResultJson</text>
+<rect x="1272" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1272" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1422" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">UserProgress</text>
+<text x="1284" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1284" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="1284" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="1284" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Viewed</text>
+<text x="1284" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SimulationCount</text>
+<text x="1284" y="329" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">BestScore</text>
+<rect x="1580" y="196" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1580" y="196" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1730" y="214" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">UserNodeProgress</text>
+<text x="1592" y="234" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1592" y="253" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="1592" y="272" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK NodeId → LearningPathNodes</text>
+<text x="1592" y="291" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<text x="1592" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Stars</text>
+<text x="1592" y="329" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">NodeScore</text>
+<rect x="40" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Favorites</text>
+<text x="52" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="52" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SimulationKey</text>
+<text x="52" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">InputJson</text>
+<text x="52" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedAt</text>
+<rect x="348" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Settings</text>
+<text x="360" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UpdatedBy → Users</text>
+<text x="360" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Key (UK)</text>
+<text x="360" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Value</text>
+<text x="360" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Description</text>
+<rect x="656" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="656" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="806" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Classes</text>
+<text x="668" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="668" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK OwnerId → Users</text>
+<text x="668" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">InviteCode (UK)</text>
+<text x="668" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Name</text>
+<text x="668" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Semester</text>
+<text x="668" y="485" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<rect x="964" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="964" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1114" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ClassMembers</text>
+<text x="976" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="976" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ClassId → Classes</text>
+<text x="976" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="976" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">JoinedAt</text>
+<text x="976" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">…</text>
+<rect x="1272" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1272" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1422" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ClassAssignments</text>
+<text x="1284" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1284" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ClassId → Classes</text>
+<text x="1284" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="1284" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ExerciseId → Exercises</text>
+<text x="1284" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">DueAt</text>
+<text x="1284" y="485" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedAt</text>
+<rect x="1580" y="352" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1580" y="352" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1730" y="370" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Achievements</text>
+<text x="1592" y="390" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1592" y="409" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Code (UK)</text>
+<text x="1592" y="428" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Name</text>
+<text x="1592" y="447" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Description</text>
+<text x="1592" y="466" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">IconUrl</text>
+<text x="1592" y="485" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ConditionJson</text>
+<rect x="40" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">UserAchievements</text>
+<text x="52" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="52" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK AchievementId → Achievements</text>
+<text x="52" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">EarnedAt</text>
+<text x="52" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">…</text>
+<rect x="348" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ContentFeedback</text>
+<text x="360" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="360" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="360" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Rating</text>
+<text x="360" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Comment</text>
+<text x="360" y="641" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedAt</text>
+<rect x="656" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="656" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="806" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">BugReports</text>
+<text x="668" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="668" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="668" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK AssigneeId → Users</text>
+<text x="668" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Description</text>
+<text x="668" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<text x="668" y="641" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">CreatedAt</text>
+<rect x="964" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="964" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1114" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LearningPaths</text>
+<text x="976" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="976" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK TopicId → Topics</text>
+<text x="976" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK CreatedBy → Users</text>
+<text x="976" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Title</text>
+<text x="976" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Description</text>
+<text x="976" y="641" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SortOrder</text>
+<rect x="1272" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1272" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1422" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">LearningPathNodes</text>
+<text x="1284" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1284" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK PathId → LearningPaths</text>
+<text x="1284" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK LessonId → Lessons</text>
+<text x="1284" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK FinalTestId → Exercises</text>
+<text x="1284" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Title</text>
+<text x="1284" y="641" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">SortOrder</text>
+<rect x="1580" y="508" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1580" y="508" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1730" y="526" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">NodeSessions</text>
+<text x="1592" y="546" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1592" y="565" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="1592" y="584" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK NodeId → LearningPathNodes</text>
+<text x="1592" y="603" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">StartedAt</text>
+<text x="1592" y="622" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ExpiresAt</text>
+<text x="1592" y="641" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Stage</text>
+<rect x="40" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">DailyQuests</text>
+<text x="52" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">QuestKey (UK)</text>
+<text x="52" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Title</text>
+<text x="52" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Type</text>
+<text x="52" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ConditionJson</text>
+<text x="52" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">RewardJson</text>
+<rect x="348" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">UserQuests</text>
+<text x="360" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="360" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK QuestId → DailyQuests</text>
+<text x="360" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">QuestDate</text>
+<text x="360" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Progress</text>
+<text x="360" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Claimed</text>
+<rect x="656" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="656" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="806" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ShopItems</text>
+<text x="668" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="668" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ItemKey (UK)</text>
+<text x="668" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Name</text>
+<text x="668" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">PriceGems</text>
+<text x="668" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">MaxStack</text>
+<text x="668" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Type</text>
+<rect x="964" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="964" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1114" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">UserInventory</text>
+<text x="976" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="976" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="976" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ItemId → ShopItems</text>
+<text x="976" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Quantity</text>
+<text x="976" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">PurchasedAt</text>
+<text x="976" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ExpiresAt</text>
+<rect x="1272" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1272" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1422" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">GemTransactions</text>
+<text x="1284" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1284" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="1284" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Type</text>
+<text x="1284" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Amount</text>
+<text x="1284" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">RefType</text>
+<text x="1284" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">RefId</text>
+<rect x="1580" y="664" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="1580" y="664" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="1730" y="682" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">PremiumSubscriptions</text>
+<text x="1592" y="702" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="1592" y="721" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="1592" y="740" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">PlanId</text>
+<text x="1592" y="759" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">StartedAt</text>
+<text x="1592" y="778" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">ExpiresAt</text>
+<text x="1592" y="797" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<rect x="40" y="820" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="40" y="820" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="190" y="838" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">CodeRuns</text>
+<text x="52" y="858" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="52" y="877" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="52" y="896" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ExerciseId → Exercises</text>
+<text x="52" y="915" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Code</text>
+<text x="52" y="934" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">InputJson</text>
+<text x="52" y="953" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Status</text>
+<rect x="348" y="820" width="300" height="150" rx="4" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+<rect x="348" y="820" width="300" height="26" rx="4" fill="#0D9488"/>
+<text x="498" y="838" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">CodeSubmissions</text>
+<text x="360" y="858" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#0D9488">PK Id</text>
+<text x="360" y="877" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK UserId → Users</text>
+<text x="360" y="896" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#6D28D9">FK ExerciseId → Exercises</text>
+<text x="360" y="915" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Code</text>
+<text x="360" y="934" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">Score</text>
+<text x="360" y="953" font-family="Arial, sans-serif" font-size="13" font-weight="normal" fill="#1F2937">PassedTests</text>
+<line x1="340.0" y1="165.6" x2="333.4" y2="163.4" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="956.0" y1="427.0" x2="949.0" y2="427.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="1572.0" y1="112.0" x2="1565.0" y2="112.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="1272.0" y1="140.3" x2="1278.9" y2="139.2" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="648.0" y1="271.0" x2="641.0" y2="271.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="648.0" y1="305.0" x2="641.0" y2="305.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="461.0" y1="346.0" x2="464.1" y2="339.7" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="498.0" y1="346.0" x2="498.0" y2="339.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="1264.0" y1="583.0" x2="1257.0" y2="583.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="1572.0" y1="583.0" x2="1565.0" y2="583.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="1496.0" y1="508.0" x2="1491.1" y2="513.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="340.0" y1="739.0" x2="333.0" y2="739.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<line x1="956.0" y1="739.0" x2="949.0" y2="739.0" stroke="#0D9488" stroke-width="1.2" opacity="0.6" marker-end="url(#arrow)"/>
+<text x="1880" y="1045" font-family="Arial, sans-serif" font-size="13" fill="#1F2937" text-anchor="end">Chỉ hiển thị cột chính; đầy đủ xem Phần 4.3.2 báo cáo</text>
+</svg>
