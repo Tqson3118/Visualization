@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | 0 | **Email GitHub 4 thành viên** (son/bao/thu/phuc) | `commit-as.ps1` | 4 dòng Email=... | ✅ ĐÃ XÁC NHẬN (12/08, user): son=thaiquangson@gmail.com · bao=maitieubao@gmail.com · thu=thuhlmtd01131@gmail.com · phuc=robintran51128@gmail.com — đúng email GitHub thật của cả 4 | [x] |
 | 1 | `DSA__Jwt__Secret` | `backend/.../appsettings.Production.json` hoặc `.env` | dòng ... | tự sinh 32+ ký tự | [ ] |
-| 2 | `ConnectionStrings__Default` | `.env` | dòng ... | SQL Server của nhóm | [ ] |
+| 2 | `ConnectionStrings__Default` | `.env` | dòng ... | SQL Server của nhóm — **dev local ĐÃ TẠO DB qua task D (migration InitialCreate + database update lên docker-compose sqlserver)**; cần chuỗi production khi deploy | [ ] |
 | 3 | `DSA__Email__*` (SMTP thật) | `.env` | dòng ... | Gmail App Password / SMTP trường — **chỉ cần khi deploy production; dev dùng MailHog** | [ ] |
 | 4 | ... (task B1/B3 điền thêm theo code thực tế) | | | | [ ] |
 

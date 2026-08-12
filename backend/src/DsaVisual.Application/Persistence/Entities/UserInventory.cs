@@ -7,6 +7,7 @@ public sealed class UserInventory
     public int UserId { get; set; }
     public int ItemId { get; set; }
     public int Quantity { get; set; }
+    public bool IsEquipped { get; set; }                             // v2.9: equip cùng loại set 0 các dòng khác (SDD §7.3.27)
     public DateTime PurchasedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
 }

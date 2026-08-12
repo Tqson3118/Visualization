@@ -1,4 +1,4 @@
-using DsaVisual.Application.Persistence.Entities;
+﻿using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -20,7 +20,7 @@ public sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
         builder.Property(l => l.Title).HasMaxLength(200).IsRequired();
         builder.Property(l => l.Description).HasMaxLength(500);
-        builder.Property(l => l.ContentHtml).HasColumnType("nvarchar(max)").IsRequired();
+        builder.Property(l => l.ContentHtml).IsRequired();
         builder.Property(l => l.SortOrder).HasDefaultValue(0);
         builder.Property(l => l.Status).HasConversion<int>().HasDefaultValue(LessonStatus.Draft);
         builder.Property(l => l.CreatedAt).HasColumnType("datetime2");

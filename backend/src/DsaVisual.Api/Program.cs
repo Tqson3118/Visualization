@@ -85,8 +85,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// DI (SDD §5.3.7: Scoped cho DbContext + Service; Singleton cho DateTimeProvider, HtmlSanitizer)
+// DI (SDD §5.3.7: Scoped cho DbContext + Service; Singleton cho Settings cache, TokenService (không state), DateTimeProvider)
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+builder.Services.AddSingleton<ITokenService, TokenService>();              // JWT HS256 — không state
+builder.Services.AddSingleton<SettingsCache>();                             // cache Settings (SDD §5.3.7)
+builder.Services.AddSingleton<LoginAttemptTracker>();                       // khóa tạm đăng nhập 5/15p
+builder.Services.AddSingleton<SubmissionLockRegistry>();                    // chống nộp bài đồng thời
 builder.Services.AddSingleton<IHtmlSanitizer>(_ =>
 {
     var sanitizer = new HtmlSanitizer();
@@ -121,6 +125,12 @@ builder.Services.AddScoped<IGamificationService, GamificationService>();
 
 // FluentValidation (SDD §5.3.4: gọi ở Service)
 builder.Services.AddScoped<IValidator<LessonUpsertRequest>, LessonValidator>();
+builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
+builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+builder.Services.AddScoped<IValidator<ExerciseUpsertRequest>, ExerciseUpsertRequestValidator>();
+builder.Services.AddScoped<IValidator<ClassUpsertRequest>, ClassUpsertRequestValidator>();
+builder.Services.AddScoped<IValidator<SubmitRequest>, SubmitRequestValidator>();
+builder.Services.AddScoped<IValidator<FeedbackRequest>, FeedbackRequestValidator>();
 
 var app = builder.Build();
 

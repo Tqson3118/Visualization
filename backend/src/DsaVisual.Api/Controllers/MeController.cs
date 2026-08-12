@@ -1,0 +1,112 @@
+using Asp.Versioning;
+using DsaVisual.Application.Dtos;
+using DsaVisual.Application.Persistence;
+using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace DsaVisual.Api.Controllers;
+
+/// <summary>Cá nhân mở rộng — API_REFERENCE.md §4.12: ghi chú bài học + huy hiệu.</summary>
+[ApiVersion("1.0")]
+[Route("api/v1/me")]
+[Authorize]
+public class MeController(AppDbContext db) : ApiControllerBase
+{
+    private readonly AppDbContext _db = db;
+
+    [HttpGet("notes")]
+    public async Task<ActionResult<List<NoteDto>>> GetNotes([FromQuery] int? lessonId, CancellationToken ct)
+    {
+        var query = _db.LessonNotes.AsNoTracking().Where(n => n.UserId == CurrentUserId());
+        if (lessonId is > 0)
+        {
+            query = query.Where(n => n.LessonId == lessonId);
+        }
+
+        var notes = await query
+            .OrderByDescending(n => n.UpdatedAt)
+            .Select(n => new NoteDto
+            {
+                LessonId = n.LessonId,
+                ContentHtml = n.ContentHtml,
+                UpdatedAt = n.UpdatedAt
+            })
+            .ToListAsync(ct);
+        return Ok(notes);
+    }
+
+    [HttpPut("notes/{lessonId:int}")]
+    public async Task<ActionResult<NoteDto>> UpsertNote([FromRoute] int lessonId, [FromBody] NoteUpsertRequest request, CancellationToken ct)
+    {
+        var lessonExists = await _db.Lessons.AsNoTracking()
+            .AnyAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
+        if (!lessonExists)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
+        }
+
+        var now = DateTime.UtcNow;
+        var note = await _db.LessonNotes.FirstOrDefaultAsync(n => n.UserId == CurrentUserId() && n.LessonId == lessonId, ct);
+        if (note is null)
+        {
+            note = new LessonNote { UserId = CurrentUserId(), LessonId = lessonId, ContentHtml = request.ContentHtml, UpdatedAt = now };
+            _db.LessonNotes.Add(note);
+        }
+        else
+        {
+            note.ContentHtml = request.ContentHtml;
+            note.UpdatedAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new NoteDto { LessonId = lessonId, ContentHtml = note.ContentHtml, UpdatedAt = note.UpdatedAt });
+    }
+
+    [HttpDelete("notes/{lessonId:int}")]
+    public async Task<ActionResult> DeleteNote([FromRoute] int lessonId, CancellationToken ct)
+    {
+        var note = await _db.LessonNotes.FirstOrDefaultAsync(n => n.UserId == CurrentUserId() && n.LessonId == lessonId, ct);
+        if (note is null)
+        {
+            return NoContent();
+        }
+
+        _db.LessonNotes.Remove(note);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+}
+
+/// <summary>Huy hiệu của tôi — API_REFERENCE.md §4.12 (route /achievements riêng).</summary>
+[ApiVersion("1.0")]
+[Route("api/v1/achievements")]
+[Authorize]
+public class AchievementsController(AppDbContext db) : ApiControllerBase
+{
+    private readonly AppDbContext _db = db;
+
+    [HttpGet]
+    public async Task<ActionResult<List<AchievementDto>>> GetMyAchievements(CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var items = await _db.Achievements.AsNoTracking()
+            .OrderBy(a => a.SortOrder)
+            .Select(a => new AchievementDto
+            {
+                Id = a.Id,
+                Code = a.Code,
+                Name = a.Name,
+                Description = a.Description,
+                IconUrl = a.IconUrl,
+                EarnedAt = _db.UserAchievements.AsNoTracking()
+                    .Where(ua => ua.UserId == userId && ua.AchievementId == a.Id)
+                    .Select(ua => (DateTime?)ua.EarnedAt)
+                    .FirstOrDefault()
+            })
+            .ToListAsync(ct);
+        return Ok(items);
+    }
+}

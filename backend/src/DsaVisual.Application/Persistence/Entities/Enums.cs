@@ -33,6 +33,15 @@ public enum ExerciseStatus
     Active = 1
 }
 
+/// <summary>Loại câu hỏi (API_REFERENCE.md §3.8/§4.6: SINGLE/MULTI/BOOLEAN/LAB).</summary>
+public enum QuestionType
+{
+    Single = 0,
+    Multi = 1,
+    Boolean = 2,
+    Lab = 3
+}
+
 /// <summary>Trạng thái lớp (SDD §7.3.16: 0=Mở, 1=Đóng).</summary>
 public enum ClassStatus
 {
