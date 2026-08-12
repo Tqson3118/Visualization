@@ -6,8 +6,10 @@
    ════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── COLOR PALETTE (MASTER.md) ── */
-  --color-primary:        #0D9488;
+  /* ── COLOR PALETTE (MASTER.md) ──
+     GP-T9b: primary tối đi (#007E72) để chữ/icon trên primary ≥ 4.5:1
+     và primary-as-text ≥ 4.5:1 trên nền trắng (link/stepper active). */
+  --color-primary:        #007E72;
   --color-on-primary:     #FFFFFF;
   --color-secondary:      #2DD4BF;
   --color-accent:         #D97706;
@@ -16,13 +18,13 @@
   --color-muted:          #E8F1F4;
   --color-border:         #5EEAD4;
   --color-destructive:    #DC2626;
-  --color-ring:           #0D9488;
+  --color-ring:           #007E72;
 
   /* Semantic alias (nhóm trạng thái) */
   --color-surface:        #FFFFFF;
   --color-surface-hover:  #E6F7F5;
-  --color-text-muted:     #5E7A77;
-  --color-text-disabled:  #9CB5B2;
+  --color-text-muted:     #56706D;
+  --color-text-disabled:  #56706D; /* GP-T9b: tối hơn để text nhỏ (comment code, ghi chú) ≥ 4.5:1 */
   --color-success:        #0FA968;
   --color-warning:        #D97706;
   --color-info:           #0891B2;

@@ -308,7 +308,7 @@ function exportCsv(): void {
             <option value="best">Tốt nhất</option>
           </select>
         </label>
-        <Button :loading="running" :disabled="selectedKeys.length < 2" @click="run">
+        <Button size="lg" :loading="running" :disabled="selectedKeys.length < 2" @click="run">
           ▶ Chạy benchmark
         </Button>
         <Button variant="ghost" :disabled="rows.length === 0" @click="exportCsv">Xuất CSV</Button>
@@ -394,7 +394,7 @@ function exportCsv(): void {
 
 .benchmark__label { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-sm); }
 
-.benchmark__chips { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.benchmark__chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
 .benchmark__chip {
   border: 1px solid var(--color-border);

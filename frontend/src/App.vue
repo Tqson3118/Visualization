@@ -52,6 +52,7 @@ function onPageEnter(): void {
         <span>{{ messages.app.name }} — {{ messages.app.tagline }}</span>
         <nav aria-label="Footer">
           <RouterLink :to="{ name: 'help' }">Trợ giúp</RouterLink>
+          <RouterLink :to="{ name: 'help' }">Liên hệ</RouterLink>
           <RouterLink :to="{ name: 'privacy' }">Chính sách bảo mật</RouterLink>
         </nav>
       </div>

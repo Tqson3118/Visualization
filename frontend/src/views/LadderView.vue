@@ -180,7 +180,7 @@ function onPassed(stage: number): void {
 .ladder__hero-title-wrap { display: flex; flex-direction: column; gap: 6px; }
 
 .ladder__title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   background-image: var(--gradient-sunset);
   -webkit-background-clip: text;
   background-clip: text;

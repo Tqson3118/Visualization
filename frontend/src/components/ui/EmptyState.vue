@@ -27,7 +27,7 @@ const emit = defineEmits<{
     class="flex flex-col items-center justify-center gap-3 px-4 py-14 text-center text-muted-foreground"
     role="status"
   >
-    <div class="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-muted text-muted-foreground/70">
+    <div class="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-muted text-foreground/80">
       <BaseIcon :name="icon" :size="36" />
     </div>
     <h3 class="text-base font-semibold text-foreground">{{ title }}</h3>

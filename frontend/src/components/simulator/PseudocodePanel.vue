@@ -179,14 +179,14 @@ function highlight(line: string): string {
   padding: var(--space-xs);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .pseudo__line {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   font-family: var(--font-mono);

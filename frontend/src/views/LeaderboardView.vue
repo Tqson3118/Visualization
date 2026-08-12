@@ -429,7 +429,7 @@ const boardChartOption = computed(() => {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
+  padding: 0.75rem var(--space-md);
   font-size: var(--text-sm);
   border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;

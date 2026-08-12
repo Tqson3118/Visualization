@@ -215,14 +215,15 @@ function openDemo(key: string): void {
   isolation: isolate;
 }
 
-/* Đốm sáng trang trí — không chặn tương tác */
+/* Đốm sáng trang trí — không chặn tương tác.
+   GP-T9b: giảm opacity → giảm "vùng chói" trên gradient (#4). */
 .home__hero-inner::before,
 .home__hero-inner::after {
   content: '';
   position: absolute;
   border-radius: 50%;
   filter: blur(48px);
-  opacity: 0.5;
+  opacity: 0.28;
   z-index: -1;
 }
 
@@ -258,9 +259,20 @@ function openDemo(key: string): void {
   backdrop-filter: blur(4px);
 }
 
+/* GP-T9b (#6): dark mode gradient sáng (0.8-0.86) làm chữ trắng chỉ ~1.8:1
+   → phủ lớp tối để chữ trắng ≥ 4.5:1. Light đã có gradient tối (0.52-0.55) nên không cần. */
+.dark .home__hero-inner {
+  background-image: linear-gradient(rgba(4, 47, 46, 0.62), rgba(4, 47, 46, 0.62)), var(--gradient-aurora);
+}
+
+.dark .home__hero-inner::before,
+.dark .home__hero-inner::after {
+  opacity: 0.12;
+}
+
 .home__title {
   max-width: 20ch;
-  font-size: clamp(var(--text-2xl), 5vw, var(--text-4xl));
+  font-size: clamp(2rem, 5vw, 3.5rem);
   color: #fff;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
@@ -273,7 +285,7 @@ function openDemo(key: string): void {
 
 .home__cta {
   display: flex;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   flex-wrap: wrap;
   justify-content: center;
   margin-top: var(--space-sm);
@@ -338,7 +350,7 @@ function openDemo(key: string): void {
   grid-column: 1 / -1;
   text-align: center;
   font-size: var(--text-xs);
-  color: var(--color-text-disabled);
+  color: var(--color-text-muted);
 }
 
 /* ── Sections chung ── */
