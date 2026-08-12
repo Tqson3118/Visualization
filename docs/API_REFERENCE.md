@@ -20,6 +20,7 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: bổ sung error code `LESSON_HAS_EXERCISES` (409); ghi phiên bản v2.4 cho 4 mã bổ sung ngoài §9.7; thay placeholder `"..."` trong ví dụ resume session bằng JSON thực |
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: (1) §4.2 xóa endpoint `/public/simulations/{key}/run` đã cắt theo ADR-001 (quyết định A-4) — ghi chú thay thế; (2) §4.4 ghi rõ trạng thái "chưa triển khai" cho 3 endpoint Lessons (progress/mark-viewed/simulations) — theo dõi SETUP_TODO §6; (3) §5 dòng 12 sửa route viết tắt `GET /submissions?exerciseId` → `GET /exercises/{id}/submissions` khớp code |
+| 1.3 | 13/08/2026 | Mai Tiểu Bảo | GP-T2 (2FA email — FR-1.11): (1) §4.12 bổ sung `POST /auth/2fa/send` + `POST /auth/2fa/verify`, làm rõ PUT /auth/2fa (tắt trực tiếp; bật qua mã OTP); (2) §2.2 bổ sung 5 error code 2FA `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` (400) — [v2.13] |
 
 ---
 
@@ -121,12 +122,17 @@
 | RATE_LIMITED | 429 | Vượt giới hạn tần suất (kèm Retry-After) | null |
 | UPLOAD_INVALID_TYPE | 400 | Sai định dạng file upload | file |
 | UPLOAD_TOO_LARGE | 400 | File vượt giới hạn dung lượng | file |
+| OTP_REQUIRED | 400 | Bật 2FA cần xác nhận mã OTP (POST /auth/2fa/send + /verify) — [v2.13] | null |
+| OTP_INVALID | 400 | Mã OTP không đúng — [v2.13] | code |
+| OTP_EXPIRED | 400 | Mã OTP hết hạn (5 phút) — [v2.13] | code |
+| OTP_USED | 400 | Mã OTP đã được sử dụng (dùng 1 lần) — [v2.13] | code |
+| TWO_FA_ALREADY_ENABLED | 400 | 2FA đã được bật — [v2.13] | null |
 | INSUFFICIENT_GEMS | 422 | Không đủ gems mua vật phẩm (FR-10.2) — [v2.4] | null |
 | QUEST_ALREADY_CLAIMED | 422 | Quest đã nhận thưởng (FR-10.3) — [v2.4] | null |
 | INTERNAL_ERROR | 500 | Lỗi máy chủ (ẩn chi tiết) | null |
 | SERVICE_UNAVAILABLE | 503 | DB/máy chủ quá tải | null |
 
-> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt.
+> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt. 2FA email (GP-T2, 13/08/2026 — FR-1.11): 5 mã `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` thuộc v2.13.
 
 ---
 
@@ -500,7 +506,9 @@
 | GET | `/me/notes?lessonId=` | Danh sách ghi chú | Đã đăng nhập |
 | PUT | `/me/notes/{lessonId}` | Lưu/cập nhật ghi chú bài học | Đã đăng nhập |
 | DELETE | `/me/notes/{lessonId}` | Xóa ghi chú | Đã đăng nhập |
-| PUT | `/auth/2fa` | Bật/tắt 2FA + xác nhận mã | Đã đăng nhập |
+| PUT | `/auth/2fa` | 2FA email (FR-1.11): body `{enabled}` — `enabled:false` tắt trực tiếp; `enabled:true` trả 400 `OTP_REQUIRED` (phải qua /send + /verify) | Đã đăng nhập |
+| POST | `/auth/2fa/send` | Gửi mã OTP 6 số qua email (hiệu lực 5 phút, dùng 1 lần) → `{message, expiresInSeconds}` | Đã đăng nhập |
+| POST | `/auth/2fa/verify` | Xác nhận mã OTP `{code}` → bật 2FA → `{enabled:true}` | Đã đăng nhập |
 | GET | `/achievements` | Huy hiệu của tôi (đã mở + ẩn) | Đã đăng nhập |
 
 ## 4.13 Code Runner (Module I)

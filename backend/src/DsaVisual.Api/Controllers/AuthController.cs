@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace DsaVisual.Api.Controllers;
 
 /// <summary>
-/// Xác thực — API_REFERENCE.md §4.1 (9 endpoint). Refresh token qua cookie HttpOnly
+/// Xác thực — API_REFERENCE.md §4.1 (9 endpoint) + §4.12 (2FA email — GP-T2: PUT /auth/2fa,
+/// POST /auth/2fa/send, POST /auth/2fa/verify). Refresh token qua cookie HttpOnly
 /// (SameSite=Strict; Secure; Path=/api/v1/auth) — SDD §1.2/§5.6.
 /// </summary>
 [ApiVersion("1.0")]
@@ -120,11 +121,37 @@ public class AuthController(IAuthService service) : ApiControllerBase
         return MapResultExtensions.MapResult(this, result);
     }
 
-    /// <summary>2FA — TODO: chưa triển khai (cần luồng email mã OTP + xác nhận), trả 501 theo API_REFERENCE §4.12.</summary>
+    /// <summary>
+    /// 2FA email (GP-T2 — FR-1.11, API_REFERENCE §4.12). Bật: bắt buộc qua mã OTP
+    /// (POST /auth/2fa/send → nhận mã qua email → POST /auth/2fa/verify); tắt: trực tiếp.
+    /// </summary>
     [HttpPut("2fa")]
     [Authorize]
-    public ActionResult Toggle2Fa() =>
-        StatusCode(501, new { message = "2FA chưa được triển khai (TODO — cần SMTP + OTP store)" });
+    public async Task<ActionResult<Toggle2FaResponse>> Toggle2Fa(
+        [FromBody] Toggle2FaRequest request, CancellationToken ct)
+    {
+        var result = await _service.Toggle2FaAsync(CurrentUserId(), request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>2FA email — gửi mã OTP 6 số (hiệu lực 5 phút, dùng 1 lần) qua SMTP (dev: MailHog).</summary>
+    [HttpPost("2fa/send")]
+    [Authorize]
+    public async Task<ActionResult<Send2FaResponse>> Send2Fa(CancellationToken ct)
+    {
+        var result = await _service.Send2FaCodeAsync(CurrentUserId(), ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>2FA email — xác nhận mã OTP → bật 2FA cho tài khoản.</summary>
+    [HttpPost("2fa/verify")]
+    [Authorize]
+    public async Task<ActionResult<Toggle2FaResponse>> Verify2Fa(
+        [FromBody] Verify2FaRequest request, CancellationToken ct)
+    {
+        var result = await _service.Verify2FaCodeAsync(CurrentUserId(), request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
 
     private ActionResult ApplyCookieAndMap(Result<RefreshResponse> result, int statusCode = 200)
     {

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DsaVisual.UnitTests;
@@ -62,7 +63,10 @@ internal static class TestServices
         return (db, connection);
     }
 
-    public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName)
+    public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName) =>
+        CreateAuthService(db, clock, dbName, NullLogger<AuthService>.Instance);
+
+    public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName, ILogger<AuthService> logger)
     {
         var config = CreateConfig();
         var cache = new SettingsCache();
@@ -74,7 +78,7 @@ internal static class TestServices
             config,
             settings,
             new LoginAttemptTracker(clock, config),
-            NullLogger<AuthService>.Instance);
+            logger);
     }
 
     public static ExerciseService CreateExerciseService(AppDbContext db, FixedClock clock) =>

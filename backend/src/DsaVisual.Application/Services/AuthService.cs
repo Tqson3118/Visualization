@@ -1,4 +1,6 @@
 using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
@@ -27,6 +29,11 @@ public sealed class AuthService(
 {
     private const string SettingAllowedDomains = "allowed.email.domains";
     private const string SettingMinPasswordLength = "password.policy.minLength";
+
+    // ── 2FA email (GP-T2 — FR-1.11) ──
+    private const string OtpPurposeEnable2Fa = "enable_2fa";
+    private const int OtpLifetimeMinutes = 5;
+    private const int OtpExpiresInSeconds = OtpLifetimeMinutes * 60;
 
     // ── Đăng ký ──────────────────────────────────────────────
 
@@ -372,6 +379,145 @@ public sealed class AuthService(
         return Result.Ok();
     }
 
+    // ── 2FA email (GP-T2 — FR-1.11) ──────────────────────────
+
+    /// <summary>
+    /// Bật/tắt 2FA (API_REFERENCE §4.12). Bật PHẢI qua mã OTP (POST /auth/2fa/send + /verify)
+    /// — không cho bật trực tiếp để tránh attacker chiếm quyền khóa tài khoản chủ sở hữu.
+    /// Tắt: cho phép trực tiếp vì người dùng đã đăng nhập (mật khẩu + token).
+    /// </summary>
+    public async Task<Result<Toggle2FaResponse>> Toggle2FaAsync(int userId, Toggle2FaRequest request, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (!request.Enabled)
+        {
+            if (user.TwoFactorEnabled)
+            {
+                user.TwoFactorEnabled = false;
+                user.UpdatedAt = clock.UtcNow;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("User {UserId} disabled 2FA", user.Id);
+            }
+
+            return Result<Toggle2FaResponse>.Ok(new Toggle2FaResponse(false, "Đã tắt xác thực hai lớp"));
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.TWO_FA_ALREADY_ENABLED, "Xác thực hai lớp đã được bật");
+        }
+
+        return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_REQUIRED,
+            "Bật 2FA cần xác nhận mã: gọi POST /auth/2fa/send để nhận mã OTP, rồi POST /auth/2fa/verify");
+    }
+
+    /// <summary>
+    /// Sinh mã OTP 6 số (hiệu lực 5 phút, dùng 1 lần), lưu SHA256 hash vào OtpCodes, gửi qua email.
+    /// SMTP chưa cấu hình → KHÔNG block luồng, ghi mã trong log dev (pattern SDD §5.6 như forgot-password).
+    /// </summary>
+    public async Task<Result<Send2FaResponse>> Send2FaCodeAsync(int userId, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.TWO_FA_ALREADY_ENABLED, "Xác thực hai lớp đã được bật");
+        }
+
+        var code = GenerateOtpCode();
+        var now = clock.UtcNow;
+
+        // Chỉ mã mới nhất có hiệu lực — vô hiệu hóa mã cũ chưa dùng cùng purpose
+        var active = await db.OtpCodes
+            .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeEnable2Fa && !o.Used)
+            .ToListAsync(ct);
+        foreach (var otp in active)
+        {
+            otp.Used = true;
+        }
+
+        db.OtpCodes.Add(new OtpCode
+        {
+            UserId = user.Id,
+            CodeHash = HashOtpCode(code),
+            Purpose = OtpPurposeEnable2Fa,
+            ExpiresAt = now.AddMinutes(OtpLifetimeMinutes),
+            Used = false,
+            CreatedAt = now
+        });
+        await db.SaveChangesAsync(ct);
+
+        await Send2FaCodeEmailAsync(user, code, ct);
+        return Result<Send2FaResponse>.Ok(new Send2FaResponse(
+            "Mã xác thực đã được gửi qua email (hiệu lực 5 phút)", OtpExpiresInSeconds));
+    }
+
+    /// <summary>
+    /// Xác nhận mã OTP: đúng + chưa dùng + chưa hết hạn → đánh dấu Used + bật 2FA cho tài khoản.
+    /// </summary>
+    public async Task<Result<Toggle2FaResponse>> Verify2FaCodeAsync(int userId, Verify2FaRequest request, CancellationToken ct)
+    {
+        var code = request.Code?.Trim() ?? string.Empty;
+        if (code.Length != 6 || !code.All(char.IsAsciiDigit))
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Mã xác thực phải là 6 chữ số", new() { ["code"] = ["Mã xác thực phải là 6 chữ số"] });
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.TWO_FA_ALREADY_ENABLED, "Xác thực hai lớp đã được bật");
+        }
+
+        var hash = HashOtpCode(code);
+        var otp = await db.OtpCodes.AsNoTracking()
+            .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeEnable2Fa && o.CodeHash == hash)
+            .OrderByDescending(o => o.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (otp is null)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_INVALID, "Mã xác thực không đúng");
+        }
+
+        if (otp.Used)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_USED, "Mã xác thực đã được sử dụng");
+        }
+
+        if (otp.ExpiresAt <= clock.UtcNow)
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_EXPIRED,
+                "Mã xác thực đã hết hạn — hãy gọi lại POST /auth/2fa/send để nhận mã mới");
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var used = await db.OtpCodes.FirstAsync(o => o.Id == otp.Id, ct);
+        used.Used = true;
+        user.TwoFactorEnabled = true;
+        user.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        logger.LogInformation("User {UserId} enabled 2FA (email {Email})", user.Id, user.Email);
+        return Result<Toggle2FaResponse>.Ok(new Toggle2FaResponse(true, "Đã bật xác thực hai lớp"));
+    }
+
     // ── Private helpers ───────────────────────────────────────
 
     private async Task<Result<RefreshResponse>> IssueTokensAsync(User user, string? ipAddress, CancellationToken ct)
@@ -441,6 +587,44 @@ public sealed class AuthService(
             logger.LogError(ex, "Gửi email đặt lại mật khẩu thất bại cho user {UserId}; link dev: {ResetLink}", user.Id, resetLink);
         }
     }
+
+    private async Task Send2FaCodeEmailAsync(User user, string code, CancellationToken ct)
+    {
+        var smtpHost = config["DSA:Email:SmtpHost"];
+
+        if (string.IsNullOrWhiteSpace(smtpHost))
+        {
+            // SMTP chưa cấu hình → ghi mã trong log dev, KHÔNG block luồng (pattern SDD §5.6)
+            logger.LogWarning("SMTP chưa cấu hình — mã 2FA (dev) cho user {UserId}: {Code}", user.Id, code);
+            return;
+        }
+
+        try
+        {
+            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025))
+            {
+                Timeout = 10_000   // timeout ngắn — không giữ request (GP-T2)
+            };
+            await smtp.SendMailAsync(
+                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
+                user.Email,
+                "Mã xác thực 2FA — DSA Visual",
+                $"Mã xác thực hai lớp (2FA) của bạn là: {code}\n\n" +
+                $"Mã có hiệu lực {OtpLifetimeMinutes} phút và chỉ dùng được 1 lần.\n" +
+                "Nếu bạn không yêu cầu, hãy bỏ qua email này.", ct);
+        }
+        catch (Exception ex)
+        {
+            // Email lỗi KHÔNG block luồng (SDD §5.6); ghi mã dev để smoke/debug
+            logger.LogError(ex, "Gửi email mã 2FA thất bại cho user {UserId}; mã dev: {Code}", user.Id, code);
+        }
+    }
+
+    private static string GenerateOtpCode() =>
+        RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");   // 6 chữ số, crypto-random
+
+    private static string HashOtpCode(string code) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 

@@ -72,6 +72,27 @@ public sealed class PasswordResetTokenConfiguration : IEntityTypeConfiguration<P
     }
 }
 
+public sealed class OtpCodeConfiguration : IEntityTypeConfiguration<OtpCode>
+{
+    public void Configure(EntityTypeBuilder<OtpCode> builder)
+    {
+        builder.ToTable("OtpCodes");
+
+        builder.Property(t => t.CodeHash).HasMaxLength(64).IsRequired();
+        builder.Property(t => t.Purpose).HasMaxLength(32).IsRequired();
+        builder.Property(t => t.ExpiresAt).HasColumnType("datetime2");
+        builder.Property(t => t.CreatedAt).HasColumnType("datetime2");
+
+        builder.HasIndex(t => t.UserId);
+        builder.HasIndex(t => new { t.UserId, t.Purpose, t.Used });
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class SettingConfiguration : IEntityTypeConfiguration<Setting>
 {
     public void Configure(EntityTypeBuilder<Setting> builder)
