@@ -16,6 +16,9 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
   const error = ref<string | null>(null);
   // G-F3E-NEW-2: tab Lớp khi user chưa tham gia lớp nào → EmptyState, KHÔNG gọi API (tránh 400).
   const noClass = ref(false);
+  // G-F3E2: classId lần gần nhất của tab Lớp — phân trang (goToPage) tái dùng để không gửi
+  // classId: undefined → backend 400 "Thiếu classId cho tab lớp" (P2 review g-f3c F2).
+  const lastClassId = ref<number | null>(null);
 
   async function fetchBoard(nextTab?: 'week' | 'level' | 'class', classId?: number, nextPage?: number): Promise<void> {
     // Đổi tab → về trang 1 (hành vi cũ giữ nguyên); nextPage chỉ dùng khi bấm phân trang.
@@ -24,11 +27,16 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
       page.value = 1;
     }
     if (nextPage !== undefined) page.value = nextPage;
+    // G-F3E2: lưu classId mỗi khi được truyền (tab Lớp tải lần đầu / chuyển tab) → phân trang tái dùng.
+    if (classId !== undefined) lastClassId.value = classId;
     loading.value = true;
     error.value = null;
     noClass.value = false;
     try {
-      const board = await gamificationApi.fetchLeaderboard({ tab: tab.value, classId, page: page.value });
+      // G-F3E2: tab=class mà không truyền classId (phân trang) → dùng lastClassId, tránh 400 "Thiếu classId".
+      // lastClassId có thể null (chưa từng resolve) → chuyển thành undefined để API không nhận null.
+      const effectiveClassId = tab.value === 'class' ? (classId ?? lastClassId.value ?? undefined) : undefined;
+      const board = await gamificationApi.fetchLeaderboard({ tab: tab.value, classId: effectiveClassId, page: page.value });
       rows.value = board.rows;
       myRank.value = board.myRank;
       totalPages.value = board.totalPages > 0 ? board.totalPages : 1;
@@ -51,7 +59,9 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     loading.value = false;
     error.value = null;
     noClass.value = true;
+    // G-F3E2: không có lớp → không còn classId hợp lệ để phân trang.
+    lastClassId.value = null;
   }
 
-  return { tab, rows, myRank, page, totalPages, loading, error, noClass, fetchBoard, setNoClass };
+  return { tab, rows, myRank, page, totalPages, loading, error, noClass, lastClassId, fetchBoard, setNoClass };
 });

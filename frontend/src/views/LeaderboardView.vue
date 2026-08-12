@@ -65,7 +65,10 @@ async function resolveClassId(): Promise<number | null> {
 
 function goToPage(next: number): void {
   if (next < 1 || next > board.totalPages) return;
-  void board.fetchBoard(undefined, undefined, next);
+  // G-F3E2: tab Lớp phân trang phải giữ classId (lastClassId lưu ở store) — nếu không backend
+  // 400 "Thiếu classId cho tab lớp" khi lớp >20 thành viên (P2 review g-f3c F2). week/level không cần.
+  const classId = board.tab === 'class' ? (board.lastClassId ?? undefined) : undefined;
+  void board.fetchBoard(undefined, classId, next);
 }
 
 const medal = computed(() => (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : ''));

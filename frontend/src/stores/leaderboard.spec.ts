@@ -69,4 +69,29 @@ describe('leaderboard store', () => {
     expect(store.rows).toHaveLength(0);
     expect(store.noClass).toBe(false);
   });
+
+  it('G-F3E2: phân trang tab class giữ classId qua lastClassId — không 400 (P2 review g-f3c F2)', async () => {
+    vi.mocked(gamificationApi.fetchLeaderboard).mockResolvedValue(mockBoard({ page: 2, total: 14, totalPages: 2 }));
+    const store = useLeaderboardStore();
+    // Lần tải đầu tab Lớp — truyền classId → store lưu lastClassId
+    await store.fetchBoard('class', 7);
+    expect(store.lastClassId).toBe(7);
+    expect(gamificationApi.fetchLeaderboard).toHaveBeenLastCalledWith({ tab: 'class', classId: 7, page: 1 });
+    // Bấm "Trang sau" — goToPage gọi fetchBoard(undefined, undefined, 2) → dùng lastClassId
+    await store.fetchBoard(undefined, undefined, 2);
+    expect(gamificationApi.fetchLeaderboard).toHaveBeenLastCalledWith({ tab: 'class', classId: 7, page: 2 });
+    expect(store.page).toBe(2);
+    expect(store.totalPages).toBe(2);
+    expect(store.noClass).toBe(false);
+    expect(store.error).toBeNull();
+  });
+
+  it('G-F3E2: phân trang tab week không truyền classId (chỉ tab class cần)', async () => {
+    vi.mocked(gamificationApi.fetchLeaderboard).mockResolvedValue(mockBoard({ page: 2, total: 14, totalPages: 2 }));
+    const store = useLeaderboardStore();
+    await store.fetchBoard('week');
+    await store.fetchBoard(undefined, undefined, 2);
+    expect(gamificationApi.fetchLeaderboard).toHaveBeenLastCalledWith({ tab: 'week', classId: undefined, page: 2 });
+    expect(store.page).toBe(2);
+  });
 });
