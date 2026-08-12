@@ -62,10 +62,26 @@ export interface ClassReportDto {
 
 // ── Benchmark (API_REFERENCE §4.14 — POST /benchmarks/run) ──
 
+/** 1 điểm đo tại n — client gửi kèm (server không tự đo — ADR-012, SETUP_TODO §6.8) */
+export interface BenchmarkMeasurementDto {
+  n: number;
+  durationMs: number | null;   // null = N/A (timeout)
+  comparisons: number | null;
+  swaps: number | null;
+}
+
+/** Kết quả đo 1 thuật toán — results[] bắt buộc trong BenchmarkRequest */
+export interface BenchmarkResultDto {
+  key: string;
+  measurements: BenchmarkMeasurementDto[];
+}
+
 export interface BenchmarkRequest {
   keys: string[];
   sizes: number[];
   language?: string;
+  /** Kết quả đo phía client (server không tự đo được — ADR-012) */
+  results?: BenchmarkResultDto[];
 }
 
 export interface BenchmarkCellDto {

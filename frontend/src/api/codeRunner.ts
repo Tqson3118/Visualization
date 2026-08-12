@@ -28,9 +28,23 @@ export interface CodeSubmitResult {
   results: Array<{ testId: string; passed: boolean; message: string }>;
 }
 
+/** Payload POST /code-runs theo API_REFERENCE §4.13 / ADR-012 — key bắt buộc string, input là string (SETUP_TODO §6.7). */
+export interface SaveCodeRunPayload {
+  exerciseId?: number | null;
+  key: string;
+  code: string;
+  input?: string | null;
+  status?: 'Success' | 'Error' | 'Timeout' | string;
+  durationMs?: number;
+  stats?: { comparisons?: number | null; swaps?: number | null; steps?: number | null };
+  output?: string | null;
+  error?: string | null;
+  trace?: unknown[];
+}
+
 // ── CRUD (API_REFERENCE §4.13) ──
 
-export async function saveCodeRun(payload: { exerciseId?: number | null; code: string; input?: unknown }): Promise<CodeRunSummary> {
+export async function saveCodeRun(payload: SaveCodeRunPayload): Promise<CodeRunSummary> {
   return getData<CodeRunSummary>({ method: 'POST', url: CODE_RUNNER_ENDPOINTS.codeRuns, data: payload });
 }
 

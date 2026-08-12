@@ -82,6 +82,23 @@ function inputFor(mode: typeof dataMode.value, size: number): number[] {
   return randomArray(size);
 }
 
+/**
+ * Map kết quả đo (rows: size × key) → results theo contract BE:
+ * [{ key, measurements: [{ n, durationMs, comparisons, swaps }] }] — ADR-012 (SETUP_TODO §6.8).
+ * Độ đo bị timeout/null → gửi 0 (endpoint chỉ lưu vết; UI vẫn hiển thị N/A từ rows).
+ */
+function buildResults(): Array<{ key: string; measurements: Array<{ n: number; durationMs: number; comparisons: number; swaps: number }> }> {
+  return selectedKeys.value.map((key) => ({
+    key,
+    measurements: rows.value.map((row) => ({
+      n: row.size,
+      durationMs: row.measures[key]?.durationMs ?? 0,
+      comparisons: row.measures[key]?.comparisons ?? 0,
+      swaps: row.measures[key]?.swaps ?? 0,
+    })),
+  }));
+}
+
 async function run(): Promise<void> {
   if (selectedKeys.value.length < 2) {
     ui.showToast('Chọn ít nhất 2 giải thuật để so sánh.', 'warning');
@@ -118,9 +135,13 @@ async function run(): Promise<void> {
       rows.value = [...rows.value, { size, measures }];
     }
     progress.value = 'Hoàn tất.';
-    // Lưu kết quả (bỏ qua lỗi — đo client vẫn OK)
+    // Lưu kết quả (bỏ qua lỗi — đo client vẫn OK). Gửi kèm results đo được — BE bắt buộc (SETUP_TODO §6.8)
     try {
-      await runBenchmark({ keys: selectedKeys.value, sizes: sizes.value });
+      await runBenchmark({
+        keys: selectedKeys.value,
+        sizes: sizes.value,
+        results: buildResults(),
+      });
       saved.value = true;
     } catch {
       saved.value = false;

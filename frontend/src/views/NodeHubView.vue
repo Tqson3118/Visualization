@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
+import * as exercisesApi from '@/api/exercises';
+import type { ExerciseDto } from '@/api/exercises';
 import { CATALOG, getCatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
 import LessonDetail from '@/components/lesson/LessonDetail.vue';
@@ -46,6 +48,31 @@ const nodeTitle = computed(() => {
   return meta?.title ?? `Node ${nodeId.value}`;
 });
 
+/** Exercise Ladder theo node: quiz (stage 1) + code (stage 3) — GET /exercises?nodeId&stage (SETUP_TODO §6.6) */
+const quizExercise = ref<ExerciseDto | null>(null);
+const quizLoading = ref(true);
+const codeExerciseId = ref<number | null>(null);
+
+async function loadLadderExercises(): Promise<void> {
+  const node = Number(nodeId.value);
+  try {
+    const [quizList, codeList] = await Promise.all([
+      exercisesApi.fetchExercises({ nodeId: node, stage: 1 }),
+      exercisesApi.fetchExercises({ nodeId: node, stage: 3 }),
+    ]);
+    if (quizList.length > 0) {
+      quizExercise.value = await exercisesApi.fetchExercise(quizList[0].id);
+    }
+    codeExerciseId.value = codeList[0]?.id ?? null;
+  } catch {
+    // API lỗi → giữ null; LadderShell hiện EmptyState thay vì crash
+    quizExercise.value = null;
+    codeExerciseId.value = null;
+  } finally {
+    quizLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   if (lessonId.value !== null) {
     try {
@@ -54,10 +81,16 @@ onMounted(async () => {
       ui.showToast('Không thể tải lý thuyết — hiển thị nội dung mẫu.', 'warning');
     }
   }
+  await loadLadderExercises();
 });
 
 function openSimulation(key: string): void {
   void router.push({ name: 'simulator', params: { key } });
+}
+
+/** Nút "Làm bài" (LessonDetail.vue:154) — bug P1 #3: trước đây emit không ai lắng nghe */
+function openExercise(id: number): void {
+  void router.push({ name: 'exercise', params: { id: String(id) } });
 }
 </script>
 
@@ -111,6 +144,7 @@ function openSimulation(key: string): void {
         v-if="lessonId !== null"
         :lesson-id="lessonId"
         @open-simulation="openSimulation"
+        @open-exercise="openExercise"
       />
       <div v-else class="node-hub__fallback card">
         <h2 class="node-hub__fallback-title">📖 Lý thuyết — {{ nodeTitle }}</h2>
@@ -130,9 +164,10 @@ function openSimulation(key: string): void {
     <section v-else-if="tab === 'practice'" class="node-hub__panel">
       <LadderShell
         :node-id="nodeId"
-        :quiz-exercise="null"
+        :quiz-exercise="quizExercise"
+        :quiz-loading="quizLoading"
         :simulation-key="simKey"
-        :code-exercise-id="null"
+        :code-exercise-id="codeExerciseId"
       />
     </section>
 

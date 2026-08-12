@@ -1,4 +1,5 @@
 import { client, getData } from './client';
+import type { PagedResponse } from './types';
 
 /** Endpoint theo API_REFERENCE §4.6 */
 export const EXERCISE_ENDPOINTS = {
@@ -37,6 +38,20 @@ export interface ExerciseDto {
   questions: QuestionDto[];
 }
 
+/** Dòng trong GET /exercises (PagedResponse<ExerciseSummaryDto> — không kèm questions; lấy chi tiết qua GET /exercises/{id}) */
+export interface ExerciseSummaryDto {
+  id: number;
+  title: string;
+  description?: string;
+  type: 'MCQ' | 'SIMULATION_LAB' | 'CODE';
+  lessonId: number | null;
+  nodeId: number | null;
+  stage: number | null;
+  durationMinutes: number;
+  maxScore: number;
+  status: 'draft' | 'active' | 'hidden';
+}
+
 export interface SubmitRequest {
   answers: Array<{ questionId: number; selected: number[] }>;
   classAssignmentId?: number | null;
@@ -57,8 +72,10 @@ export interface SubmitResultDto {
 
 // ── CRUD (API_REFERENCE §4.6) ──
 
-export async function fetchExercises(params: { lessonId?: number; nodeId?: number; stage?: number } = {}): Promise<ExerciseDto[]> {
-  return getData<ExerciseDto[]>({ method: 'GET', url: EXERCISE_ENDPOINTS.list, params });
+export async function fetchExercises(params: { lessonId?: number; nodeId?: number; stage?: number } = {}): Promise<ExerciseSummaryDto[]> {
+  // BE trả PagedResponse<ExerciseSummaryDto> { items, ... } (API_REFERENCE §3.11) — unwrap items (SETUP_TODO §6.6)
+  const paged = await getData<PagedResponse<ExerciseSummaryDto>>({ method: 'GET', url: EXERCISE_ENDPOINTS.list, params });
+  return Array.isArray(paged.items) ? paged.items : [];
 }
 
 export async function fetchExercise(id: number): Promise<ExerciseDto> {

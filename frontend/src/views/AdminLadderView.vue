@@ -4,7 +4,7 @@
 import { computed, onMounted, ref } from 'vue';
 
 import * as exercisesApi from '@/api/exercises';
-import type { ExerciseDto } from '@/api/exercises';
+import type { ExerciseSummaryDto } from '@/api/exercises';
 import { useUiStore } from '@/stores/ui';
 import AdminNav from '@/components/admin/AdminNav.vue';
 import Button from '@/components/ui/Button.vue';
@@ -14,7 +14,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 
 const ui = useUiStore();
 
-const exercises = ref<ExerciseDto[]>([]);
+const exercises = ref<ExerciseSummaryDto[]>([]);
 const loading = ref(true);
 
 const NODES = Array.from({ length: 8 }, (_, i) => ({
@@ -40,7 +40,7 @@ onMounted(async () => {
 const stageLabel: Record<number, string> = { 1: 'Quiz (Bậc 1)', 2: 'Lab (Bậc 2)', 3: 'Code (Bậc 3)' };
 
 const nodeExercises = computed(() => {
-  const map = new Map<number, ExerciseDto | null>();
+  const map = new Map<number, ExerciseSummaryDto | null>();
   for (const node of NODES) {
     const ex = exercises.value.find((e) => e.nodeId === node.id);
     map.set(node.id, ex ?? null);

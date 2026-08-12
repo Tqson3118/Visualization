@@ -64,6 +64,17 @@ function toggleOption(questionIndex: number, optionIndex: number): void {
 
 async function onSubmit(): Promise<void> {
   if (!props.exercise) return;
+  // Bug P2 #5: kiểm tra đã trả lời ĐỦ câu trước khi nộp — liệt kê câu thiếu thay vì để server trả 400
+  // QUESTION_ANSWER_MISMATCH (SETUP_TODO §6.5).
+  const unanswered = questions.value.map((_, idx) => idx).filter((idx) => !isAnswered(idx));
+  if (unanswered.length > 0) {
+    submitError.value =
+      `Bạn còn ${unanswered.length}/${questions.value.length} câu chưa trả lời: ` +
+      unanswered.map((i) => i + 1).join(', ') +
+      '. Hãy trả lời đủ trước khi nộp bài.';
+    currentQuestion.value = unanswered[0]; // nhảy tới câu thiếu đầu tiên
+    return;
+  }
   submitting.value = true;
   submitError.value = '';
   try {

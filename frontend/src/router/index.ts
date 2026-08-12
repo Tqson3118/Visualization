@@ -257,7 +257,7 @@ const router = createRouter({
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      meta: { requiresAuth: true, roles: ['ADMIN'] },
     },
     {
       path: '/admin/stats',
@@ -269,7 +269,7 @@ const router = createRouter({
       path: '/admin/settings',
       name: 'admin-settings',
       component: AdminSettingsView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      meta: { requiresAuth: true, roles: ['ADMIN'] },
     },
     {
       path: '/admin/content',
@@ -311,10 +311,11 @@ router.beforeEach((to) => {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
 
-  // Route giới hạn vai trò (SDD §3.3 — admin/**)
+  // Route giới hạn vai trò (SDD §3.3 — admin/**). Backend ADMIN-only cho /admin/users + /admin/settings (SETUP_TODO §8.5)
+  // → TEACHER bị chặn FE: chuyển /profile nếu đã đăng nhập, ngược lại /login.
   const requiredRoles = to.matched.flatMap((record) => record.meta.roles ?? []);
   if (requiredRoles.length > 0 && (auth.role === null || !requiredRoles.includes(auth.role))) {
-    return { name: 'home' };
+    return auth.isAuthenticated ? { name: 'profile' } : { name: 'login' };
   }
 
   // Đã đăng nhập → rời khỏi login/register (SDD §3.3)

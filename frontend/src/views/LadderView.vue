@@ -4,9 +4,12 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useLessonStore } from '@/stores/lesson';
+import * as exercisesApi from '@/api/exercises';
+import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta } from '@/engines/catalog';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import Button from '@/components/ui/Button.vue';
+import Skeleton from '@/components/ui/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -24,6 +27,31 @@ const simKey = computed(() => {
 
 const nodeTitle = computed(() => getCatalogMeta(simKey.value)?.title ?? `Node ${nodeId.value}`);
 
+/** Exercise Ladder theo node: quiz (stage 1) + code (stage 3) — GET /exercises?nodeId&stage (SETUP_TODO §6.6) */
+const quizExercise = ref<ExerciseDto | null>(null);
+const quizLoading = ref(true);
+const codeExerciseId = ref<number | null>(null);
+
+async function loadLadderExercises(): Promise<void> {
+  const node = Number(nodeId.value);
+  try {
+    const [quizList, codeList] = await Promise.all([
+      exercisesApi.fetchExercises({ nodeId: node, stage: 1 }),
+      exercisesApi.fetchExercises({ nodeId: node, stage: 3 }),
+    ]);
+    if (quizList.length > 0) {
+      quizExercise.value = await exercisesApi.fetchExercise(quizList[0].id);
+    }
+    codeExerciseId.value = codeList[0]?.id ?? null;
+  } catch {
+    // API lỗi → giữ null; LadderShell hiện EmptyState thay vì crash
+    quizExercise.value = null;
+    codeExerciseId.value = null;
+  } finally {
+    quizLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   try {
     await lessonStore.fetchTopics();
@@ -32,6 +60,7 @@ onMounted(async () => {
   } catch {
     topicId.value = 1;
   }
+  await loadLadderExercises();
 });
 
 function onPassed(stage: number): void {
@@ -55,11 +84,17 @@ function onPassed(stage: number): void {
       </p>
     </header>
 
+    <div v-if="quizLoading" class="ladder__loading">
+      <Skeleton height="96px" :lines="3" />
+    </div>
+
     <LadderShell
+      v-else
       :node-id="nodeId"
-      :quiz-exercise="null"
+      :quiz-exercise="quizExercise"
+      :quiz-loading="quizLoading"
       :simulation-key="simKey"
-      :code-exercise-id="null"
+      :code-exercise-id="codeExerciseId"
       @passed="onPassed"
     />
 
@@ -91,6 +126,8 @@ function onPassed(stage: number): void {
 
 .ladder__title { font-size: var(--text-xl); }
 .ladder__sub { font-size: var(--text-sm); margin-top: 4px; }
+
+.ladder__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .ladder__actions {
   display: flex;
