@@ -170,6 +170,143 @@ public class ExerciseServiceTests
     }
 
     [Fact]
+    public async Task Submit_DuplicateQuestionId_ReturnsValidationFailed()
+    {
+        // Bug P2 SETUP_TODO §8.4: answers có QuestionId trùng → trước fix ToDictionary ném → 500
+        var (service, exerciseId, db) = await SetupAsync(nameof(Submit_DuplicateQuestionId_ReturnsValidationFailed));
+        var questions = await LoadQuestionsAsync(db, exerciseId);
+
+        var result = await service.SubmitAsync(1, exerciseId, new SubmitRequest
+        {
+            Answers = new List<AnswerDto>
+            {
+                new() { QuestionId = questions[0].Id, Selected = [1] },
+                new() { QuestionId = questions[0].Id, Selected = [1] },       // trùng QuestionId
+                new() { QuestionId = questions[1].Id, Selected = [0, 2] },
+                new() { QuestionId = questions[2].Id, Selected = [0] }
+            }
+        }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        // Không tạo bản nộp
+        Assert.Equal(0, await db.ExerciseSubmissions.CountAsync());
+    }
+
+    // ── SubmitCodeAsync (bug P2 SETUP_TODO §8.3: lock registry + Status Active) ──
+
+    private async Task<(ExerciseService Service, int ExerciseId, AppDbContext Db)> SetupCodeAsync(
+        string dbName, ExerciseStatus status = ExerciseStatus.Active, SubmissionLockRegistry? locks = null)
+    {
+        var db = TestServices.CreateInMemoryDb(dbName);
+        db.Topics.Add(new Topic { Id = 1, Name = "Sắp xếp", CreatedBy = 1, CreatedAt = _clock.UtcNow });
+        db.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Code Bubble Sort",
+            ContentHtml = "<p>nội dung</p>",
+            Status = LessonStatus.Active,
+            CreatedBy = 1,
+            CreatedAt = _clock.UtcNow
+        });
+        db.Users.Add(new User
+        {
+            Id = 1,
+            Email = "student@university.edu.vn",
+            PasswordHash = "x",
+            DisplayName = "Student",
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var service = locks is null
+            ? TestServices.CreateExerciseService(db, _clock)
+            : TestServices.CreateExerciseService(db, _clock, locks);
+        var created = await service.CreateAsync(1, new ExerciseUpsertRequest
+        {
+            LessonId = 1,
+            Title = "Code Bubble Sort",
+            Type = ExerciseType.Code,
+            MaxScore = 10,
+            Status = status
+        }, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.ErrorMessage);
+        return (service, created.Value!.Id, db);
+    }
+
+    [Fact]
+    public async Task SubmitCode_Valid_ReturnsOk()
+    {
+        var (service, exerciseId, db) = await SetupCodeAsync(nameof(SubmitCode_Valid_ReturnsOk));
+
+        var result = await service.SubmitCodeAsync(1, exerciseId, new CodeSubmitRequest
+        {
+            Code = "print('ok')",
+            Score = 10,
+            Passed = 2,
+            Total = 2,
+            Results =
+            [
+                new CodeTestCaseResultDto { TestId = "t1", Passed = true, Input = "5", Expected = "5", Output = "5" }
+            ]
+        }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(10, result.Value!.Score);
+        Assert.Equal(1, await db.CodeSubmissions.CountAsync());
+        // Upsert UserProgress — Viewed + BestScore
+        var progress = await db.UserProgress.AsNoTracking().FirstAsync(p => p.UserId == 1 && p.LessonId == 1);
+        Assert.True(progress.Viewed);
+        Assert.Equal(10, progress.BestScore);
+    }
+
+    [Fact]
+    public async Task SubmitCode_ExerciseNotActive_ReturnsExerciseClosed()
+    {
+        // Bug P2 SETUP_TODO §8.3: trước fix nộp code bài Draft vẫn được → giờ phải chặn
+        var (service, exerciseId, db) = await SetupCodeAsync(nameof(SubmitCode_ExerciseNotActive_ReturnsExerciseClosed),
+            status: ExerciseStatus.Draft);
+
+        var result = await service.SubmitCodeAsync(1, exerciseId, new CodeSubmitRequest
+        {
+            Code = "print('ok')",
+            Score = 10,
+            Passed = 2,
+            Total = 2
+        }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.EXERCISE_CLOSED, result.ErrorCode);
+        Assert.Equal(0, await db.CodeSubmissions.CountAsync());
+    }
+
+    [Fact]
+    public async Task SubmitCode_ConcurrentSubmit_ReturnsSubmissionInProgress()
+    {
+        // Bug P2 SETUP_TODO §8.3: trước fix nộp code không có SubmissionLockRegistry → nộp chồng
+        var locks = new SubmissionLockRegistry();
+        var (service, exerciseId, _) = await SetupCodeAsync(
+            nameof(SubmitCode_ConcurrentSubmit_ReturnsSubmissionInProgress), locks: locks);
+
+        // Giành lock bằng tay (giả lập yêu cầu đang xử lý) → yêu cầu thứ 2 phải bị chặn
+        using (var held = locks.TryAcquire(1, exerciseId))
+        {
+            Assert.NotNull(held);
+            var result = await service.SubmitCodeAsync(1, exerciseId, new CodeSubmitRequest
+            {
+                Code = "print('ok')",
+                Score = 10,
+                Passed = 2,
+                Total = 2
+            }, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(ErrorCodes.SUBMISSION_IN_PROGRESS, result.ErrorCode);
+        }
+    }
+
+    [Fact]
     public async Task Submit_Lab_CorrectStateAndStepsWithinLimit_Passes()
     {
         var (service, exerciseId, db) = await SetupLabAsync(nameof(Submit_Lab_CorrectStateAndStepsWithinLimit_Passes));

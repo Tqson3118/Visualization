@@ -236,6 +236,48 @@ public sealed class LessonService(
         return Result.Ok();
     }
 
+    public async Task<Result> MarkViewedAsync(int userId, string role, int lessonId, CancellationToken ct)
+    {
+        var lesson = await db.Lessons.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
+        if (lesson is null)
+        {
+            return Result.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
+        {
+            // Student không được đánh dấu bản nháp/ẩn
+            return Result.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        var now = clock.UtcNow;
+        var progress = await db.UserProgress
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.LessonId == lessonId, ct);
+
+        // Upsert UserProgress — 1 bản ghi/1 (User, Lesson); lần 2 chỉ update Viewed/UpdatedAt (TEST-B-033/034)
+        if (progress is null)
+        {
+            db.UserProgress.Add(new UserProgress
+            {
+                UserId = userId,
+                LessonId = lessonId,
+                Viewed = true,
+                UpdatedAt = now
+            });
+        }
+        else
+        {
+            progress.Viewed = true;
+            progress.UpdatedAt = now;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("User {UserId} marked lesson {LessonId} as viewed", userId, lessonId);
+        return Result.Ok();
+    }
+
     // ── Private ─────────────────────────────────────────────
 
     private static bool IsTeacherOrAdmin(string role) =>

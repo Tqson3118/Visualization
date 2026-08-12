@@ -272,6 +272,14 @@ public sealed class ExerciseService(
         }
 
         var questions = exercise.Questions.OrderBy(q => q.SortOrder).ToList();
+
+        // Duplicate QuestionId → 400 thay vì 500 (ToDictionary ném ArgumentException — F5-Minor)
+        if (request.Answers.Select(a => a.QuestionId).Distinct().Count() != request.Answers.Count)
+        {
+            return Result<SubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Đáp án gửi lên chứa câu hỏi trùng lặp", new() { ["questionId"] = ["Không được gửi trùng đáp án cho cùng câu hỏi"] });
+        }
+
         var answers = request.Answers.ToDictionary(a => a.QuestionId);
 
         // Validate đáp án khớp câu hỏi (QUESTION_ANSWER_MISMATCH)
@@ -499,6 +507,19 @@ public sealed class ExerciseService(
         {
             return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
                 "Bài tập không phải loại CODE", new() { ["exerciseId"] = ["Bài tập không phải loại CODE"] });
+        }
+
+        // Chỉ nhận nộp khi bài tập còn Active (F5-Minor — đồng bộ với SubmitAsync)
+        if (exercise.Status != ExerciseStatus.Active)
+        {
+            return Result<CodeSubmitResultDto>.Fail(ErrorCodes.EXERCISE_CLOSED, "Bài tập không còn nhận bài nộp");
+        }
+
+        // Chống nộp trùng per (user, exercise) — SUBMISSION_IN_PROGRESS (F5-Minor — đồng bộ với SubmitAsync)
+        using var submissionLock = locks.TryAcquire(userId, id);
+        if (submissionLock is null)
+        {
+            return Result<CodeSubmitResultDto>.Fail(ErrorCodes.SUBMISSION_IN_PROGRESS, "Đang có bài nộp đồng thời");
         }
 
         var now = clock.UtcNow;

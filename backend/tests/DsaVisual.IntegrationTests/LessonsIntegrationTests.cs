@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
+using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DsaVisual.IntegrationTests;
@@ -278,5 +280,68 @@ public sealed class LessonsIntegrationTests : IntegrationTestBase, IClassFixture
         var error = doc.RootElement.GetProperty("error");
         Assert.Equal("VALIDATION_FAILED", error.GetProperty("code").GetString());
         Assert.True(error.GetProperty("details").GetArrayLength() > 0);
+    }
+
+    [Fact(DisplayName = "TEST-B-033: mark-viewed → 204 + upsert UserProgress (1 bản ghi, Viewed=true)")]
+    public async Task MarkViewed_AsStudent_CreatesUserProgress()
+    {
+        // Arrange
+        var teacher = await CreateUserAsync(role: UserRole.Teacher);
+        var topic = await CreateTopicAsync(createdBy: teacher.Id);
+        var lesson = await CreateLessonAsync(topic.Id, teacher.Id, "Bài đánh dấu đã học", LessonStatus.Active);
+        var student = await CreateUserAsync();
+        using var client = CreateClientWithToken(student.Id, RoleNames.Student);
+
+        // Act
+        var response = await client.PostAsync($"{BaseUrl}/{lesson.Id}/mark-viewed", null);
+
+        // Assert — 204 NoContent
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // UserProgress đã upsert: Viewed=true, 1 bản ghi (User, Lesson)
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var progress = await db.UserProgress.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == student.Id && p.LessonId == lesson.Id);
+        Assert.NotNull(progress);
+        Assert.True(progress.Viewed);
+        Assert.Equal(1, await db.UserProgress.CountAsync(p => p.UserId == student.Id && p.LessonId == lesson.Id));
+    }
+
+    [Fact(DisplayName = "TEST-B-034: mark-viewed lần 2 → KHÔNG nhân đôi bản ghi")]
+    public async Task MarkViewed_SecondCall_DoesNotDuplicate()
+    {
+        // Arrange
+        var teacher = await CreateUserAsync(role: UserRole.Teacher);
+        var topic = await CreateTopicAsync(createdBy: teacher.Id);
+        var lesson = await CreateLessonAsync(topic.Id, teacher.Id, "Bài mark 2 lần", LessonStatus.Active);
+        var student = await CreateUserAsync();
+        using var client = CreateClientWithToken(student.Id, RoleNames.Student);
+
+        // Act — mark 2 lần
+        var first = await client.PostAsync($"{BaseUrl}/{lesson.Id}/mark-viewed", null);
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        var second = await client.PostAsync($"{BaseUrl}/{lesson.Id}/mark-viewed", null);
+
+        // Assert — lần 2 vẫn 204 và KHÔNG có bản ghi thứ 2
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal(1, await db.UserProgress.CountAsync(p => p.UserId == student.Id && p.LessonId == lesson.Id));
+    }
+
+    [Fact(DisplayName = "mark-viewed bài không tồn tại → 404 NOT_FOUND")]
+    public async Task MarkViewed_MissingLesson_Returns404()
+    {
+        // Arrange
+        var student = await CreateUserAsync();
+        using var client = CreateClientWithToken(student.Id, RoleNames.Student);
+
+        // Act
+        var response = await client.PostAsync($"{BaseUrl}/999999/mark-viewed", null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("NOT_FOUND", await GetErrorCodeAsync(response));
     }
 }
