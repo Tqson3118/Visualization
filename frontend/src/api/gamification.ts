@@ -55,6 +55,14 @@ export interface PremiumStatusDto {
   expiresAt: string | null;
 }
 
+/** POST /premium/upgrade — GP-T7: contentRef = mã CK DSV{userId}T{months} hiển thị trên QR MB Bank. */
+export interface PremiumUpgradeResultDto {
+  orderId: number;
+  planId: string;
+  expiresAt: string;
+  contentRef: string;
+}
+
 export interface LeaderboardEntryDto {
   rank: number;
   userId: number;
@@ -181,14 +189,14 @@ export async function fetchPremiumStatus(): Promise<PremiumStatusDto> {
   return getData<PremiumStatusDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.premiumStatus });
 }
 
-export async function upgradePremium(planId: string | number): Promise<{ orderId: string; plan: string }> {
-  return getData<{ orderId: string; plan: string }>({
+export async function upgradePremium(planId: string | number): Promise<PremiumUpgradeResultDto> {
+  return getData<PremiumUpgradeResultDto>({
     method: 'POST',
     url: GAMIFICATION_ENDPOINTS.premiumUpgrade,
     data: { planId },
   });
 }
 
-export async function mockPayPremium(orderId: string): Promise<PremiumStatusDto> {
+export async function mockPayPremium(orderId: number): Promise<PremiumStatusDto> {
   return getData<PremiumStatusDto>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.premiumMockPay, data: { orderId } });
 }
