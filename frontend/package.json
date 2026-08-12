@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@babel/parser": "^7.29.3",
@@ -20,12 +21,13 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.12.3",
-    "@webgpu/types": "^0.1.70",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.10",
     "@vue/tsconfig": "^0.9.1",
+    "@webgpu/types": "^0.1.70",
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
