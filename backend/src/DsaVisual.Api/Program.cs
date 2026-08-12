@@ -3,6 +3,7 @@ using DsaVisual.Api.Middlewares;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
+using DsaVisual.Application.Persistence.Seed;
 using DsaVisual.Application.Services;
 using DsaVisual.Application.Validators;
 using FluentValidation;
@@ -153,6 +154,20 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
     app.MapOpenApi();
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "DsaVisual API v1"));
+}
+
+// ── Seed thật (SDD §7.5): `dotnet run --project src/DsaVisual.Api -- --seed` ──
+// Migrate() + SeedRunner.SeedAsync(db) — idempotent; KHÔNG chạy khi khởi động bình thường.
+if (args.Contains("--seed"))
+{
+    using var seedScope = app.Services.CreateScope();
+    var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var seedClock = seedScope.ServiceProvider.GetRequiredService<IDateTimeProvider>();
+    var seedLogger = seedScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Seed");
+    await seedDb.Database.MigrateAsync();
+    await SeedRunner.SeedAsync(seedDb, seedClock, seedLogger, CancellationToken.None);
+    Log.Information("Seed hoàn tất — thoát ứng dụng (đã chạy --seed)");
+    return;
 }
 
 try
