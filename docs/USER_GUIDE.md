@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | Hướng dẫn sử dụng |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.1 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo |
 | Người soạn | Thái Quang Sơn |
@@ -13,13 +13,14 @@
 | Độc giả | Sinh viên, giảng viên, quản trị viên (ngôn ngữ đời thường, không thuật ngữ kỹ thuật) |
 | Nguồn yêu cầu | PRODUCTION_PROMPT.md Phần 17.3.4 (khuôn + mẫu), SRS, SCREEN_MAP |
 
-> ⚠ **TRẠNG THÁI**: hướng dẫn này viết theo **đặc tả UI dự kiến** (SDD §8, SCREEN_MAP) — ứng dụng v2 chưa hoàn thiện nên tên nút/vị trí có thể sai lệch nhỏ so với màn hình thật. **Cập nhật lại sau khi UI hoàn thiện** (tuần 19-20) — đặc biệt các mô tả màu sắc, nhãn nút, phím tắt (§7).
+> ⚠ **TRẠNG THÁI (cập nhật 12/08/2026)**: hướng dẫn này đã được đối chiếu với ứng dụng v2 thật (33 màn hình đã hoàn thiện — `frontend/src/views/`, xem SCREEN_MAP Màn 01-32 + N-1..N-16). Nếu có sai lệch nhỏ về nhãn nút/vị trí so với màn hình, báo nhóm để cập nhật — đặc biệt các mô tả màu sắc, nhãn nút, phím tắt (§7).
 
 ## Lịch sử thay đổi
 
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Thái Quang Sơn | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
+| 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: cập nhật cảnh báo trạng thái — hướng dẫn đã đối chiếu với ứng dụng v2 thật (33 màn, 12/08/2026); bỏ ghi chú "đặc tả UI dự kiến / chờ UI hoàn thiện (tuần 19-20)" |
 
 ---
 

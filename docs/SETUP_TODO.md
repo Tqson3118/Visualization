@@ -63,3 +63,12 @@
 | 6 | P1 | Ladder stage rỗng — quiz/code-exercise-id hardcode null | LadderView.vue:60-62, NodeHubView.vue:133-135 | |
 | 7 | P2 | POST /code-runs 400 — contract lệch FE/BE (code,input vs Key+Input:string) | api/codeRuns + CodeRunsController | cần PM chốt contract |
 | 8 | P2 | POST /benchmarks/run 400 — thiếu results | api/benchmark + BenchmarksController | |
+
+## 7. Session F — Final Review (12/08/2026, cần user xử lý)
+
+| # | Mức | Việc | Ghi chú | Trạng thái |
+|---|---|---|---|---|
+| 1 | Bảo mật | **Xoay key DEEPSEEK thật** trong `source/VisualizationDSA1/.env` (máy dev) | File này KHÔNG nằm trong git (đã gitignore) nhưng key thật đã hiện diện trên máy — nếu máy bị lộ/đem đi demo cần xoay lại key trên nền tảng DeepSeek. | [ ] |
+| 2 | Quy trình | **Duyệt merge nhánh `feature/final-review` → `main`** | Nhánh chứa toàn bộ code + tài liệu đợt D/E/F đã verify (17/17 checklist §17.9 còn lại + build/test thật). Sau khi user duyệt → merge + tag bản bàn giao. | [ ] |
+
+> Cập nhật bởi Session F (dev-docs F2b, 12/08/2026). Đừng xóa mục cũ — đánh dấu [x] khi xong.

@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 1.0 |
+| Phiên bản | 1.2 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Nguồn | PRODUCTION_PROMPT.md (v2.5) — single source of truth |
@@ -13,31 +13,35 @@
 
 | # | File | Nội dung | Độc giả | Độ dài (dòng) |
 |---|---|---|---|---|
-| 1 | `docs/SRS.md` | Đặc tả yêu cầu phần mềm: 10 module A-J, master matrix, 32 UC, 36 NFR, AC-1..8 | Giảng viên, hội đồng, PM | 1296 |
-| 2 | `docs/SDD.md` | Thiết kế hệ thống: EDV/StepExecutor, frontend, backend, API, 32 bảng DB, 32 màn | Kiến trúc sư, lập trình viên | 2042 |
-| 3 | `docs/API_REFERENCE.md` | Tham chiếu API: mọi endpoint, DTO, error code catalog, RBAC 36 | Lập trình viên, tester | 730 |
-| 4 | `docs/USER_GUIDE.md` | Hướng dẫn sử dụng (sinh viên + giảng viên + admin) | Người dùng cuối | 503 |
-| 5 | `docs/TEST_PLAN.md` | Kế hoạch kiểm thử + golden data + ma trận truy vết | Tester, QA, hội đồng | 759 |
-| 6 | `docs/DEPLOY.md` | Triển khai & vận hành: biến env, nginx, systemd, backup, runbook | DevOps, admin | 369 |
-| 7 | `docs/GLOSSARY.md` | Thuật ngữ 3 nhóm: nghiệp vụ / kỹ thuật / DSA | Tất cả | 105 |
-| 8 | `docs/README.md` | Mục lục tài liệu + ma trận ánh xạ yêu cầu → tài liệu (17.8) | Tất cả | — |
-| 9 | `docs/SCREEN_MAP.md` | Bản đồ màn hình Màn 01-32 + N-1..N-16, ma trận FR→Màn | Lập trình viên, hội đồng | 306 |
+| 1 | `docs/SRS.md` | Đặc tả yêu cầu phần mềm: 10 module A-J, master matrix, 32 UC, 36 NFR, AC-1..8 | Giảng viên, hội đồng, PM | 1543 |
+| 2 | `docs/SDD.md` | Thiết kế hệ thống: EDV/StepExecutor, frontend, backend, API, 32 bảng DB, 32 màn | Kiến trúc sư, lập trình viên | 2992 |
+| 3 | `docs/API_REFERENCE.md` | Tham chiếu API: mọi endpoint, DTO, error code catalog, RBAC 36 | Lập trình viên, tester | 596 |
+| 4 | `docs/USER_GUIDE.md` | Hướng dẫn sử dụng (sinh viên + giảng viên + admin) | Người dùng cuối | 355 |
+| 5 | `docs/TEST_PLAN.md` | Kế hoạch kiểm thử + golden data + ma trận truy vết | Tester, QA, hội đồng | 599 |
+| 6 | `docs/DEPLOY.md` | Triển khai & vận hành: biến env, nginx, systemd, backup, runbook | DevOps, admin | 306 |
+| 7 | `docs/GLOSSARY.md` | Thuật ngữ 3 nhóm: nghiệp vụ / kỹ thuật / DSA | Tất cả | 94 |
+| 8 | `docs/README.md` | Mục lục tài liệu + ma trận ánh xạ yêu cầu → tài liệu (17.8) | Tất cả | 179 |
+| 9 | `docs/SCREEN_MAP.md` | Bản đồ màn hình Màn 01-32 + N-1..N-16, ma trận FR→Màn | Lập trình viên, hội đồng | 268 |
 | 10 | `shared/simulation-catalog.json` | Danh mục mô phỏng dùng chung FE/BE — nguồn duy nhất khóa `key` (9.9) | Lập trình viên | 46 |
-| 11 | `THIRD_PARTY.md` | Danh sách thư viện mã nguồn mở + license (NFR-36) | Tất cả | — |
-| 12 | `README.md` (root) | Hướng dẫn dev: cài đặt, lệnh chạy, quy tắc nhóm Git/Conventional Commits (2.7, 14.4) | Lập trình viên | — |
+| 11 | `THIRD_PARTY.md` | Danh sách thư viện mã nguồn mở + license (NFR-36) | Tất cả | 88 |
+| 12 | `README.md` (root) | Hướng dẫn dev: cài đặt, lệnh chạy, quy tắc nhóm Git/Conventional Commits (2.7, 14.4) | Lập trình viên | 154 |
+
+> Cách đếm: PowerShell `Measure-Object -Line` (dòng có nội dung — không tính dòng trống), chạy 12/08/2026 — cùng cách đếm của audit §17.9 (F2a).
 
 ## 1.1 Độ dài tối thiểu chuẩn (nguồn prompt §17.2 — dùng để rà soát)
 
-| File | Tối thiểu | Kỳ vọng | Trạng thái 12/08/2026 |
+| File | Tối thiểu | Kỳ vọng | Thực tế 12/08/2026 |
 |---|---|---|---|
-| SRS.md | 900 | 1200-1600 | ✔ 1771 |
-| SDD.md | 1400 | 1800-2500 | ✔ 3725 |
-| API_REFERENCE.md | 700 | 900-1200 | ✔ 735 |
-| USER_GUIDE.md | 500 | 600-900 | ✔ 507 |
-| TEST_PLAN.md | 600 | 800-1100 | ✔ 780 |
-| DEPLOY.md | 300 | 400-600 | ✔ 404 |
-| GLOSSARY.md | 100 | 150-250 | ✔ 105 |
-| SCREEN_MAP.md | 300 | 400-600 | ✔ 326 |
+| SRS.md | 900 | 1200-1600 | ✔ 1543 (trong kỳ vọng) |
+| SDD.md | 1400 | 1800-2500 | ✔ 2992 (trên kỳ vọng) |
+| API_REFERENCE.md | 700 | 900-1200 | ⚠ 596 (dưới ngưỡng — nội dung bắt buộc đủ: ~60 endpoint + ví dụ JSON, RBAC 36, error catalog; rà soát F2a §17.9) |
+| USER_GUIDE.md | 500 | 600-900 | ⚠ 355 (dưới ngưỡng — nội dung đủ cho 33 màn thật, đối chiếu 12/08/2026) |
+| TEST_PLAN.md | 600 | 800-1100 | ⚠ 599 (dưới ngưỡng 1 dòng — nội dung đủ: 130+ test case, ma trận truy vết; rà soát F2a §17.9) |
+| DEPLOY.md | 300 | 400-600 | ✔ 306 (đạt tối thiểu) |
+| GLOSSARY.md | 100 | 150-250 | ⚠ 94 (dưới ngưỡng — đủ 3 nhóm thuật ngữ; rà soát F2a §17.9) |
+| SCREEN_MAP.md | 300 | 400-600 | ⚠ 268 (dưới ngưỡng — đủ Màn 01-32 + N-1..N-16; rà soát F2a §17.9) |
+
+> Cách đếm: PowerShell `Measure-Object -Line` (dòng có nội dung — không tính dòng trống), chạy 12/08/2026 — cùng cách đếm của audit §17.9 (F2a). Số trước đây (SRS 1771, SDD 3725, API 735...) là **tổng dòng kể cả dòng trống** — đã thống nhất dùng cách đếm không trống để khớp audit.
 | shared/simulation-catalog.json | 40 | 60-100 | ✔ 46 (44 entries) |
 | THIRD_PARTY.md | 40 | 60-100 | ✔ 83 |
 | README.md (root) | 200 | 300-500 | ✔ 194 |
@@ -206,4 +210,5 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Tạo mới: mục lục 12 file + ma trận ánh xạ 17.8 + ma trận FR↔UC↔Module + trạng thái sản xuất |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: cập nhật bảng độ dài tài liệu theo số dòng thực tế sau khi vá lỗi review (SRS 1302, SDD 2079, API 735, TEST 780, DEPLOY 404, SCREEN_MAP 326, THIRD_PARTY 83, README root 194) |
+| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: thống nhất cách đếm `Measure-Object -Line` (dòng không trống — khớp audit §17.9 F2a) và cập nhật số dòng thật toàn bộ bảng §1 + §1.1 (SRS 1543, SDD 2992, API 596, USER_GUIDE 355, TEST_PLAN 599, DEPLOY 306, GLOSSARY 94, SCREEN_MAP 268, README root 154, THIRD_PARTY 88); ghi trạng thái ⚠ cho file dưới ngưỡng dòng kèm lý do nội dung đủ |
 

@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | API Reference |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.2 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -19,6 +19,7 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: bổ sung error code `LESSON_HAS_EXERCISES` (409); ghi phiên bản v2.4 cho 4 mã bổ sung ngoài §9.7; thay placeholder `"..."` trong ví dụ resume session bằng JSON thực |
+| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: (1) §4.2 xóa endpoint `/public/simulations/{key}/run` đã cắt theo ADR-001 (quyết định A-4) — ghi chú thay thế; (2) §4.4 ghi rõ trạng thái "chưa triển khai" cho 3 endpoint Lessons (progress/mark-viewed/simulations) — theo dõi SETUP_TODO §6; (3) §5 dòng 12 sửa route viết tắt `GET /submissions?exerciseId` → `GET /exercises/{id}/submissions` khớp code |
 
 ---
 
@@ -291,8 +292,9 @@
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | GET | `/public/site-info` | Số liệu trang chủ (số CTDL/GT/bài học) |
-| GET | `/public/simulations/{key}/run` | Chạy demo mô phỏng (chỉ key demo: `sort.bubble`, `search.binary`, `graph.bfs`) |
 | GET | `/public/faqs` | Danh sách FAQ |
+
+> ⚠ `GET /public/simulations/{key}/run` **ĐÃ CẮT** (quyết định A-4 / ADR-001) — demo công khai không còn endpoint run riêng; người dùng mở mô phỏng qua `/simulations/{key}` + `/simulations/{key}/schema` (xem §4.5).
 
 ## 4.3 Topics
 
@@ -329,6 +331,8 @@
 | POST | `/lessons/{id}/mark-viewed` | Đánh dấu đã học | Student |
 | POST | `/lessons/{id}/simulations` | Gắn mô phỏng | Teacher/Admin |
 | DELETE | `/lessons/{id}/simulations/{simKey}` | Gỡ mô phỏng | Teacher/Admin |
+
+> ⚠ **TRẠNG THÁI TRIỂN KHAI (cập nhật 12/08/2026)**: `GET /lessons/{id}/progress`, `POST /lessons/{id}/mark-viewed`, `POST /lessons/{id}/simulations` và `DELETE /lessons/{id}/simulations/{simKey}` **CHƯA TRIỂN KHAI** trong `LessonsController.cs` (hiện chỉ có 5 route: GET /, GET /{id}, POST, PUT, DELETE). Frontend đã gọi `mark-viewed` nên 3 endpoint này đang theo dõi tại SETUP_TODO §6 (bug P1 mark-viewed 404) và sẽ triển khai ở đợt sau. Tiến độ 1 bài học dùng `GET /progress/me/lessons/{lessonId}` (đã triển khai — §4.6).
 
 **Ví dụ — GET /lessons?topicId=2**
 
@@ -577,7 +581,7 @@
 | 9 | Tạo / sửa / xóa bài tập | /exercises | ✘ | ✔ | ✔ |
 | 10 | Làm bài tập, nộp bài | GET /exercises/{id}, POST /submit | ✔ | ✔ | ✔ |
 | 11 | Xem lịch sử bài làm của bản thân | GET /exercises/{id}/submissions/me | ✔ | ✔ | ✔ |
-| 12 | Xem bài nộp của người khác (bài của mình) | GET /submissions?exerciseId | ✘ | ✔ | ✔ |
+| 12 | Xem bài nộp của người khác (bài của mình) | GET /exercises/{id}/submissions | ✘ | ✔ | ✔ |
 | 13 | Xem tiến độ bản thân | GET /progress/me | ✔ | ✔ | ✔ |
 | 14 | Xem báo cáo người học (bài học của mình) | GET /progress/report | ✘ | ✔ | ✔ |
 | 15 | Quản lý người dùng (Admin thường không quản được Admin khác — chỉ Admin chính `IsPrimaryAdmin`) | /users | ✘ | ✘ | ✔ |

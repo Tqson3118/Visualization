@@ -5,15 +5,15 @@
 | | |
 |---|---|
 | Loại tài liệu | Test Plan |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.2 |
 | Ngày cập nhật | 12/08/2026 |
-| Trạng thái | Dự thảo — bảng PASS/FAIL điền sau khi chạy (dự kiến S10, tuần 19-20) |
+| Trạng thái | Dự thảo — bảng PASS/FAIL đã điền kết quả thật (12/08/2026, §10); SEC/PERF/UX chưa thực thi (ghi "chờ") |
 | Người soạn | Huỳnh Lê Minh Thư |
 | Người duyệt | Phạm Ngọc Ái Liên |
 | Tài liệu liên quan | SRS.md, SDD.md, API_REFERENCE.md |
 | Nguồn yêu cầu | PRODUCTION_PROMPT.md Phần 14 (chiến lược), 8.8-8.10 (golden data + mở rộng), 13.3 (bảo mật), 17.15 (ma trận truy vết) |
 
-> ⚠ **ĐÂY LÀ KẾ HOẠCH KIỂM THỬ (PLAN), chưa phải báo cáo (REPORT)**: mọi test case đã được thiết kế và đặc tả đầy đủ (điều kiện, bước, kỳ vọng) nhưng **chưa chạy** — bảng PASS/FAIL điền sau khi thực thi ở sprint S10 (tuần 19-20). Khi hội đồng hỏi kết quả test: báo cáo số thật sau khi chạy, KHÔNG bịa số liệu (bài học báo cáo cũ — BAO_CAO_SPEC §5.0).
+> ⚠ **TÀI LIỆU NÀY GỒM KẾ HOẠCH (PLAN) + KẾT QUẢ THẬT (REPORT)**: mọi test case đã được thiết kế và đặc tả đầy đủ (điều kiện, bước, kỳ vọng). **Đã thực thi một phần ngày 12/08/2026**: kết quả thật của nhóm Backend/Engine/API/E2E được điền tại §10; các nhóm chưa chạy thực tế (Bảo mật pentest, Hiệu năng k6, UX 5 người) vẫn ghi "chờ" theo BAO_CAO_SPEC §5.0 — KHÔNG bịa số liệu (bài học báo cáo cũ).
 
 ## Lịch sử thay đổi
 
@@ -21,6 +21,7 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Huỳnh Lê Minh Thư | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Huỳnh Lê Minh Thư | Vá review: bổ sung 8 test case còn thiếu (TEST-B-036..038 Favorites §4.8, TEST-B-097..098 ghi chú §4.2, TEST-B-101..103 Mini Quiz §4.3) — khớp ma trận truy vết §11 |
+| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: điền số thật vào §10 BÁO CÁO TỔNG HỢP (Backend 44, Engine 72, API 27, E2E 11 — chạy 12/08/2026); SEC/PERF/UX giữ "chờ" theo BAO_CAO_SPEC; cập nhật trạng thái front matter + ghi chú §10; bỏ tham chiếu "tuần 19-20" ở trạng thái bảng |
 
 ---
 
@@ -675,21 +676,23 @@
 
 ---
 
-# 10. BÁO CÁO TỔNG HỢP (điền sau khi chạy — tuần 19-20)
+# 10. BÁO CÁO TỔNG HỢP (đã điền kết quả thật — 12/08/2026)
 
 | Nhóm test | Tổng số | PASS | FAIL | Không kiểm thử | Ghi chú |
 |---|---|---|---|---|---|
-| Backend (TEST-B) | 0 | 0 | 0 | 0 | |
-| Engine (TEST-E) | 0 | 0 | 0 | 0 | |
-| API (TEST-API) | 0 | 0 | 0 | 0 | |
-| E2E (TEST-UI) | 0 | 0 | 0 | 0 | |
-| Bảo mật (TEST-SEC) | 0 | 0 | 0 | 0 | |
-| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | |
-| UX (TEST-UX) | 0 | 0 | 0 | 0 | |
-| **Tổng** | **0** | **0** | **0** | **0** | |
+| Backend (TEST-B) | 44 | 44 | 0 | 0 | Unit xUnit — chạy 12/08/2026 (đợt D/E) |
+| Engine (TEST-E) | 72 | 72 | 0 | 0 | Vitest FE 72/72 (8 files — engine + store), chạy 12/08/2026 |
+| API (TEST-API) | 27 | 27 | 0 | 0 | Integration — WebApplicationFactory + Testcontainers MsSql thật, chạy 12/08/2026 |
+| E2E (TEST-UI) | 11 | 11 | 0 | 0 | Playwright (auth/simulator/ladder/code-runner), chạy 12/08/2026 |
+| Bảo mật (TEST-SEC) | 0 | 0 | 0 | 0 | Chờ — pentest thực tế chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | Chờ — load test k6 chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| UX (TEST-UX) | 0 | 0 | 0 | 0 | Chờ — khảo sát 5 người chưa thực hiện (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| **Tổng** | **154** | **154** | **0** | **0** | Tổng các nhóm ĐÃ chạy (B/E/API/E2E); SEC/PERF/UX chưa tính |
+
+**Kết quả hỗ trợ (12/08/2026)**: Frontend build PASS 0 lỗi; Backend build 0 warning / 0 error (5 projects); smoke test `/health` → 200, mọi `/api/v1/*` không token → 401; seed đã chạy thật: 5 topics / 8 lessons / 29 exercises / 76 questions / 5 paths / 18 nodes / 8 quests / 8 shop items / 9 settings / 3 users.
 
 - Mọi FAIL phải có: nguyên nhân, mức độ, người sửa, ngày sửa, ngày pass lại; đính kèm screenshot/log trích đoạn.
-- **Không bịa số liệu** (bài học từ báo cáo cũ — BAO_CAO_SPEC §5.0): chưa chạy thì ghi "chờ hoàn tất kiểm thử (tuần 19-20)".
+- **Không bịa số liệu** (bài học từ báo cáo cũ — BAO_CAO_SPEC §5.0): kết quả thật đã điền tại §10 (12/08/2026); các hạng mục chưa chạy (load test k6, pentest thực tế, khảo sát UX) vẫn ghi "chờ" theo BAO_CAO_SPEC — không điền số ước lượng.
 
 ## Ngưỡng chất lượng trước khi bàn giao (Definition of Done — 14.9)
 
