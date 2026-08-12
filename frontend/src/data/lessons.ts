@@ -237,8 +237,9 @@ function partition(arr, low, high) {
     title: 'Sliding Window - Cửa sổ trượt',
     description: 'Kỹ thuật cửa sổ trượt: duy trì một đoạn con trượt qua mảng để giảm độ phức tạp.',
     sortOrder: 3,
-    // TODO: chưa có simulation key phù hợp trong shared/simulation-catalog.json
-    // (catalog hiện chỉ có sort.*/search.*/stack/queue/list/tree/heap/hash/graph/structure.*)
+    // TODO: catalog 44 key không có mô phỏng sliding window — chờ mở rộng catalog
+    // (catalog hiện chỉ có sort.*/search.*/stack/queue/list/tree/heap/hash/graph/structure.*;
+    //  không có window.*/two-pointer/prefix-sum — search.linear là quét tuần tự, không khớp ngữ nghĩa)
     simulations: [],
   },
   bst: {
