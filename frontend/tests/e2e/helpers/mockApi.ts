@@ -133,6 +133,12 @@ function apiError(route: Route, status: number, code: string, message: string): 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   let hearts = options.initialHearts ?? 10;
   const heartsMax = options.heartsMax ?? 10;
+  // Trạng thái phiên auth trong mock: MỞ ĐẦU chưa đăng nhập (mỗi test tạo page mới).
+  // Boot app gọi POST /auth/refresh TRƯỚC router guard (G-BF2, src/main.ts) — nếu mock
+  // luôn trả 200 thì app boot coi như đã authenticated → guard guestOnly/requiresAuth
+  // không redirect /login → spec auth/ladder/code-runner fail. Refresh phải trả 401 khi
+  // chưa login (giống backend không có refresh-token cookie), 200 chỉ sau khi đã login.
+  let isAuthenticated = false;
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -143,6 +149,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     // ── Auth (API_REFERENCE §4.1) ──
     if (method === 'POST' && path === '/auth/login') {
       // LoginResponse: { accessToken, expiresIn, user }
+      isAuthenticated = true;
       await json(route, 200, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
@@ -152,6 +159,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
     if (method === 'POST' && path === '/auth/register') {
       // RegisterResponse = LoginResponse (student — RegisterView redirect /path)
+      isAuthenticated = true;
       await json(route, 201, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
@@ -160,10 +168,22 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
     if (method === 'POST' && path === '/auth/refresh') {
-      await json(route, 200, { accessToken: MOCK_ACCESS_TOKEN, expiresIn: 3600 });
+      // Boot chưa login → 401 (AuthStore.refresh bắt lỗi → status='error', guard lo redirect);
+      // đã login → 200 kèm token mới (RefreshResponse — AuthStore chỉ đọc response.accessToken).
+      if (!isAuthenticated) {
+        await apiError(route, 401, 'UNAUTHORIZED', 'Refresh token không hợp lệ hoặc đã hết hạn');
+        return;
+      }
+      await json(route, 200, {
+        accessToken: MOCK_ACCESS_TOKEN,
+        refreshToken: 'e2e-refresh-token',
+        expiresIn: 3600,
+        user: MOCK_USER,
+      });
       return;
     }
     if (method === 'POST' && path === '/auth/logout') {
+      isAuthenticated = false;
       await empty(route, 204);
       return;
     }
