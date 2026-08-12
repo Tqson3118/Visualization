@@ -443,7 +443,10 @@ public sealed class GamificationService(
             UserId = row.Id,
             DisplayName = row.DisplayName,
             Xp = row.Xp,
-            Level = ComputeLevel(row.Xp)
+            Level = ComputeLevel(row.Xp),
+            // G-F3E-NEW-1: FE đọc row.value — map theo tab. Cả 3 tab đều xếp hạng theo
+            // tổng Xp (week/class chỉ khác bộ lọc user) → Value = Xp là đúng với cách tính hiện có.
+            Value = row.Xp
         }).ToList();
 
         return Result<PagedResponse<LeaderboardEntryDto>>.Ok(

@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, Flame, Trophy } from 'lucide-vue-next';
 import type { LeaderboardEntryDto } from '@/api/gamification';
 import { useLeaderboardStore } from '@/stores/leaderboard';
 import { useGamificationStore } from '@/stores/gamification';
+import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import Tabs from '@/components/ui/Tabs.vue';
@@ -21,6 +22,7 @@ import VChartLazy from '@/components/ui/VChartLazy.vue';
 
 const board = useLeaderboardStore();
 const gamification = useGamificationStore();
+const classStore = useClassStore();
 const auth = useAuthStore();
 const ui = useUiStore();
 
@@ -35,8 +37,30 @@ onMounted(() => {
   if (gamification.gems === 0 && gamification.hearts === 0) void gamification.fetchAll();
 });
 
-function switchTab(key: string): void {
-  if (key === 'week' || key === 'level' || key === 'class') void board.fetchBoard(key);
+async function switchTab(key: string): Promise<void> {
+  if (key === 'class') {
+    // G-F3E-NEW-2: tab Lớp phải gửi classId — lấy lớp hiện tại; chưa có → EmptyState, không gọi API.
+    const classId = await resolveClassId();
+    if (classId === null) {
+      board.setNoClass();
+      return;
+    }
+    void board.fetchBoard('class', classId);
+    return;
+  }
+  if (key === 'week' || key === 'level') void board.fetchBoard(key);
+}
+
+/** Lớp dùng cho tab Lớp: currentClass → lớp đầu tiên user đang tham gia → tải danh sách lớp nếu chưa có. */
+async function resolveClassId(): Promise<number | null> {
+  if (classStore.currentClass) return classStore.currentClass.id;
+  if (classStore.classes.length > 0) return classStore.classes[0].id;
+  try {
+    await classStore.fetchClasses();
+  } catch {
+    return null;
+  }
+  return classStore.classes[0]?.id ?? null;
 }
 
 function goToPage(next: number): void {
@@ -156,6 +180,13 @@ const boardChartOption = computed(() => {
     <div v-if="board.loading && board.rows.length === 0" class="leaderboard__loading" aria-busy="true">
       <Skeleton v-for="i in 8" :key="i" height="44px" />
     </div>
+
+    <EmptyState
+      v-else-if="board.noClass"
+      icon="user"
+      title="Bạn chưa tham gia lớp học nào"
+      description="Nhập mã mời từ giảng viên tại trang Lớp học để xem bảng xếp hạng của lớp."
+    />
 
     <EmptyState
       v-else-if="board.rows.length === 0 && board.error === null"

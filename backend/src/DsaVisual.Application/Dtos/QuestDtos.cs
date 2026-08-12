@@ -43,4 +43,11 @@ public sealed class LeaderboardEntryDto
     public string DisplayName { get; set; } = string.Empty;
     public int Xp { get; set; }
     public int Level { get; set; }
+
+    /// <summary>
+    /// Giá trị xếp hạng theo tab (FE đọc để hiển thị — G-F3E-NEW-1):
+    /// week = XP tuần, level = tổng XP, class = điểm trong lớp.
+    /// Hiện tại cả 3 tab đều xếp hạng theo tổng Xp (chỉ khác bộ lọc) nên Value = Xp.
+    /// </summary>
+    public long Value { get; set; }
 }
