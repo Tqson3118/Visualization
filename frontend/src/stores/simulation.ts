@@ -31,6 +31,10 @@ export const useSimulationStore = defineStore('simulation', () => {
   const inputConfig = ref<InputConfig | null>(null);
   const loading = ref(false);
   const loadError = ref<string | null>(null);
+  /** Breakpoint theo dòng pseudocode (1-based) — GP-T4: UI dừng tại bước có pseudocodeLine. */
+  const breakpoints = ref<Set<number>>(new Set());
+  /** Dòng breakpoint vừa chạm (auto-pause) — null khi chưa có hit. */
+  const breakpointHit = ref<number | null>(null);
 
   let playbackTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -62,7 +66,23 @@ export const useSimulationStore = defineStore('simulation', () => {
         return;
       }
       currentIndex.value += 1;
+      hitBreakpointAtCurrentStep();
     }, interval);
+  }
+
+  /**
+   * Kiểm tra bước hiện tại sau khi đã tiến — nếu pseudocodeLine ∈ breakpoints
+   * → dừng playback (pause) + đánh dấu breakpointHit (GP-T4).
+   * Trả true khi đã dừng tại breakpoint.
+   */
+  function hitBreakpointAtCurrentStep(): boolean {
+    if (breakpoints.value.size === 0) return false;
+    const step = steps.value[currentIndex.value];
+    if (!step || !breakpoints.value.has(step.pseudocodeLine)) return false;
+    breakpointHit.value = step.pseudocodeLine;
+    status.value = 'paused';
+    clearPlayback();
+    return true;
   }
 
   /** Nạp generator từ registry → generate() → steps (SDD §4.5, ADR-003) */
@@ -95,6 +115,7 @@ export const useSimulationStore = defineStore('simulation', () => {
       steps.value = generated;
       currentIndex.value = 0;
       status.value = 'idle';
+      breakpointHit.value = null;
       const last = generated[generated.length - 1];
       stats.value = { ...last.stats };
       if (generated.length >= 90) {
@@ -125,6 +146,7 @@ export const useSimulationStore = defineStore('simulation', () => {
       steps.value = generated;
       currentIndex.value = 0;
       status.value = 'idle';
+      breakpointHit.value = null;
       const last = generated[generated.length - 1];
       stats.value = { ...last.stats };
     } finally {
@@ -134,6 +156,7 @@ export const useSimulationStore = defineStore('simulation', () => {
 
   function play(): void {
     if (steps.value.length === 0) return;
+    breakpointHit.value = null;
     if (status.value === 'finished') {
       currentIndex.value = 0;
       status.value = 'running';
@@ -155,15 +178,18 @@ export const useSimulationStore = defineStore('simulation', () => {
       return;
     }
     currentIndex.value += 1;
+    hitBreakpointAtCurrentStep();
   }
 
   function stepBack(): void {
     if (currentIndex.value > 0) currentIndex.value -= 1;
+    breakpointHit.value = null;
   }
 
   function jumpTo(index: number): void {
     const clamped = Math.max(0, Math.min(steps.value.length - 1, index));
     currentIndex.value = clamped;
+    breakpointHit.value = null;
     if (clamped >= steps.value.length - 1 && steps.value.length > 0) {
       status.value = 'finished';
       clearPlayback();
@@ -174,6 +200,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     clearPlayback();
     currentIndex.value = 0;
     status.value = 'idle';
+    breakpointHit.value = null;
   }
 
   function setSpeed(value: number): void {
@@ -182,10 +209,12 @@ export const useSimulationStore = defineStore('simulation', () => {
     if (status.value === 'running') startPlayback(); // áp dụng nhịp mới ngay (SDD Màn 05)
   }
 
-  function setBreakpoint(_line: number, _enabled: boolean): void {
-    // TODO (task nâng cao): breakpoint theo dòng template — UI dừng tại bước có pseudocodeLine
-    void _line;
-    void _enabled;
+  /** Bật/tắt breakpoint trên dòng pseudocode (1-based) — GP-T4. */
+  function toggleBreakpoint(line: number): void {
+    const next = new Set(breakpoints.value);
+    if (next.has(line)) next.delete(line);
+    else next.add(line);
+    breakpoints.value = next;
   }
 
   /** Dọn timer khi unmount (gọi từ composable useSimulation). */
@@ -203,6 +232,8 @@ export const useSimulationStore = defineStore('simulation', () => {
     inputConfig,
     loading,
     loadError,
+    breakpoints,
+    breakpointHit,
     currentStep,
     isFirst,
     isLast,
@@ -217,7 +248,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     jumpTo,
     reset,
     setSpeed,
-    setBreakpoint,
+    toggleBreakpoint,
     stopPlayback,
   };
 });
