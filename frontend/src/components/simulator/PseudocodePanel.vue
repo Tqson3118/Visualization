@@ -14,11 +14,13 @@ const props = withDefaults(
     activeLine?: number;
     variables?: Record<string, unknown>;
     collapsed?: boolean;
+    breakpoints?: Set<number>;
   }>(),
   {
     activeLine: 0,
     variables: () => ({}),
     collapsed: false,
+    breakpoints: () => new Set<number>(),
   },
 );
 
@@ -79,10 +81,25 @@ function highlight(line: string): string {
         v-for="(line, idx) in pseudocode"
         :key="idx"
         class="pseudo__line"
-        :class="{ 'pseudo__line--active': activeLine === idx + 1 }"
+        :class="{
+          'pseudo__line--active': activeLine === idx + 1,
+          'pseudo__line--bp': breakpoints.has(idx + 1),
+        }"
         :data-line="idx + 1"
+        :data-bp="breakpoints.has(idx + 1) ? '1' : '0'"
         @click="emit('toggle-breakpoint', idx + 1)"
       >
+        <button
+          type="button"
+          class="pseudo__bp"
+          :class="{ 'pseudo__bp--on': breakpoints.has(idx + 1) }"
+          :aria-label="`Bật/tắt breakpoint dòng ${idx + 1}`"
+          :aria-pressed="breakpoints.has(idx + 1)"
+          :data-bp-line="idx + 1"
+          @click.stop="emit('toggle-breakpoint', idx + 1)"
+        >
+          <span class="pseudo__bp-dot" aria-hidden="true" />
+        </button>
         <span class="pseudo__no">{{ idx + 1 }}</span>
         <code class="pseudo__code" v-html="highlight(line)" />
         <span v-if="activeLine === idx + 1" class="pseudo__arrow" aria-hidden="true">▶</span>
@@ -184,6 +201,38 @@ function highlight(line: string): string {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
+
+/* ── Breakpoint (GP-T4): chấm tròn toggle — đỏ khi bật ── */
+.pseudo__bp {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-disabled);
+  transition: var(--transition-fast);
+}
+
+.pseudo__bp:hover { background: var(--color-surface-hover); color: var(--color-text-muted); }
+
+.pseudo__bp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  transition: var(--transition-fast);
+}
+
+.pseudo__bp--on { color: var(--color-destructive); }
+.pseudo__bp--on .pseudo__bp-dot { background: var(--color-destructive); border-color: var(--color-destructive); }
+
+.pseudo__line--bp { box-shadow: inset 3px 0 0 var(--color-destructive); }
 
 .pseudo__no {
   color: var(--color-text-disabled);

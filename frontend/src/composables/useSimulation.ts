@@ -38,6 +38,6 @@ export function useSimulation(key: string) {
     jumpTo: store.jumpTo,
     setSpeed: store.setSpeed,
     reset: store.reset,
-    setBreakpoint: store.setBreakpoint,
+    toggleBreakpoint: store.toggleBreakpoint,
   };
 }

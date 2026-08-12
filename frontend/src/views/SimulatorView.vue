@@ -62,6 +62,9 @@ const {
   configureInput,
   generator,
   inputConfig,
+  breakpoints,
+  breakpointHit,
+  toggleBreakpoint,
 } = useSimulation(key.value);
 
 const configOpen = ref(false);
@@ -238,7 +241,9 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
           :active-line="currentStep?.pseudocodeLine ?? 0"
           :variables="currentVariables"
           :collapsed="pseudocodeCollapsed"
+          :breakpoints="breakpoints"
           @update:collapsed="pseudocodeCollapsed = $event"
+          @toggle-breakpoint="toggleBreakpoint"
         />
 
         <!-- Giữa: canvas + điều khiển -->
@@ -263,6 +268,15 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
             :step="currentIndex"
             :total-steps="steps.length"
           />
+          <div
+            v-if="breakpointHit !== null && status === 'paused'"
+            class="simulator__bp-badge"
+            role="status"
+            data-testid="breakpoint-badge"
+          >
+            <span class="simulator__bp-dot" aria-hidden="true" />
+            Đã dừng tại breakpoint dòng {{ breakpointHit }}
+          </div>
           <ControlBar
             :current-index="currentIndex"
             :total-frames="steps.length"
@@ -447,6 +461,29 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 }
 
 .simulator__center { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+/* Badge breakpoint hit (GP-T4) — báo trạng thái đã dừng tại breakpoint */
+.simulator__bp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-on-primary);
+  background: color-mix(in srgb, var(--color-destructive) 82%, black 8%);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.simulator__bp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #fff 55%, transparent);
+}
 
 /* Khung vẽ — NGUYÊN CanvasArea bên trong, chỉ thêm backdrop/padding/border bên ngoài */
 .simulator__canvas-wrap {
