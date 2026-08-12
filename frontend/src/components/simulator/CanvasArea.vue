@@ -6,6 +6,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { Element, ElementStatus, Structure } from '@/engines/core/types';
+import type { Renderer } from '@/engines/renderers/interface';
+import { getRendererForKind } from '@/engines/renderers/rendererRegistry';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
 
 const props = withDefaults(
@@ -38,6 +40,11 @@ const emit = defineEmits<{
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let ctx: CanvasRenderingContext2D | null = null;
 let observer: ResizeObserver | null = null;
+
+// Renderer thật (SDD §8.3): instance theo kind hiện tại; đổi kind → dispose + mount renderer mới.
+let activeRenderer: Renderer | null = null;
+let activeKind = '';
+let lastView = { w: 0, h: 0 };
 
 const ZOOM_OPTIONS = [0.5, 0.75, 1, 1.5, 2];
 
@@ -158,12 +165,47 @@ function layoutStructure(structure: Structure, width: number, height: number): M
   return positions;
 }
 
+/** Lấy (hoặc tạo) renderer cho kind hiện tại; null nếu kind chưa có renderer → dùng fallback cũ. */
+function ensureRenderer(): Renderer | null {
+  if (!canvasRef.value || !props.structure) return null;
+  const renderer = getRendererForKind(props.structure.kind);
+  if (!renderer) {
+    if (activeRenderer) {
+      activeRenderer.dispose();
+      activeRenderer = null;
+      activeKind = '';
+    }
+    return null;
+  }
+  if (activeKind !== props.structure.kind || !activeRenderer) {
+    activeRenderer?.dispose();
+    activeRenderer = renderer;
+    activeKind = props.structure.kind;
+    renderer.mount(canvasRef.value);
+    renderer.resize(lastView.w, lastView.h);
+  }
+  return activeRenderer;
+}
+
 function render(): void {
   if (!canvasRef.value || !ctx) return;
   const canvas = canvasRef.value;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const structure = props.structure;
   if (!structure) return;
+
+  // Renderer thật (SDD §8.3) — ưu tiên; kind chưa có renderer → fallback vẽ inline cũ.
+  const renderer = ensureRenderer();
+  if (renderer) {
+    renderer.resize(lastView.w, lastView.h);
+    renderer.render(structure, {
+      showIndex: props.showIndex,
+      showValues: props.showValues,
+      zoom: props.zoom,
+      showLegend: false,
+    });
+    return;
+  }
 
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.width / dpr;
@@ -239,10 +281,14 @@ function resize(): void {
   const parent = canvas.parentElement;
   if (!parent) return;
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(200, parent.clientWidth) * dpr;
-  canvas.height = Math.max(240, parent.clientHeight || 320) * dpr;
+  const w = Math.max(200, parent.clientWidth);
+  const h = Math.max(240, parent.clientHeight || 320);
+  lastView = { w, h };
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
   canvas.style.width = '100%';
   canvas.style.height = parent.clientHeight ? `${parent.clientHeight}px` : '320px';
+  activeRenderer?.resize(w, h);
   render();
 }
 
@@ -285,6 +331,9 @@ onMounted(() => {
 onUnmounted(() => {
   observer?.disconnect();
   window.removeEventListener('resize', resize);
+  activeRenderer?.dispose();
+  activeRenderer = null;
+  activeKind = '';
 });
 
 const structureLabel = computed(() => props.structure?.kind ?? '');
