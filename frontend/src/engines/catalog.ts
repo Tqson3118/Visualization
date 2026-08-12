@@ -2,12 +2,43 @@
 //
 // - Danh sách KHỚP 100% key với shared/simulation-catalog.json (44 mô phỏng).
 //   CI so sánh 2 danh sách key → khác → fail build (test: engines/__tests__/catalog.spec.ts).
-// - Generator hiện tại là STUB: generate() ném "implement in task tiếp" — đủ type
-//   SimulationGenerator để build; generator thật triển khai ở task sau của dự án.
-// - Mọi khai báo mô phỏng tập trung tại file này (KHÔNG đăng ký rải rác nơi khác).
+// - Generator THẬT cho cả 44 key (SDD §4.16): các factory đặt tại engines/generators/,
+//   đăng ký tập trung tại đây (KHÔNG đăng ký rải rác nơi khác).
+// - Metadata lấy từ shared/simulation-catalog.json (đọc CHỈ ĐỌC) — generator lấy lại
+//   qua getCatalogMeta() trong buildGenerator (engines/generators/helpers.ts).
 
 import type { SimulationGenerator } from './core/types';
 import { registerSimulation } from './registry';
+import { createBubbleGenerator } from './generators/sort/bubble';
+import { createSelectionGenerator } from './generators/sort/selection';
+import { createInsertionGenerator } from './generators/sort/insertion';
+import { createMergeGenerator } from './generators/sort/merge';
+import { createQuickGenerator } from './generators/sort/quick';
+import { createHeapSortGenerator } from './generators/sort/heap';
+import { createLinearGenerator } from './generators/search/linear';
+import { createBinaryGenerator } from './generators/search/binary';
+import { createStackPushGenerator, createStackPopGenerator, createStackPeekGenerator } from './generators/linear/stack';
+import { createQueueEnqueueGenerator, createQueueDequeueGenerator } from './generators/linear/queue';
+import { createListInsertGenerator, createListDeleteGenerator, createListSearchGenerator, createListTraverseGenerator } from './generators/linear/linkedList';
+import { createBstInsertGenerator, createBstDeleteGenerator, createBstSearchGenerator, createBstPreorderGenerator, createBstInorderGenerator, createBstPostorderGenerator, createBstLevelorderGenerator } from './generators/tree/bst';
+import { createAvlInsertGenerator } from './generators/tree/avl';
+import { createHeapInsertGenerator, createHeapExtractGenerator, createHeapHeapifyGenerator } from './generators/heap/heapOps';
+import { createHashInsertGenerator, createHashSearchGenerator, createHashDeleteGenerator } from './generators/hash/hashTable';
+import { createBfsGenerator } from './generators/graph/bfs';
+import { createDfsGenerator } from './generators/graph/dfs';
+import { createDijkstraGenerator } from './generators/graph/dijkstra';
+import {
+  createStructureArrayGenerator,
+  createStructureLinkedListGenerator,
+  createStructureStackGenerator,
+  createStructureQueueGenerator,
+  createStructureBinaryTreeGenerator,
+  createStructureBstGenerator,
+  createStructureAvlGenerator,
+  createStructureHeapGenerator,
+  createStructureHashTableGenerator,
+  createStructureGraphGenerator,
+} from './generators/structure/structures';
 
 /** Metadata một mô phỏng — khớp từng field với shared/simulation-catalog.json. */
 export interface CatalogMeta {
@@ -69,30 +100,61 @@ export const CATALOG: CatalogMeta[] = [
   { key: 'structure.graph', title: 'Đồ thị (Graph — có hướng/vô hướng, trọng số)', dataStructure: 'Đồ thị', category: 'structure', level: 'advanced', complexity: { best: 'O(V+E)', average: 'O(V+E)', worst: 'O(V+E)', space: 'O(V+E)' }, tags: ['CTDL', 'đồ thị'], demoAllowed: false },
 ];
 
-const NOT_IMPLEMENTED = 'implement in task tiếp';
-
-/** Tạo generator STUB từ metadata — đủ type SimulationGenerator (SDD §4.2) để build. */
-export function stubSimulation(meta: CatalogMeta): SimulationGenerator {
-  return {
-    key: meta.key,
-    title: meta.title,
-    category: meta.category,
-    dataStructure: meta.dataStructure,
-    level: meta.level,
-    complexity: meta.complexity,
-    // TODO (task generator): inputSchema/pseudocode thật theo từng GT (SDD §4.2, §4.7).
-    inputSchema: { kind: 'array', fields: [] },
-    pseudocode: [],
-    generate: () => {
-      throw new Error(`${NOT_IMPLEMENTED}: ${meta.key}`);
-    },
-    validate: () => ({ ok: true, errors: [] }),
-  };
-}
+// ── Generator thật theo key (SDD §4.16) ──
+const GENERATORS: Record<string, () => SimulationGenerator> = {
+  'sort.bubble': createBubbleGenerator,
+  'sort.selection': createSelectionGenerator,
+  'sort.insertion': createInsertionGenerator,
+  'sort.merge': createMergeGenerator,
+  'sort.quick': createQuickGenerator,
+  'sort.heap': createHeapSortGenerator,
+  'search.linear': createLinearGenerator,
+  'search.binary': createBinaryGenerator,
+  'stack.push': createStackPushGenerator,
+  'stack.pop': createStackPopGenerator,
+  'stack.peek': createStackPeekGenerator,
+  'queue.enqueue': createQueueEnqueueGenerator,
+  'queue.dequeue': createQueueDequeueGenerator,
+  'list.insert': createListInsertGenerator,
+  'list.delete': createListDeleteGenerator,
+  'list.search': createListSearchGenerator,
+  'list.traverse': createListTraverseGenerator,
+  'tree.bst-insert': createBstInsertGenerator,
+  'tree.bst-delete': createBstDeleteGenerator,
+  'tree.bst-search': createBstSearchGenerator,
+  'tree.bst-preorder': createBstPreorderGenerator,
+  'tree.bst-inorder': createBstInorderGenerator,
+  'tree.bst-postorder': createBstPostorderGenerator,
+  'tree.bst-levelorder': createBstLevelorderGenerator,
+  'tree.avl-insert': createAvlInsertGenerator,
+  'heap.insert': createHeapInsertGenerator,
+  'heap.extract': createHeapExtractGenerator,
+  'heap.heapify': createHeapHeapifyGenerator,
+  'hash.insert': createHashInsertGenerator,
+  'hash.search': createHashSearchGenerator,
+  'hash.delete': createHashDeleteGenerator,
+  'graph.bfs': createBfsGenerator,
+  'graph.dfs': createDfsGenerator,
+  'graph.dijkstra': createDijkstraGenerator,
+  'structure.array': createStructureArrayGenerator,
+  'structure.linkedlist': createStructureLinkedListGenerator,
+  'structure.stack': createStructureStackGenerator,
+  'structure.queue': createStructureQueueGenerator,
+  'structure.binarytree': createStructureBinaryTreeGenerator,
+  'structure.bst': createStructureBstGenerator,
+  'structure.avl': createStructureAvlGenerator,
+  'structure.heap': createStructureHeapGenerator,
+  'structure.hashtable': createStructureHashTableGenerator,
+  'structure.graph': createStructureGraphGenerator,
+};
 
 // Đăng ký toàn bộ danh mục vào registry (SDD §4.5) — import catalog là đủ để kích hoạt.
 for (const meta of CATALOG) {
-  registerSimulation(meta.key, () => stubSimulation(meta));
+  const factory = GENERATORS[meta.key];
+  if (!factory) {
+    throw new Error(`catalog: thiếu generator thật cho key '${meta.key}' (44/44 bắt buộc)`);
+  }
+  registerSimulation(meta.key, factory);
 }
 
 /** Truy vấn metadata theo key (helper cho UI danh sách mô phỏng). */
