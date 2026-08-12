@@ -1,0 +1,35 @@
+{
+  "name": "dsa-visual-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.3",
+    "@babel/types": "^7.29.0",
+    "@monaco-editor/loader": "^1.7.0",
+    "axios": "^1.19.0",
+    "canvas-confetti": "^1.9.4",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^24.12.3",
+    "@webgpu/types": "^0.1.70",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/test-utils": "^2.4.10",
+    "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^29.1.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.6",
+    "vue-tsc": "^3.2.8"
+  }
+}
