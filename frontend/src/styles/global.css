@@ -83,9 +83,13 @@ h1, h2, h3, h4, h5, h6 {
   transition: var(--transition-smooth);
 }
 
+.card--interactive {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
 .card--interactive:hover {
   box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.015);
 }
 
 /* ── Buttons (MASTER.md component spec) ── */
@@ -174,6 +178,59 @@ h1, h2, h3, h4, h5, h6 {
 
 .mt-md { margin-top: var(--space-md); }
 .mt-lg { margin-top: var(--space-lg); }
+
+/* ════════════════════════════════════════════════════════════════
+   G-F2a — POLISH
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Page transition (App.vue <Transition name="page">) ──
+   Fade + slide nhẹ; mode out-in. Reduced-motion bị cắt ở media query
+   phía dưới (transition-duration 0.01ms). */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ── Hover micro-interaction (dùng cho button/card không phá shadcn) ──
+   .hover-lift — nâng nhẹ + bóng đổ khi hover (card, nút phụ)
+   .hover-glow — phát sáng viền + scale nhẹ (CTA chính, item gradient) */
+.hover-lift {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+.hover-lift:active {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-glow {
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.hover-glow:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 25%, transparent), var(--shadow-lg);
+  filter: brightness(1.05);
+}
+
+.hover-glow:active {
+  transform: translateY(-1px) scale(1.01);
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {

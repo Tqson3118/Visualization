@@ -17,28 +17,28 @@ import { messages } from '@/i18n/vi';
     </header>
 
     <section class="home__hero container">
-      <h1 class="home__title">{{ messages.home.heroTitle }}</h1>
+      <h1 class="home__title text-gradient-aurora">{{ messages.home.heroTitle }}</h1>
       <p class="home__subtitle">{{ messages.home.heroSubtitle }}</p>
       <div class="home__cta">
-        <RouterLink :to="{ name: 'simulations' }" class="btn btn-primary">
+        <RouterLink :to="{ name: 'simulations' }" class="btn btn-primary hover-glow">
           {{ messages.home.ctaExplore }}
         </RouterLink>
-        <RouterLink :to="{ name: 'register' }" class="btn btn-secondary">
+        <RouterLink :to="{ name: 'register' }" class="btn btn-secondary hover-lift">
           {{ messages.home.ctaStart }}
         </RouterLink>
       </div>
     </section>
 
     <section class="home__features container">
-      <article class="card">
+      <article class="card hover-lift">
         <h2>{{ messages.home.featureVisual.title }}</h2>
         <p class="text-muted">{{ messages.home.featureVisual.desc }}</p>
       </article>
-      <article class="card">
+      <article class="card hover-lift">
         <h2>{{ messages.home.featurePath.title }}</h2>
         <p class="text-muted">{{ messages.home.featurePath.desc }}</p>
       </article>
-      <article class="card">
+      <article class="card hover-lift">
         <h2>{{ messages.home.featurePractice.title }}</h2>
         <p class="text-muted">{{ messages.home.featurePractice.desc }}</p>
       </article>

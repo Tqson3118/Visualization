@@ -57,6 +57,13 @@ declare module 'vue-router' {
  */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // G-F2a: chỉ restore vị trí khi back/forward (savedPosition). Điều hướng
+  // thường → KHÔNG scroll ở đây (App.vue scroll về đầu sau transition qua
+  // Lenis — tránh nhảy giữa animation out-in).
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) return savedPosition;
+    return false;
+  },
   routes: [
     // Màn 01 — Trang chủ công khai
     {
