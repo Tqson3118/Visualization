@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// Drawer — component UI chung: panel trượt từ cạnh phải (ghi chú, bộ lọc…)
-import { watch } from 'vue';
-
+// Drawer — wrapper giữ API cũ (G-F1b): open/title/width + @close + slot default.
+// Render bằng vaul-vue Drawer (shadcn drawer root) dạng panel trượt từ phải (direction="right").
 import { messages } from '@/i18n/vi';
+import { DrawerContent, DrawerOverlay, DrawerPortal } from 'vaul-vue';
+
+import { Drawer as DrawerRoot } from './drawer';
 import BaseIcon from './BaseIcon.vue';
 
 const props = withDefaults(
@@ -21,86 +23,39 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-watch(
-  () => props.open,
-  (open) => {
-    document.body.style.overflow = open ? 'hidden' : '';
-  },
-);
+function onOpenChange(next: boolean): void {
+  if (!next && props.open) emit('close');
+}
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="ui-drawer">
-      <div v-if="open" class="ui-drawer" @click.self="emit('close')">
-        <aside class="ui-drawer__panel card" role="dialog" aria-modal="true" :aria-label="title || 'Drawer'" :style="{ maxWidth: width }">
-          <header class="ui-drawer__header">
-            <h2 class="ui-drawer__title">{{ title }}</h2>
-            <button type="button" class="ui-drawer__close" :aria-label="messages.common.close" @click="emit('close')">
-              <BaseIcon name="x" :size="18" />
-            </button>
-          </header>
-          <div class="ui-drawer__body">
-            <slot />
-          </div>
-        </aside>
-      </div>
-    </Transition>
-  </Teleport>
+  <DrawerRoot
+    :open="open"
+    direction="right"
+    :should-scale-background="false"
+    @update:open="onOpenChange"
+  >
+    <DrawerPortal>
+      <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" />
+      <DrawerContent
+        class="fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col border-l bg-background shadow-xl outline-none"
+        :style="{ maxWidth: width }"
+      >
+        <header class="flex items-center justify-between gap-4 border-b px-6 py-4">
+          <h2 class="text-base font-semibold">{{ title }}</h2>
+          <button
+            type="button"
+            class="rounded-sm p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            :aria-label="messages.common.close"
+            @click="emit('close')"
+          >
+            <BaseIcon name="x" :size="18" />
+          </button>
+        </header>
+        <div class="flex-1 overflow-y-auto p-6">
+          <slot />
+        </div>
+      </DrawerContent>
+    </DrawerPortal>
+  </DrawerRoot>
 </template>
-
-<style scoped>
-.ui-drawer {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.ui-drawer__panel {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  border: none;
-  border-left: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-xl);
-}
-
-.ui-drawer__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.ui-drawer__title { font-size: var(--text-md); }
-
-.ui-drawer__close {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: var(--space-xs);
-  border-radius: var(--radius-sm);
-}
-.ui-drawer__close:hover { background: var(--color-surface-hover); }
-
-.ui-drawer__body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-lg);
-}
-
-.ui-drawer-enter-active,
-.ui-drawer-leave-active { transition: opacity 200ms ease; }
-.ui-drawer-enter-from,
-.ui-drawer-leave-to { opacity: 0; }
-.ui-drawer-enter-active .ui-drawer__panel { transition: transform 250ms ease; }
-.ui-drawer-enter-from .ui-drawer__panel,
-.ui-drawer-leave-to .ui-drawer__panel { transform: translateX(100%); }
-</style>

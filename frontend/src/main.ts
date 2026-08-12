@@ -4,7 +4,12 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { useAuthStore } from '@/stores/auth';
+// Thứ tự CSS (Phase 1a G): tokens → tailwind → global.
+// tokens.css: biến --color-* legacy (component scoped cũ).
+// tailwind.css: @import "tailwindcss" + tw-animate-css + theme OKLCH shadcn + font.
+// global.css: reset/base/component class cũ — unlayered thắng preflight Tailwind.
 import './styles/tokens.css';
+import './styles/tailwind.css';
 import './styles/global.css';
 
 /**

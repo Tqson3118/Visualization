@@ -27,9 +27,9 @@
   --color-warning:        #D97706;
   --color-info:           #0891B2;
 
-  /* ── TYPOGRAPHY ── */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  /* ── TYPOGRAPHY (Phase 1a G: Geist + JetBrains Mono self-host) ── */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   --text-xs:   0.75rem;
   --text-sm:   0.875rem;
@@ -75,4 +75,37 @@
   --transition-fast:   all 150ms ease;
   --transition-smooth: all 250ms ease;
   --transition-slow:   all 500ms ease;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DARK MODE — palette đảo tối cho các biến --color-* LEGACY
+   (USER_GUIDE §3.15). Component scoped cũ dùng --color-* vẫn đổi
+   được sang tối khi <html class="dark">. Teal giữ nguyên tông —
+   nhạt hơn cho primary trên nền tối. Thêm từ Phase 1a (G).
+   ════════════════════════════════════════════════════════════════ */
+.dark {
+  --color-primary:        #2DD4BF;
+  --color-on-primary:     #042F2E;
+  --color-secondary:      #0D9488;
+  --color-accent:         #FBBF24;
+  --color-background:     #042F2E;
+  --color-foreground:     #CCFBF1;
+  --color-muted:          #0F3D3A;
+  --color-border:         #115E59;
+  --color-destructive:    #F87171;
+  --color-ring:           #2DD4BF;
+
+  --color-surface:        #0F3D3A;
+  --color-surface-hover:  #134E4A;
+  --color-text-muted:     #99F6E4;
+  --color-text-disabled:  #5EEAD4;
+  --color-success:        #34D399;
+  --color-warning:        #FBBF24;
+  --color-info:           #22D3EE;
+
+  /* Shadow nhẹ hơn trên nền tối */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.55);
 }

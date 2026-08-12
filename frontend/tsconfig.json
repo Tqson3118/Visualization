@@ -1,5 +1,14 @@
 {
   "files": [],
+  // compilerOptions ở đây chỉ phục vụ tooling bên ngoài (vd: CLI shadcn-vue đọc
+  // tsconfig.json để resolve alias "@/*"). Build thật dùng tsconfig.app.json/node.json
+  // qua project references — compilerOptions này không ảnh hưởng kết quả build.
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }

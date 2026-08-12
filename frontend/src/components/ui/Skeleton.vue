@@ -1,5 +1,9 @@
 <script setup lang="ts">
-// Skeleton — component UI chung: placeholder loading (design tokens — SDD §8.1)
+// Skeleton — wrapper giữ API cũ (G-F1b): height/width/lines/circle.
+// Render bằng shadcn-vue Skeleton (animate-pulse bg-muted).
+import { cn } from '@/lib/utils';
+import Skeleton from './skeleton/Skeleton.vue';
+
 withDefaults(
   defineProps<{
     /** Chiều cao (px hoặc chuỗi CSS) */
@@ -19,33 +23,14 @@ withDefaults(
 </script>
 
 <template>
-  <div class="ui-skeleton" :class="{ 'ui-skeleton--circle': circle }" :style="{ height, width }" aria-hidden="true">
+  <div class="flex flex-col gap-2" :style="{ width }" aria-hidden="true">
     <template v-if="!circle && lines > 1">
-      <div v-for="i in lines" :key="i" class="ui-skeleton__line" :style="{ width: i === lines ? '60%' : '100%' }" />
+      <Skeleton
+        v-for="i in lines"
+        :key="i"
+        :style="{ height, width: i === lines ? '60%' : '100%' }"
+      />
     </template>
+    <Skeleton v-else :class="cn(circle && 'rounded-full')" :style="{ height, width }" />
   </div>
 </template>
-
-<style scoped>
-.ui-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-surface-hover) 50%, var(--color-muted) 75%);
-  background-size: 200% 100%;
-  animation: ui-skeleton-shimmer 1.4s ease infinite;
-}
-
-.ui-skeleton--circle { border-radius: 50%; }
-
-.ui-skeleton__line {
-  height: inherit;
-  border-radius: var(--radius-sm);
-  background: var(--color-muted);
-}
-
-@keyframes ui-skeleton-shimmer {
-  to { background-position: -200% 0; }
-}
-</style>
