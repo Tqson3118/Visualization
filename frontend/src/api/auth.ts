@@ -1,4 +1,4 @@
-import { getData } from './client';
+import { client, getData } from './client';
 
 /** Endpoint theo API_REFERENCE §4.1 */
 export const AUTH_ENDPOINTS = {
@@ -48,52 +48,44 @@ export interface RefreshResponse {
   expiresIn: number;
 }
 
-// ── Stub CRUD (body TODO — triển khai ở task kết nối backend) ──
+// ── CRUD (API_REFERENCE §4.1 — triển khai thật, lỗi qua ApiError) ──
 
-export async function login(_payload: LoginRequest): Promise<LoginResponse> {
-  // TODO: client.post(AUTH_ENDPOINTS.login, payload)
-  return Promise.reject(new Error('TODO: authApi.login chưa triển khai'));
+export async function login(payload: LoginRequest): Promise<LoginResponse> {
+  return getData<LoginResponse>({ method: 'POST', url: AUTH_ENDPOINTS.login, data: payload });
 }
 
-export async function register(_payload: RegisterRequest): Promise<LoginResponse> {
-  // TODO: client.post(AUTH_ENDPOINTS.register, payload)
-  return Promise.reject(new Error('TODO: authApi.register chưa triển khai'));
+export async function register(payload: RegisterRequest): Promise<LoginResponse> {
+  return getData<LoginResponse>({ method: 'POST', url: AUTH_ENDPOINTS.register, data: payload });
 }
 
 export async function logout(): Promise<void> {
-  // TODO: client.post(AUTH_ENDPOINTS.logout)
-  return Promise.reject(new Error('TODO: authApi.logout chưa triển khai'));
+  await client.post(AUTH_ENDPOINTS.logout);
 }
 
 export async function refresh(): Promise<RefreshResponse> {
-  // TODO: client.post(AUTH_ENDPOINTS.refresh) — cookie HttpOnly tự gửi (ADR-004)
-  return Promise.reject(new Error('TODO: authApi.refresh chưa triển khai'));
+  // Cookie HttpOnly tự gửi (ADR-004)
+  return getData<RefreshResponse>({ method: 'POST', url: AUTH_ENDPOINTS.refresh });
 }
 
 export async function fetchMe(): Promise<UserSummary> {
-  // TODO: getData(AUTH_ENDPOINTS.me)
-  return Promise.reject(new Error('TODO: authApi.fetchMe chưa triển khai'));
+  return getData<UserSummary>({ method: 'GET', url: AUTH_ENDPOINTS.me });
 }
 
 export async function updateProfile(payload: { displayName?: string; avatarUrl?: string | null }): Promise<UserSummary> {
-  // TODO: client.put(AUTH_ENDPOINTS.me, payload)
-  return Promise.reject(new Error('TODO: authApi.updateProfile chưa triển khai'));
+  return getData<UserSummary>({ method: 'PUT', url: AUTH_ENDPOINTS.me, data: payload });
 }
 
 export async function changePassword(payload: { currentPassword: string; newPassword: string }): Promise<void> {
-  // TODO: client.put(AUTH_ENDPOINTS.changePassword, payload)
-  return Promise.reject(new Error('TODO: authApi.changePassword chưa triển khai'));
+  await client.put(AUTH_ENDPOINTS.changePassword, payload);
 }
 
 export async function forgotPassword(email: string): Promise<void> {
-  // TODO: client.post(AUTH_ENDPOINTS.forgotPassword, { email })
-  return Promise.reject(new Error('TODO: authApi.forgotPassword chưa triển khai'));
+  await client.post(AUTH_ENDPOINTS.forgotPassword, { email });
 }
 
 export async function resetPassword(payload: { token: string; newPassword: string }): Promise<void> {
-  // TODO: client.post(AUTH_ENDPOINTS.resetPassword, payload)
-  return Promise.reject(new Error('TODO: authApi.resetPassword chưa triển khai'));
+  await client.post(AUTH_ENDPOINTS.resetPassword, payload);
 }
 
-/** Re-export để store/auth dùng khi triển khai (giữ chỗ helper gọi axios trực tiếp) */
+/** Re-export để store/auth dùng khi triển khai */
 export { getData };

@@ -1,7 +1,12 @@
+import { client, getData } from './client';
+import type { PagedResponse } from './types';
+
 /** Endpoint theo API_REFERENCE §4.14 (gamification, premium, leaderboard) */
 export const GAMIFICATION_ENDPOINTS = {
   hearts: '/me/hearts',
   enterNode: (pathId: number, nodeId: number) => `/learning-path/${pathId}/nodes/${nodeId}/enter`,
+  learningPath: (id: number) => `/learning-path/${id}`,
+  finalTest: (id: number) => `/learning-path/${id}/final-test`,
   quests: '/me/quests',
   claimQuest: (id: number) => `/me/quests/${id}/claim`,
   streak: '/me/streak',
@@ -49,44 +54,124 @@ export interface PremiumStatusDto {
   expiresAt: string | null;
 }
 
-// ── Stub CRUD (body TODO) ──
+export interface LeaderboardEntryDto {
+  rank: number;
+  userId: number;
+  displayName: string;
+  avatarUrl: string | null;
+  value: number;
+  streak?: number;
+  level?: number;
+}
+
+export interface LeaderboardDto {
+  rows: LeaderboardEntryDto[];
+  myRank: LeaderboardEntryDto | null;
+  page: number;
+  totalPages: number;
+}
+
+export interface InventoryItemDto {
+  id: number;
+  itemId: number;
+  name: string;
+  slot: string | null;
+  isEquipped: boolean;
+}
+
+export interface StreakDto {
+  streakDays: number;
+  freezeAvailable: number;
+}
+
+export interface LearningPathNodeDto {
+  id: number;
+  title: string;
+  description: string;
+  sortOrder: number;
+  status: 'locked' | 'active' | 'passed';
+  stars: number;
+  bestScore: number | null;
+  lessonId: number | null;
+  simulationKey: string | null;
+  exerciseId: number | null;
+  requiredStages: { quiz: boolean; lab: boolean; code: boolean };
+}
+
+export interface LearningPathDto {
+  id: number;
+  name: string;
+  description: string;
+  progressPct: number;
+  nodes: LearningPathNodeDto[];
+  finalTestUnlocked: boolean;
+}
+
+// ── CRUD (API_REFERENCE §4.14) ──
 
 export async function fetchHearts(): Promise<HeartsStatusDto> {
-  // TODO: getData({ method: 'GET', url: GAMIFICATION_ENDPOINTS.hearts })
-  return Promise.reject(new Error('TODO: gamificationApi.fetchHearts chưa triển khai'));
+  return getData<HeartsStatusDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.hearts });
 }
 
 export async function enterNode(pathId: number, nodeId: number): Promise<{ session: unknown; heartsLeft: number }> {
-  // TODO: client.post(GAMIFICATION_ENDPOINTS.enterNode(pathId, nodeId))
-  return Promise.reject(new Error('TODO: gamificationApi.enterNode chưa triển khai'));
+  return getData<{ session: unknown; heartsLeft: number }>({
+    method: 'POST',
+    url: GAMIFICATION_ENDPOINTS.enterNode(pathId, nodeId),
+  });
+}
+
+export async function fetchLearningPath(id: number): Promise<LearningPathDto> {
+  return getData<LearningPathDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.learningPath(id) });
+}
+
+export async function fetchFinalTest(id: number): Promise<unknown> {
+  return getData<unknown>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.finalTest(id) });
 }
 
 export async function fetchQuests(): Promise<QuestDto[]> {
-  // TODO: getData({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests })
-  return Promise.reject(new Error('TODO: gamificationApi.fetchQuests chưa triển khai'));
+  return getData<QuestDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests });
 }
 
 export async function claimQuest(id: number): Promise<{ gems: number; xp: number }> {
-  // TODO: client.post(GAMIFICATION_ENDPOINTS.claimQuest(id))
-  return Promise.reject(new Error('TODO: gamificationApi.claimQuest chưa triển khai'));
+  return getData<{ gems: number; xp: number }>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.claimQuest(id) });
 }
 
-export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class'; classId?: number; page?: number } = {}): Promise<unknown> {
-  // TODO: getData({ method: 'GET', url: GAMIFICATION_ENDPOINTS.leaderboard, params })
-  return Promise.reject(new Error('TODO: gamificationApi.fetchLeaderboard chưa triển khai'));
+export async function fetchStreak(): Promise<StreakDto> {
+  return getData<StreakDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.streak });
+}
+
+export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class'; classId?: number; page?: number } = {}): Promise<LeaderboardDto> {
+  return getData<LeaderboardDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.leaderboard, params });
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {
-  // TODO: getData({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems })
-  return Promise.reject(new Error('TODO: gamificationApi.fetchShopItems chưa triển khai'));
+  return getData<ShopItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
 }
 
-export async function buyItem(itemId: number): Promise<unknown> {
-  // TODO: client.post(GAMIFICATION_ENDPOINTS.buy, { itemId })
-  return Promise.reject(new Error('TODO: gamificationApi.buyItem chưa triển khai'));
+export async function buyItem(itemId: number): Promise<{ gemsLeft: number }> {
+  return getData<{ gemsLeft: number }>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.buy, data: { itemId } });
+}
+
+export async function fetchInventory(): Promise<InventoryItemDto[]> {
+  return getData<InventoryItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.inventory });
+}
+
+export async function equipItem(itemId: number, slot: string): Promise<InventoryItemDto[]> {
+  return getData<InventoryItemDto[]>({ method: 'PUT', url: GAMIFICATION_ENDPOINTS.equip, data: { itemId, slot } });
 }
 
 export async function fetchPremiumStatus(): Promise<PremiumStatusDto> {
-  // TODO: getData({ method: 'GET', url: GAMIFICATION_ENDPOINTS.premiumStatus })
-  return Promise.reject(new Error('TODO: gamificationApi.fetchPremiumStatus chưa triển khai'));
+  return getData<PremiumStatusDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.premiumStatus });
+}
+
+export async function upgradePremium(planId: string | number): Promise<{ orderId: string; plan: string }> {
+  return getData<{ orderId: string; plan: string }>({
+    method: 'POST',
+    url: GAMIFICATION_ENDPOINTS.premiumUpgrade,
+    data: { planId },
+  });
+}
+
+export async function mockPayPremium(orderId: string): Promise<PremiumStatusDto> {
+  return getData<PremiumStatusDto>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.premiumMockPay, data: { orderId } });
 }
