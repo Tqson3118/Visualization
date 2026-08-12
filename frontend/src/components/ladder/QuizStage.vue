@@ -1,15 +1,19 @@
 <script setup lang="ts">
 // QuizStage — Bậc 1: bài trắc nghiệm (Màn 06 — layout 8/12 câu hỏi + 4/12 mini-map)
 // Pass ≥ 60% → emit('passed', scorePct). Hỗ trợ chế độ luyện tập (practice).
-import { computed, reactive, ref } from 'vue';
+// G-F2b: ProgressBar tiến độ câu hỏi + option dạng button selectable + toast kết quả
+// + confetti 'success' khi pass. KHÔNG đổi logic submit (pre-check đủ câu — G-BF2).
+import { computed, reactive, ref, watch } from 'vue';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, QuestionDto, SubmitResultDto } from '@/api/exercises';
 import { messages } from '@/i18n/vi';
 import { useUiStore } from '@/stores/ui';
+import { fireConfetti } from '@/composables/useConfetti';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
 const props = withDefaults(
@@ -89,6 +93,7 @@ async function onSubmit(): Promise<void> {
     } else {
       result.value = await exercisesApi.submitExercise(props.exercise.id, { answers: payload });
     }
+    showResultToast();
   } catch (err) {
     submitError.value = err instanceof Error ? err.message : 'Không thể nộp bài, vui lòng thử lại.';
   } finally {
@@ -102,6 +107,21 @@ const scorePct = computed(() => {
 });
 
 const passed = computed(() => scorePct.value >= 60);
+
+// G-F2b: khi kết quả hiện ra và ĐẠT → confetti 'success' (mỗi lần submit lại cũng bắn lại)
+watch([result, passed], ([res, isPassed]) => {
+  if (res && isPassed) fireConfetti('success');
+});
+
+/** G-F2b: toast kết quả ngay khi nộp xong (score + pass/fail). */
+function showResultToast(): void {
+  const pct = scorePct.value;
+  if (pct >= 60) {
+    ui.showToast(`🎉 Đạt yêu cầu — ${pct}%`, 'success');
+  } else {
+    ui.showToast(`Kết quả: ${pct}% — chưa đạt, thử lại nhé`, 'warning');
+  }
+}
 
 function scoreColor(): string {
   if (scorePct.value >= 80) return 'var(--color-success)';
@@ -177,6 +197,14 @@ function finish(): void {
             <h2 class="quiz-stage__title">{{ exercise.title }}</h2>
             <Badge variant="primary">Câu {{ currentQuestion + 1 }}/{{ questions.length }}</Badge>
           </header>
+
+          <ProgressBar
+            :value="progressPct"
+            show-label
+            size="sm"
+            class="quiz-stage__progress"
+            :variant="progressPct === 100 ? 'success' : 'default'"
+          />
 
           <p class="quiz-stage__question">{{ questions[currentQuestion].content }}</p>
 
@@ -257,25 +285,40 @@ function finish(): void {
   margin-bottom: var(--space-md);
 }
 
+.quiz-stage__progress { margin-bottom: var(--space-md); }
+
 .quiz-stage__title { font-size: var(--text-lg); }
 
 .quiz-stage__question { font-size: var(--text-md); margin-bottom: var(--space-md); }
 
 .quiz-stage__options { display: flex; flex-direction: column; gap: var(--space-sm); }
 
+/* Option dạng nút selectable (G-F2b): hover nâng nhẹ, active = viền primary + check */
 .quiz-stage__option {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: var(--transition-fast);
+  font-weight: 600;
+  background: var(--color-surface);
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
-.quiz-stage__option--selected { border-color: var(--color-primary); background: var(--color-surface-hover); }
+.quiz-stage__option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+  transform: translateY(-1px);
+}
+
+.quiz-stage__option--selected {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
 
 .quiz-stage__option-mark {
   width: 20px;
@@ -288,6 +331,7 @@ function finish(): void {
   font-size: var(--text-xs);
   color: var(--color-on-primary);
   background: transparent;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .quiz-stage__option--selected .quiz-stage__option-mark { background: var(--color-primary); border-color: var(--color-primary); }

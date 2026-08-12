@@ -53,10 +53,23 @@ export const messages = {
       title: 'Luyện tập & chấm điểm',
       desc: 'Trắc nghiệm, thực hành thao tác và viết code — chấm điểm tự động ngay lập tức.',
     },
+    // G-F2b — Màn 01: section demo công khai (FR-7.6) + stats
+    demoBadge: 'Demo công khai',
+    demoTabTitle: 'Thử ngay 3 mô phỏng',
+    demoTabDesc: 'Chạy thật ngay trong trình duyệt — không cần đăng ký, không trừ tim.',
+    demoRun: 'Chạy thử',
+    demoComplexity: 'Độ phức tạp',
+    demoOpen: 'Mở mô phỏng',
+    statsTitle: 'DSA Visual bằng số',
+    statsVisuals: 'mô phỏng trực quan',
+    statsGroups: 'nhóm CTDL & Giải thuật',
+    statsLevels: 'cấp độ từ cơ bản đến nâng cao',
+    statsNote: 'Số liệu từ danh mục nội dung — cập nhật theo từng phiên bản.',
   },
 
   auth: {
     loginTitle: 'Đăng nhập',
+    loginSubtitle: 'Chào mừng trở lại — tiếp tục lộ trình học của bạn.',
     registerTitle: 'Đăng ký tài khoản',
     email: 'Email',
     emailPlaceholder: 'ban@truong.edu.vn',
@@ -69,10 +82,16 @@ export const messages = {
     hasAccount: 'Đã có tài khoản?',
     toRegister: 'Đăng ký ngay',
     toLogin: 'Đăng nhập ngay',
+    forgotPassword: 'Quên mật khẩu?',
     loginFailed: 'Đăng nhập thất bại. Vui lòng kiểm tra lại.',
     invalidEmail: 'Email không hợp lệ',
     passwordRequirement:
       'Mật khẩu phải từ 8-64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+    // G-F2b — Màn 02: split layout (brand panel)
+    brandTagline: 'Học Cấu trúc dữ liệu & Giải thuật trực quan',
+    brandPoint1: 'Trực quan từng bước chạy của thuật toán',
+    brandPoint2: 'Lộ trình cá nhân từ cơ bản đến nâng cao',
+    brandPoint3: 'Trắc nghiệm, thực hành và code — chấm điểm tức thì',
   },
 
   simulator: {

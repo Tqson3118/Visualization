@@ -99,9 +99,56 @@ const MOCK_LESSON: LessonDto = {
   sortOrder: 1,
   status: 'active',
   simulationCount: 1,
-  exerciseCount: 0,
+  exerciseCount: 1,
   progress: null,
   contentHtml: '<p>Bubble Sort — so sánh và hoán đổi liên tiếp.</p>',
+  // G-F2b: thêm data liên kết để Màn 04 render thẻ mô phỏng/bài tập (ảnh verify §6.2)
+  simulations: [{ simulationKey: 'sort.bubble', title: 'Sắp xếp nổi bọt (Bubble Sort)' }],
+  exercises: [{ id: 1, title: 'Trắc nghiệm Bubble Sort', type: 'MCQ' }],
+};
+
+/** GET /exercises/1 — ExerciseView (Màn 06) render quiz thật (ảnh verify §6.2) */
+const MOCK_EXERCISE = {
+  id: 1,
+  title: 'Trắc nghiệm Bubble Sort',
+  description: 'Kiểm tra hiểu biết về thuật toán Bubble Sort',
+  type: 'MCQ',
+  lessonId: 1,
+  nodeId: 1,
+  stage: 1,
+  durationMinutes: 10,
+  maxScore: 4,
+  status: 'active',
+  questions: [
+    {
+      id: 1,
+      content: 'Bubble Sort là thuật toán sắp xếp thuộc nhóm nào?',
+      type: 'SINGLE',
+      options: ['So sánh & hoán đổi', 'Chèn từng phần tử', 'Chia để trị', 'Đếm phân phối'],
+      points: 1,
+    },
+    {
+      id: 2,
+      content: 'Độ phức tạp trung bình của Bubble Sort là gì?',
+      type: 'SINGLE',
+      options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(log n)'],
+      points: 1,
+    },
+    {
+      id: 3,
+      content: 'Sau lượt duyệt đầu tiên, phần tử lớn nhất nằm ở đâu?',
+      type: 'SINGLE',
+      options: ['Đầu mảng', 'Cuối mảng', 'Giữa mảng', 'Không xác định'],
+      points: 1,
+    },
+    {
+      id: 4,
+      content: 'Bubble Sort ổn định (stable) hay không?',
+      type: 'SINGLE',
+      options: ['Ổn định', 'Không ổn định', 'Tùy dữ liệu', 'Chỉ với mảng chẵn'],
+      points: 1,
+    },
+  ],
 };
 
 export interface MockApiOptions {
@@ -133,6 +180,13 @@ function apiError(route: Route, status: number, code: string, message: string): 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   let hearts = options.initialHearts ?? 10;
   const heartsMax = options.heartsMax ?? 10;
+  /**
+   * Boot refresh (main.ts gọi /auth/refresh trước khi mount — ADR-004 khôi phục phiên).
+   * Mô phỏng cookie HttpOnly: chỉ "có phiên" SAU khi login/register trong CÙNG test —
+   * trước đó trả 401 (không có cookie → không có phiên) để router guard guestOnly
+   * KHÔNG đá /login về /home (lỗi pre-existing ghi ở docs/work/g-f2a.md).
+   */
+  let sessionToken: string | null = null;
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -143,6 +197,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     // ── Auth (API_REFERENCE §4.1) ──
     if (method === 'POST' && path === '/auth/login') {
       // LoginResponse: { accessToken, expiresIn, user }
+      sessionToken = MOCK_ACCESS_TOKEN;
       await json(route, 200, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
@@ -152,6 +207,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
     if (method === 'POST' && path === '/auth/register') {
       // RegisterResponse = LoginResponse (student — RegisterView redirect /path)
+      sessionToken = MOCK_ACCESS_TOKEN;
       await json(route, 201, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
@@ -160,6 +216,10 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
     if (method === 'POST' && path === '/auth/refresh') {
+      if (sessionToken === null) {
+        await apiError(route, 401, 'UNAUTHORIZED', 'Chưa đăng nhập trong phiên E2E này');
+        return;
+      }
       await json(route, 200, { accessToken: MOCK_ACCESS_TOKEN, expiresIn: 3600 });
       return;
     }
@@ -184,6 +244,12 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
     if (method === 'GET' && /^\/lessons\/\d+$/.test(path)) {
       await json(route, 200, MOCK_LESSON);
+      return;
+    }
+
+    // ── Exercises (API_REFERENCE §4.6) — G-F2b: GET /exercises/{id} để Màn 06 render quiz thật
+    if (method === 'GET' && /^\/exercises\/\d+$/.test(path)) {
+      await json(route, 200, MOCK_EXERCISE);
       return;
     }
 

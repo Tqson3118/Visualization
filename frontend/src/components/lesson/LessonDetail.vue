@@ -6,16 +6,25 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
+import BaseIcon from '@/components/ui/BaseIcon.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
+import { Card } from '@/components/ui/card';
 import Drawer from '@/components/ui/Drawer.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { getCatalogMeta } from '@/engines/catalog';
 
-const props = defineProps<{
-  lessonId: number | string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    lessonId: number | string;
+    /** G-F2b: ẩn header bài học khi view cha (LessonView) đã có hero gradient riêng */
+    hideHeader?: boolean;
+  }>(),
+  {
+    hideHeader: false,
+  },
+);
 
 const emit = defineEmits<{
   'open-simulation': [key: string];
@@ -106,7 +115,7 @@ onBeforeUnmount(() => {
     />
 
     <template v-else>
-      <header class="lesson-detail__header">
+      <header v-if="!hideHeader" class="lesson-detail__header">
         <div>
           <h2 class="lesson-detail__title">{{ lesson.title }}</h2>
           <p class="lesson-detail__desc">{{ lesson.description }}</p>
@@ -128,17 +137,20 @@ onBeforeUnmount(() => {
       <section v-if="lesson.simulations && lesson.simulations.length > 0" class="lesson-detail__section">
         <h3 class="lesson-detail__section-title">Mô phỏng liên quan</h3>
         <div class="lesson-detail__sims">
-          <div
+          <Card
             v-for="sim in lesson.simulations"
             :key="sim.simulationKey"
-            class="lesson-detail__sim card"
+            class="lesson-detail__sim hover-lift"
           >
-            <div>
+            <div class="lesson-detail__sim-icon" aria-hidden="true">
+              <BaseIcon name="play" :size="18" />
+            </div>
+            <div class="lesson-detail__sim-info">
               <p class="lesson-detail__sim-title">{{ sim.title || getCatalogMeta(sim.simulationKey)?.title || sim.simulationKey }}</p>
               <p class="text-muted lesson-detail__sim-key">{{ sim.simulationKey }}</p>
             </div>
             <Button size="sm" @click="emit('open-simulation', sim.simulationKey)">Mở mô phỏng</Button>
-          </div>
+          </Card>
         </div>
       </section>
 
@@ -146,13 +158,16 @@ onBeforeUnmount(() => {
       <section v-if="lesson.exercises && lesson.exercises.length > 0" class="lesson-detail__section">
         <h3 class="lesson-detail__section-title">Bài tập liên quan</h3>
         <div class="lesson-detail__sims">
-          <div v-for="ex in lesson.exercises" :key="ex.id" class="lesson-detail__sim card">
-            <div>
+          <Card v-for="ex in lesson.exercises" :key="ex.id" class="lesson-detail__sim hover-lift">
+            <div class="lesson-detail__sim-icon" aria-hidden="true">
+              <BaseIcon name="puzzle" :size="18" />
+            </div>
+            <div class="lesson-detail__sim-info">
               <p class="lesson-detail__sim-title">{{ ex.title }}</p>
               <Badge variant="muted">{{ ex.type }}</Badge>
             </div>
             <Button size="sm" @click="emit('open-exercise', ex.id)">Làm bài</Button>
-          </div>
+          </Card>
         </div>
       </section>
     </template>
@@ -245,7 +260,21 @@ onBeforeUnmount(() => {
 
 .lesson-detail__sims { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.lesson-detail__sim { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-md); }
+.lesson-detail__sim { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md); }
+
+.lesson-detail__sim-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lesson-detail__sim-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 
 .lesson-detail__sim-title { font-weight: 700; font-size: var(--text-sm); }
 .lesson-detail__sim-key { font-size: var(--text-xs); font-family: var(--font-mono); }
