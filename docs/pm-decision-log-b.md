@@ -31,3 +31,27 @@
 ## [2026-08-12] Phân công 5 task (dispatch celscin)
 - Quyết định: task-1 skeleton frontend + styles/ui/shared/utils/core (coder); task-2 engines generators/renderers/catalog + components/simulator + composables (coder, sau task-1); task-3 seed + curriculum data (coder, sau task-1); task-4 backend skeleton + docker/nginx/env (coder, song song task-1); task-5 build thử frontend+backend (tester, sau 1-4). REUSE_REPORT.md do PM tổng hợp cuối phiên từ báo cáo các task.
 - Ảnh hưởng: docs/REUSE_REPORT.md, docs/pm-report-b.md
+
+## [2026-08-12] RESUME phiên (phiên trước gián đoạn — chưa tạo file nào)
+- Quyết định: Kiểm tra hiện trạng: frontend/ backend/ docs/REUSE_REPORT.md CHƯA tồn tại → phiên trước chỉ ghi decision log rồi dừng trước khi dispatch. Tiếp tục thực hiện toàn bộ SESSION B theo plan đã ghi (5 task). Dispatch qua agent chuyên biệt: dev-frontend (task 1,2,3), dev-backend (task 4), dev (task 5 verify).
+- Ảnh hưởng: toàn bộ phiên — các mục decision phía dưới (1-8) giữ nguyên hiệu lực.
+
+## [2026-08-12] shared/simulation-catalog.json = nguồn catalog chính
+- Quyết định: shared/simulation-catalog.json đã tồn tại tại root (SDD §4.5, §6.1) → engine frontend phải sinh engines/catalog.ts KHỚP danh sách key trong file này (đồng bộ backend §9.9); không bê catalog cũ của source.
+- Ảnh hưởng: frontend/src/engines/catalog.ts
+
+## [2026-08-12] .env.example V1 chứa secret — KHÔNG bê nguyên
+- Quyết định: .env.example của V1 chứa connection string Supabase thật + Cloudinary key → KHÔNG bê nguyên. Viết .env.example MỚI cho frontend (VITE_API_BASE_URL) và backend (DSA__Jwt__Secret, ConnectionStrings SQL Server, SMTP MailHog) theo DEPLOY.md §2; chỉ giữ pattern đặt tên biến JWT.
+- Ảnh hưởng: frontend/.env.example, backend/.env.example
+
+## [2026-08-12] package.json frontend: chọn dependency theo SDD, cắt thừa
+- Quyết định: Bê package.json V1 làm nền nhưng RÚT GỌN theo SDD §3.1/§3.9: giữ vue/pinia/vue-router/axios + monaco (Màn 16 Code Runner theo SDD §2.1) + dev deps (vite, plugin-vue, vitest, vue-tsc, @vue/test-utils, typescript). Cắt gói feature đã cắt/ngoài phạm vi (signalr, tsparticles, aos, chart.js, qrcode, yjs, xlsx, lottie, gsap... chỉ thêm khi task engine cần — ghi lý do).
+- Ảnh hưởng: frontend/package.json
+
+## [2026-08-12] Hoàn thành 5 task — build pass, không vi phạm cấm
+- Quyết định: Tất cả task hoàn thành: task-1 skeleton frontend (build pass, 5/5 test), task-2 engine EDV + simulator (build pass, 39/39 test, catalog 44/44 khớp shared/simulation-catalog.json), task-3 seed/curriculum (build pass, 12/12 test, dotnet build pass), task-4 backend skeleton + docker (dotnet build pass 0 warning, 8/8 test, smoke /health + /swagger OK), task-5 verify tổng thể (PASS; check cấm KHÔNG vi phạm: không Npgsql/PostgreSQL/Supabase/MediatR/Repository code, không .env thật; compliance liệt kê lệch — chủ yếu là phần còn TODO placeholder). Đánh giá: skeleton milestone ĐẠT, coi là nền cho các task triển khai module sau.
+- Ảnh hưởng: docs/REUSE_REPORT.md (tổng hợp bảng bê/không bê), docs/pm-report-b.md (trạng thái).
+
+## [2026-08-12] Lệch chủ ý khi triển khai (đã xác nhận hợp lệ)
+- Quyết định: (1) DTO dùng chung đặt Application/Dtos (SDD §5.1 tự mâu thuẫn Api/Dtos vs Validators ở Application — chọn Application để tránh reference vòng); (2) Asp.Versioning bỏ versioned ApiExplorer (mất controller trong OpenAPI .NET 10 — giữ 1 version v1 + suppress AV0021/AV0029); (3) runMeasure chạy main-thread (TODO chuyển Web Worker theo ADR-012); (4) TraceKind suy diễn heuristic từ interpreter cũ (chưa gắn kind trực tiếp); (5) font thiếu niên (Baloo 2/Comic Neue) KHÔNG bê — thay font hệ thống cho đối tượng đại học; (6) PlaceholderView thêm để route chưa có view thật. Các lệch này đều có chú thích trong code/README.
+- Ảnh hưởng: pm-report-b.md mục LỆCH.

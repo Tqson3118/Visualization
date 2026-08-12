@@ -34,3 +34,19 @@
 ## [2026-08-12 01:40] Phát hiện kỹ thuật: simulation-catalog.json có UTF-8 BOM
 - Quyết định: Đọc catalog bằng encoding utf-8-sig khi trích Phụ lục D (44 mô phỏng).
 - Ảnh hưởng: part 05 (Phụ lục D).
+
+## [2026-08-12 02:10] Lệch số mục nguồn thực tế (agent phát hiện khi đọc)
+- Quyết định: Các agent con ghi nguồn theo VỊ TRÍ THẬT trong file thay vì số mục trong BAO_CAO_SPEC (chỉ là bản đồ tham chiếu cũ): UC ở SRS §5 (không phải §6), master matrix FR ở SRS §3.1, design system ở SDD §8, backlog hướng phát triển ở SDD §11.2 (không có §16), sequence UC-25 không tồn tại trong SRS → dùng sequence UC-06 có sẵn + mô tả trừ tim atomic bằng lời, DEPLOY có 10 sự cố → tóm tắt 8 sự cố theo yêu cầu spec.
+- Ảnh hưởng: ghi chú nguồn `(nguồn: ...)` trong toàn bộ BAO_CAO.md.
+
+## [2026-08-12 02:10] Làm sạch wireframe ASCII Màn 05
+- Quyết định: Wireframe Màn 05 (simulator) có emoji (⏮▶★) trong SDD gốc — loại bỏ, thay bằng chữ thường (Phát, Dừng, Bước...) để tuân thủ quy tắc cấm ký tự lạ.
+- Ảnh hưởng: mục 4.2.3 của BAO_CAO.md.
+
+## [2026-08-12 02:10] Độ dài BAO_CAO.md
+- Quyết định: BAO_CAO.md 2.301 dòng (~149KB) — hơi vượt ước lượng 2.200 dòng nhưng spec giới hạn theo TRANG khi render (mỗi mục 1-4 trang, tổng 50-70 trang), không giới hạn dòng → giữ nguyên, ghi nhận.
+- Ảnh hưởng: tailieu/BAO_CAO.md, tailieu/BaoCaoDoAn.docx.
+
+## [2026-08-12 02:10] Verify cuối độc lập (PM review)
+- Quyết định: Chạy lại kiểm tra độc lập: 14 heading H1 đúng cấu trúc (LỜI MỞ ĐẦU, PHẦN 1-7, KẾT LUẬN, TLTK, PHỤ LỤC A-D), 0 lần "20 tuần"/"16 tuần"/"[KHUNG", 18/18 ảnh placeholder tồn tại, docx zip OK + 18 media + roundtrip OK → coi SESSION A hoàn tất.
+- Ảnh hưởng: docs/pm-report-a.md.
