@@ -283,6 +283,9 @@ function resize(): void {
   const dpr = window.devicePixelRatio || 1;
   const w = Math.max(200, parent.clientWidth);
   const h = Math.max(240, parent.clientHeight || 320);
+  // Guard chống vòng lặp ResizeObserver: viewport kích thước không đổi
+  // (|delta| < 2px) thì không set lại canvas → không phình thêm, hết feedback loop.
+  if (Math.abs(w - lastView.w) < 2 && Math.abs(h - lastView.h) < 2) return;
   lastView = { w, h };
   canvas.width = w * dpr;
   canvas.height = h * dpr;
@@ -428,13 +431,14 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
   border-radius: var(--radius-sm);
 }
 
+/* Chiều cao CỐ ĐỊNH 420px: chặn vòng lặp ResizeObserver
+   (viewport trước đây flex:1 theo content → canvas phình → viewport phình → ...) */
 .canvas-area__viewport {
   position: relative;
-  flex: 1;
+  height: 420px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-muted);
-  min-height: 260px;
   overflow: hidden;
 }
 
