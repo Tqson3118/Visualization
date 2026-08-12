@@ -36,6 +36,9 @@ public sealed class GamificationService(
             return Result<HeartsStatusDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
         }
 
+        // F5-Major: truy vấn quá hạn → ghi regen tim xuống DB trước khi trả (elapsed ≥ 1 chu kỳ)
+        await PersistHeartRegenAsync(userId, ct);
+
         return Result<HeartsStatusDto>.Ok(ComputeHearts(user));
     }
 
@@ -173,6 +176,10 @@ public sealed class GamificationService(
             // Node đã PASS → xem lại miễn phí (AC-10.1.3), KHÔNG trừ
             if (!alreadyPassed)
             {
+                // F5-Major: ghi regen tim xuống DB TRƯỚC khi trừ — tránh UI hiện đầy nhưng
+                // DB vẫn 0 → HEARTS_EMPTY (UPDATE điều kiện Hearts > 0 sẽ fail dù đã qua chu kỳ regen)
+                await PersistHeartRegenAsync(userId, ct);
+
                 var affected = await db.Database.ExecuteSqlInterpolatedAsync(
                     $"UPDATE Users SET Hearts = Hearts - 1 WHERE Id = {userId} AND Hearts > 0", ct);
                 if (affected == 0)
@@ -800,9 +807,7 @@ public sealed class GamificationService(
     private HeartsStatusDto ComputeHearts(User user)
     {
         var now = clock.UtcNow;
-        var isPremium = user.PremiumUntil > now;
-        var maxHearts = isPremium ? 30 : user.HeartsMax;
-        var regenSeconds = isPremium ? 600 : 1800;   // Premium 10p / Free 30p (FR-10.1, SDD §8.4A dòng 3033)
+        var (maxHearts, regenSeconds) = HeartConfig(user, now);
 
         var lastHeartAt = user.LastHeartAt == default ? user.CreatedAt : user.LastHeartAt;
         var elapsedSeconds = (long)(now - lastHeartAt).TotalSeconds;
@@ -822,8 +827,44 @@ public sealed class GamificationService(
         };
     }
 
+    /// <summary>
+    /// Cấu hình tim: Premium 10 phút/tim (max 30), Free 30 phút/tim (max HeartsMax) — FR-10.1, SDD §8.4A.
+    /// </summary>
+    private static (int MaxHearts, int RegenSeconds) HeartConfig(User user, DateTime now)
+    {
+        var isPremium = user.PremiumUntil > now;
+        return (isPremium ? 30 : user.HeartsMax, isPremium ? 600 : 1800);
+    }
+
+    /// <summary>
+    /// Ghi regen tim xuống DB (F5-Major): elapsed ≥ 1 chu kỳ regen → UPDATE Hearts + LastHeartAt.
+    /// Dùng raw SQL (không qua EF tracking) để khớp chuỗi UPDATE atomic trừ tim.
+    /// Tim đã đầy → không cập nhật (tránh dời LastHeartAt làm sai NextHeartInSeconds).
+    /// </summary>
+    private async Task PersistHeartRegenAsync(int userId, CancellationToken ct)
+    {
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+        var now = clock.UtcNow;
+        var (maxHearts, regenSeconds) = HeartConfig(user, now);
+
+        var lastHeartAt = user.LastHeartAt == default ? user.CreatedAt : user.LastHeartAt;
+        var elapsedSeconds = (long)(now - lastHeartAt).TotalSeconds;
+        var regenCount = (int)(elapsedSeconds / regenSeconds);
+
+        if (regenCount <= 0 || user.Hearts >= maxHearts)
+        {
+            return;
+        }
+
+        var hearts = Math.Min(maxHearts, user.Hearts + regenCount);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Users SET Hearts = {hearts}, LastHeartAt = {now} WHERE Id = {userId}", ct);
+    }
+
     private async Task<int> GetCurrentHeartsAsync(int userId, CancellationToken ct)
     {
+        // F5-Major: ghi regen xuống DB trước khi đọc — số tim trả về luôn khớp DB (không còn "tim ảo")
+        await PersistHeartRegenAsync(userId, ct);
         var user = await db.Users.AsNoTracking()
             .FirstAsync(u => u.Id == userId, ct);
         return ComputeHearts(user).Hearts;

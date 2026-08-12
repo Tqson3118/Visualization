@@ -18,12 +18,17 @@ public class AuthController(IAuthService service) : ApiControllerBase
     private readonly IAuthService _service = service;
 
     private const string RefreshCookieName = "refresh_token";
-    private static readonly CookieOptions RefreshCookieOptions = new()
+
+    /// <summary>
+    /// Options cookie refresh — Secure CHỈ khi HTTPS (F5-Minor: dev chạy HTTP không bị chặn cookie).
+    /// </summary>
+    private CookieOptions BuildRefreshCookieOptions(DateTimeOffset? expires = null) => new()
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Strict,
-        Secure = true,
-        Path = "/api/v1/auth"
+        Secure = Request.IsHttps,
+        Path = "/api/v1/auth",
+        Expires = expires
     };
 
     /// <summary>Đăng ký — Công khai ([AllowAnonymous], API_REFERENCE §4.1).</summary>
@@ -64,7 +69,7 @@ public class AuthController(IAuthService service) : ApiControllerBase
         var result = await _service.LogoutAsync(CurrentUserId(), ct);
         if (result.IsSuccess)
         {
-            Response.Cookies.Delete(RefreshCookieName, RefreshCookieOptions);
+            Response.Cookies.Delete(RefreshCookieName, BuildRefreshCookieOptions());
         }
 
         return MapResultExtensions.MapResult(this, result);
@@ -126,15 +131,7 @@ public class AuthController(IAuthService service) : ApiControllerBase
         if (result.IsSuccess && result.Value!.RefreshToken is { } refreshToken)
         {
             var expires = DateTimeOffset.UtcNow.AddDays(7);
-            Response.Cookies.Append(RefreshCookieName, refreshToken,
-                new CookieOptions
-                {
-                    HttpOnly = true,
-                    SameSite = SameSiteMode.Strict,
-                    Secure = true,
-                    Path = "/api/v1/auth",
-                    Expires = expires
-                });
+            Response.Cookies.Append(RefreshCookieName, refreshToken, BuildRefreshCookieOptions(expires));
         }
 
         return result.IsSuccess

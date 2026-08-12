@@ -165,6 +165,35 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
         Assert.Contains("refresh_token", string.Join(";", setCookie));
     }
 
+    [Fact(DisplayName = "F5-Minor: login trên HTTP (dev) → cookie refresh KHÔNG có Secure (trước fix Secure=true chặn cookie)")]
+    public async Task Login_OverHttp_CookieIsNotSecure()
+    {
+        // Arrange — TestServer chạy HTTP (Request.IsHttps=false) — mô phỏng dev local
+        var email = UniqueEmail("http");
+        var register = new RegisterRequest
+        {
+            DisplayName = "Dev HTTP",
+            Email = email,
+            Password = "MatKhau@123"
+        };
+        var created = await Client.PostAsJsonAsync($"{BaseUrl}/register", register);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"{BaseUrl}/login", new LoginRequest
+        {
+            Email = email,
+            Password = "MatKhau@123"
+        });
+
+        // Assert — cookie vẫn có nhưng KHÔNG đánh dấu Secure (không bị chặn khi gửi lại qua HTTP)
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var setCookie = response.Headers.SingleOrDefault(h => h.Key == "Set-Cookie").Value;
+        Assert.NotNull(setCookie);
+        Assert.Contains("refresh_token", string.Join(";", setCookie));
+        Assert.DoesNotContain("Secure", string.Join(";", setCookie), StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact(DisplayName = "TEST-B-005: login sai mật khẩu → 401 INVALID_CREDENTIALS")]
     public async Task Login_WrongPassword_Returns401_InvalidCredentials()
     {

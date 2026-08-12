@@ -19,4 +19,7 @@ public interface ILessonService
     Task<Result<LessonDto>> UpdateAsync(int userId, string role, int id, LessonUpsertRequest request, CancellationToken ct);
 
     Task<Result> DeleteAsync(int userId, string role, int id, CancellationToken ct);
+
+    /// <summary>Đánh dấu đã học — upsert UserProgress (Viewer=true), không trùng bản ghi (TEST-B-033/034).</summary>
+    Task<Result> MarkViewedAsync(int userId, string role, int lessonId, CancellationToken ct);
 }

@@ -144,6 +144,96 @@ public class GamificationServiceTests
         Assert.Equal(10, result.Value!.HeartsLeft);
     }
 
+    // ── F5-Major: heart regen persist (SETUP_TODO §8.2, FR-10.1) ──────────────
+
+    [Fact]
+    public async Task GetHearts_RegenElapsed_PersistsToDb()
+    {
+        var (service, db) = await SetupAsync(nameof(GetHearts_RegenElapsed_PersistsToDb));
+
+        // Hết tim từ 90 phút trước (Free 30p/tim) → regen 3 tim
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        user.Hearts = 0;
+        user.LastHeartAt = _clock.UtcNow.AddMinutes(-90);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetHeartsAsync(1, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(3, result.Value!.Hearts);
+
+        // F5-Major: regen phải được GHI xuống DB — truy vấn sau không còn "tim ảo"
+        var persisted = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(3, persisted.Hearts);
+        Assert.Equal(_clock.UtcNow, persisted.LastHeartAt);
+    }
+
+    [Fact]
+    public async Task GetHearts_AtMax_DoesNotMoveLastHeartAt()
+    {
+        var (service, db) = await SetupAsync(nameof(GetHearts_AtMax_DoesNotMoveLastHeartAt));
+
+        // Tim đã đầy từ lâu — không cần regen, không được dời LastHeartAt (giữ NextHeartInSeconds đúng)
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        var original = _clock.UtcNow.AddHours(-5);
+        user.Hearts = 10;
+        user.LastHeartAt = original;
+        await db.SaveChangesAsync();
+
+        var result = await service.GetHeartsAsync(1, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(10, result.Value!.Hearts);
+        Assert.Equal(0, result.Value.NextHeartInSeconds);
+        var persisted = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(original, persisted.LastHeartAt);
+    }
+
+    [Fact]
+    public async Task GetHearts_Premium_RegenEvery10Minutes()
+    {
+        var (service, db) = await SetupAsync(nameof(GetHearts_Premium_RegenEvery10Minutes));
+
+        // Premium: 10 phút/tim, max 30 (FR-10.1/FR-10.7)
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        user.Hearts = 29;
+        user.HeartsMax = 30;
+        user.PremiumUntil = _clock.UtcNow.AddMonths(1);
+        user.LastHeartAt = _clock.UtcNow.AddMinutes(-10);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetHeartsAsync(1, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(30, result.Value!.Hearts);
+        Assert.Equal(30, result.Value.HeartsMax);
+
+        var persisted = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(30, persisted.Hearts);
+    }
+
+    [Fact]
+    public async Task EnterNode_RegenElapsed_SpendSucceeds_NotHeartsEmpty()
+    {
+        var (service, db) = await SetupAsync(nameof(EnterNode_RegenElapsed_SpendSucceeds_NotHeartsEmpty));
+
+        // F5-Major: DB=0 nhưng đã qua 90 phút (Free 30p/tim) → 3 tim regen; vào node phải TRỪ được
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        user.Hearts = 0;
+        user.LastHeartAt = _clock.UtcNow.AddMinutes(-90);
+        await db.SaveChangesAsync();
+
+        var result = await service.EnterNodeAsync(1, 1, 10, null, CancellationToken.None);
+
+        // Trước fix: UPDATE Hearts > 0 fail (DB=0) → HEARTS_EMPTY dù đã qua chu kỳ regen
+        Assert.True(result.IsSuccess, $"Expected success, got {result.ErrorCode}: {result.ErrorMessage}");
+        Assert.Equal(2, result.Value!.HeartsLeft);   // 3 regen − 1 spend
+
+        var persisted = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(2, persisted.Hearts);
+        Assert.Equal(_clock.UtcNow, persisted.LastHeartAt);
+    }
+
     [Fact]
     public async Task ClaimQuest_AddsReward_AndSecondClaimFails()
     {

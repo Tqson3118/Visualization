@@ -1,6 +1,7 @@
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -78,6 +79,12 @@ internal static class TestServices
 
     public static ExerciseService CreateExerciseService(AppDbContext db, FixedClock clock) =>
         new(db, clock, new SubmissionLockRegistry(), NullLogger<ExerciseService>.Instance);
+
+    public static ExerciseService CreateExerciseService(AppDbContext db, FixedClock clock, SubmissionLockRegistry locks) =>
+        new(db, clock, locks, NullLogger<ExerciseService>.Instance);
+
+    public static LessonService CreateLessonService(AppDbContext db, FixedClock clock) =>
+        new(db, new LessonValidator(), new Ganss.Xss.HtmlSanitizer(), clock, NullLogger<LessonService>.Instance);
 
     public static TopicService CreateTopicService(AppDbContext db, FixedClock clock) =>
         new(db, clock, NullLogger<TopicService>.Instance);

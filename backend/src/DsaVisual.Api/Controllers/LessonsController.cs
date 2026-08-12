@@ -71,6 +71,13 @@ public class LessonsController(ILessonService service) : ControllerBase
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpPost("{id:int}/mark-viewed")]
+    public async Task<ActionResult> MarkViewed([FromRoute] int id, CancellationToken ct)
+    {
+        var result = await _service.MarkViewedAsync(CurrentUserId(), CurrentRole(), id, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     private int CurrentUserId() => int.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
 
     private string CurrentRole() => User.FindFirst(ClaimTypes.Role)!.Value;
