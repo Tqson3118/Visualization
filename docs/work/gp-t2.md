@@ -58,4 +58,5 @@ Cả 3 endpoint đều `[Authorize]` — không token → `401`.
 
 ## Commit
 
-- `.\commit-as.ps1 bao "feat: GP-T2 - 2FA email (OtpCodes + PUT /auth/2fa + POST /auth/2fa/send + /verify)"` (chỉ stage file backend + docs liên quan; KHÔNG merge, KHÔNG commit lên dev)
+- `.\commit-as.ps1 bao "feat: GP-T2 - 2FA email (OtpCodes + PUT /auth/2fa + POST /auth/2fa/send + /verify)"` → **`3a895d5`** trên `feature/2fa-email` (parent `981cf5b` = dev HEAD)
+- ⚠️ Sự cố GP-T1 tái diễn: lúc commit, agent GP-T4 (chạy song song) đã checkout `feature/breakpoints` trong cùng workspace → commit đầu tiên (`6ec9200`) rơi vào nhánh của họ. Đã khắc phục an toàn: cherry-pick sang `feature/2fa-email` (`3a895d5`) + `git branch -f feature/breakpoints 973f0bb` (trả đúng commit GP-T4, không đụng working tree). Kiểm tra lại sau fix: build 0/0 + test 77/77 PASS. KHÔNG merge, KHÔNG commit lên dev.
