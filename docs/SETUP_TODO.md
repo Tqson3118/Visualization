@@ -87,3 +87,34 @@
 
 > Ghi chú thêm: commit docker fix (a1b8bd8/7ac5896 — bao) do session khác tạo lúc 19:52-19:53, nội dung trùng nhau (backend/Dockerfile + docker-compose frontend 8081), đã nằm trong dev + feature/final-review — merge không xung đột.
 > Cập nhật bởi Session F (PM, 12/08/2026). Đừng xóa mục cũ — đánh dấu [x] khi xong.
+
+## 9. Session A2 — Build lại BaoCaoDoAn.docx (12/08/2026, file bị Word khóa)
+
+| # | Việc | Ghi chú | Trạng thái |
+|---|---|---|---|
+| 1 | **User cần đóng Word đang mở BaoCaoDoAn.docx rồi chạy lại**: `& "C:\Users\Administrator\AppData\Local\Pandoc\pandoc.exe" "D:\FPT\neww\tailieu\BAO_CAO.md" -o "D:\FPT\neww\tailieu\BaoCaoDoAn.docx" --toc --resource-path="D:\FPT\neww\tailieu"` | 6 ảnh NHÓM B đã đổi placeholder→diagrams trong BAO_CAO.md (12/08, Session A2). Build thất bại `permission denied` vì Word đang khóa file (có `~$oCaoDoAn.docx`). Sau khi build xong: docx phải ≥ 900KB, media count = 18, media > 40KB ≥ 6. | [ ] |
+
+> Cập nhật bởi Session A2 (dev-docs, 12/08/2026). Đừng xóa mục cũ — đánh dấu [x] khi xong.
+## 9. Session G — Hoàn tất 13 bug bàn giao + UI/UX mới (13/08/2026)
+
+> Cập nhật bởi Session G (PM --auto). Toàn bộ bug §6 (8 mục) + §8 (7 mục) đã FIXED trong đợt G + merge dev. UI/UX nâng cấp: Tailwind 4 + shadcn-vue + motion-v + Lenis + vue-sonner + vue-echarts + GSAP + font Geist/JetBrains Mono, dark mode class="dark", 3 gradient OKLCH, 12 màn xịn. Chi tiết: docs/pm-report-g.md + docs/pm-decision-log-g.md.
+
+| # | Mức | Bug (SETUP_TODO §6/§8) | Trạng thái đợt G |
+|---|---|---|---|
+| 1 | P1 | Leaderboard crash (rows.length) | ✅ FIXED (G-BF2 + G-F3E: items→rows + field Value) |
+| 2 | P1 | mark-viewed 404 | ✅ FIXED (G-BF1: POST /lessons/{id}/mark-viewed + upsert UserProgress + test) |
+| 3 | P1 | Nút "Làm bài" chết | ✅ FIXED (G-BF2: NodeHubView lắng nghe open-exercise → /exercise/{id}) |
+| 4 | P1 | Canvas phình ResizeObserver | ✅ FIXED trước đợt G (ba62a33 — đã merge dev) |
+| 5 | P2 | Submit exercise thiếu câu 400 UX | ✅ FIXED (G-BF2: pre-check đủ câu + liệt kê câu thiếu) |
+| 6 | P1 | Ladder stage rỗng | ✅ FIXED (G-BF2: GET /exercises?nodeId&stage thật) |
+| 7 | P2 | code-runs contract lệch | ✅ FIXED (G-BF2: payload {key,code,input:string} + stats) |
+| 8 | P2 | benchmarks/run 400 | ✅ FIXED (G-BF2: gửi kèm results từ runMeasure) |
+| 9 | P1 | Heart regen ảo không persist | ✅ FIXED (G-BF1: PersistHeartRegenAsync ghi DB) |
+| 10 | P2 | SubmitCode thiếu lock + Status | ✅ FIXED (G-BF1: SubmissionLockRegistry + EXERCISE_CLOSED) |
+| 11 | P2 | Duplicate QuestionId → 500 | ✅ FIXED (G-BF1: VALIDATION_FAILED 400) |
+| 12 | P2 | Router teacher /admin/users+/settings | ✅ FIXED (G-BF2: ADMIN-only guard → /profile) |
+| 13 | P3 | Cookie Secure khi dev HTTP | ✅ FIXED (G-BF1: Secure=Request.IsHttps) |
+| 14 | MỚI P1 | Leaderboard tab Level crash (thiếu value) | ✅ FIXED (G-F3E: BE thêm Value) |
+| 15 | MỚI P2 | Leaderboard tab Lớp thiếu classId + phân trang | ✅ FIXED (G-F3E + G-F3E2: lastClassId) |
+
+> P3 còn lại (không chặn, ghi decision log): TOCTOU nhỏ heart regen, lock registry không dọn key, ForwardedHeaders khi sau TLS proxy, seed leaderboard thật (XP=0 hiện trống), Monaco full editor (textarea giữ — §5.4).
