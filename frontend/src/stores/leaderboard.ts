@@ -14,6 +14,8 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
   const totalPages = ref(1);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  // G-F3E-NEW-2: tab Lớp khi user chưa tham gia lớp nào → EmptyState, KHÔNG gọi API (tránh 400).
+  const noClass = ref(false);
 
   async function fetchBoard(nextTab?: 'week' | 'level' | 'class', classId?: number, nextPage?: number): Promise<void> {
     // Đổi tab → về trang 1 (hành vi cũ giữ nguyên); nextPage chỉ dùng khi bấm phân trang.
@@ -24,6 +26,7 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     if (nextPage !== undefined) page.value = nextPage;
     loading.value = true;
     error.value = null;
+    noClass.value = false;
     try {
       const board = await gamificationApi.fetchLeaderboard({ tab: tab.value, classId, page: page.value });
       rows.value = board.rows;
@@ -38,5 +41,17 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     }
   }
 
-  return { tab, rows, myRank, page, totalPages, loading, error, fetchBoard };
+  /** G-F3E-NEW-2: tab Lớp nhưng user chưa tham gia lớp → EmptyState thay vì gọi API (không 400). */
+  function setNoClass(): void {
+    tab.value = 'class';
+    page.value = 1;
+    rows.value = [];
+    myRank.value = null;
+    totalPages.value = 1;
+    loading.value = false;
+    error.value = null;
+    noClass.value = true;
+  }
+
+  return { tab, rows, myRank, page, totalPages, loading, error, noClass, fetchBoard, setNoClass };
 });

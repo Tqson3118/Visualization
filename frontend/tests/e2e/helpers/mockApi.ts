@@ -19,6 +19,7 @@ import type { UserSummary } from '../../../src/api/auth';
 import type { LessonDto, Topic } from '../../../src/api/lessons';
 import type { HeartsStatusDto, LearningPathDto } from '../../../src/api/gamification';
 import type { ProgressOverviewDto } from '../../../src/api/progress';
+import type { ClassDto } from '../../../src/api/types';
 
 export const MOCK_ACCESS_TOKEN = 'e2e-access-token';
 
@@ -40,6 +41,20 @@ const MOCK_TOPICS: Topic[] = [
     description: 'Bubble, Selection, Insertion, Merge, Quick, Heap + tìm kiếm tuyến tính/nhị phân',
     sortOrder: 1,
     children: [],
+  },
+];
+
+/** GET /classes — LeaderboardView tab Lớp (G-F3E-NEW-2: resolveClassId → classStore.fetchClasses) */
+const MOCK_CLASSES: ClassDto[] = [
+  {
+    id: 7,
+    name: 'Lớp DSA 01',
+    description: 'Nhóm 2 — CTDL & Giải thuật',
+    inviteCode: 'ABC123',
+    ownerId: 1,
+    memberCount: 3,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    role: 'STUDENT',
   },
 ];
 
@@ -355,6 +370,13 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 200, MOCK_TOPICS);
       return;
     }
+
+    // ── Classes (API_REFERENCE §4.11) — G-F3E-NEW-2: Leaderboard tab Lớp lấy classId ──
+    if (method === 'GET' && path === '/classes') {
+      await json(route, 200, MOCK_CLASSES);
+      return;
+    }
+
     if (method === 'GET' && path === '/lessons') {
       // PagedResponse<LessonSummary> — rỗng, an toàn cho view dùng fallback
       await json(route, 200, { items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 });
