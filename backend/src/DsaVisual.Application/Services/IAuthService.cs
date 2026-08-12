@@ -17,6 +17,11 @@ public interface IAuthService
     Task<Result> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct);
     Task<Result> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct);
     Task<Result> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct);
+
+    // ── 2FA email (GP-T2, FR-1.11) ──
+    Task<Result<Toggle2FaResponse>> Toggle2FaAsync(int userId, Toggle2FaRequest request, CancellationToken ct);
+    Task<Result<Send2FaResponse>> Send2FaCodeAsync(int userId, CancellationToken ct);
+    Task<Result<Toggle2FaResponse>> Verify2FaCodeAsync(int userId, Verify2FaRequest request, CancellationToken ct);
 }
 
 /// <summary>

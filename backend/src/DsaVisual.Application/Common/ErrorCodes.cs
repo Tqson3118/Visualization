@@ -20,6 +20,13 @@ public static class ErrorCodes
     public const string UPLOAD_INVALID_TYPE = "UPLOAD_INVALID_TYPE";
     public const string UPLOAD_TOO_LARGE = "UPLOAD_TOO_LARGE";
 
+    // 400 — 2FA email (GP-T2, [v2.13] — bổ sung vào catalog API_REFERENCE.md §2.2)
+    public const string OTP_REQUIRED = "OTP_REQUIRED";
+    public const string OTP_INVALID = "OTP_INVALID";
+    public const string OTP_EXPIRED = "OTP_EXPIRED";
+    public const string OTP_USED = "OTP_USED";
+    public const string TWO_FA_ALREADY_ENABLED = "TWO_FA_ALREADY_ENABLED";
+
     // 401
     public const string INVALID_CREDENTIALS = "INVALID_CREDENTIALS";
     public const string UNAUTHORIZED = "UNAUTHORIZED";
@@ -64,7 +71,8 @@ public static class ErrorCodes
         VALIDATION_FAILED or WEAK_PASSWORD or DOMAIN_NOT_ALLOWED or INVALID_EMAIL
             or OLD_PASSWORD_WRONG or PASSWORD_SAME or RESET_TOKEN_INVALID
             or SIMULATION_KEY_INVALID or INPUT_INVALID or QUESTION_ANSWER_MISMATCH
-            or UPLOAD_INVALID_TYPE or UPLOAD_TOO_LARGE => 400,
+            or UPLOAD_INVALID_TYPE or UPLOAD_TOO_LARGE
+            or OTP_REQUIRED or OTP_INVALID or OTP_EXPIRED or OTP_USED or TWO_FA_ALREADY_ENABLED => 400,
         INVALID_CREDENTIALS or UNAUTHORIZED or TOKEN_EXPIRED or REFRESH_INVALID => 401,
         ACCOUNT_LOCKED or ACCOUNT_DISABLED or HEARTS_EMPTY or FORBIDDEN => 403,
         NOT_FOUND => 404,

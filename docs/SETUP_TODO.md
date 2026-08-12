@@ -118,3 +118,11 @@
 | 15 | MỚI P2 | Leaderboard tab Lớp thiếu classId + phân trang | ✅ FIXED (G-F3E + G-F3E2: lastClassId) |
 
 > P3 còn lại (không chặn, ghi decision log): TOCTOU nhỏ heart regen, lock registry không dọn key, ForwardedHeaders khi sau TLS proxy, seed leaderboard thật (XP=0 hiện trống), Monaco full editor (textarea giữ — §5.4).
+
+## 10. Session GP — 2FA email (13/08/2026, GP-T2)
+
+| # | Việc | Ghi chú | Trạng thái |
+|---|---|---|---|
+| 1 | SMTP thật khi deploy: đặt `DSA__Email__SmtpHost/Port/From` (mục §1.3 — SMTP trường/Gmail App Password) — dev hiện dùng **MailHog** (docker-compose, SMTP localhost:1025, UI http://localhost:8025) | 2FA + forgot-password đều gửi qua SMTP này; SMTP thiếu → mã OTP/link ghi trong **log dev** (KHÔNG block luồng — SDD §5.6) — không dùng cho production | [ ] |
+| 2 | (Tùy chọn) Luồng 2FA bước 2 khi đăng nhập (SDD Màn Login bước 2: tài khoản bật 2FA → yêu cầu mã trước khi cấp token; sai 3 lần khóa 10 phút; ghi nhớ thiết bị 30 ngày) | GP-T2 mới triển khai phần BẬT/TẮT 2FA qua email (OtpCodes + send/verify); phần chặn đăng nhập khi thiếu mã là task backend riêng (mở rộng LoginAsync + purpose "login") | [ ] |
+| 3 | (Tùy chọn) FE Màn N-1 (Cài đặt bảo mật): UI bật/tắt 2FA gọi PUT /auth/2fa + POST /auth/2fa/send + /verify | Contract đã có trong API_REFERENCE §4.12 (v1.3) | [ ] |
