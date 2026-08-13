@@ -1,16 +1,63 @@
 <script setup lang="ts">
-// ProseContent — hiển thị HTML nội dung lý thuyết với typography ngắt đoạn chuẩn
-// (DESIGN.md §2.2 + tokens.css). Dùng cho lesson.contentHtml và mô tả lý thuyết dài:
-// heading, đoạn văn, danh sách, blockquote/callout, code/pre (nền tối nhẹ, chữ mono),
-// bảng. Text dài được phép ngắt dòng (overflow-wrap) — không dính 1 dòng.
-defineProps<{
-  /** HTML thô từ backend/biên soạn — KHÔNG render user input */
-  contentHtml: string;
-}>();
+// ProseContent — hiển thị nội dung lý thuyết với typography chuẩn (DESIGN.md §2.2 + tokens.css).
+// Hợp nhất 2 API: `contentHtml` (dev — LessonDetail/AdminContentView/NodeHub/Simulator/simOverview)
+// và `content` (alias — auto-detect HTML thật vs plain text).
+// An toàn: plain text / format='text' → escape HTML entities trước khi wrap (chống XSS);
+// format='html' (caller chỉ định) → render nguyên văn (chỉ dùng content đã sanitize backend).
+import { computed } from 'vue';
+
+const props = withDefaults(
+  defineProps<{
+    /** HTML thô từ backend/biên soạn — tin cậy khi format='html' (đã sanitize Ganss.Xss). */
+    contentHtml?: string;
+    /** Alias của contentHtml — auto-detect (có <tag> thường & không có tag nguy hiểm → HTML). */
+    content?: string;
+    /** Ép kiểu render; bỏ trống → auto-detect. */
+    format?: 'html' | 'text';
+  }>(),
+  { contentHtml: '', content: '', format: undefined },
+);
+
+const HAS_HTML_TAG = /<[a-z][^>]*>/i;
+/** Tag nguy hiểm — auto-detect gặp → coi là text (escape), chống XSS khi nguồn là plain text chứa mã độc. */
+const DANGEROUS_TAG = /<(script|style|iframe|object|embed|form|link|meta)\b/i;
+
+/** Escape HTML entities — bắt buộc trước khi wrap plain text (chống XSS). */
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+/** Plain text (đã escape) → các <p>; `\n\n+` = đoạn mới, `\n` đơn = <br>. */
+function textToParagraphs(escaped: string): string {
+  return escaped
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p>${block.replaceAll('\n', '<br>')}</p>`)
+    .join('');
+}
+
+const source = computed<string>(() => props.contentHtml || props.content || '');
+
+const rendered = computed<string>(() => {
+  const raw = source.value;
+  if (!raw) return '';
+  // format='html' (caller chỉ định) → tin cậy, render nguyên văn.
+  // Auto-detect: có tag HTML thường và KHÔNG có tag nguy hiểm → render nguyên văn.
+  const renderRaw =
+    props.format === 'html' ||
+    (props.format == null && HAS_HTML_TAG.test(raw) && !DANGEROUS_TAG.test(raw));
+  return renderRaw ? raw : textToParagraphs(escapeHtml(raw));
+});
 </script>
 
 <template>
-  <div class="prose" v-html="contentHtml" />
+  <div class="prose" v-html="rendered" />
 </template>
 
 <style scoped>
@@ -42,88 +89,4 @@ defineProps<{
 }
 
 .prose :deep(strong) { font-weight: 600; }
-
-.prose :deep(hr) {
-  border: none;
-  border-top: 1px solid var(--color-border);
-  margin-block: var(--space-lg);
-}
-
-/* ── Danh sách ── */
-.prose :deep(ul),
-.prose :deep(ol) {
-  margin-block: 0 var(--space-md);
-  padding-left: 1.5em;
-}
-
-.prose :deep(li) { margin-block: var(--space-xs); }
-.prose :deep(li > ul),
-.prose :deep(li > ol) { margin-block: var(--space-xs); }
-
-/* ── Blockquote / callout (>[!NOTE]/TIP/WARNING nếu có) ── */
-.prose :deep(blockquote) {
-  margin-block: 0 var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  border-left: 3px solid var(--color-primary);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--color-surface-hover);
-  color: var(--color-text-secondary);
-}
-
-.prose :deep(blockquote p:last-child) { margin-bottom: 0; }
-
-/* ── Code inline ── */
-.prose :deep(code) {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-muted) 70%, transparent);
-  overflow-wrap: break-word;
-}
-
-/* ── Pre — nền tối nhẹ (motif block-token §6), chữ mono, ngắt dòng thay vì dính 1 dòng ── */
-.prose :deep(pre) {
-  margin-block: 0 var(--space-md);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--color-canvas-ink);
-  color: rgba(255, 255, 255, 0.92);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow-x: auto;
-}
-
-.prose :deep(pre code) {
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-}
-
-/* ── Bảng ── */
-.prose :deep(table) {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  margin-block: 0 var(--space-md);
-  font-size: var(--text-sm);
-}
-
-.prose :deep(th),
-.prose :deep(td) {
-  border: 1px solid var(--color-border);
-  padding: 6px 10px;
-  text-align: left;
-}
-
-.prose :deep(th) {
-  font-weight: 600;
-  background: var(--color-muted);
-}
 </style>

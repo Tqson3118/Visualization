@@ -156,8 +156,10 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <!-- Rich content — typography chuẩn qua ProseContent (heading/p/ul/code/table/callout) -->
-      <ProseContent :content-html="lesson.contentHtml || '<p>Bài học đang được biên soạn.</p>'" />
+      <!-- Rich content: ProseContent auto-detect HTML thật vs plain text (escape + wrap đoạn) -->
+      <article class="lesson-detail__content">
+        <ProseContent :content="lesson.contentHtml || 'Bài học đang được biên soạn.'" />
+      </article>
 
       <!-- Mô phỏng liên quan -->
       <section v-if="lesson.simulations && lesson.simulations.length > 0" class="lesson-detail__section">
@@ -300,6 +302,10 @@ onBeforeUnmount(() => {
 .lesson-detail__desc { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: 4px; }
 
 .lesson-detail__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+
+/* Typography nội dung do ProseContent (ui/ProseContent.vue) đảm nhiệm.
+   Chỉ giữ khoảng cách với các block khác (title/meta - parent flex gap). */
+.lesson-detail__content { min-width: 0; }
 
 .lesson-detail__section { display: flex; flex-direction: column; gap: var(--space-sm); }
 
