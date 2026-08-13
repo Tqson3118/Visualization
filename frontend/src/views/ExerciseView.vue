@@ -3,7 +3,7 @@
 // Tái sử dụng QuizStage + nút chuyển chế độ luyện tập (FR-4.6) + liên kết lý thuyết.
 // Phase 1 view-quality: toolbar = surface band level-2 (thay class .card có shadow),
 // kicker mono (bỏ 700 + tracking dương), toast không emoji, nút toggle có aria-pressed.
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import * as exercisesApi from '@/api/exercises';
@@ -12,7 +12,9 @@ import QuizStage from '@/components/ladder/QuizStage.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ProgressRing from '@/components/ui/ProgressRing.vue';
 import { fireConfetti } from '@/composables/useConfetti';
+import { useCountdown } from '@/composables/useCountdown';
 import { useUiStore } from '@/stores/ui';
 
 const route = useRoute();
@@ -23,6 +25,15 @@ const exercise = ref<ExerciseDto | null>(null);
 const loading = ref(true);
 const error = ref('');
 const practiceMode = ref(false);
+
+/* UI-PREMIUM 1B: đồng hồ đếm ngược (ProgressRing) — chỉ hiển thị, không auto-submit */
+const { progress: timerProgress, formatted: timerFormatted, start: startCountdown } = useCountdown(
+  () => exercise.value?.durationMinutes ?? 0,
+);
+
+watch(exercise, (ex) => {
+  if (ex) startCountdown();
+});
 
 onMounted(async () => {
   const id = Number(route.params.id);
@@ -76,14 +87,26 @@ function onFinished(): void {
             {{ exercise.description }}
           </p>
         </div>
-        <Button
-          size="sm"
-          :variant="practiceMode ? 'primary' : 'secondary'"
-          :aria-pressed="practiceMode"
-          @click="practiceMode = !practiceMode"
-        >
-          {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
-        </Button>
+        <div class="exercise__toolbar-side">
+          <div v-if="exercise" class="exercise__timer" role="timer" :aria-label="`Còn ${timerFormatted}`">
+            <ProgressRing
+              :progress="timerProgress"
+              :size="44"
+              :stroke-width="4"
+              :color="timerProgress <= 20 ? 'var(--color-conflict)' : 'var(--color-data-core)'"
+              immediate
+            />
+            <span class="exercise__timer-time">{{ timerFormatted }}</span>
+          </div>
+          <Button
+            size="sm"
+            :variant="practiceMode ? 'primary' : 'secondary'"
+            :aria-pressed="practiceMode"
+            @click="practiceMode = !practiceMode"
+          >
+            {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
+          </Button>
+        </div>
       </header>
 
       <QuizStage
@@ -150,6 +173,32 @@ function onFinished(): void {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin: 0;
+}
+
+/* Timer đếm ngược (UI-PREMIUM 1B) — chip mono + ProgressRing */
+.exercise__toolbar-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.exercise__timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-xs);
+}
+
+.exercise__timer-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
 }
 
 .exercise__loading { display: flex; flex-direction: column; gap: var(--space-md); }

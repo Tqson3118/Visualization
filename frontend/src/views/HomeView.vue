@@ -11,13 +11,10 @@ import { ArrowRight, ArrowUpDown, Map, Network, Play, Search, Target } from 'luc
 
 import type { Component } from 'vue';
 import type { InputConfig, Step } from '@/engines/core/types';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
+import CardPremium from '@/components/ui/CardPremium.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 import { CATALOG } from '@/engines/catalog';
 import { getSimulation } from '@/engines/registry';
 import { messages } from '@/i18n/vi';
@@ -35,6 +32,13 @@ const DEMO_ICONS: Record<string, Component> = {
 
 const FEATURE_ICONS = [Play, Map, Target];
 
+/** Glow trạng thái cho card demo (ngôn ngữ thuật toán §2.1) — trạng thái kết thúc của demo. */
+const DEMO_GLOW: Record<string, 'data-core' | 'resolved' | 'conflict'> = {
+  'sort.bubble': 'data-core',
+  'search.binary': 'resolved', // kết thúc = "tìm thấy"
+  'graph.bfs': 'data-core',
+};
+
 const demos = computed(() =>
   CATALOG.filter((c) => c.demoAllowed).map((c) => ({
     key: c.key,
@@ -43,6 +47,7 @@ const demos = computed(() =>
     level: c.level,
     complexity: c.complexity,
     icon: DEMO_ICONS[c.key] ?? Play,
+    glow: DEMO_GLOW[c.key] ?? 'data-core',
   })),
 );
 
@@ -235,18 +240,19 @@ function blockStatusClass(status: string): string {
       </div>
     </section>
 
-    <!-- Số liệu (SDD Màn 01 — nguồn danh mục nội dung; stat phụ level-1, không shadow) -->
+    <!-- Số liệu (SDD Màn 01 — nguồn danh mục nội dung; stat phụ level-1, không shadow).
+         Count-up qua AnimatedNumber (prefers-reduced-motion: hiện thẳng giá trị cuối). -->
     <section class="home__stats container" aria-label="Thống kê">
       <div class="home__stat">
-        <span class="home__stat-value">{{ stats.visuals }}+</span>
+        <AnimatedNumber class="home__stat-value" :value="stats.visuals" suffix="+" />
         <span class="home__stat-label">{{ messages.home.statsVisuals }}</span>
       </div>
       <div class="home__stat">
-        <span class="home__stat-value">{{ stats.groups }}</span>
+        <AnimatedNumber class="home__stat-value" :value="stats.groups" />
         <span class="home__stat-label">{{ messages.home.statsGroups }}</span>
       </div>
       <div class="home__stat">
-        <span class="home__stat-value">{{ stats.levels }}</span>
+        <AnimatedNumber class="home__stat-value" :value="stats.levels" />
         <span class="home__stat-label">{{ messages.home.statsLevels }}</span>
       </div>
       <p class="home__stats-note">{{ messages.home.statsNote }}</p>
@@ -263,59 +269,75 @@ function blockStatusClass(status: string): string {
       </div>
 
       <div class="home__grid">
-        <Card
+        <CardPremium
           v-for="demo in demos"
           :key="demo.key"
-          class="home__demo"
+          variant="interactive"
+          :glow="demo.glow"
+          :icon="demo.icon"
+          :title="demo.title"
+          :description="`${demo.dataStructure} · Cấp độ ${demo.level}`"
+          shift
         >
-          <CardHeader>
-            <div class="home__demo-icon" aria-hidden="true">
-              <component :is="demo.icon" :size="18" />
-            </div>
-            <CardTitle class="home__demo-title">{{ demo.title }}</CardTitle>
-            <CardDescription class="home__demo-meta">
-              {{ demo.dataStructure }} · Cấp độ {{ demo.level }}
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="home__demo-content">
-            <dl class="home__demo-complexity">
-              <dt>{{ messages.home.demoComplexity }}</dt>
-              <dd>TB {{ demo.complexity.average }} · {{ demo.complexity.space }}</dd>
-            </dl>
-            <Button
-              type="button"
-              class="w-full"
-              :aria-label="`${messages.home.demoOpen} ${demo.title}`"
-              @click="openDemo(demo.key)"
-            >
-              <Play class="size-4" aria-hidden="true" />
-              {{ messages.home.demoRun }}
-              <ArrowRight class="size-4" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
+          <dl class="home__demo-complexity">
+            <dt>{{ messages.home.demoComplexity }}</dt>
+            <dd>TB {{ demo.complexity.average }} · {{ demo.complexity.space }}</dd>
+          </dl>
+          <Button
+            type="button"
+            class="w-full"
+            :aria-label="`${messages.home.demoOpen} ${demo.title}`"
+            @click="openDemo(demo.key)"
+          >
+            <Play class="size-4" aria-hidden="true" />
+            {{ messages.home.demoRun }}
+            <ArrowRight class="size-4" aria-hidden="true" />
+          </Button>
+        </CardPremium>
       </div>
     </section>
 
-    <!-- Feature highlight (SDD Màn 01 — 3 tính năng chính) -->
+    <!-- Feature highlight (SDD Màn 01 — 3 tính năng chính) — RevealSection stagger khi scroll -->
     <section class="home__section container">
       <div class="home__grid home__grid--features">
-        <Card
+        <RevealSection
           v-for="(feature, idx) in [
             { title: messages.home.featureVisual.title, desc: messages.home.featureVisual.desc },
             { title: messages.home.featurePath.title, desc: messages.home.featurePath.desc },
             { title: messages.home.featurePractice.title, desc: messages.home.featurePractice.desc },
           ]"
           :key="feature.title"
+          :delay="idx * 80"
         >
-          <CardHeader>
-            <div class="home__demo-icon" aria-hidden="true">
-              <component :is="FEATURE_ICONS[idx]" :size="18" />
-            </div>
-            <CardTitle class="home__feature-title">{{ feature.title }}</CardTitle>
-            <CardDescription>{{ feature.desc }}</CardDescription>
-          </CardHeader>
-        </Card>
+          <Card class="home__feature-card">
+            <CardHeader>
+              <div class="home__demo-icon" aria-hidden="true">
+                <component :is="FEATURE_ICONS[idx]" :size="18" />
+              </div>
+              <CardTitle class="home__feature-title">{{ feature.title }}</CardTitle>
+              <CardDescription>{{ feature.desc }}</CardDescription>
+            </CardHeader>
+          </Card>
+        </RevealSection>
+      </div>
+    </section>
+
+    <!-- Footer CTA — surface level-2, lời mời hành động cuối trang (DESIGN.md §6 + §9) -->
+    <section class="home__cta-band container">
+      <div class="home__cta-band-inner">
+        <div class="home__cta-band-copy">
+          <h2 class="home__cta-band-title">Sẵn sàng xem từng bước chạy của thuật toán?</h2>
+          <p class="home__cta-band-desc">
+            Tạo tài khoản miễn phí — bắt đầu lộ trình học DSA trực quan ngay hôm nay.
+          </p>
+        </div>
+        <RouterLink
+          :to="{ name: 'register' }"
+          :class="buttonVariants({ variant: 'default', size: 'lg' })"
+        >
+          Bắt đầu ngay
+          <ArrowRight class="size-4" aria-hidden="true" />
+        </RouterLink>
       </div>
     </section>
   </main>
@@ -329,13 +351,34 @@ function blockStatusClass(status: string): string {
   padding-bottom: var(--space-3xl);
 }
 
-/* ── Hero band — surface level-2, luminance stacking (KHÔNG gradient, KHÔNG blob) ── */
+/* ── Hero band — surface level-2, luminance stacking (KHÔNG gradient, KHÔNG blob).
+   Motif dữ liệu lan tỏa: 1 chấm sáng cực nhẹ (radial data-core ~0.04) ở góc —
+   single-color, không phải gradient trang trí 2 màu (KILL-LIST). ── */
 .home__hero {
+  position: relative;
+  overflow: hidden;
   background: var(--color-card-raised);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.home__hero::before {
+  content: '';
+  position: absolute;
+  top: -96px;
+  right: -72px;
+  width: 440px;
+  height: 440px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-data-core) 4%, transparent) 0%,
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
 .home__hero-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-xl);
@@ -407,8 +450,10 @@ function blockStatusClass(status: string): string {
   margin-top: var(--space-sm);
 }
 
-/* ── Bench demo — vùng dữ liệu LUÔN tối (canvas-ink) bất kể theme ── */
+/* ── Bench demo — vùng dữ liệu LUÔN tối (canvas-ink) bất kể theme.
+   Inner glow inset + bottom fade gradient (fade về canvas-ink, một chiều) ── */
 .home__bench {
+  position: relative;
   background: var(--color-canvas-ink);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
@@ -416,7 +461,25 @@ function blockStatusClass(status: string): string {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 28px color-mix(in srgb, var(--color-data-core) 8%, transparent);
+  overflow: hidden;
   animation: bench-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.home__bench::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 36px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-canvas-ink) 38%, transparent),
+    transparent
+  );
+  pointer-events: none;
 }
 
 @keyframes bench-in {
@@ -571,10 +634,11 @@ function blockStatusClass(status: string): string {
 }
 
 .home__stat-value {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.025em;
   color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
 .home__stat-label {
@@ -632,17 +696,8 @@ function blockStatusClass(status: string): string {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-/* Card demo — level-1, hover chỉ đổi border (§4.2), không hover-lift/shadow */
-.home__demo {
-  display: flex;
-  flex-direction: column;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.home__demo:hover {
-  border-color: var(--color-border-strong);
-}
-
+/* Demo cards — CardPremium (interactive + glow theo trạng thái) tự xử lý hover/icon.
+   Icon block chung cho feature cards giữ nguyên ở đây. */
 .home__demo-icon {
   width: 44px;
   height: 44px;
@@ -655,27 +710,6 @@ function blockStatusClass(status: string): string {
   margin-bottom: var(--space-sm);
 }
 
-.home__demo-title {
-  font-size: var(--text-md);
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-}
-
-.home__demo-meta {
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
-
-.home__demo-content {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
 .home__demo-complexity {
   display: flex;
   justify-content: space-between;
@@ -684,7 +718,7 @@ function blockStatusClass(status: string): string {
   font-size: var(--text-xs);
   border-top: 1px solid var(--color-border-subtle);
   padding-top: var(--space-sm);
-  margin: 0;
+  margin: 0 0 var(--space-md);
 }
 
 .home__demo-complexity dt {
@@ -703,9 +737,70 @@ function blockStatusClass(status: string): string {
   letter-spacing: -0.015em;
 }
 
+/* Feature cards — RevealSection bọc ngoài → Motion div thành grid item; card lấp đầy */
+.home__grid--features > * {
+  height: 100%;
+}
+
+.home__feature-card {
+  height: 100%;
+}
+
+/* ── Footer CTA band — surface level-2, không gradient/shadow (DESIGN.md §6) ── */
+.home__cta-band {
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+.home__cta-band-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.home__cta-band-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 52ch;
+}
+
+.home__cta-band-title {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-foreground);
+}
+
+.home__cta-band-desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Hero grid: 768–899px → xếp dọc, bench full-width (responsive §8) */
+@media (min-width: 768px) and (max-width: 899px) {
+  .home__hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home__hero-copy,
+  .home__bench {
+    grid-column: auto;
+    width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
   .home__stats { grid-template-columns: 1fr; gap: var(--space-md); }
   .home__stats-note { grid-column: 1; }
   .home__title { font-size: var(--text-3xl); }
+  .home__cta-band { padding: var(--space-xl) var(--space-lg); }
+  .home__cta-band-inner { justify-content: center; text-align: center; }
 }
 </style>

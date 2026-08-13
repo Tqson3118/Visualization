@@ -184,6 +184,12 @@ function clearFilters(): void {
 
 .cheatsheet__table tbody tr:last-child td { border-bottom: none; }
 
+.cheatsheet__table tbody tr {
+  transition:
+    background-color 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
+}
+
 .cheatsheet__table tbody tr:hover {
   background: color-mix(in srgb, var(--color-muted) 50%, transparent);
 }
@@ -192,7 +198,8 @@ function clearFilters(): void {
 
 .cheatsheet__meta { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); flex-wrap: wrap; }
 
-/* Big-O chip — block-token tối (vùng dữ liệu LUÔN tối): mono text-sm, min-h 24px (trục 5f) */
+/* Big-O chip — block-token tối (vùng dữ liệu LUÔN tối): mono text-sm, min-h 24px (trục 5f)
+   UI-PREMIUM 1D: hover glow (data-core) — phản hồi trực quan khi dò bảng */
 .cheatsheet__bigo {
   display: inline-flex;
   align-items: center;
@@ -205,6 +212,26 @@ function clearFilters(): void {
   font-size: var(--text-sm);
   line-height: 1.4;
   white-space: nowrap;
+  transition:
+    box-shadow 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
+}
+
+.cheatsheet__table tbody tr:hover .cheatsheet__bigo {
+  box-shadow: var(--glow-data-core);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cheatsheet__table tbody tr,
+  .cheatsheet__bigo {
+    transition: none;
+  }
+
+  .cheatsheet__table tbody tr:hover .cheatsheet__bigo {
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 .cheatsheet__footer {

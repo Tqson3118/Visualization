@@ -14,7 +14,7 @@ import * as gamificationApi from '@/api/gamification';
 import type { LearningPathNodeDto } from '@/api/gamification';
 import { CATALOG } from '@/engines/catalog';
 import Button from '@/components/ui/Button.vue';
-import ProgressBar from '@/components/ui/ProgressBar.vue';
+import ProgressRing from '@/components/ui/ProgressRing.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 
@@ -176,11 +176,20 @@ function openFinalTest(): void {
       </div>
       <div class="path-view__progress">
         <p class="path-view__progress-label">Tiến độ tổng</p>
-        <ProgressBar :value="progressPct" show-label :variant="progressPct >= 100 ? 'success' : 'default'" />
-        <p class="path-view__progress-count">
-          <span class="path-view__progress-num">{{ String(passedCount).padStart(2, '0') }}/{{ String(nodes.length).padStart(2, '0') }}</span>
-          node đã qua
-        </p>
+        <div class="path-view__progress-main">
+          <!-- ProgressRing: completion % — màu resolved khi hoàn thành (ngôn ngữ trạng thái) -->
+          <ProgressRing
+            :progress="progressPct"
+            :size="76"
+            :stroke-width="6"
+            :color="progressPct >= 100 ? 'var(--color-resolved)' : 'var(--color-data-core)'"
+            show-label
+          />
+          <div class="path-view__progress-count">
+            <span class="path-view__progress-num">{{ String(passedCount).padStart(2, '0') }}/{{ String(nodes.length).padStart(2, '0') }}</span>
+            node đã qua
+          </div>
+        </div>
       </div>
     </header>
 
@@ -309,6 +318,12 @@ function openFinalTest(): void {
   border: 1px solid var(--color-border);
 }
 
+.path-view__progress-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
 .path-view__progress-label {
   font-size: var(--text-xs);
   font-weight: 500;
@@ -317,8 +332,8 @@ function openFinalTest(): void {
 
 .path-view__progress-count {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-xs);
+  flex-direction: column;
+  gap: 2px;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   margin: 0;
@@ -326,9 +341,10 @@ function openFinalTest(): void {
 
 .path-view__progress-num {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
 .path-view__note {

@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 
 const ui = useUiStore();
 
@@ -102,36 +103,39 @@ async function attach(): Promise<void> {
 
     <div v-else class="admin-ladder__grid">
       <!-- Danh sách node -->
-      <div class="admin-ladder__nodes">
-        <h2 class="admin-ladder__subtitle">{{ messages.admin.ladder.nodeList }}</h2>
-        <ul class="admin-ladder__node-list">
-          <li v-for="node in NODES" :key="node.id">
-            <Button
-              variant="secondary"
-              class="admin-ladder__node"
-              :class="{ 'admin-ladder__node--selected': selectedNode === node.id }"
-              :aria-pressed="selectedNode === node.id"
-              @click="selectedNode = node.id"
-            >
-              <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
-              <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
-              <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
-                <Check :size="12" /> {{ messages.admin.ladder.attached }}
-              </Badge>
-              <Badge v-else variant="muted" class="admin-ladder__node-badge">
-                {{ messages.admin.ladder.empty }}
-              </Badge>
-            </Button>
-          </li>
-        </ul>
-      </div>
+      <RevealSection preset="slideRight" :delay="0">
+        <div class="admin-ladder__nodes">
+          <h2 class="admin-ladder__subtitle">{{ messages.admin.ladder.nodeList }}</h2>
+          <ul class="admin-ladder__node-list">
+            <li v-for="node in NODES" :key="node.id">
+              <Button
+                variant="secondary"
+                class="admin-ladder__node"
+                :class="{ 'admin-ladder__node--selected': selectedNode === node.id }"
+                :aria-pressed="selectedNode === node.id"
+                @click="selectedNode = node.id"
+              >
+                <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
+                <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
+                <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
+                  <Check :size="12" /> {{ messages.admin.ladder.attached }}
+                </Badge>
+                <Badge v-else variant="muted" class="admin-ladder__node-badge">
+                  {{ messages.admin.ladder.empty }}
+                </Badge>
+              </Button>
+            </li>
+          </ul>
+        </div>
+      </RevealSection>
 
       <!-- Gắn bài tập -->
-      <div class="admin-ladder__attach">
-        <h2 class="admin-ladder__subtitle">
-          <Link2 :size="16" class="admin-ladder__subtitle-icon" aria-hidden="true" />
-          {{ messages.admin.ladder.attachTitle }}
-        </h2>
+      <RevealSection preset="fadeUp" :delay="120">
+        <div class="admin-ladder__attach">
+          <h2 class="admin-ladder__subtitle">
+            <Link2 :size="16" class="admin-ladder__subtitle-icon" aria-hidden="true" />
+            {{ messages.admin.ladder.attachTitle }}
+          </h2>
 
         <div v-if="loadError" class="admin-ladder__error" role="alert">
           <p class="admin-ladder__error-text">Không thể tải danh sách bài tập (backend chưa khả dụng).</p>
@@ -173,8 +177,9 @@ async function attach(): Promise<void> {
               <Link2 :size="16" /> {{ messages.admin.ladder.attachBtn }}
             </Button>
           </div>
-        </template>
-      </div>
+          </template>
+        </div>
+      </RevealSection>
     </div>
   </main>
 </template>
@@ -295,7 +300,11 @@ async function attach(): Promise<void> {
   justify-content: flex-start;
   border-color: var(--border);
   color: var(--foreground);
-  transition: border-color 150ms, background-color 150ms;
+  transition:
+    border-color 150ms var(--ease-out-expo),
+    background-color 150ms var(--ease-out-expo),
+    box-shadow 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
 }
 
 .admin-ladder__node:hover { border-color: var(--border-strong); }
@@ -303,10 +312,15 @@ async function attach(): Promise<void> {
 .admin-ladder__node--selected {
   border-color: var(--primary);
   background: color-mix(in srgb, var(--primary) 7%, var(--card));
-  box-shadow: 0 0 0 1px var(--primary);
+  box-shadow: 0 0 0 1px var(--primary), var(--glow-primary);
 }
 
 .admin-ladder__node--selected:hover { border-color: var(--primary); }
+
+.admin-ladder__node--selected .admin-ladder__node-id {
+  border-color: color-mix(in srgb, var(--data-core) 60%, transparent);
+  box-shadow: var(--glow-data-core);
+}
 
 /* Node-id = block-token tối + index mono (dữ liệu tuần tự — quyết định #4) */
 .admin-ladder__node-id {
@@ -324,6 +338,9 @@ async function attach(): Promise<void> {
   font-size: var(--text-xs);
   font-weight: 500;
   flex-shrink: 0;
+  transition:
+    border-color 150ms var(--ease-out-expo),
+    box-shadow 150ms var(--ease-out-expo);
 }
 
 .admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

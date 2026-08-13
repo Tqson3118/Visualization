@@ -9,7 +9,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Code2, History, Play, StepBack, StepForward, Terminal } from 'lucide-vue-next';
+import { Check, Code2, History, Play, StepBack, StepForward, Terminal, X } from 'lucide-vue-next';
 
 import { useCodeRunnerStore } from '@/stores/codeRunner';
 import { useSimulationStore } from '@/stores/simulation';
@@ -48,6 +48,24 @@ function onEditorScroll(event: Event): void {
   if (gutterRef.value) gutterRef.value.scrollTop = el.scrollTop;
 }
 
+/* ── UI-PREMIUM 1B: dòng active trong gutter theo vị trí con trỏ ── */
+const activeLine = ref(1);
+
+function updateActiveLine(event: Event): void {
+  const el = event.target as HTMLTextAreaElement;
+  activeLine.value = el.value.slice(0, el.selectionStart).split('\n').length;
+}
+
+/* ── UI-PREMIUM 1B: phản hồi nút Chạy — spinner → checkmark/X + glow ── */
+const runFeedback = ref<'ok' | 'fail' | null>(null);
+let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearFeedback(): void {
+  if (feedbackTimer) clearTimeout(feedbackTimer);
+  feedbackTimer = null;
+  runFeedback.value = null;
+}
+
 onMounted(async () => {
   try {
     await codeStore.loadTemplate(key.value);
@@ -62,13 +80,17 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   simStore.stopPlayback();
+  clearFeedback();
 });
 
 async function onRun(): Promise<void> {
+  clearFeedback();
   await codeStore.run();
+  runFeedback.value = codeStore.runState === 'passed' ? 'ok' : 'fail';
   if (codeStore.runState === 'passed') {
     ui.showToast('Chạy thành công!', 'success');
   }
+  feedbackTimer = setTimeout(clearFeedback, 1600);
 }
 
 async function toggleHistory(): Promise<void> {
@@ -131,7 +153,12 @@ async function toggleHistory(): Promise<void> {
 
           <div class="code-runner__editor-wrap">
             <div ref="gutterRef" class="code-runner__gutter" aria-hidden="true">
-              <span v-for="line in gutterLines" :key="line" class="code-runner__gutter-line">
+              <span
+                v-for="line in gutterLines"
+                :key="line"
+                class="code-runner__gutter-line"
+                :class="{ 'code-runner__gutter-line--active': activeLine === line }"
+              >
                 {{ line }}
               </span>
             </div>
@@ -141,6 +168,10 @@ async function toggleHistory(): Promise<void> {
               spellcheck="false"
               :aria-label="`Trình soạn mã ${key}`"
               @scroll="onEditorScroll"
+              @input="updateActiveLine"
+              @click="updateActiveLine"
+              @keyup="updateActiveLine"
+              @select="updateActiveLine"
             />
           </div>
 
@@ -148,8 +179,23 @@ async function toggleHistory(): Promise<void> {
             <kbd>Ctrl+Enter</kbd> chạy code · <kbd>Ctrl+Z</kbd> hoàn tác · <kbd>Ctrl+Shift+Z</kbd> làm lại
           </p>
           <div class="code-runner__actions">
-            <Button size="sm" :loading="codeStore.isRunning" @click="onRun">
-              <Play :size="16" aria-hidden="true" />
+            <Button
+              size="sm"
+              :loading="codeStore.isRunning"
+              class="code-runner__run"
+              :class="{
+                'code-runner__run--success': runFeedback === 'ok',
+                'code-runner__run--error': runFeedback === 'fail',
+              }"
+              @click="onRun"
+            >
+              <Play
+                v-if="!codeStore.isRunning && runFeedback !== 'ok' && runFeedback !== 'fail'"
+                :size="16"
+                aria-hidden="true"
+              />
+              <Check v-else-if="runFeedback === 'ok'" :size="16" aria-hidden="true" />
+              <X v-else-if="runFeedback === 'fail'" :size="16" aria-hidden="true" />
               Chạy (Ctrl+Enter)
             </Button>
             <Button variant="ghost" size="sm" @click="codeStore.restoreTemplate()">Khôi phục code mẫu</Button>
@@ -234,19 +280,35 @@ async function toggleHistory(): Promise<void> {
         </section>
       </div>
 
-      <!-- Lịch sử nộp -->
-      <section v-if="historyOpen" class="code-runner__history">
-        <h2 class="code-runner__history-title">Lịch sử nộp</h2>
-        <p v-if="codeStore.submissions.length === 0" class="code-runner__history-empty">
-          Chưa có bài nộp — nộp từ Bậc 3 (Ladder) sẽ hiển thị ở đây.
-        </p>
-        <ul v-else class="code-runner__history-list">
-          <li v-for="sub in codeStore.submissions" :key="sub.id">
-            <Badge :variant="sub.status === 'passed' ? 'success' : 'danger'">{{ sub.status }}</Badge>
-            <span class="code-runner__history-date">{{ sub.createdAt }}</span>
-          </li>
-        </ul>
-      </section>
+      <!-- Lịch sử nộp — UI-PREMIUM 1B: slide-in từ phải + overlay backdrop -->
+      <Teleport to="body">
+        <Transition name="history-drawer">
+          <div v-if="historyOpen" class="code-runner__history-overlay" @click.self="historyOpen = false">
+            <aside
+              class="code-runner__history"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Lịch sử nộp"
+            >
+              <header class="code-runner__history-head">
+                <h2 class="code-runner__history-title">Lịch sử nộp</h2>
+                <Button variant="ghost" size="icon" aria-label="Đóng lịch sử nộp" @click="historyOpen = false">
+                  <X :size="16" aria-hidden="true" />
+                </Button>
+              </header>
+              <p v-if="codeStore.submissions.length === 0" class="code-runner__history-empty">
+                Chưa có bài nộp — nộp từ Bậc 3 (Ladder) sẽ hiển thị ở đây.
+              </p>
+              <ul v-else class="code-runner__history-list">
+                <li v-for="sub in codeStore.submissions" :key="sub.id">
+                  <Badge :variant="sub.status === 'passed' ? 'success' : 'danger'">{{ sub.status }}</Badge>
+                  <span class="code-runner__history-date">{{ sub.createdAt }}</span>
+                </li>
+              </ul>
+            </aside>
+          </div>
+        </Transition>
+      </Teleport>
     </template>
   </main>
 </template>
@@ -370,6 +432,26 @@ async function toggleHistory(): Promise<void> {
   font-size: var(--text-xs);
   line-height: 1.6;
   color: var(--color-index-muted);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  transition:
+    color var(--duration-fast) var(--ease-out-quad),
+    background-color var(--duration-fast) var(--ease-out-quad);
+}
+
+/* UI-PREMIUM 1B: gutter line highlight khi hover + dòng active (vị trí con trỏ) */
+.code-runner__gutter-line:hover {
+  color: color-mix(in srgb, white 80%, var(--color-primary));
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.code-runner__gutter-line--active {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-runner__gutter-line { transition: none; }
 }
 
 .code-runner__textarea {
@@ -403,6 +485,23 @@ async function toggleHistory(): Promise<void> {
 }
 
 .code-runner__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+
+/* UI-PREMIUM 1B: nút Chạy — glow theo kết quả (success = resolved, error = conflict) */
+.code-runner__run {
+  transition: box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.code-runner__run--success {
+  box-shadow: var(--glow-resolved);
+}
+
+.code-runner__run--error {
+  box-shadow: var(--glow-conflict);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-runner__run { transition: none; }
+}
 
 /* ── Output panel ── */
 .code-runner__status-box {
@@ -498,6 +597,63 @@ async function toggleHistory(): Promise<void> {
 }
 
 .code-runner__history-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+/* ── Lịch sử nộp — drawer slide-in từ phải (UI-PREMIUM 1B) ──
+   Overlay backdrop (glassmorphism hợp lệ cho lớp phủ modal — DESIGN.md §4.5);
+   panel = surface + shadow-lg (ngoại lệ shadow duy nhất §6 level-3). */
+.code-runner__history-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: color-mix(in srgb, var(--color-background) 80%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.code-runner__history {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 100%);
+  z-index: calc(var(--z-overlay) + 1);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+}
+
+.code-runner__history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.history-drawer-enter-active,
+.history-drawer-leave-active {
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.history-drawer-enter-active .code-runner__history,
+.history-drawer-leave-active .code-runner__history {
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.history-drawer-enter-from,
+.history-drawer-leave-to {
+  opacity: 0;
+}
+
+.history-drawer-enter-from .code-runner__history,
+.history-drawer-leave-to .code-runner__history {
+  transform: translateX(100%);
+}
 
 @media (max-width: 1000px) {
   .code-runner__layout { grid-template-columns: 1fr; }

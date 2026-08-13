@@ -30,6 +30,7 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
 
 // Đăng ký module ECharts dùng riêng (tree-shaking) — G-F2c: chart line DurationMs theo n
 // LegacyGridContainLabel: echarts 6 thay grid.containLabel (deprecated) — giữ label không bị cắt
@@ -86,6 +87,20 @@ function inputFor(mode: typeof dataMode.value, size: number): number[] {
   if (mode === 'worst') return worstArray(size);
   if (mode === 'best') return bestArray(size);
   return randomArray(size);
+}
+
+// ── UI-PREMIUM 1D: result bar (grow on mount) — chiều dài tỉ lệ với duration lớn nhất trong hàng ──
+function rowMaxMs(row: { measures: Record<string, BenchmarkMeasure | null> }): number {
+  return Math.max(
+    1,
+    ...selectedKeys.value.map((key) => row.measures[key]?.durationMs ?? 0),
+  );
+}
+
+function barPct(row: { measures: Record<string, BenchmarkMeasure | null> }, key: string): number {
+  const measure = row.measures[key];
+  if (!measure) return 0;
+  return Math.round((measure.durationMs / rowMaxMs(row)) * 100);
 }
 
 /**
@@ -362,9 +377,16 @@ function exportCsv(): void {
               <template v-for="key in selectedKeys" :key="key">
                 <td class="benchmark__cell" :data-label="`${BENCHMARK_ALGORITHMS[key].title} (ms)`">
                   <span v-if="row.measures[key]" class="benchmark__block">
-                    {{ row.measures[key]?.durationMs }}ms
+                    <AnimatedNumber :value="row.measures[key]?.durationMs ?? 0" :decimals="1" suffix="ms" />
                   </span>
                   <span v-else class="benchmark__na">N/A</span>
+                  <!-- Result bar grow (UI-PREMIUM 1D) — scaleX từ 0, tỉ lệ theo max trong hàng -->
+                  <span
+                    v-if="row.measures[key]"
+                    class="benchmark__bar"
+                    :style="{ width: `${barPct(row, key)}%` }"
+                    aria-hidden="true"
+                  />
                 </td>
                 <td class="benchmark__cell-sub" :data-label="`${BENCHMARK_ALGORITHMS[key].title} (so sánh)`">
                   {{ row.measures[key]?.comparisons ?? '—' }}
@@ -467,6 +489,10 @@ function exportCsv(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .benchmark__results { animation: none; }
+  .benchmark__bar {
+    animation: none;
+    transform: scaleX(1);
+  }
 }
 
 /* ── Bảng = vùng dữ liệu LUÔN tối (canvas-ink) — block-token + index mono ── */
@@ -497,6 +523,31 @@ function exportCsv(): void {
   font-size: var(--text-sm);
   border-bottom: 1px solid color-mix(in srgb, var(--color-index-muted) 22%, transparent);
   color: color-mix(in srgb, white 85%, var(--color-index-muted));
+}
+
+/* duration cell — chứa result bar (position context) */
+.benchmark__cell { position: relative; }
+
+/* ── Result bar grow (UI-PREMIUM 1D): scaleX 0→1 khi mount, gradient mã hoá trạng thái ── */
+.benchmark__bar {
+  position: absolute;
+  left: var(--space-sm);
+  bottom: 6px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--color-data-core),
+    color-mix(in srgb, var(--color-resolved) 65%, var(--color-data-core))
+  );
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: benchmark-bar-grow 550ms var(--ease-out-expo) forwards;
+  animation-delay: 120ms;
+}
+
+@keyframes benchmark-bar-grow {
+  to { transform: scaleX(1); }
 }
 
 /* n = index mono (signature "index dưới block") — thắng .benchmark__table td (specificity) */

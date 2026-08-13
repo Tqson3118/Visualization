@@ -383,7 +383,7 @@ async function createClass(): Promise<void> {
   gap: var(--space-md);
 }
 
-/* Card level-1: hover chỉ đổi border → strong (DESIGN §6 — cấm shadow) */
+/* Card level-1: hover chỉ đổi border → strong + micro-lift (DESIGN §6 — cấm shadow) */
 .classes__card {
   display: flex;
   flex-direction: column;
@@ -392,14 +392,24 @@ async function createClass(): Promise<void> {
   cursor: pointer;
   min-width: 0;
   border-color: var(--border);
-  transition: border-color 150ms;
+  transition:
+    border-color 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
 }
 
-.classes__card:hover { border-color: var(--border-strong); }
+.classes__card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
 
 .classes__card:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .classes__card { transition: none; }
+  .classes__card:hover { transform: none; }
 }
 
 .classes__card-head { display: flex; align-items: flex-start; gap: var(--space-sm); min-width: 0; }

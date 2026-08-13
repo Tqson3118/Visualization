@@ -10,6 +10,7 @@ import { ArrowLeft, BookOpen, Lightbulb, Target } from 'lucide-vue-next';
 
 import { getCatalogMeta } from '@/engines/catalog';
 import LabStage from '@/components/ladder/LabStage.vue';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
 import Button from '@/components/ui/Button.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -25,6 +26,11 @@ const simKey = computed(() => {
 });
 
 const title = computed(() => getCatalogMeta(simKey.value)?.title ?? `Node ${nodeId.value}`);
+
+/* UI-PREMIUM 1B: khoảnh khắc đầu tư — stats đếm lên (AnimatedNumber) */
+const LAB_ARRAY = [5, 3, 8, 1, 9, 2];
+const STANDARD_STEPS = 8;
+const LIMIT_STEPS = Math.ceil(STANDARD_STEPS * 1.5);
 
 const INFO_CARDS = [
   {
@@ -62,6 +68,22 @@ const INFO_CARDS = [
       </p>
     </header>
 
+    <!-- UI-PREMIUM 1B: stats đếm lên — dữ liệu "đo được" mono + AnimatedNumber -->
+    <div class="lab-view__stats" aria-label="Thông số lab">
+      <div class="lab-view__stat">
+        <span class="lab-view__stat-label">Số ô dữ liệu</span>
+        <AnimatedNumber :value="LAB_ARRAY.length" :duration="700" immediate />
+      </div>
+      <div class="lab-view__stat">
+        <span class="lab-view__stat-label">Bước chuẩn</span>
+        <AnimatedNumber :value="STANDARD_STEPS" :duration="700" immediate />
+      </div>
+      <div class="lab-view__stat">
+        <span class="lab-view__stat-label">Giới hạn bước</span>
+        <AnimatedNumber :value="LIMIT_STEPS" :duration="700" immediate />
+      </div>
+    </div>
+
     <!-- Thẻ mô tả / mục tiêu / hướng dẫn (SDD Màn 15) -->
     <div class="lab-view__info-grid">
       <Card
@@ -83,8 +105,8 @@ const INFO_CARDS = [
 
     <LabStage
       :title="`Interactive Lab — ${title}`"
-      :initial-array="[5, 3, 8, 1, 9, 2]"
-      :standard-steps="8"
+      :initial-array="LAB_ARRAY"
+      :standard-steps="STANDARD_STEPS"
       @passed="router.push({ name: 'ladder', params: { nodeId } })"
       @view-theory="router.push({ name: 'node-hub', params: { topicId: '1', nodeId } })"
     />
@@ -148,6 +170,36 @@ const INFO_CARDS = [
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   max-width: 60ch;
+}
+
+/* UI-PREMIUM 1B: stats strip — level-1, số Geist 600 + đơn vị mono (§6 stat phụ) */
+.lab-view__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.lab-view__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.lab-view__stat-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.lab-view__stat :deep(.ui-animated-number) {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-foreground);
 }
 
 .lab-view__info-grid {

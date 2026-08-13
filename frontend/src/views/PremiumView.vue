@@ -19,8 +19,9 @@ import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
-import Modal from '@/components/ui/Modal.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
+import Modal from '@/components/ui/Modal.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 import { messages } from '@/i18n/vi';
 
 // ── TK nhận tiền (pm-decision-log-gp.md — ĐÃ CHỐT, KHÔNG đổi) ──
@@ -293,12 +294,19 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
           <h3 class="premium__checkout-name">
             {{ messages.premium.checkoutName(checkoutPlan.name, checkoutPlan.price) }}
           </h3>
-          <ul class="premium__checkout-benefits">
-            <li v-for="benefit in messages.premium.checkoutBenefits" :key="benefit">
-              <CheckCircle2 :size="16" class="premium__benefit-icon" aria-hidden="true" />
-              {{ benefit }}
-            </li>
-          </ul>
+          <div class="premium__checkout-benefits">
+            <RevealSection
+              v-for="(benefit, idx) in messages.premium.checkoutBenefits"
+              :key="benefit"
+              :delay="idx * 70"
+              preset="slideRight"
+            >
+              <div class="premium__checkout-benefit">
+                <CheckCircle2 :size="16" class="premium__benefit-icon" aria-hidden="true" />
+                {{ benefit }}
+              </div>
+            </RevealSection>
+          </div>
           <div class="premium__checkout-actions">
             <Button variant="ghost" @click="checkoutPlan = null">{{ messages.premium.back }}</Button>
             <Button @click="goToStep2">
@@ -310,7 +318,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
         <!-- Bước 2: QR chuyển khoản MB Bank + đếm ngược 60s (GP-T7) -->
         <template v-else>
           <div class="premium__qr">
-            <div class="premium__qr-frame bg-white">
+            <div class="premium__qr-frame premium__qr-frame--active bg-white">
               <canvas
                 ref="qrCanvas"
                 class="premium__qr-canvas"
@@ -468,14 +476,22 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
 
 .premium__plan:hover { border-color: var(--color-border-strong); }
 
-/* Gói nổi bật — phân cấp bằng border + tint success (KHÔNG gradient/shadow/scale) */
+/* Gói nổi bật — phân cấp bằng border + tint success (KHÔNG gradient/shadow/scale).
+   "Hero" của vùng giá: glow ring pulse (--glow-primary) — khoảnh khắc kéo mắt duy nhất. */
 .premium__plan--highlight {
+  position: relative;
   border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-success) 5%, var(--color-card));
+  animation: premium-plan-glow 2.4s var(--ease-in-out) infinite;
 }
 
 .premium__plan--highlight:hover {
   border-color: color-mix(in srgb, var(--color-success) 65%, var(--color-border));
+}
+
+@keyframes premium-plan-glow {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: var(--glow-primary); }
 }
 
 .premium__plan-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); }
@@ -532,6 +548,17 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
 .premium__table-free { color: var(--color-text-tertiary); }
 .premium__table-premium { color: var(--color-foreground); font-weight: 500; }
 
+/* Highlight cột Premium — tint primary cực nhẹ, th rõ hơn 1 bậc */
+.premium__table th:nth-child(3),
+.premium__table td:nth-child(3) {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+.premium__table th:nth-child(3) {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
 .premium__cell-check { color: var(--color-success); }
 .premium__cell-x { color: var(--color-text-quaternary); }
 
@@ -562,7 +589,6 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
 .premium__checkout-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; }
 
 .premium__checkout-benefits {
-  list-style: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -570,7 +596,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
   margin-top: var(--space-sm);
 }
 
-.premium__checkout-benefits li {
+.premium__checkout-benefit {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -606,6 +632,15 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
   padding: var(--space-sm);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-subtle);
+  transition:
+    border-color var(--duration-normal) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+/* QR MB Bank — nổi bật border glow khi đang ở bước thanh toán (active) */
+.premium__qr-frame--active {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  box-shadow: var(--glow-primary);
 }
 
 .premium__qr-canvas {
@@ -709,5 +744,6 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
 
 @media (prefers-reduced-motion: reduce) {
   .premium__success-token { animation: none; }
+  .premium__plan--highlight { animation: none; }
 }
 </style>

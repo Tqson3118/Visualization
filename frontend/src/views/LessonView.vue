@@ -3,9 +3,9 @@
 // Phase 1 view-quality: banner = surface band level-2 (bỏ gradient sunset + text-shadow),
 // icon lucide (ArrowLeft thay "←"), nút "Học tiếp" = hành động thật (mở mô phỏng đầu tiên
 // của bài / chuyển tab Lý thuyết), weight 700 → 600, hover card chỉ đổi border (§6).
-import { computed, onMounted, ref } from 'vue';
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, render, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, CheckCircle2, Play, Puzzle } from 'lucide-vue-next';
+import { ArrowLeft, Check, CheckCircle2, Copy, Play, Puzzle } from 'lucide-vue-next';
 
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
@@ -15,6 +15,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 
 const route = useRoute();
@@ -77,6 +78,106 @@ async function onMarkViewed(): Promise<void> {
     marking.value = false;
   }
 }
+
+/* ── UI-PREMIUM 1B: stepper dots (Nội dung → Lý thuyết → Quiz) ── */
+function tabIndex(key: string): number {
+  return Math.max(0, TABS.findIndex((t) => t.key === key));
+}
+
+/* ── UI-PREMIUM 1B: copy button cho code block (v-html — gắn qua DOM) ── */
+const contentPanelRef = ref<HTMLElement | null>(null);
+const theoryPanelRef = ref<HTMLElement | null>(null);
+let copyObserver: MutationObserver | null = null;
+
+function mountIcon(host: HTMLElement, icon: Component, size: number): void {
+  host.replaceChildren();
+  const wrapper = document.createElement('span');
+  render(h(icon, { size, 'aria-hidden': true }), wrapper);
+  const svg = wrapper.firstElementChild;
+  if (svg) host.appendChild(svg);
+  render(null, wrapper);
+}
+
+async function copyCode(pre: HTMLElement, btn: HTMLButtonElement): Promise<void> {
+  const code = pre.querySelector('code')?.textContent ?? pre.textContent ?? '';
+  try {
+    await navigator.clipboard.writeText(code);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  const iconHost = btn.querySelector<HTMLElement>('.lesson-view__copy-icon');
+  const label = btn.querySelector<HTMLElement>('.lesson-view__copy-label');
+  if (iconHost) mountIcon(iconHost, Check, 14);
+  btn.classList.add('lesson-view__copy--done');
+  if (label) label.textContent = 'Đã chép';
+  window.setTimeout(() => {
+    if (iconHost) mountIcon(iconHost, Copy, 14);
+    btn.classList.remove('lesson-view__copy--done');
+    if (label) label.textContent = 'Sao chép';
+  }, 1600);
+}
+
+function attachCopyButtons(root: HTMLElement): void {
+  root.querySelectorAll('pre').forEach((pre) => {
+    if (pre.dataset.copyReady) return;
+    pre.dataset.copyReady = '1';
+    pre.classList.add('lesson-view__codeblock');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lesson-view__copy';
+    btn.setAttribute('aria-label', 'Sao chép code');
+    btn.addEventListener('click', () => void copyCode(pre, btn));
+    const iconHost = document.createElement('span');
+    iconHost.className = 'lesson-view__copy-icon';
+    mountIcon(iconHost, Copy, 14);
+    btn.appendChild(iconHost);
+    const label = document.createElement('span');
+    label.className = 'lesson-view__copy-label';
+    label.textContent = 'Sao chép';
+    btn.appendChild(label);
+    pre.appendChild(btn);
+  });
+}
+
+function setupCopy(): void {
+  copyObserver?.disconnect();
+  copyObserver = null;
+  const targets = [contentPanelRef.value, theoryPanelRef.value].filter(
+    (t): t is HTMLElement => t !== null,
+  );
+  if (targets.length === 0) return;
+  for (const t of targets) {
+    attachCopyButtons(t);
+    if (!copyObserver) {
+      copyObserver = new MutationObserver(() => {
+        for (const tt of targets) attachCopyButtons(tt);
+      });
+    }
+    copyObserver.observe(t, { childList: true, subtree: true });
+  }
+}
+
+onMounted(() => {
+  void nextTick(setupCopy);
+});
+
+watch(activeTab, () => void nextTick(setupCopy));
+watch(
+  () => lesson.value?.contentHtml,
+  () => void nextTick(setupCopy),
+);
+
+onBeforeUnmount(() => {
+  copyObserver?.disconnect();
+  copyObserver = null;
+});
 </script>
 
 <template>
@@ -98,85 +199,114 @@ async function onMarkViewed(): Promise<void> {
 
     <template v-else>
       <!-- Hero bài học — surface band level-2 (DESIGN.md §1), không gradient -->
-      <header class="lesson-view__hero">
-        <div class="lesson-view__hero-badges">
-          <Badge variant="primary">Bài học</Badge>
-          <Badge v-if="viewed" variant="success">Đã học</Badge>
-        </div>
-        <h1 class="lesson-view__hero-title">{{ lesson?.title ?? 'Bài học' }}</h1>
-        <p class="lesson-view__hero-desc">{{ lesson?.description }}</p>
-        <div class="lesson-view__hero-actions">
-          <Button :loading="marking" :disabled="viewed" @click="onMarkViewed">
-            <CheckCircle2 :size="16" aria-hidden="true" />
-            {{ viewed ? 'Đã đánh dấu' : 'Đánh dấu đã học' }}
-          </Button>
-          <Button v-if="!viewed" variant="secondary" @click="onContinue">
-            <Play :size="16" aria-hidden="true" />
-            Học tiếp
-          </Button>
-          <Button variant="ghost" @click="router.push({ name: 'path' })">
-            <ArrowLeft :size="16" aria-hidden="true" />
-            Về lộ trình
-          </Button>
-        </div>
-      </header>
+      <RevealSection preset="fadeDown">
+        <header class="lesson-view__hero">
+          <div class="lesson-view__hero-badges">
+            <Badge variant="primary">Bài học</Badge>
+            <Badge v-if="viewed" variant="success">Đã học</Badge>
+          </div>
+          <h1 class="lesson-view__hero-title">{{ lesson?.title ?? 'Bài học' }}</h1>
+          <p class="lesson-view__hero-desc">{{ lesson?.description }}</p>
+          <div class="lesson-view__hero-actions">
+            <Button :loading="marking" :disabled="viewed" @click="onMarkViewed">
+              <CheckCircle2 :size="16" aria-hidden="true" />
+              {{ viewed ? 'Đã đánh dấu' : 'Đánh dấu đã học' }}
+            </Button>
+            <Button v-if="!viewed" variant="secondary" @click="onContinue">
+              <Play :size="16" aria-hidden="true" />
+              Học tiếp
+            </Button>
+            <Button variant="ghost" @click="router.push({ name: 'path' })">
+              <ArrowLeft :size="16" aria-hidden="true" />
+              Về lộ trình
+            </Button>
+          </div>
+        </header>
+      </RevealSection>
+
+      <!-- Stepper dots — Nội dung → Lý thuyết → Quiz (UI-PREMIUM 1B) -->
+      <RevealSection preset="fadeUp" :delay="60">
+        <nav class="lesson-view__stepper" aria-label="Tiến trình bài học">
+          <button
+            v-for="tab in TABS"
+            :key="tab.key"
+            type="button"
+            class="lesson-view__step"
+            :class="{
+              'lesson-view__step--active': activeTab === tab.key,
+              'lesson-view__step--done': tabIndex(tab.key) < tabIndex(activeTab),
+            }"
+            :aria-current="activeTab === tab.key ? 'step' : undefined"
+            @click="activeTab = tab.key"
+          >
+            <span class="lesson-view__step-dot" aria-hidden="true" />
+            <span class="lesson-view__step-label">{{ tab.label }}</span>
+          </button>
+        </nav>
+      </RevealSection>
 
       <!-- Tabs: Nội dung / Lý thuyết / Quiz (Tabs shadcn) -->
       <Tabs v-model="activeTab" :tabs="TABS" class="lesson-view__tabs">
         <!-- Nội dung: toàn bộ bài học (rich content + mô phỏng + bài tập + ghi chú + đánh giá) -->
-        <section v-if="activeTab === 'content'" class="lesson-view__panel">
-          <LessonDetail
-            :lesson-id="lessonId"
-            hide-header
-            @open-simulation="openSimulation"
-            @open-exercise="openExercise"
-          />
+        <section v-if="activeTab === 'content'" ref="contentPanelRef" class="lesson-view__panel">
+          <RevealSection :delay="40">
+            <LessonDetail
+              :lesson-id="lessonId"
+              hide-header
+              @open-simulation="openSimulation"
+              @open-exercise="openExercise"
+            />
+          </RevealSection>
         </section>
 
         <!-- Lý thuyết: bản đọc thuần + tóm tắt độ phức tạp -->
-        <section v-else-if="activeTab === 'theory'" class="lesson-view__panel">
-          <Card v-if="theoryMeta" class="lesson-view__theory-card">
-            <dl class="lesson-view__theory-meta">
-              <div>
-                <dt>Độ phức tạp TB</dt>
-                <dd>{{ theoryMeta.complexity.average }}</dd>
-              </div>
-              <div>
-                <dt>Không gian</dt>
-                <dd>{{ theoryMeta.complexity.space }}</dd>
-              </div>
-              <div>
-                <dt>Cấp độ</dt>
-                <dd>{{ theoryMeta.level }}</dd>
-              </div>
-            </dl>
-          </Card>
-          <article
-            class="lesson-view__theory"
-            v-html="lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>'"
-          />
+        <section v-else-if="activeTab === 'theory'" ref="theoryPanelRef" class="lesson-view__panel">
+          <RevealSection :delay="40">
+            <Card v-if="theoryMeta" class="lesson-view__theory-card">
+              <dl class="lesson-view__theory-meta">
+                <div>
+                  <dt>Độ phức tạp TB</dt>
+                  <dd>{{ theoryMeta.complexity.average }}</dd>
+                </div>
+                <div>
+                  <dt>Không gian</dt>
+                  <dd>{{ theoryMeta.complexity.space }}</dd>
+                </div>
+                <div>
+                  <dt>Cấp độ</dt>
+                  <dd>{{ theoryMeta.level }}</dd>
+                </div>
+              </dl>
+            </Card>
+          </RevealSection>
+          <RevealSection :delay="120">
+            <article
+              class="lesson-view__theory"
+              v-html="lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>'"
+            />
+          </RevealSection>
         </section>
 
         <!-- Quiz: bài tập trắc nghiệm liên quan -->
         <section v-else class="lesson-view__panel">
           <div v-if="lesson?.exercises && lesson.exercises.length > 0" class="lesson-view__quiz-list">
-            <Card
-              v-for="ex in lesson.exercises"
-              :key="ex.id"
-              class="lesson-view__quiz"
-            >
-              <div class="lesson-view__quiz-icon" aria-hidden="true">
-                <Puzzle :size="18" />
-              </div>
-              <div class="lesson-view__quiz-info">
-                <p class="lesson-view__quiz-title">{{ ex.title }}</p>
-                <Badge variant="muted">{{ ex.type }}</Badge>
-              </div>
-              <Button size="sm" @click="openExercise(ex.id)">
-                <Play :size="14" aria-hidden="true" />
-                Làm bài
-              </Button>
-            </Card>
+            <RevealSection v-for="(ex, idx) in lesson.exercises" :key="ex.id" :delay="idx * 80">
+              <Card
+                class="lesson-view__quiz"
+              >
+                <div class="lesson-view__quiz-icon" aria-hidden="true">
+                  <Puzzle :size="18" />
+                </div>
+                <div class="lesson-view__quiz-info">
+                  <p class="lesson-view__quiz-title">{{ ex.title }}</p>
+                  <Badge variant="muted">{{ ex.type }}</Badge>
+                </div>
+                <Button size="sm" @click="openExercise(ex.id)">
+                  <Play :size="14" aria-hidden="true" />
+                  Làm bài
+                </Button>
+              </Card>
+            </RevealSection>
           </div>
           <EmptyState
             v-else
@@ -250,7 +380,134 @@ async function onMarkViewed(): Promise<void> {
 /* ── Tabs ── */
 .lesson-view__tabs { margin-top: var(--space-sm); }
 
+/* ── Stepper dots (UI-PREMIUM 1B): chấm tiến trình animate fill ── */
+.lesson-view__stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+}
+
+.lesson-view__step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: none;
+  border: none;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: color var(--duration-fast) var(--ease-out-quad);
+}
+
+.lesson-view__step:hover { color: var(--color-text-primary); }
+
+.lesson-view__step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-strong);
+  background: var(--color-surface);
+  position: relative;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-quad),
+    background-color var(--duration-fast) var(--ease-out-quad);
+}
+
+.lesson-view__step--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.lesson-view__step--active .lesson-view__step-dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 16%, transparent);
+  animation: lesson-step-fill 280ms var(--ease-out-expo);
+}
+
+.lesson-view__step--done {
+  color: var(--color-success);
+}
+
+.lesson-view__step--done .lesson-view__step-dot {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+@keyframes lesson-step-fill {
+  0% { transform: scale(0.4); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .lesson-view__panel { padding-top: var(--space-sm); }
+
+/* ── Code block — copy button hover glow (UI-PREMIUM 1B)
+   Buttons được chèn qua DOM (v-html) nên cần :deep() để scoped style áp dụng
+   (compiled: [data-v-parent] .lesson-view__copy — khớp mọi descendant). ── */
+.lesson-view__theory :deep(.lesson-view__codeblock),
+.lesson-detail :deep(.lesson-view__codeblock) {
+  position: relative;
+  padding-right: 2.5rem;
+}
+
+:deep(.lesson-view__copy) {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-quad),
+    border-color var(--duration-fast) var(--ease-out-quad),
+    box-shadow var(--duration-fast) var(--ease-out-quad);
+}
+
+:deep(.lesson-view__copy:hover) {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+}
+
+:deep(.lesson-view__copy--done) {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  box-shadow: var(--glow-resolved);
+}
+
+:deep(.lesson-view__copy-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-view__step-dot,
+  :deep(.lesson-view__copy) {
+    transition: none;
+  }
+  .lesson-view__step--active .lesson-view__step-dot {
+    animation: none;
+  }
+}
+
 
 /* ── Lý thuyết ── */
 .lesson-view__theory-card {

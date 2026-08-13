@@ -6,6 +6,7 @@ import { computed } from 'vue';
 import { ArrowRightLeft, ListOrdered, PenLine, Repeat } from 'lucide-vue-next';
 
 import { messages } from '@/i18n/vi';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -38,16 +39,22 @@ const stepLabel = computed(() =>
       {{ stepLabel }}
     </span>
     <span class="stats__item">
-      <ArrowRightLeft :size="13" aria-hidden="true" />
-      So sánh: {{ comparisons }}
+      <span class="stats__icon" :key="`cmp-${comparisons}`" aria-hidden="true">
+        <ArrowRightLeft :size="13" />
+      </span>
+      So sánh: <AnimatedNumber :value="comparisons" :duration="350" immediate />
     </span>
     <span class="stats__item">
-      <Repeat :size="13" aria-hidden="true" />
-      Hoán đổi: {{ swaps }}
+      <span class="stats__icon" :key="`swp-${swaps}`" aria-hidden="true">
+        <Repeat :size="13" />
+      </span>
+      Hoán đổi: <AnimatedNumber :value="swaps" :duration="350" immediate />
     </span>
     <span class="stats__item">
-      <PenLine :size="13" aria-hidden="true" />
-      Ghi: {{ writes }}
+      <span class="stats__icon" :key="`wrt-${writes}`" aria-hidden="true">
+        <PenLine :size="13" />
+      </span>
+      Ghi: <AnimatedNumber :value="writes" :duration="350" immediate />
     </span>
   </div>
 </template>
@@ -77,6 +84,17 @@ const stepLabel = computed(() =>
 
 .stats__item svg { color: var(--color-primary); }
 
+/* Icon micro-animation — nhảy nhẹ mỗi khi giá trị bộ đếm đổi (re-key) */
+.stats__icon {
+  display: inline-flex;
+  animation: stats-pop 280ms var(--ease-out-expo);
+}
+
+@keyframes stats-pop {
+  0% { transform: scale(0.55); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .stats__item--step {
   background: var(--color-primary);
   border-color: transparent;
@@ -85,4 +103,8 @@ const stepLabel = computed(() =>
 }
 
 .stats__item--step svg { color: var(--color-on-primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stats__icon { animation: none; }
+}
 </style>

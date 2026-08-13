@@ -15,6 +15,7 @@ import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 
 const ui = useUiStore();
 const loading = ref(true);
@@ -89,7 +90,8 @@ async function save(): Promise<void> {
       <Skeleton v-for="i in 5" :key="i" height="72px" />
     </div>
 
-    <form v-else class="admin-settings__form" novalidate @submit.prevent="save">
+    <RevealSection v-else preset="fadeUp">
+      <form class="admin-settings__form" novalidate @submit.prevent="save">
       <div v-if="error" class="admin-settings__error" role="alert">
         <AlertTriangle :size="16" aria-hidden="true" />
         <span class="admin-settings__error-text">{{ error }}</span>
@@ -156,7 +158,8 @@ async function save(): Promise<void> {
           <Save :size="16" /> {{ messages.admin.settings.save }}
         </Button>
       </div>
-    </form>
+      </form>
+    </RevealSection>
   </main>
 </template>
 
@@ -265,13 +268,25 @@ async function save(): Promise<void> {
   font-size: var(--text-sm);
   cursor: pointer;
   width: fit-content;
+  padding: var(--space-xs) var(--space-sm);
+  margin-left: calc(-1 * var(--space-sm));
+  border-radius: var(--radius-md);
+  transition: background-color 150ms var(--ease-out-expo);
 }
+
+.admin-settings__check:hover { background: var(--muted); }
 
 .admin-settings__checkbox {
   width: 16px;
   height: 16px;
   accent-color: var(--primary);
   cursor: pointer;
+  transition: box-shadow 150ms var(--ease-out-expo);
+}
+
+.admin-settings__checkbox:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-primary);
 }
 
 .admin-settings__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: var(--space-lg); }

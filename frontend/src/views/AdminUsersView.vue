@@ -4,7 +4,18 @@
 // block-token (số chờ duyệt — dữ liệu thật); bảng chuẩn §4.6 + mobile card-stack;
 // error state + retry; icon/avatar neutral; actions gap ≥8px.
 import { computed, onMounted, ref } from 'vue';
-import { Check, Lock, LockOpen, RefreshCw, Search, UserCheck, Users, X } from 'lucide-vue-next';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Lock,
+  LockOpen,
+  RefreshCw,
+  Search,
+  UserCheck,
+  Users,
+  X,
+} from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
 import type { AdminUserDto } from '@/api/admin';
@@ -76,6 +87,48 @@ const filtered = computed(() => {
   if (statusFilter.value === 'locked') list = list.filter((u) => !u.isActive);
   return list;
 });
+
+// ── UI-PREMIUM 1D: sắp xếp cột (client-side, presentation only) + indicator animation ──
+type UserSortKey = 'name' | 'role' | 'status' | 'date';
+const sortKey = ref<UserSortKey | null>(null);
+const sortDir = ref<'asc' | 'desc'>('asc');
+
+const sortedUsers = computed(() => {
+  const list = [...filtered.value];
+  if (sortKey.value === null) return list;
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  list.sort((a, b) => {
+    switch (sortKey.value) {
+      case 'name':
+        return a.displayName.localeCompare(b.displayName, 'vi') * dir;
+      case 'role':
+        return a.role.localeCompare(b.role) * dir;
+      case 'status':
+        return Number(a.isActive) - Number(b.isActive) === 0
+          ? 0
+          : (Number(a.isActive) - Number(b.isActive)) * dir;
+      case 'date':
+        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+      default:
+        return 0;
+    }
+  });
+  return list;
+});
+
+function toggleSort(key: UserSortKey): void {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortDir.value = 'asc';
+  }
+}
+
+function sortAria(key: UserSortKey): 'ascending' | 'descending' | 'none' {
+  if (sortKey.value !== key) return 'none';
+  return sortDir.value === 'asc' ? 'ascending' : 'descending';
+}
 
 const roleLabel: Record<string, string> = {
   STUDENT: messages.admin.users.roleStudent,
@@ -213,18 +266,70 @@ async function submitReview(): Promise<void> {
 
     <div v-else class="admin-users__table">
       <div class="admin-users__table-scroll">
-        <table>
+        <table class="table-stack">
           <thead>
             <tr>
-              <th scope="col">{{ messages.admin.users.colUser }}</th>
-              <th scope="col">{{ messages.admin.users.colRole }}</th>
-              <th scope="col">{{ messages.admin.users.colStatus }}</th>
-              <th scope="col">{{ messages.admin.users.colCreated }}</th>
+              <th scope="col" :aria-sort="sortAria('name')">
+                <button
+                  type="button"
+                  class="admin-users__sort"
+                  :class="{ 'admin-users__sort--active': sortKey === 'name' }"
+                  @click="toggleSort('name')"
+                >
+                  <span>{{ messages.admin.users.colUser }}</span>
+                  <span class="admin-users__sort-arrows" aria-hidden="true">
+                    <ArrowUp :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'name' && sortDir === 'asc' }" />
+                    <ArrowDown :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'name' && sortDir === 'desc' }" />
+                  </span>
+                </button>
+              </th>
+              <th scope="col" :aria-sort="sortAria('role')">
+                <button
+                  type="button"
+                  class="admin-users__sort"
+                  :class="{ 'admin-users__sort--active': sortKey === 'role' }"
+                  @click="toggleSort('role')"
+                >
+                  <span>{{ messages.admin.users.colRole }}</span>
+                  <span class="admin-users__sort-arrows" aria-hidden="true">
+                    <ArrowUp :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'role' && sortDir === 'asc' }" />
+                    <ArrowDown :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'role' && sortDir === 'desc' }" />
+                  </span>
+                </button>
+              </th>
+              <th scope="col" :aria-sort="sortAria('status')">
+                <button
+                  type="button"
+                  class="admin-users__sort"
+                  :class="{ 'admin-users__sort--active': sortKey === 'status' }"
+                  @click="toggleSort('status')"
+                >
+                  <span>{{ messages.admin.users.colStatus }}</span>
+                  <span class="admin-users__sort-arrows" aria-hidden="true">
+                    <ArrowUp :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'status' && sortDir === 'asc' }" />
+                    <ArrowDown :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'status' && sortDir === 'desc' }" />
+                  </span>
+                </button>
+              </th>
+              <th scope="col" :aria-sort="sortAria('date')">
+                <button
+                  type="button"
+                  class="admin-users__sort"
+                  :class="{ 'admin-users__sort--active': sortKey === 'date' }"
+                  @click="toggleSort('date')"
+                >
+                  <span>{{ messages.admin.users.colCreated }}</span>
+                  <span class="admin-users__sort-arrows" aria-hidden="true">
+                    <ArrowUp :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'date' && sortDir === 'asc' }" />
+                    <ArrowDown :size="12" class="admin-users__sort-arrow" :class="{ 'admin-users__sort-arrow--on': sortKey === 'date' && sortDir === 'desc' }" />
+                  </span>
+                </button>
+              </th>
               <th scope="col" class="admin-users__actions-col">{{ messages.admin.users.colActions }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in filtered" :key="user.id">
+            <tr v-for="user in sortedUsers" :key="user.id">
               <td :data-label="messages.admin.users.colUser">
                 <div class="admin-users__user">
                   <span class="admin-users__avatar" aria-hidden="true">{{ initial(user.displayName) }}</span>
@@ -531,11 +636,51 @@ async function submitReview(): Promise<void> {
   vertical-align: middle;
 }
 
-.admin-users__table tbody tr { transition: background-color 150ms; }
+.admin-users__table tbody tr { transition: background-color 150ms var(--ease-out-expo); }
 
 .admin-users__table tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
 
 .admin-users__table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Sort header (UI-PREMIUM 1D) — indicator animation (ArrowUp/Down) ── */
+.admin-users__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.admin-users__sort:hover { color: var(--foreground); }
+
+.admin-users__sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--foreground-tertiary);
+}
+
+.admin-users__sort-arrow {
+  opacity: 0.35;
+  transition:
+    opacity 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo),
+    color 150ms var(--ease-out-expo);
+}
+
+.admin-users__sort-arrow--on {
+  opacity: 1;
+  color: var(--primary);
+  transform: scale(1.2) translateY(0);
+}
+
+.admin-users__sort-arrow:not(.admin-users__sort-arrow--on) {
+  transform: scale(0.85);
+}
 
 .admin-users__user { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
 
@@ -627,35 +772,11 @@ async function submitReview(): Promise<void> {
   .admin-users__hero { padding: var(--space-lg); }
   .admin-users__hero-strip { flex-basis: 100%; }
   .admin-users__strip-caption { text-align: left; }
+}
 
-  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
+/* Bảng → card-stack mobile (responsive.css .table-stack — <768px) + tinh chỉnh riêng */
+@media (max-width: 767px) {
   .admin-users__table-scroll { overflow-x: visible; }
-
-  .admin-users__table thead { display: none; }
-
-  .admin-users__table tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-xs) var(--space-md);
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .admin-users__table tbody tr:last-child { border-bottom: none; }
-
-  .admin-users__table td {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-    padding: 0;
-    border-bottom: none;
-  }
-
-  .admin-users__table td::before {
-    content: attr(data-label);
-    font-size: var(--text-xs);
-    color: var(--foreground-tertiary);
-  }
 
   .admin-users__table td:first-child { grid-column: 1 / -1; }
   .admin-users__table td:last-child { align-items: flex-start; }

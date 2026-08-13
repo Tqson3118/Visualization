@@ -78,6 +78,22 @@ const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).t
 /** Số thứ tự 2 chữ số cho assignment (index mono — quyết định #4). */
 const pad = (n: number): string => String(n).padStart(2, '0');
 
+/** Avatar stack hero: tối đa 4 thành viên + overflow badge "+N" */
+const avatarStack = computed(() => classStore.members.slice(0, 4));
+const avatarOverflow = computed(() => Math.max(0, classStore.members.length - 4));
+
+/** Countdown hạn nộp: ok (xanh) / warn (≤ 3 ngày hoặc < 24h) / over (quá hạn). */
+function deadlineInfo(assign: ClassAssignmentDto): { label: string; tone: 'none' | 'ok' | 'warn' | 'over' } {
+  if (!assign.dueAt) return { label: messages.classes.detailDueNone, tone: 'none' };
+  const ms = new Date(assign.dueAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return { label: messages.classes.detailDueNone, tone: 'none' };
+  if (ms <= 0) return { label: 'Đã hết hạn', tone: 'over' };
+  const hours = ms / 3_600_000;
+  if (hours < 24) return { label: `Còn ${Math.max(1, Math.round(hours))} giờ`, tone: 'warn' };
+  const days = Math.ceil(hours / 24);
+  return { label: `Còn ${days} ngày`, tone: days <= 3 ? 'warn' : 'ok' };
+}
+
 onMounted(load);
 
 async function load(): Promise<void> {
@@ -188,6 +204,21 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
             <p class="class-detail__hero-desc">{{ classStore.currentClass.description || messages.classes.noDescription }}</p>
           </div>
           <div class="class-detail__hero-badges">
+            <!-- Avatar stack + overflow badge (thành viên gần đây) -->
+            <div v-if="avatarStack.length > 0" class="class-detail__avatar-stack" aria-label="Thành viên gần đây">
+              <span
+                v-for="(member, i) in avatarStack"
+                :key="member.id"
+                class="class-detail__avatar-stack-item"
+                :style="{ '--i': i }"
+                aria-hidden="true"
+              >
+                {{ initial(member.displayName) }}
+              </span>
+              <span v-if="avatarOverflow > 0" class="class-detail__avatar-stack-overflow" aria-hidden="true">
+                +{{ avatarOverflow }}
+              </span>
+            </div>
             <Badge variant="primary">
               {{ isManager ? messages.classes.roleManager : messages.classes.roleMember }}
             </Badge>
@@ -314,9 +345,21 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
               <p class="class-detail__assign-due">
                 <CalendarClock :size="13" aria-hidden="true" />
                 {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
+                <!-- Deadline countdown — tone theo thời gian còn lại -->
+                <span
+                  v-if="deadlineInfo(assign).tone !== 'none'"
+                  class="class-detail__assign-countdown"
+                  :class="`class-detail__assign-countdown--${deadlineInfo(assign).tone}`"
+                >
+                  {{ deadlineInfo(assign).label }}
+                </span>
               </p>
             </div>
-            <Badge :variant="assign.status === 'open' ? 'success' : 'danger'">
+            <!-- Status badge animated (open = nhịp thở nhẹ, ui-pulse-glow) -->
+            <Badge
+              :variant="assign.status === 'open' ? 'success' : 'danger'"
+              :class="{ 'class-detail__assign-status--open': assign.status === 'open' }"
+            >
               {{ assign.status === 'open' ? messages.classes.detailOpen : messages.classes.detailClosed }}
             </Badge>
           </Card>
@@ -466,6 +509,61 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   font-size: var(--text-xs);
   white-space: nowrap;
   min-height: 24px;
+}
+
+/* ── Avatar stack + overflow badge (member list — premium) ── */
+.class-detail__avatar-stack {
+  display: inline-flex;
+  align-items: center;
+  padding-left: var(--space-sm);
+}
+
+.class-detail__avatar-stack-item {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--card-raised);
+  background: var(--muted);
+  color: var(--foreground-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: var(--text-xs);
+  margin-left: -8px;
+  animation: avatar-stack-in 260ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i) * 55ms + 80ms);
+}
+
+.class-detail__avatar-stack-item:first-child { margin-left: 0; }
+
+.class-detail__avatar-stack-overflow {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--card-raised);
+  background: color-mix(in srgb, var(--primary) 14%, var(--muted));
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-left: -8px;
+  animation: avatar-stack-in 260ms var(--ease-out-expo) both;
+  animation-delay: 320ms;
+}
+
+@keyframes avatar-stack-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-detail__avatar-stack-item,
+  .class-detail__avatar-stack-overflow { animation: none; }
 }
 
 .class-detail__hero-actions {
@@ -652,6 +750,41 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   font-size: var(--text-xs);
   color: var(--foreground-tertiary);
   white-space: nowrap;
+  flex-wrap: wrap;
+}
+
+/* Deadline countdown — tone ok/warn/over (semantic, palette 6 màu) */
+.class-detail__assign-countdown {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.class-detail__assign-countdown--ok {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.class-detail__assign-countdown--warn {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.class-detail__assign-countdown--over {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
+}
+
+/* Status badge "Đang mở" — nhịp thở nhẹ (ui-pulse-glow global) */
+.class-detail__assign-status--open {
+  animation: ui-pulse-glow 2.2s var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-detail__assign-status--open { animation: none; }
 }
 
 /* ── Cài đặt (danger zone — semantic destructive) ── */

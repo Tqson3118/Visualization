@@ -12,10 +12,16 @@ import { FlaskConical } from 'lucide-vue-next';
 import BenchmarkPanel from '@/components/benchmark/BenchmarkPanel.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
+import BlockToken from '@/components/ui/BlockToken.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 import { getCatalogMeta } from '@/engines/catalog';
+import { BENCHMARK_ALGORITHMS } from '@/engines/benchmark/codeTemplates';
 
 const route = useRoute();
 const router = useRouter();
+
+/** Số giải thuật khả dụng trong benchmark engine — dữ liệu thật cho hero-stat. */
+const algoCount = Object.keys(BENCHMARK_ALGORITHMS).length;
 
 const defaultKeys = computed(() => {
   const k1 = String(route.params.k1 ?? '');
@@ -54,7 +60,18 @@ const algoNames = computed(() =>
         <p class="benchmark-view__sub">
           So sánh thời gian thực tế của {{ algoNames || 'các giải thuật' }} theo độ lớn n — đo trong Web Worker, không tốn tim.
         </p>
-        <Badge variant="success" class="benchmark-view__badge">Không tốn tim</Badge>
+        <div class="benchmark-view__hero-row">
+          <!-- Hero-stat block-token (UI-PREMIUM 1D — DESIGN §6: tối đa 1 hero-stat/màn) -->
+          <BlockToken
+            class="benchmark-view__herostats"
+            :value="algoCount"
+            label="ALGO"
+            index="BENCH"
+            size="md"
+            glow
+          />
+          <Badge variant="success" class="benchmark-view__badge">Không tốn tim</Badge>
+        </div>
       </div>
     </header>
 
@@ -67,7 +84,9 @@ const algoNames = computed(() =>
       </Button>
     </div>
 
-    <BenchmarkPanel v-else :default-keys="defaultKeys" />
+    <RevealSection v-else preset="fadeUp" :delay="60">
+      <BenchmarkPanel :default-keys="defaultKeys" />
+    </RevealSection>
   </main>
 </template>
 
@@ -115,6 +134,18 @@ const algoNames = computed(() =>
   flex-direction: column;
   gap: var(--space-xs);
 }
+
+.benchmark-view__hero-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+.benchmark-view__herostats { align-self: flex-start; }
+
+.benchmark-view__badge { align-self: flex-start; }
 
 .benchmark-view__title {
   display: flex;

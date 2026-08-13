@@ -2,7 +2,9 @@
 // PseudocodePanel — panel mã giả (SDD §8.5 — trái 3/12)
 // Hiển thị pseudocode[] + highlight dòng active (pseudocodeLine) + chip biến + breakpoint
 // G-F2c: style code panel (gutter số dòng + syntax highlight nhẹ + active line mint).
-import { computed } from 'vue';
+// UI-PREMIUM 1B: highlight dòng active trượt MƯỢT (overlay theo offsetTop/offsetHeight
+// của dòng thật, transition ease-out-expo — không snap).
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 import { ChevronDown, ChevronRight } from 'lucide-vue-next';
 
@@ -60,6 +62,32 @@ function highlightLine(line: string): string {
 function highlight(line: string): string {
   return highlightLine(line);
 }
+
+/* ── Overlay highlight trượt — vị trí bám theo dòng active thật (offsetTop/offsetHeight) ── */
+const listRef = ref<HTMLElement | null>(null);
+const activeTop = ref(0);
+const activeHeight = ref(24);
+
+function syncHighlight(): void {
+  if (!listRef.value) return;
+  const line = listRef.value.querySelector<HTMLElement>(`[data-line="${props.activeLine}"]`);
+  if (!line) return;
+  activeTop.value = line.offsetTop;
+  activeHeight.value = line.offsetHeight;
+}
+
+watch(
+  () => props.activeLine,
+  () => void nextTick(syncHighlight),
+  { immediate: true },
+);
+
+watch(
+  () => props.pseudocode.length,
+  () => void nextTick(syncHighlight),
+);
+
+onMounted(() => void nextTick(syncHighlight));
 </script>
 
 <template>
@@ -76,7 +104,7 @@ function highlight(line: string): string {
       </button>
     </header>
 
-    <ol v-if="!collapsed" class="pseudo__list">
+    <ol v-if="!collapsed" ref="listRef" class="pseudo__list">
       <li
         v-for="(line, idx) in pseudocode"
         :key="idx"
@@ -104,6 +132,12 @@ function highlight(line: string): string {
         <code class="pseudo__code" v-html="highlight(line)" />
         <span v-if="activeLine === idx + 1" class="pseudo__arrow" aria-hidden="true">▶</span>
       </li>
+      <span
+        v-if="activeLine > 0 && activeLine <= pseudocode.length"
+        class="pseudo__highlight"
+        :style="{ top: `${activeTop}px`, height: `${activeHeight}px` }"
+        aria-hidden="true"
+      />
     </ol>
 
     <div v-if="!collapsed && variableChips.length > 0" class="pseudo__vars">
@@ -180,6 +214,22 @@ function highlight(line: string): string {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
+}
+
+/* Overlay highlight — trượt mượt theo dòng active (UI-PREMIUM 1B) */
+.pseudo__highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+  pointer-events: none;
+  transition:
+    top var(--duration-normal) var(--ease-out-expo),
+    height var(--duration-normal) var(--ease-out-expo);
 }
 
 .pseudo__line {
@@ -191,15 +241,17 @@ function highlight(line: string): string {
   font-size: var(--text-xs);
   font-family: var(--font-mono);
   position: relative;
+  z-index: 1;
   cursor: pointer;
   transition: background 120ms ease;
 }
 
 .pseudo__line:hover { background: var(--color-surface-hover); }
 
-.pseudo__line--active {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  box-shadow: inset 3px 0 0 var(--color-primary);
+.pseudo__line--active { background: transparent; box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pseudo__highlight { transition: none; }
 }
 
 /* ── Breakpoint (GP-T4): chấm tròn toggle — đỏ khi bật ── */

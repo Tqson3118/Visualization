@@ -38,7 +38,7 @@
           variant="primary"
           size="sm"
           :aria-label="messages.simulator.pause"
-          class="control-bar__play"
+          class="control-bar__play control-bar__play--running"
           @click="emit('pause')"
         >
           <Pause :size="15" aria-hidden="true" />
@@ -150,6 +150,22 @@ function onSpeedChange(event: Event): void {
   background: var(--color-primary);
   border-radius: var(--radius-full);
   white-space: nowrap;
+}
+
+/* UI-PREMIUM 1B: nút play/pause đang chạy → glow "active" (accent interactive).
+   Press micro-feedback đã có sẵn trong ui-btn (scale 0.97 — Button.vue). */
+.control-bar__play {
+  transition: box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.control-bar__play--running {
+  box-shadow:
+    var(--glow-primary),
+    0 0 20px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-bar__play { transition: none; }
 }
 
 .control-bar__speed {

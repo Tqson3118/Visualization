@@ -3,7 +3,9 @@
 // Pass ≥ 60% → emit('passed', scorePct). Hỗ trợ chế độ luyện tập (practice).
 // G-F2b: ProgressBar tiến độ câu hỏi + option dạng button selectable + toast kết quả
 // + confetti 'success' khi pass. KHÔNG đổi logic submit (pre-check đủ câu — G-BF2).
+// UI-PREMIUM 1B: thẻ câu hỏi enter scaleIn (motion-v, re-key theo câu) + error shake (ui-shake).
 import { computed, reactive, ref, watch } from 'vue';
+import { Motion } from 'motion-v';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, QuestionDto, SubmitResultDto } from '@/api/exercises';
@@ -15,6 +17,9 @@ import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+
+const reducedMotion =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const props = withDefaults(
   defineProps<{
@@ -160,7 +165,11 @@ function finish(): void {
     />
 
     <div v-else-if="result" class="quiz-stage__result">
-      <div class="quiz-stage__score-circle" :style="{ '--score-color': scoreColor() }">
+      <div
+        class="quiz-stage__score-circle"
+        :class="{ 'quiz-stage__score-circle--fail': !passed }"
+        :style="{ '--score-color': scoreColor() }"
+      >
         <span class="quiz-stage__score-value">{{ scorePct }}%</span>
       </div>
       <h3 class="quiz-stage__result-title">
@@ -193,42 +202,58 @@ function finish(): void {
     <template v-else>
       <div class="quiz-stage__body">
         <div class="quiz-stage__question-area">
-          <header class="quiz-stage__header">
-            <h2 class="quiz-stage__title">{{ exercise.title }}</h2>
-            <Badge variant="primary">Câu {{ currentQuestion + 1 }}/{{ questions.length }}</Badge>
-          </header>
+          <Motion
+            as="div"
+            class="quiz-stage__question-card"
+            :key="currentQuestion"
+            :initial="reducedMotion ? undefined : { opacity: 0, scale: 0.95 }"
+            :animate="{ opacity: 1, scale: 1 }"
+            :transition="{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }"
+          >
+            <header class="quiz-stage__header">
+              <h2 class="quiz-stage__title">{{ exercise.title }}</h2>
+              <Badge variant="primary">Câu {{ currentQuestion + 1 }}/{{ questions.length }}</Badge>
+            </header>
 
-          <ProgressBar
-            :value="progressPct"
-            show-label
-            size="sm"
-            class="quiz-stage__progress"
-            :variant="progressPct === 100 ? 'success' : 'default'"
-          />
+            <ProgressBar
+              :value="progressPct"
+              show-label
+              size="sm"
+              class="quiz-stage__progress"
+              :variant="progressPct === 100 ? 'success' : 'default'"
+            />
 
-          <p class="quiz-stage__question">{{ questions[currentQuestion].content }}</p>
+            <p class="quiz-stage__question">{{ questions[currentQuestion].content }}</p>
 
-          <div class="quiz-stage__options">
-            <label
-              v-for="(option, optionIndex) in questions[currentQuestion].options"
-              :key="optionIndex"
-              class="quiz-stage__option"
-              :class="{ 'quiz-stage__option--selected': (answers[currentQuestion] ?? []).includes(optionIndex) }"
-            >
-              <input
-                :type="questions[currentQuestion].type === 'MULTIPLE' ? 'checkbox' : 'radio'"
-                class="visually-hidden"
-                :checked="(answers[currentQuestion] ?? []).includes(optionIndex)"
-                @change="toggleOption(currentQuestion, optionIndex)"
-              />
-              <span class="quiz-stage__option-mark" aria-hidden="true">
-                {{ (answers[currentQuestion] ?? []).includes(optionIndex) ? '✓' : '' }}
-              </span>
-              {{ option }}
-            </label>
-          </div>
+            <div class="quiz-stage__options">
+              <label
+                v-for="(option, optionIndex) in questions[currentQuestion].options"
+                :key="optionIndex"
+                class="quiz-stage__option"
+                :class="{ 'quiz-stage__option--selected': (answers[currentQuestion] ?? []).includes(optionIndex) }"
+              >
+                <input
+                  :type="questions[currentQuestion].type === 'MULTIPLE' ? 'checkbox' : 'radio'"
+                  class="visually-hidden"
+                  :checked="(answers[currentQuestion] ?? []).includes(optionIndex)"
+                  @change="toggleOption(currentQuestion, optionIndex)"
+                />
+                <span class="quiz-stage__option-mark" aria-hidden="true">
+                  {{ (answers[currentQuestion] ?? []).includes(optionIndex) ? '✓' : '' }}
+                </span>
+                {{ option }}
+              </label>
+            </div>
+          </Motion>
 
-          <p v-if="submitError" class="quiz-stage__error" role="alert">{{ submitError }}</p>
+          <p
+            v-if="submitError"
+            :key="submitError"
+            class="quiz-stage__error quiz-stage__error--shake"
+            role="alert"
+          >
+            {{ submitError }}
+          </p>
 
           <div class="quiz-stage__nav">
             <Button variant="ghost" :disabled="currentQuestion === 0" @click="currentQuestion -= 1">
@@ -275,6 +300,28 @@ function finish(): void {
   display: grid;
   grid-template-columns: 3fr 1fr;
   gap: var(--space-lg);
+}
+
+/* Thẻ câu hỏi — nền cho enter scaleIn (UI-PREMIUM 1B) */
+.quiz-stage__question-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Error shake — sai thiếu câu / lỗi nộp (keyframes ui-shake trong global.css) */
+.quiz-stage__error--shake {
+  animation: ui-shake 400ms cubic-bezier(0.36, 0, 0.66, -0.56);
+}
+
+.quiz-stage__score-circle--fail {
+  animation: ui-shake 500ms cubic-bezier(0.36, 0, 0.66, -0.56);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-stage__error--shake,
+  .quiz-stage__score-circle--fail {
+    animation: none;
+  }
 }
 
 .quiz-stage__header {

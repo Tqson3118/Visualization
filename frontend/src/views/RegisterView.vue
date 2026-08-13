@@ -6,7 +6,7 @@
 // lucide-vue-next, Motion easing chuẩn cubic-bezier, segmented vai trò qua Button.vue
 // (giữ selector e2e button.register__role-option), bỏ shadow shell/role-option.
 // GIỮ nguyên logic validate/submit + selector e2e.
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { Motion } from 'motion-v';
 import {
@@ -27,6 +27,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/api/client';
 import { messages } from '@/i18n/vi';
 import { isValidEmail, validatePassword } from '@/utils/validators';
+import BlockToken from '@/components/ui/BlockToken.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 
@@ -62,7 +63,52 @@ const touched = reactive({
 const fieldErrors = reactive<Record<string, string>>({});
 const submitError = ref('');
 const submitting = ref(false);
+const submitSuccess = ref(false);
 const registeredTeacher = ref(false);
+
+/** Block-token nổi trong aside — 1 block mới mỗi 3s, vị trí ngẫu nhiên (decorative, aria-hidden). */
+interface FloatToken {
+  id: number;
+  top: string;
+  left: string;
+  value: string;
+}
+const floatTokens = ref<FloatToken[]>([]);
+let tokenId = 0;
+let tokenTimer: ReturnType<typeof setInterval> | null = null;
+let tokenTimeouts: Array<ReturnType<typeof setTimeout>> = [];
+
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function addFloatToken(): void {
+  const id = ++tokenId;
+  floatTokens.value.push({
+    id,
+    top: `${8 + Math.random() * 64}%`,
+    left: `${6 + Math.random() * 76}%`,
+    value: String(1 + Math.floor(Math.random() * 9)),
+  });
+  tokenTimeouts.push(
+    setTimeout(() => {
+      floatTokens.value = floatTokens.value.filter((t) => t.id !== id);
+    }, 9000),
+  );
+}
+
+onMounted(() => {
+  if (prefersReducedMotion()) return;
+  addFloatToken();
+  tokenTimer = setInterval(addFloatToken, 3000);
+});
+
+onBeforeUnmount(() => {
+  if (tokenTimer) clearInterval(tokenTimer);
+  for (const t of tokenTimeouts) clearTimeout(t);
+  tokenTimeouts = [];
+});
 
 const passwordRules = computed(() => [
   { key: 'length', ok: form.password.length >= 8 && form.password.length <= 64, label: messages.register.checklist[0] },
@@ -138,6 +184,9 @@ async function onSubmit(): Promise<void> {
           }
         : {}),
     });
+    // Thành công → checkmark ngắn trên nút (khoảnh khắc đầu tư), giữ nguyên luồng redirect
+    submitSuccess.value = true;
+    submitting.value = false;
     if (isTeacher) {
       registeredTeacher.value = true;
     } else {
@@ -181,6 +230,18 @@ const BENCH_BLOCKS = [
     >
       <!-- Brand panel: nền tối canvas-ink + block-token (KHÔNG gradient) -->
       <aside class="register__aside" aria-label="Giới thiệu DSA Visual">
+        <!-- Block-token nổi: 1 block mới mỗi 3s, vị trí ngẫu nhiên (pulse — signature §1.5) -->
+        <div class="register__float-tokens" aria-hidden="true">
+          <div
+            v-for="t in floatTokens"
+            :key="t.id"
+            class="register__float-token"
+            :style="{ top: t.top, left: t.left }"
+          >
+            <BlockToken size="sm" :value="t.value" :index="String(t.id).padStart(2, '0')" pulse />
+          </div>
+        </div>
+
         <div class="register__aside-inner">
           <span class="register__aside-badge">{{ messages.app.name }}</span>
           <h2 class="register__aside-title">{{ messages.app.tagline }}</h2>
@@ -370,7 +431,10 @@ const BENCH_BLOCKS = [
             </p>
 
             <Button type="submit" size="lg" class="register__submit" :loading="submitting" block>
-              {{ messages.register.submit }}
+              <span v-if="submitSuccess" class="register__success" aria-hidden="true">
+                <Check :size="16" />
+              </span>
+              <template v-else>{{ messages.register.submit }}</template>
             </Button>
 
             <p class="register__switch">
@@ -407,11 +471,32 @@ const BENCH_BLOCKS = [
 
 /* ── Brand panel — LUÔN tối (quyết định xuyên-nhóm 5) ── */
 .register__aside {
+  position: relative;
+  overflow: hidden;
   background: var(--color-canvas-ink);
   color: rgba(255, 255, 255, 0.92);
   padding: clamp(1.5rem, 4vw, 2.5rem);
   display: flex;
   align-items: center;
+}
+
+/* Block-token nổi — 1 block mới mỗi 3s, vị trí ngẫu nhiên, nhấp nháy chậm (pulse) */
+.register__float-tokens {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.register__float-token {
+  position: absolute;
+  animation: register-token-enter 6s var(--ease-in-out) both;
+}
+
+@keyframes register-token-enter {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  12% { opacity: 0.85; transform: translateY(0) scale(1); }
+  80% { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-8px); }
 }
 
 .register__aside-inner {
@@ -495,6 +580,20 @@ const BENCH_BLOCKS = [
   gap: var(--space-sm);
   font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* Brand points — stagger khi vào màn (easing chuẩn §7.10; test env jsdom không chạy CSS anim) */
+.register__point {
+  animation: register-point-in 400ms var(--ease-out-expo) both;
+}
+
+.register__point:nth-child(1) { animation-delay: 140ms; }
+.register__point:nth-child(2) { animation-delay: 220ms; }
+.register__point:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes register-point-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .register__point-icon {
@@ -692,6 +791,37 @@ const BENCH_BLOCKS = [
   margin-top: var(--space-md);
 }
 
+/* Submit thành công — checkmark vào nhẹ (khoảnh khắc đầu tư của màn) */
+.register__success {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: register-check-pop 300ms var(--ease-out-expo) both;
+}
+
+@keyframes register-check-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Input focus — border + glow ring chuyển mượt (token motion) */
+.register :deep(.ui-input input) {
+  transition:
+    border-color var(--duration-normal) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.register :deep(.ui-input input:focus-visible) {
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+}
+
+.register__bio:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+}
+
 .register__switch {
   text-align: center;
   margin: 0;
@@ -730,8 +860,21 @@ const BENCH_BLOCKS = [
   font-weight: 500;
 }
 
-@media (max-width: 820px) {
+/* <768px: ẩn aside, form full-width căn giữa (DESIGN.md §8) */
+@media (max-width: 767px) {
+  .register__shell { grid-template-columns: 1fr; max-width: 28rem; }
+  .register__aside { display: none; }
+  .register__form-col { padding: var(--space-lg) var(--space-md); }
+}
+
+@media (min-width: 768px) and (max-width: 820px) {
   .register__shell { grid-template-columns: 1fr; max-width: 28rem; }
   .register__aside { padding: var(--space-lg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .register__float-tokens { display: none; }
+  .register__point { animation: none; }
+  .register__success { animation: none; }
 }
 </style>

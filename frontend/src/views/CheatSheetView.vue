@@ -10,6 +10,7 @@ import { Table2 } from 'lucide-vue-next';
 
 import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
 import Badge from '@/components/ui/Badge.vue';
+import RevealSection from '@/components/ui/RevealSection.vue';
 import { CATALOG } from '@/engines/catalog';
 import { messages } from '@/i18n/vi';
 
@@ -68,7 +69,9 @@ const BIG_O_STRIP = [
       </div>
     </Motion>
 
-    <CheatSheetTable @open-simulation="openSimulation" />
+    <RevealSection preset="fadeUp" :delay="80">
+      <CheatSheetTable @open-simulation="openSimulation" />
+    </RevealSection>
   </main>
 </template>
 

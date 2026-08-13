@@ -84,10 +84,13 @@ const graphEdges = computed<Edge[]>(() => {
       source: `node-${props.nodes[i].id}`,
       target: i + 1 < props.nodes.length ? `node-${props.nodes[i + 1].id}` : 'final',
       type: 'smoothstep',
-      animated: false,
+      // Edge animated dash (CSS .vue-flow__edge.animated — tắt khi prefers-reduced-motion, xem bên dưới)
+      animated: true,
       style: {
         stroke: done ? 'var(--color-resolved)' : 'var(--color-index-muted)',
         strokeWidth: 2,
+        // Dash dài hơn khi node nguồn đã qua (resolved — ngôn ngữ trạng thái)
+        strokeDasharray: done ? '7 5' : '4 6',
       },
     });
   }

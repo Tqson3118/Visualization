@@ -28,6 +28,9 @@ import * as authApi from '@/api/auth';
 import { useUiStore } from '@/stores/ui';
 import Tabs from '@/components/ui/Tabs.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
+import ProgressRing from '@/components/ui/ProgressRing.vue';
+import Tooltip from '@/components/ui/Tooltip.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -109,6 +112,11 @@ const levelProgressPct = computed(() => {
   if (!o || o.lessonsTotal === 0) return 0;
   return Math.min(100, Math.round((o.lessonsViewed / o.lessonsTotal) * 100));
 });
+
+/** Màu ProgressRing quanh avatar — data-core (dữ liệu), chuyển resolved khi hoàn thành (ngôn ngữ §2.1) */
+const ringColor = computed(() =>
+  levelProgressPct.value >= 100 ? 'var(--color-resolved)' : 'var(--color-data-core)',
+);
 
 const quickLinks: Array<{ label: string; to: string; icon: Component }> = [
   { label: 'Thử thách hằng ngày', to: 'quests', icon: Target },
@@ -225,9 +233,19 @@ function csvExport(): void {
     <!-- Hero profile card — surface band level-2 (không gradient, không blob, không shadow) -->
     <header class="profile__hero">
       <div class="profile__hero-main">
-        <span class="profile__avatar" aria-hidden="true">
-          {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
-        </span>
+        <div class="profile__avatar-wrap">
+          <!-- ProgressRing quanh avatar — tiến trình level (data thật) -->
+          <ProgressRing
+            :progress="levelProgressPct"
+            :size="100"
+            :stroke-width="6"
+            :color="ringColor"
+            immediate
+          />
+          <span class="profile__avatar" aria-hidden="true">
+            {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+          </span>
+        </div>
         <div class="profile__identity">
           <h1 class="profile__name">{{ auth.user?.displayName ?? 'Người dùng' }}</h1>
           <p class="profile__email">{{ auth.user?.email }}</p>
@@ -245,14 +263,15 @@ function csvExport(): void {
       </div>
 
       <!-- Stat hierarchy (DESIGN.md §6): 1 hero duy nhất = XP (block-token tối + index mono),
-           còn lại stat phụ level-1. Streak = block-token resolved (dữ liệu tuần tự). -->
+           còn lại stat phụ level-1. Mọi giá trị đếm lên qua AnimatedNumber (reduced-motion: thẳng giá trị). -->
       <div class="profile__stats-row">
-        <BlockToken
-          label="XP"
-          :value="xp.toLocaleString('vi-VN')"
-          index="01 · tích lũy"
-          class="profile__stats-hero"
-        />
+        <div class="profile__hero-stat">
+          <span class="profile__hero-stat-head">
+            <span class="profile__hero-stat-dot" aria-hidden="true" />
+            <span class="profile__hero-stat-index">XP · 01 · tích lũy</span>
+          </span>
+          <AnimatedNumber class="profile__hero-stat-value" :value="xp" />
+        </div>
         <div class="profile__stat-block">
           <span class="profile__stat-label">Level</span>
           <div class="profile__stat-line">
@@ -260,18 +279,27 @@ function csvExport(): void {
             <span class="profile__stat-unit">CẤP</span>
           </div>
         </div>
-        <BlockToken size="sm" tone="resolved" label="Streak" :value="gamification.streakDays" index="ngày" />
+        <div class="profile__stat-block profile__stat-block--streak">
+          <span class="profile__stat-label">Streak</span>
+          <div class="profile__stat-line">
+            <AnimatedNumber class="profile__stat-value" :value="gamification.streakDays" suffix=" ngày" />
+          </div>
+        </div>
         <div class="profile__stat-block">
           <span class="profile__stat-label">Gems</span>
           <div class="profile__stat-line">
-            <span class="profile__stat-value">{{ gamification.gems }}</span>
+            <AnimatedNumber class="profile__stat-value" :value="gamification.gems" />
             <span class="profile__stat-unit">GEMS</span>
           </div>
         </div>
         <div class="profile__stat-block">
           <span class="profile__stat-label">Tim</span>
           <div class="profile__stat-line">
-            <span class="profile__stat-value">{{ gamification.hearts }}/{{ gamification.heartsMax }}</span>
+            <AnimatedNumber
+              class="profile__stat-value"
+              :value="gamification.hearts"
+              :suffix="`/${gamification.heartsMax}`"
+            />
             <span class="profile__stat-unit">TIM</span>
           </div>
         </div>
@@ -340,6 +368,39 @@ function csvExport(): void {
               </RouterLink>
             </div>
           </div>
+        </div>
+
+        <!-- Activity timeline — block-token style (signature §1.5: dữ liệu tuần tự + index mono) -->
+        <div class="card profile__timeline-card">
+          <div class="profile__timeline-head">
+            <h2 class="profile__panel-title">Hoạt động gần đây</h2>
+            <span class="text-muted">Tiến độ theo chủ đề</span>
+          </div>
+          <div v-if="overview && overview.topics.length > 0" class="profile__timeline">
+            <div
+              v-for="(topic, idx) in overview.topics"
+              :key="topic.id"
+              class="profile__timeline-item"
+            >
+              <span class="profile__timeline-idx">{{ String(idx + 1).padStart(2, '0') }}</span>
+              <span class="profile__timeline-line" aria-hidden="true" />
+              <div class="profile__timeline-body">
+                <p class="profile__timeline-name">{{ topic.name }}</p>
+                <BlockToken
+                  size="sm"
+                  :value="`${topic.progressPct}%`"
+                  :tone="topic.progressPct >= 100 ? 'resolved' : 'default'"
+                  :glow="topic.progressPct >= 100"
+                />
+              </div>
+            </div>
+          </div>
+          <EmptyState
+            v-else
+            icon="target"
+            title="Chưa có hoạt động"
+            description="Học vài bài học đầu tiên để thấy hoạt động ở đây."
+          />
         </div>
 
         <!-- Skill radar (vue-echarts lazy) — data thật từ /progress/me, nền LUÔN tối -->
@@ -412,18 +473,23 @@ function csvExport(): void {
     <!-- Tab Thành tích -->
     <section v-else-if="tab === 'achievements'" class="profile__panel">
       <div class="profile__achievements">
-        <div
+        <Tooltip
           v-for="ach in achievements"
           :key="ach.id"
-          class="profile__achievement"
-          :class="{ 'profile__achievement--locked': !ach.unlocked }"
+          :text="ach.unlocked ? ach.label : `${ach.label} — chưa mở khóa`"
+          position="top"
         >
-          <span class="profile__achievement-icon" :class="{ 'profile__achievement-icon--open': ach.unlocked }">
-            <component :is="ach.unlocked ? Medal : Lock" :size="20" aria-hidden="true" />
-          </span>
-          <p class="profile__achievement-label">{{ ach.label }}</p>
-          <Badge :variant="ach.unlocked ? 'success' : 'muted'">{{ ach.unlocked ? 'Đã mở' : 'Chưa mở' }}</Badge>
-        </div>
+          <div
+            class="profile__achievement"
+            :class="{ 'profile__achievement--locked': !ach.unlocked }"
+          >
+            <span class="profile__achievement-icon" :class="{ 'profile__achievement-icon--open': ach.unlocked }">
+              <component :is="ach.unlocked ? Medal : Lock" :size="20" aria-hidden="true" />
+            </span>
+            <p class="profile__achievement-label">{{ ach.label }}</p>
+            <Badge :variant="ach.unlocked ? 'success' : 'muted'">{{ ach.unlocked ? 'Đã mở' : 'Chưa mở' }}</Badge>
+          </div>
+        </Tooltip>
       </div>
       <EmptyState
         v-if="achievements.every((a) => !a.unlocked)"
@@ -480,7 +546,22 @@ function csvExport(): void {
   flex-wrap: wrap;
 }
 
+.profile__avatar-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+/* ProgressRing quanh avatar — layer dưới, avatar đè lên (inset 14px → 72px) */
+.profile__avatar-wrap .ui-progress-ring {
+  position: absolute;
+  inset: 0;
+}
+
 .profile__avatar {
+  position: absolute;
+  inset: 14px;
   width: 72px;
   height: 72px;
   border-radius: var(--radius-full);
@@ -522,22 +603,57 @@ function csvExport(): void {
 
 @media (min-width: 640px) {
   .profile__stats-row { grid-template-columns: repeat(2, 1fr); }
-  .profile__stats-hero { grid-column: span 2; }
+  .profile__hero-stat { grid-column: span 2; }
 }
 
 @media (min-width: 1024px) {
   .profile__stats-row { grid-template-columns: repeat(6, 1fr); }
-  .profile__stats-hero { grid-column: span 2; }
+  .profile__hero-stat { grid-column: span 2; }
 }
 
-/* Khoảnh khắc đầu tư duy nhất của màn: hero-stat vào nhẹ (transform+opacity, easing chuẩn) */
+/* Khoảnh khắc đầu tư duy nhất của màn: hero-stat XP (canvas-ink + count-up) vào nhẹ */
 @keyframes profile-hero-enter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.profile__stats-hero {
+.profile__hero-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 20%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-ink);
   animation: profile-hero-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.profile__hero-stat-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.profile__hero-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+.profile__hero-stat-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-index-muted);
+}
+
+.profile__hero-stat-value {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: rgba(255, 255, 255, 0.92);
+  font-variant-numeric: tabular-nums;
 }
 
 .profile__stat-block {
@@ -548,6 +664,11 @@ function csvExport(): void {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-card);
+}
+
+/* Streak — semantic "đã ổn định/liên tục" → resolved (ngôn ngữ thuật toán §2.1) */
+.profile__stat-block--streak .profile__stat-value {
+  color: var(--color-resolved);
 }
 
 .profile__stat-label {
@@ -624,6 +745,63 @@ function csvExport(): void {
   color: var(--color-text-tertiary);
 }
 
+/* ── Activity timeline — block-token style: index mono + line + block giá trị ── */
+.profile__timeline-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.profile__timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.profile__timeline {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-xs);
+}
+
+.profile__timeline-item {
+  display: grid;
+  grid-template-columns: 2.5rem 1px 1fr;
+  gap: var(--space-md);
+  align-items: start;
+  padding-block: var(--space-sm);
+}
+
+.profile__timeline-idx {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  padding-top: 2px;
+}
+
+.profile__timeline-line {
+  width: 1px;
+  align-self: stretch;
+  background: color-mix(in srgb, var(--color-data-core) 25%, transparent);
+}
+
+.profile__timeline-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.profile__timeline-name {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
 /* ── Skill radar card — vùng dữ liệu LUÔN tối ── */
 .profile__radar-card { display: flex; flex-direction: column; gap: var(--space-xs); }
 .profile__radar-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-sm); flex-wrap: wrap; }
@@ -688,10 +866,23 @@ function csvExport(): void {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background: var(--color-card);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    border-color 150ms var(--ease-out-expo),
+    box-shadow 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
 }
 
-.profile__achievement:hover { border-color: var(--color-border-strong); }
+/* Hover glow — resolved (đã mở) / primary nhẹ (chưa mở) + tooltip kèm theo */
+.profile__achievement:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--glow-resolved);
+  transform: translateY(-2px);
+}
+
+.profile__achievement--locked:hover {
+  box-shadow: var(--glow-primary);
+  transform: none;
+}
 
 .profile__achievement--locked { opacity: 0.6; }
 
@@ -706,7 +897,7 @@ function csvExport(): void {
 .profile__password-error { color: var(--color-destructive); font-size: var(--text-sm); }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile__stats-hero { animation: none; }
+  .profile__hero-stat { animation: none; }
 }
 
 @media (max-width: 768px) {

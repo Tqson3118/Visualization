@@ -6,7 +6,7 @@
 // rules strip bỏ shadow + hover-lift → level-1, giá trị số mono + weight 600 (bỏ 700);
 // easing chuẩn; icon gradient → ô muted + lucide 20px tertiary; badge muted; bỏ 🏅/← i18n.
 // GIỮ NGUYÊN logic fetch/build/submit.
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, Flag, Gauge, Repeat, Trophy } from 'lucide-vue-next';
 import { Motion } from 'motion-v';
@@ -19,7 +19,9 @@ import QuizStage from '@/components/ladder/QuizStage.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import ProgressRing from '@/components/ui/ProgressRing.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+import { useCountdown } from '@/composables/useCountdown';
 import { CATALOG } from '@/engines/catalog';
 
 const route = useRoute();
@@ -31,6 +33,15 @@ const topicId = computed(() => String(route.params.topicId ?? ''));
 const exercise = ref<ExerciseDto | null>(null);
 const loading = ref(true);
 const passThreshold = 70;
+
+/* UI-PREMIUM 1B: đồng hồ đếm ngược (ProgressRing) — chỉ hiển thị, không auto-submit */
+const { progress: timerProgress, formatted: timerFormatted, start: startCountdown } = useCountdown(
+  () => exercise.value?.durationMinutes ?? 0,
+);
+
+watch(exercise, (ex) => {
+  if (ex) startCountdown();
+});
 
 onMounted(async () => {
   try {
@@ -118,9 +129,21 @@ function onPassed(scorePct: number): void {
           <h1 class="final-test__title">{{ messages.finalTest.title }}</h1>
           <p class="final-test__sub">{{ messages.finalTest.subtitle(passThreshold) }}</p>
         </div>
-        <Badge variant="muted" class="final-test__badge">
-          {{ messages.finalTest.badge }}
-        </Badge>
+        <div class="final-test__hero-meta">
+          <div v-if="exercise" class="final-test__timer" role="timer" :aria-label="`Còn ${timerFormatted}`">
+            <ProgressRing
+              :progress="timerProgress"
+              :size="44"
+              :stroke-width="4"
+              :color="timerProgress <= 20 ? 'var(--color-conflict)' : 'var(--color-data-core)'"
+              immediate
+            />
+            <span class="final-test__timer-time">{{ timerFormatted }}</span>
+          </div>
+          <Badge variant="muted" class="final-test__badge">
+            {{ messages.finalTest.badge }}
+          </Badge>
+        </div>
       </div>
     </Motion>
 
@@ -256,7 +279,35 @@ function onPassed(scorePct: number): void {
   margin: 0;
 }
 
-.final-test__badge { margin-left: auto; align-self: flex-start; }
+.final-test__badge { align-self: flex-start; }
+
+/* Timer đếm ngược (UI-PREMIUM 1B) — chip mono + ProgressRing cạnh badge */
+.final-test__hero-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+
+.final-test__timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-xs);
+}
+
+.final-test__timer-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
 
 /* ── Rules strip — level-1 (§6): surface + border, KHÔNG shadow, hover chỉ đổi border ── */
 .final-test__rules {
@@ -324,6 +375,7 @@ function onPassed(scorePct: number): void {
 
 @media (max-width: 640px) {
   .final-test__chrome { padding: var(--space-md); }
+  .final-test__hero-meta { margin-left: 0; }
   .final-test__badge { margin-left: 0; }
   .final-test__hero { align-items: flex-start; }
   .final-test__actions { justify-content: flex-start; }

@@ -7,7 +7,7 @@
 // Logic cancel GIỮ NGUYÊN (H-D).
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { CalendarDays, CheckCircle2, CreditCard, RefreshCw, XCircle } from 'lucide-vue-next';
+import { AlertTriangle, CalendarDays, CheckCircle2, CreditCard, RefreshCw, XCircle } from 'lucide-vue-next';
 
 import * as gamificationApi from '@/api/gamification';
 import type { PremiumStatusDto } from '@/api/gamification';
@@ -107,7 +107,8 @@ async function cancelRenewal(): Promise<void> {
     />
 
     <template v-else>
-      <div class="subscription__status card">
+      <!-- Plan card — glow ring pulse (--glow-primary, interactive accent) -->
+      <div class="subscription__status card subscription__status--highlight">
         <div class="subscription__status-head">
           <h2 class="subscription__status-name">{{ status.plan ?? 'Premium' }}</h2>
           <Badge variant="success">{{ messages.subscription.activeBadge }}</Badge>
@@ -155,9 +156,15 @@ async function cancelRenewal(): Promise<void> {
 
     <Modal :open="confirmOpen" :title="messages.subscription.cancelTitle" @close="confirmOpen = false">
       <div class="subscription__confirm">
+        <span class="subscription__confirm-warn" aria-hidden="true"><AlertTriangle :size="18" /></span>
         <p class="subscription__confirm-note">{{ messages.subscription.cancelNote }}</p>
         <ul class="subscription__confirm-loss">
-          <li v-for="loss in LOSES" :key="loss">
+          <li
+            v-for="(loss, idx) in LOSES"
+            :key="loss"
+            class="subscription__confirm-loss-item"
+            :style="{ '--i': idx }"
+          >
             <XCircle :size="14" class="subscription__loss-icon" aria-hidden="true" />
             {{ loss }}
           </li>
@@ -239,6 +246,20 @@ async function cancelRenewal(): Promise<void> {
 
 .subscription__status { display: flex; flex-direction: column; gap: var(--space-md); transition: none; }
 
+/* Plan card highlight — glow ring pulse (--glow-primary; palette không thêm màu) */
+.subscription__status--highlight {
+  animation: sub-glow-pulse 2.8s var(--ease-in-out) infinite;
+}
+
+@keyframes sub-glow-pulse {
+  0%, 100% { box-shadow: var(--glow-primary); }
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--color-primary) 10%, transparent),
+      0 0 22px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+}
+
 .subscription__status-head { display: flex; align-items: center; gap: var(--space-sm); }
 
 .subscription__status-name { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
@@ -293,6 +314,23 @@ async function cancelRenewal(): Promise<void> {
 
 .subscription__confirm { display: flex; flex-direction: column; gap: var(--space-sm); font-size: var(--text-sm); }
 
+.subscription__confirm-warn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: sub-warn-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes sub-warn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .subscription__confirm-note { line-height: 1.6; color: var(--color-foreground-secondary); margin: 0; }
 
 .subscription__confirm-loss {
@@ -304,11 +342,26 @@ async function cancelRenewal(): Promise<void> {
   color: var(--color-destructive);
 }
 
-.subscription__confirm-loss li { display: flex; align-items: center; gap: var(--space-sm); }
+/* Loss items — stagger nhẹ khi mở modal (chỉ transform + opacity) */
+.subscription__confirm-loss-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  animation: sub-loss-in 240ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i) * 55ms + 60ms);
+}
+
+@keyframes sub-loss-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 
 .subscription__loss-icon { flex-shrink: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .subscription__hero-stat { animation: none; }
+  .subscription__status--highlight { animation: none; }
+  .subscription__confirm-warn { animation: none; }
+  .subscription__confirm-loss-item { animation: none; }
 }
 </style>

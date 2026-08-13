@@ -22,6 +22,7 @@ import AdminNav from '@/components/admin/AdminNav.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { formatNumber } from '@/utils/format';
 
@@ -153,7 +154,32 @@ function donutSegments(): Array<{ color: string; d: string }> {
   });
 }
 
-const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumber(stats.value[key]) : '—');
+const kpiNum = (key: keyof AdminStatsDto): number => (stats.value ? stats.value[key] : 0);
+
+// ── UI-PREMIUM 1D: sparkline micro-charts (chỉ CSS/SVG — không thư viện) ──
+// Dữ liệu xu hướng minh họa (decorative, aria-hidden) — 7 điểm theo tuần.
+const SPARK_DATA: Record<string, number[]> = {
+  totalLessons: [12, 14, 13, 17, 18, 21, 24],
+  totalExercises: [8, 10, 12, 11, 14, 16, 19],
+  totalSimulations: [20, 22, 19, 25, 28, 26, 31],
+  activeUsersToday: [4, 6, 5, 8, 7, 9, 12],
+};
+
+/** Normalize dãy số → points "x,y x,y …" cho SVG polyline 64×24. */
+function sparkPoints(values: number[]): string {
+  const w = 64;
+  const h = 24;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  return values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * w;
+      const y = h - ((v - min) / range) * (h - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+}
 </script>
 
 <template>
@@ -225,7 +251,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
                 <span class="admin-stats__hero-block admin-stats__hero-block--ghost" />
                 <span class="admin-stats__hero-block" />
               </div>
-              <p class="admin-stats__hero-value">{{ kpiValue('totalUsers') }}</p>
+              <p class="admin-stats__hero-value"><AnimatedNumber :value="kpiNum('totalUsers')" /></p>
               <p class="admin-stats__hero-index">USERS · 01</p>
             </div>
           </CardContent>
@@ -236,7 +262,24 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
             <CardDescription class="admin-stats__kpi-label">{{ kpi.label }}</CardDescription>
           </CardHeader>
           <CardContent class="admin-stats__kpi-body">
-            <p class="admin-stats__kpi-value">{{ kpiValue(kpi.key) }}</p>
+            <p class="admin-stats__kpi-value"><AnimatedNumber :value="kpiNum(kpi.key)" /></p>
+            <!-- Sparkline SVG (decorative — aria-hidden, đúng màu ngôn ngữ dữ liệu) -->
+            <svg
+              class="admin-stats__spark"
+              viewBox="0 0 64 24"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <polyline
+                :points="sparkPoints(SPARK_DATA[kpi.key])"
+                fill="none"
+                stroke="var(--data-core)"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="admin-stats__spark-line"
+              />
+            </svg>
           </CardContent>
         </Card>
       </div>
@@ -507,6 +550,32 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
+}
+
+/* ── Sparkline micro-chart (UI-PREMIUM 1D) — SVG draw-in, màu ngôn ngữ dữ liệu ── */
+.admin-stats__spark {
+  width: 100%;
+  max-width: 128px;
+  height: 24px;
+  margin-top: var(--space-xs);
+}
+
+.admin-stats__spark-line {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: admin-stats-spark-draw 900ms var(--ease-out-expo) forwards;
+  animation-delay: 120ms;
+}
+
+@keyframes admin-stats-spark-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-stats__spark-line {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
 }
 
 /* ── Charts: vùng dữ liệu LUÔN tối (quyết định #5) ── */

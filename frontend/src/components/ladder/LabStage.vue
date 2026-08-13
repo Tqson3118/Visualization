@@ -12,6 +12,7 @@ import { fireConfetti } from '@/composables/useConfetti';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ProgressRing from '@/components/ui/ProgressRing.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -50,6 +51,14 @@ const won = ref(false);
 const sorted = computed(() => [...array.value].sort((a, b) => a - b));
 const isSorted = computed(() => array.value.every((v, i) => v === sorted.value[i]));
 const limit = computed(() => props.maxSteps || Math.ceil(props.standardSteps * 1.5) || 12);
+
+/* UI-PREMIUM 1B: ProgressRing gauge — bước đã dùng / giới hạn (sống theo thao tác) */
+const ringProgress = computed(() =>
+  limit.value === 0 ? 0 : Math.min(100, Math.round((stepsUsed.value / limit.value) * 100)),
+);
+const ringColor = computed(() =>
+  stepsUsed.value >= limit.value ? 'var(--color-conflict)' : 'var(--color-data-core)',
+);
 
 function clickCell(index: number): void {
   if (submitted.value || won.value) return;
@@ -122,9 +131,22 @@ function submit(): void {
         <h2 class="lab-stage__title">{{ title }}</h2>
         <p class="lab-stage__prompt">{{ prompt }}</p>
       </div>
-      <Badge :variant="stepsUsed <= limit ? 'primary' : 'danger'">
-        Đã dùng {{ stepsUsed }}/{{ limit }} bước
-      </Badge>
+      <div class="lab-stage__header-right">
+        <div class="lab-stage__gauge" role="img" :aria-label="`Đã dùng ${stepsUsed}/${limit} bước`">
+          <ProgressRing
+            :progress="ringProgress"
+            :size="48"
+            :stroke-width="4"
+            :color="ringColor"
+            show-label
+            :label="`${stepsUsed}/${limit}`"
+            immediate
+          />
+        </div>
+        <Badge :variant="stepsUsed <= limit ? 'primary' : 'danger'">
+          Đã dùng {{ stepsUsed }}/{{ limit }} bước
+        </Badge>
+      </div>
     </header>
 
     <EmptyState
@@ -195,6 +217,20 @@ function submit(): void {
 }
 
 .lab-stage__prompt { color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: 4px; }
+
+/* UI-PREMIUM 1B: gauge bước đã dùng — ProgressRing + badge cạnh nhau */
+.lab-stage__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.lab-stage__gauge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Canvas — vùng dữ liệu LUÔN tối (DESIGN-IDENTITY §1.1, quyết định #5) */
 .lab-stage__canvas {

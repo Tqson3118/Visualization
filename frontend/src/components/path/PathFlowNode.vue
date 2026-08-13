@@ -109,6 +109,7 @@ const label = computed(() => props.data.title);
   cursor: pointer;
   transition:
     border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -122,8 +123,10 @@ const label = computed(() => props.data.title);
   cursor: not-allowed;
 }
 
+/* Completed node = resolved color (ngôn ngữ trạng thái thuật toán) */
 .path-node--passed {
   border-color: color-mix(in srgb, var(--color-resolved) 55%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-resolved) 18%, transparent);
 }
 
 .path-node--active {
@@ -133,6 +136,17 @@ const label = computed(() => props.data.title);
 
 .path-node--final {
   border-style: dashed;
+}
+
+/* Hover glow — node đang học hoặc đã qua sáng lên nhẹ (chỉ transform/glow, không scale) */
+.path-node:not(.path-node--locked):hover {
+  box-shadow: var(--glow-data-core);
+  border-color: var(--color-data-core);
+}
+
+.path-node--passed:hover {
+  box-shadow: var(--glow-resolved);
+  border-color: color-mix(in srgb, var(--color-resolved) 80%, transparent);
 }
 
 .path-node__spinner {

@@ -8,7 +8,17 @@
 // Ghi chú Phase 2: nội dung rich-text (contentHtml) của CMS — KHÔNG sửa.
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowRight, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  Layers,
+  Network,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
 import type { LessonSummary, Topic } from '@/api/lessons';
@@ -38,6 +48,69 @@ const lessons = ref<LessonSummary[]>([]);
 const topics = ref<Topic[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
+
+// ── UI-PREMIUM 1D: sắp xếp cột (client-side, presentation only) + indicator animation ──
+type LessonSortKey = 'title' | 'topic' | 'status' | 'sim';
+const sortKey = ref<LessonSortKey | null>(null);
+const sortDir = ref<'asc' | 'desc'>('asc');
+
+const sortedLessons = computed(() => {
+  const list = [...lessons.value];
+  if (sortKey.value === null) return list;
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  list.sort((a, b) => {
+    switch (sortKey.value) {
+      case 'title':
+        return a.title.localeCompare(b.title, 'vi') * dir;
+      case 'topic':
+        return topicName.value(a.topicId).localeCompare(topicName.value(b.topicId), 'vi') * dir;
+      case 'status':
+        return a.status.localeCompare(b.status) * dir;
+      case 'sim':
+        return (a.simulationCount - b.simulationCount) * dir;
+      default:
+        return 0;
+    }
+  });
+  return list;
+});
+
+function toggleSort(key: LessonSortKey): void {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortDir.value = 'asc';
+  }
+}
+
+function sortAria(key: LessonSortKey): 'ascending' | 'descending' | 'none' {
+  if (sortKey.value !== key) return 'none';
+  return sortDir.value === 'asc' ? 'ascending' : 'descending';
+}
+
+// ── Xóa bài học qua Modal xác nhận (UI-PREMIUM 1D: bỏ window.confirm) ──
+const deleteTarget = ref<LessonSummary | null>(null);
+const deleting = ref(false);
+
+function askDelete(lesson: LessonSummary): void {
+  deleteTarget.value = lesson;
+}
+
+async function confirmDelete(): Promise<void> {
+  if (!deleteTarget.value) return;
+  deleting.value = true;
+  try {
+    await lessonsApi.deleteLesson(deleteTarget.value.id);
+    ui.showToast('Đã xóa bài học.', 'success');
+    deleteTarget.value = null;
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
+  } finally {
+    deleting.value = false;
+  }
+}
 
 // Form bài học
 const formOpen = ref(false);
@@ -171,17 +244,6 @@ async function saveLesson(): Promise<void> {
   }
 }
 
-async function deleteLesson(lesson: LessonSummary): Promise<void> {
-  if (!window.confirm(`Xóa bài học "${lesson.title}"? (xóa mềm — ẩn khỏi người học)`)) return;
-  try {
-    await lessonsApi.deleteLesson(lesson.id);
-    ui.showToast('Đã xóa bài học.', 'success');
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
-  }
-}
-
 async function saveTopic(): Promise<void> {
   try {
     await lessonsApi.createTopic(topicForm);
@@ -263,19 +325,71 @@ async function saveTopic(): Promise<void> {
 
       <div v-else class="admin-content__table">
         <div class="admin-content__table-scroll">
-          <table>
+          <table class="table-stack">
             <thead>
               <tr>
                 <th scope="col">{{ messages.admin.content.colIndex }}</th>
-                <th scope="col">{{ messages.admin.content.colTitle }}</th>
-                <th scope="col">{{ messages.admin.content.colTopic }}</th>
-                <th scope="col">{{ messages.admin.content.colStatus }}</th>
-                <th scope="col">{{ messages.admin.content.colSim }}</th>
+                <th scope="col" :aria-sort="sortAria('title')">
+                  <button
+                    type="button"
+                    class="admin-content__sort"
+                    :class="{ 'admin-content__sort--active': sortKey === 'title' }"
+                    @click="toggleSort('title')"
+                  >
+                    <span>{{ messages.admin.content.colTitle }}</span>
+                    <span class="admin-content__sort-arrows" aria-hidden="true">
+                      <ArrowUp :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'title' && sortDir === 'asc' }" />
+                      <ArrowDown :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'title' && sortDir === 'desc' }" />
+                    </span>
+                  </button>
+                </th>
+                <th scope="col" :aria-sort="sortAria('topic')">
+                  <button
+                    type="button"
+                    class="admin-content__sort"
+                    :class="{ 'admin-content__sort--active': sortKey === 'topic' }"
+                    @click="toggleSort('topic')"
+                  >
+                    <span>{{ messages.admin.content.colTopic }}</span>
+                    <span class="admin-content__sort-arrows" aria-hidden="true">
+                      <ArrowUp :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'topic' && sortDir === 'asc' }" />
+                      <ArrowDown :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'topic' && sortDir === 'desc' }" />
+                    </span>
+                  </button>
+                </th>
+                <th scope="col" :aria-sort="sortAria('status')">
+                  <button
+                    type="button"
+                    class="admin-content__sort"
+                    :class="{ 'admin-content__sort--active': sortKey === 'status' }"
+                    @click="toggleSort('status')"
+                  >
+                    <span>{{ messages.admin.content.colStatus }}</span>
+                    <span class="admin-content__sort-arrows" aria-hidden="true">
+                      <ArrowUp :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'status' && sortDir === 'asc' }" />
+                      <ArrowDown :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'status' && sortDir === 'desc' }" />
+                    </span>
+                  </button>
+                </th>
+                <th scope="col" :aria-sort="sortAria('sim')">
+                  <button
+                    type="button"
+                    class="admin-content__sort"
+                    :class="{ 'admin-content__sort--active': sortKey === 'sim' }"
+                    @click="toggleSort('sim')"
+                  >
+                    <span>{{ messages.admin.content.colSim }}</span>
+                    <span class="admin-content__sort-arrows" aria-hidden="true">
+                      <ArrowUp :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'sim' && sortDir === 'asc' }" />
+                      <ArrowDown :size="12" class="admin-content__sort-arrow" :class="{ 'admin-content__sort-arrow--on': sortKey === 'sim' && sortDir === 'desc' }" />
+                    </span>
+                  </button>
+                </th>
                 <th scope="col" class="admin-content__actions-col">{{ messages.admin.content.colActions }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(lesson, idx) in lessons" :key="lesson.id">
+              <tr v-for="(lesson, idx) in sortedLessons" :key="lesson.id">
                 <td :data-label="messages.admin.content.colIndex" class="admin-content__idx">{{ pad(idx + 1) }}</td>
                 <td :data-label="messages.admin.content.colTitle" class="admin-content__title-cell">
                   <p class="admin-content__title-text">{{ lesson.title }}</p>
@@ -297,7 +411,7 @@ async function saveTopic(): Promise<void> {
                     <Button size="sm" variant="ghost" @click="openEdit(lesson)">
                       <Pencil :size="16" /> {{ messages.admin.content.edit }}
                     </Button>
-                    <Button size="sm" variant="danger" @click="deleteLesson(lesson)">
+                    <Button size="sm" variant="danger" @click="askDelete(lesson)">
                       <Trash2 :size="16" /> {{ messages.admin.content.delete }}
                     </Button>
                   </div>
@@ -389,6 +503,28 @@ async function saveTopic(): Promise<void> {
           <Button type="submit">{{ messages.admin.content.create }}</Button>
         </div>
       </form>
+    </Modal>
+
+    <!-- Xác nhận xóa bài học (UI-PREMIUM 1D: bỏ window.confirm → Modal + toast cùng động từ) -->
+    <Modal
+      :open="deleteTarget !== null"
+      title="Xóa bài học"
+      @close="deleteTarget = null"
+    >
+      <div class="admin-content__confirm">
+        <p class="admin-content__confirm-text">
+          Bạn sắp xóa bài học <strong>{{ deleteTarget?.title }}</strong> — đây là xóa mềm, bài học sẽ bị
+          ẩn khỏi người học.
+        </p>
+      </div>
+      <template #footer>
+        <Button variant="ghost" :disabled="deleting" @click="deleteTarget = null">
+          {{ messages.admin.content.cancel }}
+        </Button>
+        <Button variant="danger" :loading="deleting" @click="confirmDelete">
+          <Trash2 :size="16" /> {{ messages.admin.content.delete }}
+        </Button>
+      </template>
     </Modal>
   </main>
 </template>
@@ -568,11 +704,61 @@ async function saveTopic(): Promise<void> {
   vertical-align: middle;
 }
 
-.admin-content__table tbody tr { transition: background-color 150ms; }
+.admin-content__table tbody tr { transition: background-color 150ms var(--ease-out-expo); }
 
 .admin-content__table tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
 
 .admin-content__table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Sort header (UI-PREMIUM 1D) — indicator animation (ArrowUp/Down) ── */
+.admin-content__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.admin-content__sort:hover { color: var(--foreground); }
+
+.admin-content__sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--foreground-tertiary);
+}
+
+.admin-content__sort-arrow {
+  opacity: 0.35;
+  transition:
+    opacity 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo),
+    color 150ms var(--ease-out-expo);
+}
+
+.admin-content__sort-arrow--on {
+  opacity: 1;
+  color: var(--primary);
+  transform: scale(1.2) translateY(0);
+}
+
+.admin-content__sort-arrow:not(.admin-content__sort-arrow--on) {
+  transform: scale(0.85);
+}
+
+/* ── Confirm delete ── */
+.admin-content__confirm-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--foreground-secondary);
+}
+
+.admin-content__confirm-text strong { color: var(--foreground); font-weight: 600; }
 
 .admin-content__idx {
   font-family: var(--font-mono);
@@ -658,35 +844,11 @@ async function saveTopic(): Promise<void> {
   .admin-content__hero { padding: var(--space-lg); }
   .admin-content__hero-strip { flex-basis: 100%; }
   .admin-content__strip-caption { text-align: left; }
+}
 
-  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
+/* Bảng → card-stack mobile (responsive.css .table-stack — <768px) + tinh chỉnh riêng */
+@media (max-width: 767px) {
   .admin-content__table-scroll { overflow-x: visible; }
-
-  .admin-content__table thead { display: none; }
-
-  .admin-content__table tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-xs) var(--space-md);
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .admin-content__table tbody tr:last-child { border-bottom: none; }
-
-  .admin-content__table td {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-    padding: 0;
-    border-bottom: none;
-  }
-
-  .admin-content__table td::before {
-    content: attr(data-label);
-    font-size: var(--text-xs);
-    color: var(--foreground-tertiary);
-  }
 
   .admin-content__table td:first-child { grid-column: 1 / -1; }
   .admin-content__table td:last-child { align-items: flex-start; }

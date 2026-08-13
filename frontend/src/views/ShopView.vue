@@ -16,6 +16,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
+import Modal from '@/components/ui/Modal.vue';
 import { formatNumber } from '@/utils/format';
 import { messages } from '@/i18n/vi';
 
@@ -25,6 +26,8 @@ const ui = useUiStore();
 const items = ref<ShopItemDto[]>([]);
 const loading = ref(true);
 const buyingId = ref<number | null>(null);
+/** Vật phẩm đang chờ xác nhận mua (confirm modal) */
+const confirmItem = ref<ShopItemDto | null>(null);
 
 onMounted(async () => {
   try {
@@ -42,16 +45,27 @@ onMounted(async () => {
 
 const canAfford = computed(() => (price: number) => gamification.gems >= price);
 
+/** Mở confirm modal trước khi mua (chống click nhầm — atomic double-spend vẫn ở backend). */
+function openConfirm(item: ShopItemDto): void {
+  confirmItem.value = item;
+}
+
 async function buy(item: ShopItemDto): Promise<void> {
   buyingId.value = item.id;
   try {
     await gamification.buyItem(item.id);
     ui.showToast(messages.shop.bought(item.name), 'success');
+    confirmItem.value = null;
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không đủ gems hoặc đã đạt tối đa.', 'error');
   } finally {
     buyingId.value = null;
   }
+}
+
+/** Confirm modal → gọi buy thật (giữ nguyên atomic chống double-spend ở store/API). */
+function confirmBuy(): void {
+  if (confirmItem.value) void buy(confirmItem.value);
 }
 
 // Icon lucide theo slot (đồng nhất màu — không tint gradient lung tung)
@@ -118,12 +132,12 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
         <p class="shop__desc">{{ item.description }}</p>
         <footer class="shop__foot">
           <span class="shop__price" aria-label="Giá">
-            <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
+            <Gem :size="14" aria-hidden="true" class="shop__price-gem" /> {{ formatNumber(item.priceGems) }}
           </span>
           <Button
             :disabled="!canAfford(item.priceGems)"
             :loading="buyingId === item.id"
-            @click="buy(item)"
+            @click="openConfirm(item)"
           >
             {{ messages.shop.buy }}
           </Button>
@@ -132,6 +146,34 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
     </div>
 
     <footer class="shop__footer">{{ messages.shop.footer }}</footer>
+
+    <!-- Confirm mua: dialog đã có shadow (§4.5 hợp lệ) — content slide-up nhẹ -->
+    <Modal
+      :open="confirmItem !== null"
+      :title="messages.shop.title"
+      @close="confirmItem = null"
+    >
+      <div v-if="confirmItem" class="shop__confirm">
+        <p class="shop__confirm-name">{{ confirmItem.name }}</p>
+        <p class="shop__confirm-desc">{{ confirmItem.description }}</p>
+        <p class="shop__confirm-price">
+          <Gem :size="16" aria-hidden="true" class="shop__price-gem" />
+          {{ formatNumber(confirmItem.priceGems) }}
+          <span class="shop__confirm-gems">{{ messages.shop.gemsLabel }}</span>
+        </p>
+      </div>
+      <template #footer>
+        <Button variant="ghost" @click="confirmItem = null">{{ messages.classes.cancel }}</Button>
+        <Button
+          variant="primary"
+          :loading="buyingId === confirmItem?.id"
+          :disabled="!confirmItem || !canAfford(confirmItem.priceGems)"
+          @click="confirmBuy"
+        >
+          {{ messages.shop.buy }}
+        </Button>
+      </template>
+    </Modal>
   </main>
 </template>
 
@@ -235,10 +277,17 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   flex-direction: column;
   gap: var(--space-sm);
   align-items: flex-start;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: perspective(900px);
+  transition:
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.shop__card:hover { border-color: var(--color-border-strong); }
+/* 3D tilt subtle khi hover — chỉ transform + transition (1–2°, không quá mức) */
+.shop__card:hover {
+  border-color: var(--color-border-strong);
+  transform: perspective(900px) rotateX(1.2deg) rotateY(-1.2deg) translateY(-2px);
+}
 
 .shop__card--unaffordable { opacity: 0.72; }
 
@@ -281,5 +330,66 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   white-space: nowrap;
 }
 
+/* Price tag gems — bounce nhẹ (keyframe ui-bounce-soft có sẵn trong global.css) */
+.shop__price-gem {
+  color: var(--color-info);
+  animation: ui-bounce-soft 2.2s ease-in-out infinite;
+}
+
+/* ── Confirm mua: content slide-up + copy rõ ràng ── */
+.shop__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  animation: shop-confirm-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes shop-confirm-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.shop__confirm-name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.shop__confirm-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.shop__confirm-price {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.shop__confirm-gems {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
 .shop__footer { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .shop__card,
+  .shop__card:hover {
+    transform: none;
+    transition: none;
+  }
+  .shop__price-gem { animation: none; }
+  .shop__confirm { animation: none; }
+}
 </style>

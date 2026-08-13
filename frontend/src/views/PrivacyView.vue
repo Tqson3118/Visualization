@@ -271,14 +271,15 @@ const SECTIONS = [
   max-width: 760px;
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
 }
 
 .privacy__section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  padding-block: var(--space-md);
-  scroll-margin-top: 24px;
+  gap: var(--space-md);
+  padding-block: var(--space-xl);
+  scroll-margin-top: 32px;
 }
 
 .privacy__section + .privacy__section {
@@ -291,7 +292,7 @@ const SECTIONS = [
   gap: var(--space-sm);
   font-size: var(--text-xl);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
   letter-spacing: -0.015em;
   color: var(--color-foreground);
   margin: 0;
@@ -305,13 +306,25 @@ const SECTIONS = [
   flex-shrink: 0;
 }
 
+/* ── Prose polish (UI-PREMIUM 1D): line-height rộng hơn + khoảng cách heading/đoạn tốt hơn ── */
 .privacy__content p {
   font-size: var(--text-sm);
-  line-height: 1.8;
+  line-height: 1.9;
   color: var(--color-foreground);
   max-width: 72ch;
   margin: 0;
 }
+
+.privacy__content p + p { margin-top: var(--space-md); }
+
+.privacy__content a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  padding-block: var(--space-xs);
+}
+
+.privacy__content a:hover { text-decoration: underline; }
 
 @media (max-width: 800px) {
   .privacy__chrome { padding: var(--space-md); }

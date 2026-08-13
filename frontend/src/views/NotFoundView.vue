@@ -11,12 +11,16 @@ import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { messages } from '@/i18n/vi';
 
-/** Strip block-token trang trí (aria-hidden) — giá trị block đánh vần "404", index 03 out of bounds. */
+/**
+ * Strip block-token trang trí (aria-hidden) — giá trị block đánh vần "404", index 03 out of bounds.
+ * UI-PREMIUM 1D: mỗi block khởi đầu "scattered" (translate/rotate/scale lệch) rồi
+ * reassemble về vị trí thật theo stagger — signature "dữ liệu lên sân khấu tối".
+ */
 const BENCH_BLOCKS = [
-  { value: '4', missing: false },
-  { value: '0', missing: false },
-  { value: '4', missing: false },
-  { value: '?', missing: true },
+  { value: '4', missing: false, dx: -56, dy: 26, rot: -14 },
+  { value: '0', missing: false, dx: 0, dy: -34, rot: 10 },
+  { value: '4', missing: false, dx: 58, dy: 30, rot: -8 },
+  { value: '?', missing: true, dx: 4, dy: 40, rot: 16 },
 ] as const;
 </script>
 
@@ -36,6 +40,7 @@ const BENCH_BLOCKS = [
             :key="idx"
             class="nf__block"
             :class="{ 'nf__block--missing': b.missing }"
+            :style="{ '--i': idx, '--tx': `${b.dx}px`, '--ty': `${b.dy}px`, '--rot': `${b.rot}deg` }"
           >
             <span class="nf__value">{{ b.value }}</span>
             <span class="nf__index">{{ String(idx).padStart(2, '0') }}</span>
@@ -98,11 +103,32 @@ const BENCH_BLOCKS = [
   padding: var(--space-sm) 0;
   border-radius: var(--radius-sm);
   background: var(--color-data-core);
+  /* UI-PREMIUM 1D: scattered ban đầu → reassemble về vị trí thật (stagger) */
+  opacity: 0;
+  transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.7);
+  animation: nf-reassemble 600ms var(--ease-out-expo) forwards;
+  animation-delay: calc(140ms + var(--i) * 130ms);
+}
+
+@keyframes nf-reassemble {
+  to {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
 }
 
 .nf__block--missing {
   background: color-mix(in srgb, var(--color-conflict) 10%, transparent);
   border: 1px dashed var(--color-conflict);
+  animation-delay: calc(140ms + var(--i) * 130ms + 120ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf__block {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
 }
 
 .nf__value {

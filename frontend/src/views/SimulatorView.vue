@@ -254,6 +254,10 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
         <!-- Giữa: canvas + điều khiển -->
         <div class="simulator__center">
           <div class="simulator__canvas-wrap">
+            <span class="simulator__corner simulator__corner--tl" aria-hidden="true" />
+            <span class="simulator__corner simulator__corner--tr" aria-hidden="true" />
+            <span class="simulator__corner simulator__corner--bl" aria-hidden="true" />
+            <span class="simulator__corner simulator__corner--br" aria-hidden="true" />
             <CanvasArea
               :structure="currentStep?.structure ?? null"
               v-model:show-index="renderOptions.showIndex"
@@ -462,6 +466,23 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   padding: var(--space-sm);
 }
 
+/* UI-PREMIUM 1B: 4 góc chữ L 2px (accent muted) — "kính lúp khoa học", thuần trang trí,
+   pointer-events:none để không chặn thao tác canvas bên trong */
+.simulator__corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.9;
+}
+
+.simulator__corner--tl { top: 8px; left: 8px; border-right: none; border-bottom: none; border-top-left-radius: var(--radius-md); }
+.simulator__corner--tr { top: 8px; right: 8px; border-left: none; border-bottom: none; border-top-right-radius: var(--radius-md); }
+.simulator__corner--bl { bottom: 8px; left: 8px; border-right: none; border-top: none; border-bottom-left-radius: var(--radius-md); }
+.simulator__corner--br { bottom: 8px; right: 8px; border-left: none; border-top: none; border-bottom-right-radius: var(--radius-md); }
+
 .simulator__canvas-meta {
   display: flex;
   align-items: center;
@@ -517,6 +538,22 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
 @media (max-width: 1024px) {
   .simulator__grid { grid-template-columns: 1fr; }
+  .simulator__right { order: 3; }
+}
+
+/* UI-PREMIUM 1B: mobile — canvas full width, panel xếp dọc, giảm spacing 1 bậc (§8) */
+@media (max-width: 640px) {
+  .simulator { gap: var(--space-sm); padding-inline: var(--space-xs); }
+  .simulator__chrome { padding: var(--space-md); }
+  .simulator__title { font-size: var(--text-2xl); letter-spacing: -0.015em; }
+  .simulator__canvas-wrap { padding: var(--space-xs); }
+  .simulator__corner { width: 14px; height: 14px; }
+  .simulator__corner--tl { top: 5px; left: 5px; }
+  .simulator__corner--tr { top: 5px; right: 5px; }
+  .simulator__corner--bl { bottom: 5px; left: 5px; }
+  .simulator__corner--br { bottom: 5px; right: 5px; }
+  .simulator__canvas-meta { padding: var(--space-xs); }
+  .simulator__panel { padding: var(--space-sm); }
   .simulator__right { order: 3; }
 }
 </style>
