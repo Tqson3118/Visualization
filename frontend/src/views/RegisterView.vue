@@ -92,8 +92,15 @@ function onBlur(field: keyof typeof touched): void {
   validate();
 }
 
+function markAllTouched(): void {
+  for (const key of Object.keys(touched)) {
+    touched[key as keyof typeof touched] = true;
+  }
+}
+
 async function onSubmit(): Promise<void> {
   submitError.value = '';
+  markAllTouched(); // submit = chạm mọi field → lỗi inline hiện ngay dù chưa blur
   if (!validate()) return;
   submitting.value = true;
   try {

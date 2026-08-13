@@ -101,6 +101,21 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  it('submit khi chưa blur field nào → lỗi inline hiện ngay tại field thiếu, KHÔNG gọi API', async () => {
+    const wrapper = mount(RegisterView);
+    await selectRole(wrapper, messages.auth.roleTeacher);
+
+    // Không blur field nào — bấm submit ngay: lỗi inline phải hiện (UI-4)
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(messages.auth.departmentRequired);
+    expect(wrapper.text()).toContain(messages.auth.staffCodeRequired);
+    expect(wrapper.find('input[aria-invalid="true"]').exists()).toBe(true);
+    expect(registerMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it('submit đủ thông tin giảng viên → gọi auth.register với payload đã trim + isTeacher=true, không redirect', async () => {
     const wrapper = mount(RegisterView);
     await selectRole(wrapper, messages.auth.roleTeacher);
