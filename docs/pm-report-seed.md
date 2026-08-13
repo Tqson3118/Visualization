@@ -38,3 +38,17 @@ Docs/pm-decision-log-seed.md: worktree riêng; fix domain cách 1; cơ chế see
 2. 1 user test + 2 gv.smoke tạo trong API smoke (id 2012-2014) — giữ nguyên (không xóa) theo quy tắc an toàn.
 
 Người dùng xem báo cáo: OK → kết thúc. Chưa OK → yêu cầu 'làm lại <task/mục>' kèm ghi chú, PM chạy lại phần đó.
+## Cập nhật 16:25 — Fix bug /api/v1/progress/me (chặn merge, đã xử lý)
+
+**Root cause**: ProgressService.cs LoadCountsAsync query UserProgress thiếu p.UserId == userId → ToDictionary(p => p.LessonId) ném ArgumentException khi ≥2 user học cùng lesson. Seed K (31 dòng/9 user) làm bug bung ra — xác nhận đúng như review.
+
+**Fix**: thêm tham số userId vào LoadCountsAsync + filter query + truyền từ GetMyOverviewAsync (sửa tối thiểu 3 điểm). Test tái hiện: 3 test ProgressServiceTests (2 user cùng lesson → Success; user không progress → 200; không inflate progress user khác).
+
+**Verify**:
+- Full suite: 100/100 unit + 31/31 integration PASS
+- API thật (:5001, code fix): /api/v1/progress/me → 200 cho cả huynhthuy (lessonsViewed 2/8) và nguyentrang (3/8) — dữ liệu riêng biệt, không còn 500
+- Backend docker :5000 (bản cũ): vẫn 500 — dự kiến; sau merge PR #10 phải rebuild/restart backend để hết bug
+
+**Commit**: dd63d87 (bao) — ProgressService.cs + ProgressServiceTests.cs + decision log → PR #10 đã cập nhật.
+
+**Ghi chú phụ (giữ nguyên theo chỉ đạo)**: 3 user smoke (test-gmail + 2 gv.smoke TeacherPending) giữ nguyên; NU1903 SSH.NET → backlog M.
