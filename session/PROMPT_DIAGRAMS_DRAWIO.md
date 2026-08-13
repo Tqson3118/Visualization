@@ -10,6 +10,11 @@ Dán vào `/pm "..." --auto` (⚠ **CHẾ ĐỘ LOCAL-ONLY**: G_Phu đang chạy
 - KHÔNG tạo nhánh mới, KHÔNG merge dev. Nếu commit thì vào nhánh feature/diagrams (đã tồn tại, có commit cũ) — hoặc để local, ghi log là được.
 - Khi G_Phu merge xong → đợt sau rebase/apply refs BAO_CAO.md.
 
+📌 BÀI HỌC ĐÃ ĐÚC KẾT (bắt buộc — đọc trước khi dispatch, tránh lặp lỗi đã gặp 13/08):
+- **LỖI "TASK TRẢ RỖNG" (đã xảy ra 4/4 lần — dev-docs/dev/general đều trả rỗng khi task nhúng file dài)**: KHÔNG BAO GIỜ nhúng nội dung file lớn (>5KB) vào prompt task. `diagram-style-guide.md` (21KB/211 dòng) + `diagram-notes.md` (16KB) làm prompt phình → subagent vượt context → trả rỗng. Cách đúng: prompt task CHỈ trỏ đường dẫn — "Đọc docs/work/diagram-style-guide.md + diagram-notes.md trước khi dựng ảnh" — agent tự đọc.
+- **QUY TRÌNH XỬ LÝ KHI SUBAGENT TRẢ RỖNG** (áp dụng cho MỌI task, ghi vào decision log): (1) kiểm tra prompt task có nhúng file >5KB không → bỏ nhúng, thay bằng đường dẫn; (2) chạy task test siêu nhỏ (vd "đếm số file trong thư mục X") để xác nhận task tool hoạt động; (3) nếu task thật vẫn rỗng → tách nhỏ hơn (1 ảnh/task thay vì 4 ảnh/task); (4) resume session task đã có — KHÔNG tạo task mới trùng nội dung; (5) tối đa 2 lần → ghi FAIL + lý do vào report, không tự đổi hướng.
+- **Bài học ERD task trước**: cùng lỗi nhúng file dài — đã ghi ở trên, kiểm tra mọi task ERD theo quy trình (1).
+
 QUY TRÌNH 3 BƯỚC (bắt buộc — KHÔNG vẽ từ số 0):
 
 ## BƯỚC 1 — RESEARCH MẪU (dev-docs + webfetch + exa MCP)

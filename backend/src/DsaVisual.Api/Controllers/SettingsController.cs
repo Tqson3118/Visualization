@@ -9,6 +9,7 @@ namespace DsaVisual.Api.Controllers;
 /// <summary>
 /// Cấu hình hệ thống — GET/PUT /settings (API_REFERENCE.md §4.10, Admin).
 /// Tách riêng khỏi AdminController để khớp route tài liệu (/settings, không phải /admin/settings).
+/// GET trả SystemSettingsDto (object — shape FE AdminSettingsView); PUT nhận cùng shape và upsert key-value.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v1/settings")]
@@ -18,16 +19,22 @@ public class SettingsController(ISettingService service) : ApiControllerBase
     private readonly ISettingService _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<SettingDto>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<SystemSettingsDto>> GetAll(CancellationToken ct)
     {
         var result = await _service.GetAllAsync(ct);
         return MapResultExtensions.MapResult(this, result);
     }
 
     [HttpPut]
-    public async Task<ActionResult> Update([FromBody] SettingsUpdateRequest request, CancellationToken ct)
+    public async Task<ActionResult<SystemSettingsDto>> Update([FromBody] SystemSettingsDto request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(CurrentUserId(), request, ct);
-        return result.IsSuccess ? Ok(await _service.GetAllAsync(ct)) : MapResultExtensions.MapResult(this, result);
+        if (!result.IsSuccess)
+        {
+            return MapResultExtensions.MapResult(this, result);
+        }
+
+        var updated = await _service.GetAllAsync(ct);
+        return MapResultExtensions.MapResult(this, updated);
     }
 }
