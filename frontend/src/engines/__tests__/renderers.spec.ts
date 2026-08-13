@@ -9,6 +9,7 @@ import { describe, expect, test, vi } from 'vitest';
 import type { Structure } from '../core/types';
 import { ArrayRenderer, MUTED_CELL_ALPHA } from '../renderers/arrayRenderer';
 import { CANVAS_COLORS, hexToRgba } from '../renderers/canvasTheme';
+import { CanvasPainter } from '../renderers/painter/canvasPainter';
 import { GraphRenderer } from '../renderers/graphRenderer';
 import { HashTableRenderer } from '../renderers/hashTableRenderer';
 import type { Renderer, RenderOptions } from '../renderers/interface';
@@ -323,5 +324,76 @@ describe('rendererRegistry', () => {
     expect(ALL_RENDERERS.some((r) => r instanceof GraphRenderer)).toBe(true);
     // Instance đã đăng ký phải đúng instance trong registry.
     expect(getRendererForKind('linkedlist')).toBe(ALL_RENDERERS.find((r) => r instanceof ListRenderer) ?? null);
+  });
+});
+
+describe('CanvasPainter primitives (Task 6)', () => {
+  /** Mount CanvasPainter vào canvas giả (pattern như mountRenderer). */
+  function mountPainter(painter: CanvasPainter, mock: MockContext): void {
+    const canvas = {
+      getContext: vi.fn(() => mock.ctx),
+      width: 800,
+      height: 600,
+    } as unknown as HTMLCanvasElement;
+    painter.mount(canvas);
+  }
+
+  test('dashedRoundRect vẽ không throw, gọi setLineDash với dash rồi reset []', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+
+    expect(() => painter.dashedRoundRect(10, 10, 80, 40, 6, CANVAS_COLORS.muted, 1.5)).not.toThrow();
+    expect(mock.ctx.setLineDash).toHaveBeenCalledWith([6, 4]);
+    expect(mock.ctx.setLineDash).toHaveBeenLastCalledWith([]); // reset dash sau khi vẽ
+    expect(mock.ctx.stroke).toHaveBeenCalled(); // viền đứt được vẽ
+  });
+
+  test('arcGlow vẽ không throw, shadowBlur > 0 trong lúc vẽ và reset về 0 sau khi vẽ', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+    let blurDuringFill = 0;
+    vi.mocked(mock.ctx.fill).mockImplementation(() => {
+      blurDuringFill = Math.max(blurDuringFill, Number(mock.ctx.shadowBlur) || 0);
+    });
+
+    expect(() => painter.arcGlow(100, 100, 20, CANVAS_COLORS.compare, 8)).not.toThrow();
+    expect(blurDuringFill).toBeGreaterThan(0); // glow đang bật khi fill
+    expect(mock.ctx.shadowBlur).toBe(0); // reset — không rò rỉ state canvas
+    expect(mock.ctx.shadowColor).toBe('transparent');
+  });
+
+  test('fadeRect vẽ không throw, fillStyle là rgba với alpha đúng', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+
+    expect(() => painter.fadeRect(10, 10, 100, 30, '#4255ff', 0.25)).not.toThrow();
+    expect(mock.ctx.fillRect).toHaveBeenCalledWith(10, 10, 100, 30);
+    expect(mock.fillStyles).toContain(hexToRgba('#4255ff', 0.25));
+  });
+
+  test('graphRenderer: đỉnh active được vẽ arcGlow (shadow set rồi reset, fill màu compare alpha 0.3)', () => {
+    const renderer = new GraphRenderer();
+    const structure: Structure = {
+      kind: 'graph',
+      elements: [
+        { id: 'node:0', label: '0', status: 'active' },
+        { id: 'node:1', label: '1', status: 'default' },
+      ],
+      links: [],
+    };
+    const mock = createMockContext();
+    mountRenderer(renderer, mock);
+    let maxBlur = 0;
+    vi.mocked(mock.ctx.fill).mockImplementation(() => {
+      maxBlur = Math.max(maxBlur, Number(mock.ctx.shadowBlur) || 0);
+    });
+
+    renderer.render(structure, OPTS);
+    expect(maxBlur).toBeGreaterThan(0); // arcGlow đã chạy cho đỉnh active
+    expect(mock.ctx.shadowBlur).toBe(0); // reset sau render
+    expect(mock.fillStyles).toContain(hexToRgba(CANVAS_COLORS.compare, 0.3)); // glow dùng màu status
   });
 });

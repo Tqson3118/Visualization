@@ -136,10 +136,7 @@ export class ListRenderer implements Renderer {
     const cy = y + NODE_H / 2;
     const fill = this.painter.statusColorWithAlpha(el.status, 0.3);
     this.painter.roundRect(x, y, nodeW, NODE_H, CANVAS_LAYOUT.borderRadius, fill, undefined);
-    this.painter.dashedLine(x, y, x + nodeW, y, CANVAS_COLORS.muted, 1.5);
-    this.painter.dashedLine(x + nodeW, y, x + nodeW, y + NODE_H, CANVAS_COLORS.muted, 1.5);
-    this.painter.dashedLine(x + nodeW, y + NODE_H, x, y + NODE_H, CANVAS_COLORS.muted, 1.5);
-    this.painter.dashedLine(x, y + NODE_H, x, y, CANVAS_COLORS.muted, 1.5);
+    this.painter.dashedRoundRect(x, y, nodeW, NODE_H, 6, CANVAS_COLORS.muted, 1.5);
     if (options.showValues) {
       this.painter.text(el.label, cx, cy, { size: nodeW >= 60 ? 13 : 11, weight: 'bold', color: CANVAS_COLORS.text });
     }
@@ -149,10 +146,7 @@ export class ListRenderer implements Renderer {
   private drawNullNode(x: number, y: number): void {
     const color = hexToRgba(CANVAS_COLORS.muted, 0.7);
     this.painter.roundRect(x, y, NULL_NODE, NULL_NODE, CANVAS_LAYOUT.borderRadius, undefined, undefined);
-    this.painter.dashedLine(x, y, x + NULL_NODE, y, color, 1.5);
-    this.painter.dashedLine(x + NULL_NODE, y, x + NULL_NODE, y + NULL_NODE, color, 1.5);
-    this.painter.dashedLine(x + NULL_NODE, y + NULL_NODE, x, y + NULL_NODE, color, 1.5);
-    this.painter.dashedLine(x, y + NULL_NODE, x, y, color, 1.5);
+    this.painter.dashedRoundRect(x, y, NULL_NODE, NULL_NODE, 4, color, 1.5);
     this.painter.text('∅', x + NULL_NODE / 2, y + NULL_NODE / 2, { size: 16, color: CANVAS_COLORS.muted });
   }
 

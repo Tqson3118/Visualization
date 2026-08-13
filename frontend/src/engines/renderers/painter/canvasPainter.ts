@@ -219,6 +219,53 @@ export class CanvasPainter {
     ctx.setLineDash([]);
   }
 
+  /**
+   * Hình chữ nhật tròn góc viền đứt nét — thay cho 4 đoạn dashedLine rời lẻ
+   * (nút nổi / ô null trong listRenderer); reset dash sau khi vẽ.
+   */
+  dashedRoundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radius: number,
+    color: string,
+    lineWidth = 1.5,
+    dash: number[] = [6, 4],
+  ): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.setLineDash(dash);
+    this.roundRect(x, y, w, h, radius, undefined, color, lineWidth);
+    ctx.setLineDash([]);
+  }
+
+  /**
+   * Vòng phát sáng (glow) quanh đỉnh/nút đang active/highlight (graph, tree):
+   * tô hình tròn với alpha nhẹ + shadow cùng màu; reset shadow sau khi vẽ
+   * để không rò rỉ state canvas sang lần vẽ sau.
+   */
+  arcGlow(x: number, y: number, r: number, color: string, glowRadius = 8): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.shadowBlur = glowRadius;
+    ctx.shadowColor = color;
+    ctx.fillStyle = hexToRgba(color, 0.3);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+  }
+
+  /** Hình chữ nhật phẳng với độ mờ (alpha) tùy chỉnh — lớp phủ / vùng mờ. */
+  fadeRect(x: number, y: number, w: number, h: number, color: string, alpha: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.fillStyle = hexToRgba(color, alpha);
+    ctx.fillRect(x, y, w, h);
+  }
+
   /** Mũi tên: đoạn thẳng + đầu mũi tên tam giác tại (x2, y2). */
   arrow(x1: number, y1: number, x2: number, y2: number, color: string, width = 2, headSize = 9): void {
     const ctx = this.ctx;
