@@ -22,13 +22,15 @@
 ## 3. CÁC SESSION ĐANG CHẠY (song song — KHÔNG đụng nhau)
 | Session | Prompt | Nơi chạy | Nhánh | Trạng thái |
 |---|---|---|---|---|
-| **H — UI review 48 màn** | `PROMPT_H_UI_REVIEW.md` | `D:\FPT\neww` | feature/ux-h-* → merge dev | ĐANG CHẠY (11:20 h-b-e2e mới nhất) |
-| **Diagrams — 6 ảnh drawio** | `PROMPT_DIAGRAMS_DRAWIO.md` | **`D:\FPT\neww-diagrams`** (worktree) | feature/diagrams — commit được, KHÔNG merge dev | MỚI TẠO worktree + copy style-guide/notes/samples sẵn |
-| **J — Backend audit** | `PROMPT_J_BACKEND_AUDIT.md` | `D:\FPT\neww` | feature/backend-audit hoặc LOCAL | CHƯA CHẠY — user sẽ mở session riêng |
-| **K — Seed production-like** | `PROMPT_K_SEED_PROD.md` | `D:\FPT\neww` hoặc worktree `D:\FPT\neww-seed` | feature/seed-prod → PR base dev | CHƯA CHẠY — research xong 13/08 (chi tiết mục 8) |
-| **L — Form đăng ký giảng viên** | `PROMPT_L_TEACHER_REGISTER.md` | worktree `D:\FPT\neww-teacher` | feature/teacher-register → PR base dev | CHƯA CHẠY — quyết định user 13/08: form trong app (bỏ checkbox) |
-| **M — Final review toàn bộ** | `PROMPT_M_FINAL_REVIEW.md` | worktree `D:\FPT\neww-review` | feature/final-review-2 → PR base dev | CHƯA CHẠY — chạy SAU khi H/J/K/L merge xong (review cuối trước bảo vệ) |
-| **N — Tối ưu theo backlog** | `PROMPT_N_OPTIMIZATION.md` | worktree `D:\FPT\neww-opt` | feature/optimization → PR base dev | CHƯA CHẠY — chạy SAU M (nguồn: `docs/work/final-review-2/backlog.md`), mỗi mục phải đo trước/sau |
+| **H — UI review 48 màn** | `PROMPT_H_UI_REVIEW.md` | `D:\FPT\neww` | feature/ux-h-* → dev | ✅ **DONE 13/08 — đã merge dev**: b/c/d/e3/final1/docs + **e1 (2 commits cuối, merge c20ab16)** |
+| **Diagrams — 6 ảnh drawio** | `PROMPT_DIAGRAMS_DRAWIO.md` | **`D:\FPT\neww-diagrams`** (worktree) | feature/diagrams — commit được, KHÔNG merge dev | ĐANG CHẠY ở worktree riêng |
+| **J — Backend audit** | `PROMPT_J_BACKEND_AUDIT.md` | `D:\FPT\neww` (LOCAL) | feature/backend-audit → **đã merge dev (3e08be2)** | ✅ **DONE 13/08**: 93 findings (14 CAO fix 100%), 137 unit + 77 integration PASS, review APPROVE |
+| **K — Seed production-like** | `PROMPT_K_SEED_PROD.md` | `D:\FPT\neww-seed` | feature/seed-prod | ✅ **DONE — PR #10 merged dev 13/08** |
+| **L — Form đăng ký giảng viên** | `PROMPT_L_TEACHER_REGISTER.md` | worktree `D:\FPT\neww-teacher` | feature/teacher-register → **đã merge dev (90cb339, resolve 3 conflict: User.cs/snapshot/RegisterView)** | ✅ **DONE — PR #11 merged thủ công 13/08** |
+| **M — Final review toàn bộ** | `PROMPT_M_FINAL_REVIEW.md` | worktree `D:\FPT\neww-review` | feature/final-review-2 → PR base dev | CHƯA CHẠY — chạy SAU khi I/II xong (review cuối trước bảo vệ) |
+| **N — Tối ưu theo backlog** | `PROMPT_N_OPTIMIZATION.md` | worktree `D:\FPT\neww-opt` | feature/optimization → PR base dev | CHƯA CHẠY — chạy SAU M |
+
+**13/08 tối — merge batch (user yêu cầu)**: J (3e08be2) → canvas vis-layout (eecc0a5, bar mode V3 — arrayRenderer + canvasPainter) → H-E1 (c20ab16) → L (90cb339, conflict User.cs RowVersion+3 cột GV / snapshot / RegisterView nền H-E1 + form GV L, 2 fix: markAllTouched + pending text auth.teacherPendingSuccess) → docs batch (c1d1203). Verify sau merge: BE build 0/0 + **137 unit + 77 integration PASS** (thêm 16 test L), FE vue-tsc sạch + **95/95 PASS** (RegisterView.spec 6/6). **Migrations đã apply DB thật** (ef database update: AddRowVersionConcurrency + AddSubmissionUniqueConstraints + RemovePermanentSubmissionUnique + AddLeaderboardIndexes + AddContentUniqueIndexes + AddTeacherProfileFields — Users có đủ RowVersion/Department/StaffCode/TeacherBio). **Dev pushed origin/dev (c1d1203)**. Đã merge xong H/J/K/L → còn: I/II → M → N → PR #1.
 
 ⚠ **Lưu ý H vs Diagrams**: user đã CHỦ ĐỘNG XÓA 6 ảnh SVG cũ tailieu/diagrams/* (lỗi + xấu) — vẽ mới từ đầu. Diagrams chạy ở worktree riêng nên không đụng working tree chính.
 
@@ -51,8 +53,8 @@
 5. **Không ai tự chấm bài mình**: dev viết → dev-test verify → dev-e2e (UI) → dev-review chốt APPROVE/CHANGES REQUESTED.
 6. **--auto: ghi decision log TRƯỚC khi làm; lệch docs chủ ý phải có task dev-docs đồng bộ đi kèm.**
 
-## 6. VIỆC CÒN LẠI (sau khi H/diagrams/J xong)
-1. **PROMPT_I** (view quality v1) — chạy SAU H và J merge xong dev (user chốt 13/08: chờ cả J — cùng khu vực views + backend). Xong I → chạy **PROMPT_II** theo phase: Phase 0 (1 session: DESIGN-IDENTITY + token + component chung) → Phase 1 (4 session song song nhóm A/B/C/D, worktree + nhánh riêng `feature/view-quality-{a-d}`) → Phase 2 (1 session tổng hợp dev-review).
+## 6. VIỆC CÒN LẠI (H/J/K/L ĐÃ MERGE XONG DEV 13/08)
+1. **PROMPT_I** (view quality v1) — chạy kế tiếp (H/J đã xong — không còn chờ). Xong I → chạy **PROMPT_II** theo phase: Phase 0 (1 session: DESIGN-IDENTITY + token + component chung) → Phase 1 (4 session song song nhóm A/B/C/D, worktree + nhánh riêng `feature/view-quality-{a-d}`) → Phase 2 (1 session tổng hợp dev-review).
 2. **PROMPT_K** (seed production-like + fix domain đăng ký) — có thể chạy song song ở worktree `D:\FPT\neww-seed`; cân nhắc chờ H xong các màn phụ thuộc dữ liệu (classes/leaderboard/profile) vì DB dùng chung.
 3. **PROMPT_L** (form đăng ký giảng viên) — worktree `D:\FPT\neww-teacher`; đợi H xong RegisterView/AdminUsersView nếu H đang sửa.
 4. **PROMPT_M** (final review toàn bộ 7 trục) — chạy SAU khi H/J/K/L merge xong dev → chỉ sửa lỗi Cao → sau đó **PROMPT_N (tối ưu theo backlog, đo trước/sau)**.
