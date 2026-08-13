@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | Hướng dẫn sử dụng |
-| Phiên bản | 1.2 |
+| Phiên bản | 1.3 |
 | Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo |
 | Người soạn | Thái Quang Sơn |
@@ -22,6 +22,7 @@
 | 1.0 | 12/08/2026 | Thái Quang Sơn | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: cập nhật cảnh báo trạng thái — hướng dẫn đã đối chiếu với ứng dụng v2 thật (33 màn, 12/08/2026); bỏ ghi chú "đặc tả UI dự kiến / chờ UI hoàn thiện (tuần 19-20)" |
 | 1.2 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §3.10 viết lại luồng nâng cấp — quét QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) bằng app ngân hàng, nội dung CK tự động `DSV<userId>T<months>`, chờ 60s rồi bấm "Tôi đã chuyển khoản" → kích hoạt tự động (mô phỏng, không xác minh ngân hàng thật); cập nhật bảng route `/premium` |
+| 1.3 | 13/08/2026 | — | Task L (form đăng ký giảng viên): bỏ checkbox "Tôi là giảng viên" → §2.1/§3.1/§4.1 mô tả chọn vai trò **Giảng viên** (segmented) rồi điền form con **Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy** → chờ Admin duyệt → email; §5.1/§5.5 cập nhật tab "Chờ duyệt Teacher" hiển thị thông tin GV trong modal duyệt |
 
 ---
 
@@ -73,7 +74,7 @@ Theo các bước sau, bạn sẽ hoàn thành vòng học đầu tiên:
 
 ## 2.1 Bắt đầu nhanh cho giảng viên (5 phút)
 
-1. Đăng ký với tích chọn "Tôi là giảng viên" → chờ quản trị viên duyệt (mở mục "Người dùng" → "Chờ duyệt Teacher" nếu bạn là admin).
+1. Đăng ký với vai trò **Giảng viên** (chọn ô "Giảng viên" → điền **Khoa/Bộ môn**, **Mã giảng viên**, **Kinh nghiệm giảng dạy**) → chờ quản trị viên duyệt (mở mục "Người dùng" → "Chờ duyệt Teacher" nếu bạn là admin). Bạn nhận email khi được duyệt.
 2. **Soạn bài**: "Soạn bài" → "Bài học" → "Tạo mới" → điền lý thuyết → gắn mô phỏng có sẵn → "Kích hoạt".
 3. **Tạo lớp**: "Lớp học" → "Tạo lớp mới" → gửi mã mời 6 ký tự cho sinh viên.
 4. **Gán bài tập + hạn nộp**: mở lớp → tab "Lộ trình đã gán" → chọn bài học/bài tập + ngày hạn.
@@ -87,9 +88,12 @@ Theo các bước sau, bạn sẽ hoàn thành vòng học đầu tiên:
 
 1. Vào trang chủ, bấm **"Đăng ký miễn phí"**.
 2. Điền: **Họ tên** (2-100 ký tự), **Email** (dùng email trường nếu hệ thống yêu cầu domain nội bộ), **Mật khẩu** (tối thiểu 8 ký tự, có chữ hoa + số + ký tự đặc biệt — ô nhập hiện checklist sống), **Xác nhận mật khẩu**.
-3. Tích chọn **"Tôi là giảng viên"** chỉ khi bạn thực sự là giảng viên (tài khoản phải chờ quản trị viên duyệt).
-4. Tích **"Đồng ý chính sách"** (bắt buộc) → bấm **"Đăng ký"**.
-5. Thành công → hệ thống tự đăng nhập. Nếu đăng ký giảng viên → xem thông báo "Chờ quản trị viên duyệt".
+3. Chọn **vai trò đăng ký**: ô **"Sinh viên"** (mặc định) hoặc ô **"Giảng viên"** — chỉ chọn "Giảng viên" khi bạn thực sự là giảng viên.
+4. Nếu chọn **"Giảng viên"**, điền thêm 3 mục trong form con: **Khoa/Bộ môn** (VD: Khoa Công nghệ thông tin), **Mã giảng viên** (VD: GV12345), **Kinh nghiệm giảng dạy** (giới thiệu ngắn, tối đa 500 ký tự — có bộ đếm ký tự). Khoa/Bộ môn và Mã giảng viên là bắt buộc.
+5. Tích **"Đồng ý chính sách"** (bắt buộc) → bấm **"Đăng ký"**.
+6. Thành công:
+   - Đăng ký **Sinh viên** → hệ thống tự đăng nhập và đưa bạn về trang chủ.
+   - Đăng ký **Giảng viên** → màn hình báo "Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt", bấm **"Về đăng nhập"** để quay lại trang đăng nhập (chưa tự động đăng nhập).
 
 ## 3.2 Đăng nhập / Quên mật khẩu
 
@@ -325,7 +329,7 @@ Ngoài màu, hệ thống vẽ **con trỏ** bằng mũi tên có nhãn (`i=2`, 
 
 ## 4.1 Tài khoản giảng viên
 
-Đăng ký với tích chọn **"Tôi là giảng viên"** → chờ quản trị viên duyệt. Sau khi duyệt, bạn có quyền: soạn bài học, tạo bài tập, quản lý lớp, xem báo cáo.
+Đăng ký với vai trò **Giảng viên** (chọn ô "Giảng viên" trong form đăng ký → điền **Khoa/Bộ môn**, **Mã giảng viên**, **Kinh nghiệm giảng dạy**) → chờ quản trị viên duyệt; bạn nhận email khi được duyệt. Sau khi duyệt, bạn có quyền: soạn bài học, tạo bài tập, quản lý lớp, xem báo cáo.
 
 ## 4.2 Tạo bài học
 
@@ -411,7 +415,7 @@ content,type,options,answer,explanation,points,hint1,hint2,hint3,wrongExplanatio
 
 1. Menu **"Người dùng"**: danh sách phân trang, lọc theo vai trò/trạng thái, tìm theo tên/email.
 2. Thao tác trên mỗi người dùng: **Khóa/Mở khóa** (người bị khóa không đăng nhập được), **Đặt lại mật khẩu**, **Đổi vai trò** (Student ↔ Teacher; không đổi Admin). Chỉ **Admin chính** mới có nút thao tác trên tài khoản Admin khác; Admin thường không khóa/đổi vai trò/xóa/đặt lại mật khẩu được Admin khác; không thể khóa/xóa Admin cuối cùng còn hoạt động.
-3. Tab **"Chờ duyệt Teacher"**: danh sách giảng viên đăng ký chờ duyệt → bấm **Duyệt** hoặc **Từ chối** (nhập lý do). Từ chối → tài khoản về vai trò Sinh viên, vẫn đăng nhập bình thường.
+3. Tab **"Chờ duyệt Teacher"**: danh sách giảng viên đăng ký chờ duyệt (kèm thông tin **Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy** hiển thị trong modal) → bấm **Duyệt** hoặc **Từ chối** (nhập lý do). Từ chối → tài khoản về vai trò Sinh viên, vẫn đăng nhập bình thường.
 
 ## 5.2 Cấu hình hệ thống
 
@@ -429,7 +433,7 @@ Menu **"Báo lỗi"** (Admin): danh sách báo cáo lỗi của người dùng k
 
 1. **Buổi sáng (2 phút)**: mở Trang chủ → xem hệ thống hoạt động bình thường (trang tải nhanh, không báo lỗi).
 2. **Khi có báo lỗi mới** (mục "Báo lỗi"): đọc nội dung + ngữ cảnh → gán trạng thái "Đang xử lý" → chuyển cho thành viên phụ trách.
-3. **Phê duyệt giảng viên mới** (tab "Chờ duyệt Teacher"): kiểm tra email/tên → Duyệt hoặc Từ chối.
+3. **Phê duyệt giảng viên mới** (tab "Chờ duyệt Teacher"): kiểm tra email/tên + thông tin giảng viên (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy) → Duyệt hoặc Từ chối.
 4. **Cuối tuần (10 phút)**: xem Thống kê → ghi nhận số người dùng hoạt động; kiểm tra có ai bị khóa nhầm không (log đăng nhập thất bại nhiều).
 
 ## 5.6 Xử lý sự cố thường gặp (dành cho quản trị viên)

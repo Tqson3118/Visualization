@@ -1,0 +1,24 @@
+﻿## [2026-08-13 HH:MM] Khởi tạo PROMPT_L_TEACHER_REGISTER (chế độ --auto)
+- Quyết định: Thực hiện nâng cấp form đăng ký giảng viên theo PROMPT_L_TEACHER_REGISTER.md trong worktree riêng D:\FPT\neww-teacher (nhánh feature/teacher-register từ origin/dev @ e707b01). KHÔNG đụng working tree chính D:\FPT\neww (session H feature/ux-h-c đang chạy) và D:\FPT\neww-seed (session K).
+- Ảnh hưởng: toàn bộ task L; PR base dev; commit-as son (FE) / bao (BE).
+
+## [2026-08-13 HH:MM] Phân vai task
+- Quyết định: Task nhỏ + fresh context theo bài học 13/08. Dispatch: explore (khảo sát vùng code, trả ngữ cảnh ngắn) → dev-backend (DTO+entity+AuthService+AdminUserDto+migration) → dev-frontend (RegisterView+i18n+AdminUsersView modal) → dev-test (verify độc lập + viết test còn thiếu) → dev-review (verdict) → dev-docs (đồng bộ SRS/USER_GUIDE/API_REFERENCE/SDD). FE/BE chạy tuần tự để payload khớp, tránh conflict file chung (User.cs / vi.ts không chung nhau nên có thể song song nhưng giữ tuần tự để an toàn).
+- Ảnh hưởng: thứ tự thực hiện; mỗi task 1 lần gọi task tool.
+
+## [2026-08-13 HH:MM] Xử lý setting chặn @gmail.com
+- Quyết định: Kiểm tra setting DB hiện tại; nếu còn chặn domain @gmail.com thì GHI CHÚ (thuộc prompt K), KHÔNG sửa trong task L. Test register @gmail.com chỉ chạy nếu setting không chặn.
+- Ảnh hưởng: test BE register; smoke E2E dùng email mẫu.
+## [2026-08-13 12:25] Chốt thiết kế chi tiết (sau explore)
+- Quyết định: 3 cột nullable trên Users: Department nvarchar(100), StaffCode nvarchar(50), TeacherBio nvarchar(500). Bắt buộc (validation VALIDATION_FAILED — KHÔNG thêm ErrorCode mới, CẤM theo ErrorCodes.cs) khi IsTeacher=true. Migration tên AddTeacherProfileFields, format yyyyMMddHHmmss. AdminUserDto thêm 3 field nullable. FE: segmented Sinh viên|Giảng viên (mặc định Sinh viên) + form con 3 field + ghi chú chờ duyệt; payload register thêm department/staffCode/teacherBio (trim; undefined khi không phải GV). Test dùng email @university.edu.vn (setting allowed.email.domains vẫn chặn @gmail.com — thuộc prompt K, chỉ GHI CHÚ, không sửa).
+- Ảnh hưởng: User.cs, UserConfiguration.cs, RegisterRequest.cs, AdminUserDto.cs, AuthService.cs (RegisterAsync), Migration mới, RegisterView.vue, AdminUsersView.vue, api/auth.ts, stores/auth.ts, i18n/vi.ts, test.
+
+## [2026-08-13 12:25] Phân công & quy trình verify
+- Quyết định: dev-backend code BE + tạo migration (KHÔNG chạy database update — tránh lock DB với session K đang seed; chỉ tạo file migration). dev-frontend code FE. Song song 2 task. Sau đó dev-test viết test BE+FE + verify độc lập. dev-review chốt verdict. dev-docs đồng bộ docs. Dev KHÔNG commit — PM commit cuối bằng commit-as.ps1 (son FE / bao BE). Smoke E2E + migration apply lên DB chỉ thực hiện nếu DB không bị lock (kiểm tra trước khi chạy).
+- Ảnh hưởng: thứ tự dispatch; an toàn DB chung.
+## [2026-08-13 12:35] Ghi nhận lệch phạm vi nhỏ từ dev (sau khi code xong)
+- Quyết định: (1) dev-frontend sửa thêm frontend/src/api/admin.ts (AdminUserDto FE +3 field optional) — NGOÀI danh sách phép sửa ban đầu nhưng cần thiết cho modal admin đọc field type-safe; giữ, không revert. (2) dev-frontend sửa bug stale-error trong validate() RegisterView (xóa key cũ khi errors={}) — bug từng được note trong e2e README; giữ (cải thiện, không phá hành vi). (3) dev-backend sửa test cũ Register_Teacher_HasTeacherPendingRole (thêm Department+StaffCode) — bắt buộc theo rule kinh doanh mới; giữ.
+- Ảnh hưởng: api/admin.ts, RegisterView.vue validate(), AuthServiceTests.cs — dev-test/review phải kiểm tra các điểm này.
+## [2026-08-13 12:55] Xử lý review: Minor 1+3 + rebase lên origin/dev mới
+- Quyết định: (1) Sửa Minor1: FE thêm maxlength 100/50 cho Department/StaffCode + BE thêm validate độ dài trong RegisterAsync (Department 2-100, StaffCode 2-50, TeacherBio ≤500 → VALIDATION_FAILED field errors) — tránh DB truncation 500. (2) Sửa Minor3: chuẩn hóa bio rỗng → null (BE). (3) Rebase feature/teacher-register lên origin/dev mới nhất (review phát hiện origin/dev +5 commits so với HEAD hiện tại — nếu không rebase, PR diff chứa 1418 dòng xóa của H-C → revert công việc H). Nếu xung đột lớn tại RegisterView.vue (H đang sửa) → DỪNG báo cáo theo ràng buộc file. (4) Apply migration lên DB docker chung (sqlserver healthy, không thấy K seed đang chạy) → nếu lock thì chờ/báo cáo. (5) E2E smoke + Ollama sau khi migration OK.
+- Ảnh hưởng: AuthService.cs, RegisterView.vue, migration apply lên DB, PR base dev.

@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | API Reference |
-| Phiên bản | 1.4 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.5 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -22,6 +22,7 @@
 | 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: (1) §4.2 xóa endpoint `/public/simulations/{key}/run` đã cắt theo ADR-001 (quyết định A-4) — ghi chú thay thế; (2) §4.4 ghi rõ trạng thái "chưa triển khai" cho 3 endpoint Lessons (progress/mark-viewed/simulations) — theo dõi SETUP_TODO §6; (3) §5 dòng 12 sửa route viết tắt `GET /submissions?exerciseId` → `GET /exercises/{id}/submissions` khớp code |
 | 1.3 | 13/08/2026 | Mai Tiểu Bảo | GP-T2 (2FA email — FR-1.11): (1) §4.12 bổ sung `POST /auth/2fa/send` + `POST /auth/2fa/verify`, làm rõ PUT /auth/2fa (tắt trực tiếp; bật qua mã OTP); (2) §2.2 bổ sung 5 error code 2FA `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` (400) — [v2.13] |
 | 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §4.14 bổ sung chi tiết `POST /premium/upgrade` — `{planId}` `1m|3m|12m`; OrderRef đơn hàng = `DSV{userId}T{months}` (VD DSV1002T3 — trùng nội dung CK trên QR) + response trả `contentRef` (nội dung CK hiển thị trên QR); thêm ví dụ response; §8 thêm dòng thay đổi |
+| 1.5 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §3.1 `RegisterRequest` +3 field `department/staffCode/teacherBio` (bắt buộc khi `isTeacher=true`; `teacherBio` ≤ 500); §2.2 làm rõ lỗi đăng ký GV thiếu thông tin → `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (KHÔNG thêm ErrorCode mới); §4.1 cập nhật body + ví dụ `POST /auth/register` (thêm 400 VALIDATION_FAILED); §4.8 `AdminUserDto` +3 field nullable (department/staffCode/teacherBio) + cập nhật ví dụ `GET /users` |
 
 ---
 
@@ -133,7 +134,7 @@
 | INTERNAL_ERROR | 500 | Lỗi máy chủ (ẩn chi tiết) | null |
 | SERVICE_UNAVAILABLE | 503 | DB/máy chủ quá tải | null |
 
-> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt. 2FA email (GP-T2, 13/08/2026 — FR-1.11): 5 mã `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` thuộc v2.13.
+> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt. 2FA email (GP-T2, 13/08/2026 — FR-1.11): 5 mã `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` thuộc v2.13. Đăng ký giảng viên (task L, 13/08/2026): chọn vai trò Giảng viên mà thiếu `department`/`staffCode` (hoặc `teacherBio` > 500) → 400 `VALIDATION_FAILED`, message "Vui lòng điền đầy đủ thông tin giảng viên", details chứa từng trường (`department`/`staffCode`/`teacherBio`) — dùng lại mã có sẵn, KHÔNG thêm mã mới.
 
 ---
 
@@ -147,6 +148,11 @@
 | email | string | ✔ | email hợp lệ, ≤ 256, lowercase |
 | password | string | ✔ | 8-64, chữ hoa + số + ký tự đặc biệt |
 | isTeacher | bool | ✔ | mặc định false |
+| department | string | ✘ (bắt buộc khi `isTeacher=true`) | Khoa/Bộ môn; ≤ 100; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+| staffCode | string | ✘ (bắt buộc khi `isTeacher=true`) | Mã giảng viên; ≤ 50; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+| teacherBio | string | ✘ | Kinh nghiệm/giới thiệu giảng dạy; ≤ 500 ký tự; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+
+> Thiếu `department`/`staffCode` (hoặc `teacherBio` > 500) khi `isTeacher=true` → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (details: từng trường — xem §2.2).
 
 ## 3.2 `LoginRequest` / `RefreshResponse`
 
@@ -256,7 +262,7 @@
 
 | Method | Endpoint | Mô tả | Quyền | Ghi chú |
 |---|---|---|---|---|
-| POST | `/auth/register` | Đăng ký | Công khai | body `{displayName, email, password, isTeacher}` |
+| POST | `/auth/register` | Đăng ký | Công khai | body `{displayName, email, password, isTeacher, department?, staffCode?, teacherBio?}` (3 field cuối bắt buộc khi `isTeacher=true`) |
 | POST | `/auth/login` | Đăng nhập | Công khai | trả `{accessToken, expiresIn, user}`; set cookie |
 | POST | `/auth/refresh` | Làm mới token | Cookie | trả accessToken mới; rotate-invalidate |
 | POST | `/auth/logout` | Đăng xuất | Đã đăng nhập | thu hồi refresh |
@@ -285,9 +291,16 @@
 **Ví dụ — POST /auth/register**
 
 ```json
-// Request
+// Request — Sinh viên
 { "displayName": "Nguyễn Minh", "email": "minh@university.edu.vn", "password": "MatKhau@123", "isTeacher": false }
-// Response 201 → UserSummary + auto login token
+// Request — Giảng viên (form con: Khoa/Bộ môn, Mã GV, Kinh nghiệm — bắt buộc khi isTeacher=true)
+{ "displayName": "Trần Hà", "email": "ha.tran@university.edu.vn", "password": "MatKhau@123", "isTeacher": true,
+  "department": "Khoa Công nghệ thông tin", "staffCode": "GV12345",
+  "teacherBio": "3 năm giảng dạy Cấu trúc dữ liệu & Giải thuật" }
+// Response 201 → UserSummary + auto login token (role TEACHER_PENDING nếu isTeacher=true)
+// Response 400 (chọn Giảng viên nhưng thiếu thông tin)
+{ "error": { "code": "VALIDATION_FAILED", "message": "Vui lòng điền đầy đủ thông tin giảng viên", "field": null,
+  "details": { "department": ["Vui lòng nhập khoa/bộ môn"], "staffCode": ["Vui lòng nhập mã giảng viên"] } } }
 // Response 409
 { "error": { "code": "EMAIL_EXISTS", "message": "Email đã được sử dụng", "field": "email", "details": [] } }
 // Response 400 (domain không cho phép)
@@ -461,9 +474,13 @@
 
 **Ví dụ — GET /users?role=TEACHER_PENDING**
 
+`AdminUserDto` gồm: `{ id, displayName, email, role, isActive, avatarUrl, department?, staffCode?, teacherBio?, createdAt }` — 3 field `department`/`staffCode`/`teacherBio` (nullable, chỉ có với tài khoản đăng ký giảng viên) dùng để Admin xem thông tin đăng ký trong modal duyệt.
+
 ```json
 { "items": [ { "id": 42, "displayName": "Trần Hà", "email": "t***@university.edu.vn",
-  "role": "TEACHER_PENDING", "isActive": false, "createdAt": "2026-08-01T08:00:00Z" } ],
+  "role": "TEACHER_PENDING", "isActive": false, "department": "Khoa Công nghệ thông tin",
+  "staffCode": "GV12345", "teacherBio": "3 năm giảng dạy Cấu trúc dữ liệu & Giải thuật",
+  "createdAt": "2026-08-01T08:00:00Z" } ],
   "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
 ```
 
