@@ -1,10 +1,14 @@
 <script setup lang="ts">
 // AdminContentView — Màn 09: quản lý lessons/topics CRUD cơ bản + gắn mô phỏng
-// H-B: hero Aurora soft + Tabs shadcn (badge số lượng) + table hover + topic grid
-// Card shadcn (kèm số bài học mỗi chủ đề — tính từ lessons) + modal giữ logic cũ.
+// View-quality 14/08 (Nhóm D): banner surface band + mono strip block-token
+// (số bài học/chủ đề — dữ liệu thật); bảng §4.6 + mobile card-stack; SỬA BUG
+// cột "Ngày tạo" hiển thị formatDate(new Date()) (LessonSummary không có
+// createdAt) → cột index mono #01; topic card bỏ gradient/hover-lift;
+// error state + retry.
+// Ghi chú Phase 2: nội dung rich-text (contentHtml) của CMS — KHÔNG sửa.
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowRight, BookOpen, CalendarDays, Layers, Network, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { ArrowRight, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
 import type { LessonSummary, Topic } from '@/api/lessons';
@@ -25,7 +29,6 @@ import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import { CATALOG } from '@/engines/catalog';
-import { formatDate } from '@/utils/format';
 
 const ui = useUiStore();
 const router = useRouter();
@@ -34,6 +37,7 @@ const tab = ref<'lessons' | 'topics'>('lessons');
 const lessons = ref<LessonSummary[]>([]);
 const topics = ref<Topic[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 
 // Form bài học
 const formOpen = ref(false);
@@ -57,6 +61,7 @@ onMounted(load);
 
 async function load(): Promise<void> {
   loading.value = true;
+  loadError.value = false;
   try {
     const [lessonPage, topicTree] = await Promise.all([
       lessonsApi.fetchLessons({}),
@@ -68,7 +73,7 @@ async function load(): Promise<void> {
       form.topicId = topicTree[0].id;
     }
   } catch {
-    ui.showToast('Không thể tải nội dung (backend chưa khả dụng).', 'error');
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -84,6 +89,15 @@ const topicLessonCount = computed(() => {
   }
   return map;
 });
+
+/** Strip banner: block-token dữ liệu thật — số bài học + số chủ đề. */
+const stripBlocks = computed<boolean[]>(() => {
+  const count = Math.min(Math.max(lessons.value.length, topics.value.length), 5);
+  const size = Math.max(count, 1);
+  return Array.from({ length: size }, (_, i) => i < count);
+});
+
+const pad = (n: number): string => String(n).padStart(2, '0');
 
 const contentTabs = computed(() => [
   { key: 'lessons', label: messages.admin.content.tabLessons, badge: lessons.value.length > 0 ? lessons.value.length : undefined },
@@ -182,15 +196,35 @@ async function saveTopic(): Promise<void> {
 
 <template>
   <main class="admin-content container">
-    <!-- Hero gradient Aurora soft -->
+    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="admin-content__hero">
-      <div class="admin-content__hero-body">
-        <span class="admin-content__hero-icon" aria-hidden="true"><BookOpen :size="24" /></span>
-        <div class="admin-content__hero-title-wrap">
+      <div class="admin-content__hero-inner">
+        <div class="admin-content__hero-main">
+          <div class="admin-content__hero-badges">
+            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
+          </div>
           <h1 class="admin-content__title">{{ messages.admin.content.title }}</h1>
           <p class="admin-content__sub">{{ messages.admin.content.subtitle }}</p>
         </div>
-        <Badge variant="primary" class="admin-content__hero-badge">{{ messages.admin.badge }}</Badge>
+
+        <!-- Mono strip: block-token dữ liệu thật (bài học/chủ đề) + index mono -->
+        <div class="admin-content__hero-strip" aria-hidden="true">
+          <div class="admin-content__strip-panel">
+            <div class="admin-content__strip-blocks">
+              <span
+                v-for="(filled, i) in stripBlocks"
+                :key="i"
+                class="admin-content__strip-block"
+                :class="{ 'admin-content__strip-block--empty': !filled }"
+                :style="{ '--i': i }"
+              />
+            </div>
+            <div class="admin-content__strip-index">
+              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
+            </div>
+          </div>
+          <p class="admin-content__strip-caption">{{ messages.admin.content.stripLabel(lessons.length, topics.length) }}</p>
+        </div>
       </div>
     </header>
 
@@ -202,12 +236,19 @@ async function saveTopic(): Promise<void> {
       <Skeleton v-for="i in 5" :key="i" height="56px" />
     </div>
 
+    <div v-else-if="loadError" class="admin-content__error" role="alert">
+      <p class="admin-content__error-text">Không thể tải nội dung (backend chưa khả dụng).</p>
+      <Button size="sm" variant="secondary" @click="load">
+        <RefreshCw :size="14" /> {{ messages.admin.content.retry }}
+      </Button>
+    </div>
+
     <!-- Danh sách bài học -->
     <template v-else-if="tab === 'lessons'">
       <div class="admin-content__toolbar">
-        <Button size="sm" @click="openCreate"><Plus :size="14" /> {{ messages.admin.content.addLesson }}</Button>
+        <Button size="md" @click="openCreate"><Plus :size="16" /> {{ messages.admin.content.addLesson }}</Button>
         <Button size="sm" variant="ghost" @click="router.push({ name: 'admin-ladder' })">
-          {{ messages.admin.content.ladderHint }} <ArrowRight :size="14" />
+          {{ messages.admin.content.ladderHint }} <ArrowRight :size="16" />
         </Button>
       </div>
 
@@ -220,48 +261,44 @@ async function saveTopic(): Promise<void> {
         @action="openCreate"
       />
 
-      <div v-else class="admin-content__table card">
+      <div v-else class="admin-content__table">
         <div class="admin-content__table-scroll">
           <table>
             <thead>
               <tr>
-                <th>{{ messages.admin.content.colTitle }}</th>
-                <th>{{ messages.admin.content.colTopic }}</th>
-                <th>{{ messages.admin.content.colStatus }}</th>
-                <th>{{ messages.admin.content.colSim }}</th>
-                <th>{{ messages.admin.content.colCreated }}</th>
-                <th class="admin-content__actions-col">{{ messages.admin.content.colActions }}</th>
+                <th scope="col">{{ messages.admin.content.colIndex }}</th>
+                <th scope="col">{{ messages.admin.content.colTitle }}</th>
+                <th scope="col">{{ messages.admin.content.colTopic }}</th>
+                <th scope="col">{{ messages.admin.content.colStatus }}</th>
+                <th scope="col">{{ messages.admin.content.colSim }}</th>
+                <th scope="col" class="admin-content__actions-col">{{ messages.admin.content.colActions }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="lesson in lessons" :key="lesson.id">
-                <td class="admin-content__title-cell">
+              <tr v-for="(lesson, idx) in lessons" :key="lesson.id">
+                <td :data-label="messages.admin.content.colIndex" class="admin-content__idx">{{ pad(idx + 1) }}</td>
+                <td :data-label="messages.admin.content.colTitle" class="admin-content__title-cell">
                   <p class="admin-content__title-text">{{ lesson.title }}</p>
-                  <p v-if="lesson.description" class="admin-content__title-desc text-muted">{{ lesson.description }}</p>
+                  <p v-if="lesson.description" class="admin-content__title-desc">{{ lesson.description }}</p>
                 </td>
-                <td><Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge></td>
-                <td>
+                <td :data-label="messages.admin.content.colTopic"><Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge></td>
+                <td :data-label="messages.admin.content.colStatus">
                   <Badge :variant="lesson.status === 'active' ? 'success' : lesson.status === 'draft' ? 'warning' : 'muted'">
                     {{ statusLabel[lesson.status] ?? lesson.status }}
                   </Badge>
                 </td>
-                <td>
+                <td :data-label="messages.admin.content.colSim">
                   <span class="admin-content__sim-count" :class="{ 'admin-content__sim-count--zero': lesson.simulationCount === 0 }">
                     <Network :size="13" /> {{ lesson.simulationCount }}
                   </span>
                 </td>
-                <td>
-                  <span class="text-muted admin-content__date">
-                    <CalendarDays :size="13" /> {{ formatDate(new Date()) }}
-                  </span>
-                </td>
-                <td>
+                <td :data-label="messages.admin.content.colActions">
                   <div class="admin-content__actions">
                     <Button size="sm" variant="ghost" @click="openEdit(lesson)">
-                      <Pencil :size="14" /> {{ messages.admin.content.edit }}
+                      <Pencil :size="16" /> {{ messages.admin.content.edit }}
                     </Button>
                     <Button size="sm" variant="danger" @click="deleteLesson(lesson)">
-                      <Trash2 :size="14" /> {{ messages.admin.content.delete }}
+                      <Trash2 :size="16" /> {{ messages.admin.content.delete }}
                     </Button>
                   </div>
                 </td>
@@ -275,7 +312,7 @@ async function saveTopic(): Promise<void> {
     <!-- Danh sách chủ đề -->
     <template v-else>
       <div class="admin-content__toolbar">
-        <Button size="sm" @click="topicFormOpen = true"><Plus :size="14" /> {{ messages.admin.content.addTopic }}</Button>
+        <Button size="md" @click="topicFormOpen = true"><Plus :size="16" /> {{ messages.admin.content.addTopic }}</Button>
       </div>
 
       <EmptyState
@@ -288,7 +325,7 @@ async function saveTopic(): Promise<void> {
       />
 
       <div v-else class="admin-content__topics">
-        <Card v-for="topic in topics" :key="topic.id" class="admin-content__topic hover-lift">
+        <Card v-for="topic in topics" :key="topic.id" class="admin-content__topic">
           <CardHeader class="admin-content__topic-head">
             <span class="admin-content__topic-icon" aria-hidden="true"><Layers :size="16" /></span>
             <div class="admin-content__topic-meta">
@@ -364,115 +401,212 @@ async function saveTopic(): Promise<void> {
   gap: var(--space-lg);
 }
 
-/* ── Hero gradient Aurora soft ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .admin-content__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.admin-content__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.admin-content__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
-}
-
-.admin-content__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-
-.admin-content__hero-icon {
-  width: 48px;
-  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--card-raised);
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--shadow-md);
+  padding: var(--space-xl);
 }
 
-.admin-content__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.admin-content__hero-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.admin-content__hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.admin-content__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .admin-content__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--foreground);
 }
 
-.admin-content__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+.admin-content__sub {
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+  margin: 0;
+}
 
-.admin-content__hero-badge { margin-left: auto; }
+/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
+.admin-content__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
 
+.admin-content__strip-panel {
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.admin-content__strip-blocks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.admin-content__strip-block {
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--data-core);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i) * 45ms + 60ms);
+}
+
+.admin-content__strip-block--empty {
+  background: transparent;
+  border: 1px dashed var(--data-core);
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.admin-content__strip-index {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.admin-content__strip-index span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--index-muted);
+  text-align: center;
+}
+
+.admin-content__strip-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+
+@keyframes admin-strip-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-content__strip-block {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Loading / Error ── */
 .admin-content__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.admin-content__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.admin-content__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
 
 .admin-content__toolbar { display: flex; gap: var(--space-sm); justify-content: flex-end; flex-wrap: wrap; }
 
-/* ── Table bài học ── */
-.admin-content__table { padding: 0; }
+/* ── Table bài học (DESIGN §4.6) ── */
+.admin-content__table {
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
 
 .admin-content__table-scroll { overflow-x: auto; border-radius: inherit; }
 
-.admin-content__table table { width: 100%; border-collapse: collapse; min-width: 760px; }
+.admin-content__table table { width: 100%; border-collapse: collapse; }
 
 .admin-content__table th {
   text-align: left;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--foreground-tertiary);
+  padding: 0 var(--space-md);
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
   white-space: nowrap;
 }
 
-.admin-content__table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); vertical-align: middle; }
+.admin-content__table td {
+  padding: 12px var(--space-md);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+  vertical-align: middle;
+}
 
-.admin-content__table tbody tr { transition: background-color 150ms ease; }
+.admin-content__table tbody tr { transition: background-color 150ms; }
 
-.admin-content__table tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
+.admin-content__table tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
 
 .admin-content__table tbody tr:last-child td { border-bottom: none; }
 
+.admin-content__idx {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  white-space: nowrap;
+}
+
 .admin-content__title-cell { min-width: 0; }
 
-.admin-content__title-text { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.admin-content__title-text { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 
-.admin-content__title-desc { font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.admin-content__title-desc { font-size: var(--text-xs); color: var(--foreground-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 
-.admin-content__sim-count { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.admin-content__sim-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 
-.admin-content__sim-count--zero { color: var(--color-text-muted); }
+.admin-content__sim-count--zero { color: var(--foreground-tertiary); }
 
-.admin-content__date { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-
-.admin-content__actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+.admin-content__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 /* ── Topic grid ── */
 .admin-content__topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-md); }
+
+.admin-content__topic { min-width: 0; border-color: var(--border); transition: border-color 150ms; }
+
+.admin-content__topic:hover { border-color: var(--border-strong); }
 
 .admin-content__topic-head { display: flex; flex-direction: row; align-items: flex-start; gap: var(--space-sm); }
 
@@ -480,18 +614,22 @@ async function saveTopic(): Promise<void> {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background-image: var(--gradient-mint);
-  color: #fff;
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
 .admin-content__topic-meta { min-width: 0; flex: 1; }
 
-.admin-content__topic-name { font-size: var(--text-md); }
+.admin-content__topic-name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
 
 .admin-content__topic-desc { font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
@@ -502,11 +640,58 @@ async function saveTopic(): Promise<void> {
 
 .admin-content__row { display: flex; flex-direction: column; gap: var(--space-xs); }
 
+/* Select/textarea chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
+.admin-content__row .input,
+.admin-content__html {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  transition: border-color 150ms;
+}
+
 .admin-content__html { font-family: var(--font-mono); font-size: var(--text-xs); resize: vertical; }
 
 .admin-content__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
 
 @media (max-width: 640px) {
-  .admin-content__hero-badge { margin-left: 0; }
+  .admin-content__hero { padding: var(--space-lg); }
+  .admin-content__hero-strip { flex-basis: 100%; }
+  .admin-content__strip-caption { text-align: left; }
+
+  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
+  .admin-content__table-scroll { overflow-x: visible; }
+
+  .admin-content__table thead { display: none; }
+
+  .admin-content__table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .admin-content__table tbody tr:last-child { border-bottom: none; }
+
+  .admin-content__table td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .admin-content__table td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    color: var(--foreground-tertiary);
+  }
+
+  .admin-content__table td:first-child { grid-column: 1 / -1; }
+  .admin-content__table td:last-child { align-items: flex-start; }
+
+  .admin-content__title-text,
+  .admin-content__title-desc { max-width: 100%; white-space: normal; }
 }
 </style>

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // AdminNav — thanh điều hướng admin (SDD §8.7)
+// View-quality 14/08 (Nhóm D): token shadcn (--card/--border/--primary), link
+// min-height 36px + gap ≥8px (trục 5), font-weight 500 (label chuẩn §3).
 import { RouterLink } from 'vue-router';
 
 defineProps<{
@@ -32,27 +34,35 @@ const LINKS = [
 <style scoped>
 .admin-nav {
   display: flex;
-  gap: var(--space-xs);
+  align-items: center;
+  gap: var(--space-sm);
   flex-wrap: wrap;
   padding: var(--space-sm);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
 .admin-nav__link {
-  padding: 0.4rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
+  font-weight: 500;
+  color: var(--foreground-secondary);
   text-decoration: none;
 }
 
-.admin-nav__link:hover { background: var(--color-surface-hover); }
+.admin-nav__link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+  text-decoration: none;
+}
 
 .admin-nav__link--active {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 </style>

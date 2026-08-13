@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // ClassDetailView — Màn 20: 3 tab (Thành viên / Lộ trình đã gán / Cài đặt)
-// H-C: hero gradient Sunset + chips mã mời (copy feedback) + Tabs shadcn + table chuẩn
-// AdminUsers + xác nhận xóa bằng Modal (thay window.confirm). GIỮ nguyên logic store/API.
-import { computed, onMounted, ref } from 'vue';
+// View-quality Phase 1 (Nhóm D): banner = surface band level-2; mã mời =
+// block-token tối canvas-ink (quyết định #4/#5); bảng chuẩn §4.6 + mobile
+// card-stack; assignment có index mono; bỏ gradient/glassmorphism/hover-lift.
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
@@ -51,9 +52,16 @@ const addMemberOpen = ref(false);
 const assignOpen = ref(false);
 const assignDue = ref('');
 
+let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+onUnmounted(() => {
+  if (copyTimer) clearTimeout(copyTimer);
+});
+
+/** API detail KHÔNG trả `role` (ClassDetailDto chỉ có OwnerId) → tính từ owner. */
 const isManager = computed(() => {
   const cls = classStore.currentClass;
-  return cls?.role === 'OWNER' || cls?.role === 'TEACHER' || auth.role === 'ADMIN';
+  return cls?.ownerId === auth.user?.id || auth.role === 'ADMIN';
 });
 
 const detailTabs = computed<Array<{ key: 'members' | 'assignments' | 'settings'; label: string }>>(() => {
@@ -66,6 +74,9 @@ const detailTabs = computed<Array<{ key: 'members' | 'assignments' | 'settings';
 });
 
 const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).toUpperCase() : '?');
+
+/** Số thứ tự 2 chữ số cho assignment (index mono — quyết định #4). */
+const pad = (n: number): string => String(n).padStart(2, '0');
 
 onMounted(load);
 
@@ -142,7 +153,8 @@ function copyInvite(): void {
   void navigator.clipboard?.writeText(code).then(() => {
     ui.showToast(messages.classes.detailCopied, 'success');
     copied.value = true;
-    window.setTimeout(() => {
+    if (copyTimer) clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => {
       copied.value = false;
     }, 1600);
   });
@@ -152,12 +164,6 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   if (assign.lessonId !== null) return messages.classes.detailLesson(assign.lessonId);
   if (assign.exerciseId !== null) return messages.classes.detailExercise(assign.exerciseId);
   return messages.classes.detailGenericContent;
-}
-
-function assignmentTint(assign: ClassAssignmentDto): string {
-  if (assign.lessonId !== null) return 'class-detail__assign-icon--mint';
-  if (assign.exerciseId !== null) return 'class-detail__assign-icon--sunset';
-  return 'class-detail__assign-icon--aurora';
 }
 </script>
 
@@ -174,7 +180,7 @@ function assignmentTint(assign: ClassAssignmentDto): string {
     </div>
 
     <template v-else-if="classStore.currentClass">
-      <!-- Hero gradient Sunset + mã mời (copy chip) -->
+      <!-- Banner: surface band level-2 (DESIGN §1/#1 — không gradient) -->
       <header class="class-detail__hero">
         <div class="class-detail__hero-top">
           <div class="class-detail__hero-main">
@@ -193,24 +199,28 @@ function assignmentTint(assign: ClassAssignmentDto): string {
         </div>
 
         <div class="class-detail__hero-actions">
-          <span class="class-detail__hero-chip class-detail__hero-chip--code">
-            <KeyRound :size="15" aria-hidden="true" />
-            <span>{{ messages.classes.inviteLabel }}:</span>
-            <code>{{ classStore.currentClass.inviteCode }}</code>
-            <button
+          <!-- Mã mời = block-token tối (vùng dữ liệu LUÔN tối — quyết định #5) -->
+          <span class="class-detail__code-panel">
+            <span class="class-detail__code-label">
+              <KeyRound :size="13" aria-hidden="true" />
+              {{ messages.classes.inviteLabel }}
+            </span>
+            <code class="class-detail__code">{{ classStore.currentClass.inviteCode }}</code>
+            <Button
               v-if="isManager"
-              type="button"
+              size="sm"
+              variant="secondary"
               class="class-detail__copy-btn"
               :aria-label="messages.classes.detailCopy"
               @click="copyInvite"
             >
-              <Check v-if="copied" :size="12" aria-hidden="true" />
-              <ClipboardCopy v-else :size="12" aria-hidden="true" />
-              {{ copied ? '✓' : messages.classes.detailCopy }}
-            </button>
+              <Check v-if="copied" :size="14" aria-hidden="true" />
+              <ClipboardCopy v-else :size="14" aria-hidden="true" />
+              {{ messages.classes.detailCopy }}
+            </Button>
           </span>
           <RouterLink :to="{ name: 'class-report', params: { id: String(classId) } }" class="class-detail__hero-link">
-            <Button v-if="isManager" size="sm" variant="secondary">
+            <Button v-if="isManager" size="md" variant="secondary">
               {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
             </Button>
           </RouterLink>
@@ -223,7 +233,7 @@ function assignmentTint(assign: ClassAssignmentDto): string {
       <!-- Tab Thành viên -->
       <section v-if="tab === 'members'" class="class-detail__panel">
         <div v-if="isManager" class="class-detail__toolbar">
-          <Button size="sm" @click="addMemberOpen = true">
+          <Button size="md" @click="addMemberOpen = true">
             <UserPlus :size="14" aria-hidden="true" /> {{ messages.classes.detailAddMember }}
           </Button>
         </div>
@@ -238,30 +248,36 @@ function assignmentTint(assign: ClassAssignmentDto): string {
             <table>
               <thead>
                 <tr>
-                  <th>{{ messages.classes.detailColMember }}</th>
-                  <th>{{ messages.classes.detailColRole }}</th>
-                  <th>{{ messages.classes.detailColJoined }}</th>
-                  <th v-if="isManager">{{ messages.classes.detailColActions }}</th>
+                  <th scope="col">{{ messages.classes.detailColMember }}</th>
+                  <th scope="col">{{ messages.classes.detailColRole }}</th>
+                  <th scope="col">{{ messages.classes.detailColJoined }}</th>
+                  <th v-if="isManager" scope="col">{{ messages.classes.detailColActions }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="member in classStore.members" :key="member.id">
-                  <td>
+                <tr
+                  v-for="member in classStore.members"
+                  :key="member.id"
+                  class="hover:bg-muted/50"
+                >
+                  <td :data-label="messages.classes.detailColMember">
                     <div class="class-detail__user">
                       <span class="class-detail__avatar" aria-hidden="true">{{ initial(member.displayName) }}</span>
                       <div class="class-detail__user-meta">
                         <p class="class-detail__name">{{ member.displayName }}</p>
-                        <p class="class-detail__email text-muted">{{ member.email }}</p>
+                        <p class="class-detail__email">{{ member.email }}</p>
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td :data-label="messages.classes.detailColRole">
                     <Badge :variant="member.role === 'TEACHER' ? 'primary' : 'muted'">
                       {{ member.role === 'TEACHER' ? messages.classes.roleTeacher : messages.classes.roleStudent }}
                     </Badge>
                   </td>
-                  <td class="class-detail__date text-muted">{{ formatDate(member.joinedAt) }}</td>
-                  <td v-if="isManager">
+                  <td class="class-detail__date" :data-label="messages.classes.detailColJoined">
+                    {{ formatDate(member.joinedAt) }}
+                  </td>
+                  <td v-if="isManager" :data-label="messages.classes.detailColActions">
                     <Button size="sm" variant="danger" @click="confirmRemove = member.id">
                       {{ messages.classes.detailRemove }}
                     </Button>
@@ -276,7 +292,7 @@ function assignmentTint(assign: ClassAssignmentDto): string {
       <!-- Tab Lộ trình đã gán -->
       <section v-else-if="tab === 'assignments'" class="class-detail__panel">
         <div v-if="isManager" class="class-detail__toolbar">
-          <Button size="sm" @click="assignOpen = true">
+          <Button size="md" @click="assignOpen = true">
             <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.detailAssignBtn }}
           </Button>
         </div>
@@ -287,14 +303,15 @@ function assignmentTint(assign: ClassAssignmentDto): string {
           :description="messages.classes.detailEmptyAssignDesc"
         />
         <div v-else class="class-detail__assignments">
-          <Card v-for="assign in classStore.assignments" :key="assign.id" class="class-detail__assign hover-lift">
-            <span class="class-detail__assign-icon" :class="assignmentTint(assign)" aria-hidden="true">
+          <Card v-for="(assign, i) in classStore.assignments" :key="assign.id" class="class-detail__assign">
+            <span class="class-detail__assign-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
+            <span class="class-detail__assign-icon" aria-hidden="true">
               <Puzzle v-if="assign.exerciseId !== null" :size="18" />
               <BookOpen v-else :size="18" />
             </span>
             <div class="class-detail__assign-info">
               <p class="class-detail__assign-title">{{ assignmentTitle(assign) }}</p>
-              <p class="class-detail__assign-due text-muted">
+              <p class="class-detail__assign-due">
                 <CalendarClock :size="13" aria-hidden="true" />
                 {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
               </p>
@@ -313,7 +330,7 @@ function assignmentTint(assign: ClassAssignmentDto): string {
             <span class="class-detail__settings-icon" aria-hidden="true"><AlertTriangle :size="18" /></span>
             <div>
               <h2 class="class-detail__settings-title">{{ messages.classes.detailSettingsDanger }}</h2>
-              <p class="class-detail__settings-note text-muted">{{ messages.classes.detailSettingsNote }}</p>
+              <p class="class-detail__settings-note">{{ messages.classes.detailSettingsNote }}</p>
             </div>
           </div>
           <Button variant="danger" @click="confirmDelete = true">
@@ -352,9 +369,13 @@ function assignmentTint(assign: ClassAssignmentDto): string {
     <!-- Modal gán nội dung -->
     <Modal :open="assignOpen" :title="messages.classes.detailAssignTitle" @close="assignOpen = false">
       <form novalidate @submit.prevent="createAssignment">
-        <label class="label" for="assign-due">{{ messages.classes.detailAssignDueLabel }}</label>
-        <input id="assign-due" v-model="assignDue" class="input" type="datetime-local" />
-        <p class="class-detail__modal-note text-muted">{{ messages.classes.detailAssignNote }}</p>
+        <Input
+          id="assign-due"
+          v-model="assignDue"
+          type="datetime-local"
+          :label="messages.classes.detailAssignDueLabel"
+        />
+        <p class="class-detail__modal-note">{{ messages.classes.detailAssignNote }}</p>
         <div class="class-detail__modal-actions">
           <Button variant="ghost" @click="assignOpen = false">{{ messages.classes.cancel }}</Button>
           <Button type="submit">{{ messages.classes.detailAssignSubmit }}</Button>
@@ -389,35 +410,19 @@ function assignmentTint(assign: ClassAssignmentDto): string {
   display: flex;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--foreground-secondary);
   flex-wrap: wrap;
 }
 
-/* ── Hero gradient Sunset (cùng pattern LessonView — GP-T9b dark overlay) ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .class-detail__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-xl);
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-sunset);
-  color: #fff;
-  box-shadow: var(--shadow-lg);
-}
-
-.class-detail__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 55%);
-}
-
-.dark .class-detail__hero::after {
-  background: rgba(4, 47, 46, 0.62);
+  border-radius: var(--radius-lg);
+  background: var(--card-raised);
+  border: 1px solid var(--border-subtle);
 }
 
 .class-detail__hero-top {
@@ -428,23 +433,40 @@ function assignmentTint(assign: ClassAssignmentDto): string {
   flex-wrap: wrap;
 }
 
-.class-detail__hero-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.class-detail__hero-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .class-detail__hero-title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   margin: 0;
+  color: var(--foreground);
   overflow-wrap: anywhere;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
 .class-detail__hero-desc {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--foreground-secondary);
   font-size: var(--text-sm);
   max-width: 70ch;
   margin: 0;
 }
 
 .class-detail__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+
+.class-detail__hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-sm);
+  color: var(--foreground-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  min-height: 24px;
+}
 
 .class-detail__hero-actions {
   display: flex;
@@ -456,85 +478,85 @@ function assignmentTint(assign: ClassAssignmentDto): string {
 .class-detail__hero-link { text-decoration: none; }
 .class-detail__hero-link:hover { text-decoration: none; }
 
-/* ── Chip trong hero (trắng trong suốt — đọc được trên gradient) ── */
-.class-detail__hero-chip {
+/* ── Panel mã mời: block-token tối (khoảnh khắc đầu tư — enter settle) ── */
+.class-detail__code-panel {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.14);
+  gap: var(--space-sm);
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.3);
   border-radius: var(--radius-md);
-  padding: 4px 10px;
-  color: #fff;
-  font-size: var(--text-xs);
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
+  padding: var(--space-sm) var(--space-md);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: code-panel-enter 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.class-detail__hero-chip--code {
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.55);
-  font-size: var(--text-sm);
-}
-
-.class-detail__hero-chip--code code {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: var(--text-md);
-  letter-spacing: 0.12em;
-}
-
-.class-detail__copy-btn {
+.class-detail__code-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.18);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: #fff;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition: background-color 150ms ease;
+  color: var(--index-muted);
+  white-space: nowrap;
 }
 
-.class-detail__copy-btn:hover { background: rgba(255, 255, 255, 0.32); }
+.class-detail__code {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--resolved);
+}
+
+.class-detail__copy-btn { flex-shrink: 0; }
+
+@keyframes code-panel-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-detail__code-panel {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* ── Panel ── */
 .class-detail__panel { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .class-detail__toolbar { display: flex; justify-content: flex-end; }
 
-/* ── Bảng thành viên ── */
+/* ── Bảng thành viên (DESIGN §4.6) ── */
 .class-detail__table { padding: 0; }
 
 .class-detail__table-scroll { overflow-x: auto; border-radius: inherit; }
 
-.class-detail__table table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.class-detail__table table { width: 100%; border-collapse: collapse; }
 
 .class-detail__table th {
   text-align: left;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--foreground-tertiary);
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
   white-space: nowrap;
+  height: 40px;
 }
 
 .class-detail__table td {
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: 12px var(--space-md);
+  border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
   vertical-align: middle;
 }
-
-.class-detail__table tbody tr { transition: background-color 150ms ease; }
-
-.class-detail__table tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
 
 .class-detail__table tbody tr:last-child td { border-bottom: none; }
 
@@ -544,24 +566,39 @@ function assignmentTint(assign: ClassAssignmentDto): string {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-image: var(--gradient-mint);
-  color: var(--color-on-primary);
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 500;
   font-size: var(--text-sm);
   flex-shrink: 0;
 }
 
 .class-detail__user-meta { min-width: 0; }
 
-.class-detail__name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.class-detail__email { font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.class-detail__name {
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
 
-.class-detail__date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.class-detail__email {
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
 
-/* ── Lộ trình đã gán ── */
+.class-detail__date { white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: var(--text-xs); }
+
+/* ── Lộ trình đã gán: index mono + card level-1 (quyết định #4) ── */
 .class-detail__assignments { display: flex; flex-direction: column; gap: var(--space-sm); }
 
 .class-detail__assign {
@@ -570,29 +607,38 @@ function assignmentTint(assign: ClassAssignmentDto): string {
   gap: var(--space-md);
   padding: var(--space-md);
   min-width: 0;
+  border-color: var(--border);
+  transition: border-color 150ms;
+}
+
+.class-detail__assign:hover { border-color: var(--border-strong); }
+
+.class-detail__assign-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  flex-shrink: 0;
+  min-width: 28px;
 }
 
 .class-detail__assign-icon {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
-  box-shadow: var(--shadow-sm);
 }
 
-.class-detail__assign-icon--mint { background-image: var(--gradient-mint); }
-.class-detail__assign-icon--sunset { background-image: var(--gradient-sunset); }
-.class-detail__assign-icon--aurora { background-image: var(--gradient-aurora); }
-
-.class-detail__assign-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.class-detail__assign-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .class-detail__assign-title {
-  font-weight: 700;
+  font-weight: 500;
   font-size: var(--text-sm);
+  color: var(--foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -601,18 +647,20 @@ function assignmentTint(assign: ClassAssignmentDto): string {
 .class-detail__assign-due {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
   white-space: nowrap;
 }
 
-/* ── Cài đặt (danger zone) ── */
+/* ── Cài đặt (danger zone — semantic destructive) ── */
 .class-detail__settings {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   max-width: 520px;
-  border-color: color-mix(in srgb, var(--color-destructive) 45%, var(--color-border));
+  border-color: color-mix(in srgb, var(--destructive) 40%, var(--border));
 }
 
 .class-detail__settings-head { display: flex; align-items: flex-start; gap: var(--space-sm); }
@@ -621,25 +669,60 @@ function assignmentTint(assign: ClassAssignmentDto): string {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
-  color: var(--color-destructive);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
+  color: var(--destructive);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.class-detail__settings-title { font-size: var(--text-md); color: var(--color-destructive); }
-.class-detail__settings-note { font-size: var(--text-sm); }
+.class-detail__settings-title { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.015em; color: var(--destructive); }
+.class-detail__settings-note { font-size: var(--text-sm); color: var(--foreground-secondary); }
 
 /* ── Modal ── */
-.class-detail__modal-text { font-size: var(--text-sm); overflow-wrap: anywhere; }
+.class-detail__modal-text { font-size: var(--text-sm); color: var(--foreground); overflow-wrap: anywhere; }
 
 .class-detail__modal-actions { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-md); }
 
-.class-detail__modal-note { font-size: var(--text-xs); margin-top: 6px; }
+.class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-tertiary); margin-top: var(--space-sm); }
 
 @media (max-width: 640px) {
   .class-detail__hero { padding: var(--space-lg); }
+
+  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
+  .class-detail__table-scroll { overflow-x: visible; }
+
+  .class-detail__table thead { display: none; }
+
+  .class-detail__table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .class-detail__table tbody tr:last-child { border-bottom: none; }
+
+  .class-detail__table td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .class-detail__table td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    color: var(--foreground-tertiary);
+  }
+
+  .class-detail__table td:first-child { grid-column: 1 / -1; }
+  .class-detail__table td:last-child { align-items: flex-start; }
+
+  .class-detail__name,
+  .class-detail__email { max-width: 100%; white-space: normal; }
 }
 </style>

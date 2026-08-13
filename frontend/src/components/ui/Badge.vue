@@ -16,7 +16,7 @@ const props = withDefaults(
 );
 
 const classes = computed(() => {
-  const base = 'inline-flex items-center gap-1 whitespace-nowrap';
+  const base = 'inline-flex min-h-6 items-center gap-1 whitespace-nowrap';
   switch (props.variant) {
     case 'primary':
       return cn(base, badgeVariants({ variant: 'default' }));

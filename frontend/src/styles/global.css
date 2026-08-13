@@ -3,13 +3,15 @@
    Tham khảo phong cách theme.css V1 nhưng KHÔNG chép toàn bộ.
    ════════════════════════════════════════════════════════════════ */
 
-/* ── Reset ── */
+/* ── Reset ──
+   LƯU Ý (view-quality 14/08): KHÔNG reset margin/padding ở đây — selector `*`
+   unlayered thắng @layer utilities của Tailwind → giết mọi utility padding/margin
+   trên component shadcn. Tailwind preflight đã reset trong @layer base (xem
+   docs/pm-decision-log-viewquality.md 2026-08-14). */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {

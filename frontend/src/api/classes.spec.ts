@@ -61,10 +61,20 @@ describe('api/classes', () => {
   });
 
   it('fetchClassReport gọi GET /classes/{id}/report', async () => {
-    vi.mocked(getData).mockResolvedValue({ classId: 7, className: 'Lớp DSA 01', totalMembers: 3, completionPct: 60, avgScore: 7.5, submissions: 9, rows: [] });
+    vi.mocked(getData).mockResolvedValue({
+      classId: 7,
+      className: 'Lớp DSA 01',
+      totalMembers: 3,
+      assignments: [
+        { assignmentId: 1, title: 'Bài học #1', dueAt: '2026-09-01T00:00:00Z', onTime: 2, late: 0, notSubmitted: 1, avgScore: 8.5 },
+      ],
+      laggingLearners: [{ userId: 9, displayName: 'Sinh viên A', missingCount: 2 }],
+    });
     const report = await classesApi.fetchClassReport(7);
     expect(getData).toHaveBeenCalledWith({ method: 'GET', url: '/classes/7/report' });
-    expect(report.completionPct).toBe(60);
+    expect(report.totalMembers).toBe(3);
+    expect(report.assignments[0].onTime).toBe(2);
+    expect(report.laggingLearners[0].missingCount).toBe(2);
   });
 
   it('deleteClass gọi DELETE /classes/{id} qua client', async () => {

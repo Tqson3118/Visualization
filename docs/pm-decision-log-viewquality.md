@@ -1,5 +1,22 @@
 ﻿# PM Decision Log — View Quality (Phase 0/1/2)
 
+## [2026-08-14] Nhóm D (classes) — Fix app-wide: reset `* { padding/margin: 0 }` unlayered trong global.css đang giết utility spacing Tailwind
+- Phát hiện (đo computed style bằng DevTools, ngày 14/08): mọi button shadcn (`buttonVariants` h-10 px-4), badge (`px-2.5 py-0.5`), input, tab trong TOÀN APP có `padding = 0px` (VD: EmptyState Button pl=0, Badge "Lớp học" h=17.6px). Nguyên nhân: `global.css` dòng 7–13 reset `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }` KHÔNG nằm trong @layer → theo CSS Cascade 5, author style unlayered thắng MỌI @layer (kể cả `utilities`) bất kể specificity → `px-4/py-2/gap-2/…` chết hàng loạt. Tailwind preflight đã reset padding/margin trong `@layer base` nên việc bỏ 2 dòng này không đổi hành vi với phần tử không dùng utility.
+- Quyết định: BỎ `margin: 0; padding: 0` khỏi universal reset global.css (giữ `box-sizing: border-box`). Ảnh hưởng: ≥2 view (toàn app) — NHƯNG đây là điều kiện tiên quyết để trục 5 (interactive sizing: text cách viền ≥8px, badge ≥24px) của MỌI view Phase 1 đạt; không phải quyết định visual cho riêng view nào. Legacy scoped CSS (unlayered, tự đặt padding) không đổi; phần tử không có utility vẫn nhận padding 0 từ preflight base layer.
+- Ghi chú kiểm chứng sau sửa: Badge/Button/Input/Tabs phải có padding chuẩn; build + vue-tsc PASS; snapshot DOM lại 3 view classes.
+- Ảnh hưởng: `frontend/src/styles/global.css` (1 dòng reset); toàn bộ view dùng shadcn-vue.
+- [Cùng vụ] Bỏ `shadow-sm` khỏi base class của `ui/card/Card.vue` (shadcn): DESIGN §6 + KILL-LIST "Card đồng loạt nổi bằng nhau + shadow mềm" — card chỉ nổi bằng luminance (bg-card/bg-card-raised + border-subtle/strong), shadow CHỈ dropdown/modal. Đo computed style 14/08: mọi Card trong app có `0 1px 3px rgba(0,0,0,.1)` từ base này. Thay thế bằng border (đã có `border` trong base) — không đổi màu/radius.
+- Ảnh hưởng: `frontend/src/components/ui/card/Card.vue` (bỏ 1 class utility).
+- [Cùng vụ] Bổ sung `min-h-6` vào base class của `ui/Badge.vue` (wrapper G-F1b): badge `py-0.5 text-xs` = 21.6px cao, dưới chuẩn 24px DESIGN §4.3 (padding ngang ≥6px + height ≥24px). `min-h-6` chỉ tăng chiều cao tối thiểu, không đổi màu/variant — an toàn cho mọi call site (57+ view dùng Badge).
+- [Cùng vụ] Chữ trung tính trên panel `canvas-ink` (LUÔN tối bất kể theme): dùng `#d9dde8` — đúng màu text của ENGINE (`canvasTheme.ts` dòng 19 fallback `--color-text-primary`), cùng nguồn 6 màu palette DESIGN-IDENTITY §1.2. Lý do: không có UI token "chữ sáng trên nền tối" (--foreground đổi theo theme sẽ vỡ light mode; --index-muted 3.8:1 < 4.5:1 cho text nhỏ). Khi task token bổ sung `--canvas-text` → thay thế. Áp dụng: `.class-report__lagging-name` (ClassReportView).
+- Ảnh hưởng: ClassReportView (1 thuộc tính CSS); phụ thuộc task token §2.4.
+
+## [2026-08-14] Nhóm D (admin) — tái dùng màu text canvas trên panel tối + palette chart đọc engine vars
+- Mở rộng quyết định 14/08 (entry #4): text trung tính trên panel `bg-canvas-ink` dùng `#d9dde8` (màu `--color-text-primary` engine `canvasTheme.ts`) — áp dụng thêm cho AdminStatsView (chart ECharts + donut + caption strip), hero-strip caption, node-id block AdminLadderView. Không có UI token "chữ sáng trên nền tối" (khi task token bổ sung `--canvas-text` → thay thế).
+- Biểu đồ ECharts (AdminStatsView): palette đọc CSS var `--canvas-ink`/`--data-core`/`--index-muted` (fallback cùng hex) + text `#d9dde8` — vùng dữ liệu LUÔN tối bất kể theme (quyết định #5); axis/splitLine dùng `color-mix(data-core 25%, transparent)` — không hex rời ngoài 6 màu palette + #d9dde8.
+- Donut phân bố vai trò dùng `data-core` (Student) / `resolved` (Teacher) / `index-muted` (Admin — neutral, 10% nhỏ) — 3 màu ngôn ngữ dữ liệu, không bịa màu mới, không dùng accent teal (chỉ interactive).
+- Ảnh hưởng: AdminStatsView, AdminUsersView, AdminContentView (strip block-token), AdminLadderView (node-id block).
+
 ## [2026-08-13] Khởi động PROMPT_VIEW_QUALITY_MASTER_V2 (--auto)
 - Quyết định: Chạy toàn bộ 3-Phase theo PROMPT_VIEW_QUALITY_MASTER_V2.md ở chế độ --auto. Xác nhận dev @ bf6028c (H/J/K/L đã merge, test xanh 214 BE + 95 FE). Working tree chính D:\FPT\neww có file rác (diagrams sync) — KHÔNG đụng vào, mọi việc trong worktree.
 - Ảnh hưởng: toàn bộ frontend view; docs/work/view-quality/*.

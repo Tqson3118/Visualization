@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // AdminUsersView — Màn 10: quản lý người dùng + tab "Chờ duyệt Teacher" (Màn 29)
-// H-B: hero gradient Aurora soft + Tabs shadcn (badge chờ duyệt) + filter bar card
-// + table hover/avatar + Badge trạng thái + modal duyệt giữ nguyên logic.
+// View-quality 14/08 (Nhóm D): banner = surface band level-2 + mono strip
+// block-token (số chờ duyệt — dữ liệu thật); bảng chuẩn §4.6 + mobile card-stack;
+// error state + retry; icon/avatar neutral; actions gap ≥8px.
 import { computed, onMounted, ref } from 'vue';
-import { Check, Lock, LockOpen, Search, UserCheck, Users, X } from 'lucide-vue-next';
+import { Check, Lock, LockOpen, RefreshCw, Search, UserCheck, Users, X } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
 import type { AdminUserDto } from '@/api/admin';
@@ -24,6 +25,7 @@ const ui = useUiStore();
 const tab = ref<'all' | 'pending'>('all');
 const users = ref<AdminUserDto[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 const search = ref('');
 const roleFilter = ref('');
 const statusFilter = ref('');
@@ -43,11 +45,12 @@ onMounted(load);
 
 async function load(): Promise<void> {
   loading.value = true;
+  loadError.value = false;
   try {
     const page = await adminApi.fetchUsers({ role: tab.value === 'pending' ? 'TEACHER_PENDING' : undefined, q: search.value || undefined, page: 1 });
     users.value = page.items;
   } catch {
-    ui.showToast('Không thể tải danh sách người dùng.', 'error');
+    loadError.value = true;
     users.value = [];
   } finally {
     loading.value = false;
@@ -83,6 +86,13 @@ const roleLabel: Record<string, string> = {
 
 const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).toUpperCase() : '?');
 
+/** Strip banner: block-token dữ liệu thật — số chờ duyệt (tối đa 5 block) + index mono. */
+const stripBlocks = computed<boolean[]>(() => {
+  const count = Math.min(pendingCount.value, 5);
+  const size = Math.max(count, 1);
+  return Array.from({ length: size }, (_, i) => i < count);
+});
+
 async function toggleLock(user: AdminUserDto): Promise<void> {
   try {
     await adminApi.setUserStatus(user.id, { isActive: !user.isActive });
@@ -117,15 +127,35 @@ async function submitReview(): Promise<void> {
 
 <template>
   <main class="admin-users container">
-    <!-- Hero gradient Aurora soft (palette 1 — gamification/admin) -->
+    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="admin-users__hero">
-      <div class="admin-users__hero-body">
-        <span class="admin-users__hero-icon" aria-hidden="true"><Users :size="24" /></span>
-        <div class="admin-users__hero-title-wrap">
+      <div class="admin-users__hero-inner">
+        <div class="admin-users__hero-main">
+          <div class="admin-users__hero-badges">
+            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
+          </div>
           <h1 class="admin-users__title">{{ messages.admin.users.title }}</h1>
           <p class="admin-users__sub">{{ messages.admin.users.subtitle }}</p>
         </div>
-        <Badge variant="primary" class="admin-users__hero-badge">{{ messages.admin.badge }}</Badge>
+
+        <!-- Mono strip: block-token dữ liệu thật (số chờ duyệt) + index mono (quyết định #4) -->
+        <div class="admin-users__hero-strip" aria-hidden="true">
+          <div class="admin-users__strip-panel">
+            <div class="admin-users__strip-blocks">
+              <span
+                v-for="(filled, i) in stripBlocks"
+                :key="i"
+                class="admin-users__strip-block"
+                :class="{ 'admin-users__strip-block--empty': !filled }"
+                :style="{ '--i': i }"
+              />
+            </div>
+            <div class="admin-users__strip-index">
+              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
+            </div>
+          </div>
+          <p class="admin-users__strip-caption">{{ messages.admin.users.stripLabel(pendingCount) }}</p>
+        </div>
       </div>
     </header>
 
@@ -134,32 +164,32 @@ async function submitReview(): Promise<void> {
     <!-- Tabs shadcn: Tất cả / Chờ duyệt Teacher (badge = số chờ duyệt) -->
     <Tabs :tabs="userTabs" :model-value="tab" @change="switchTab" />
 
-    <div class="admin-users__filters card">
+    <div class="admin-users__filters">
       <div class="admin-users__search-box">
-        <Search :size="15" class="admin-users__search-icon" aria-hidden="true" />
+        <Search :size="16" class="admin-users__search-icon" aria-hidden="true" />
         <input
           v-model="search"
-          class="input admin-users__search"
+          class="admin-users__search"
           type="search"
           :placeholder="messages.admin.users.searchPlaceholder"
           :aria-label="messages.admin.users.searchLabel"
           @keyup.enter="load"
         />
       </div>
-      <select v-model="roleFilter" class="input admin-users__select" :aria-label="messages.admin.users.roleFilterLabel">
+      <select v-model="roleFilter" class="admin-users__select" :aria-label="messages.admin.users.roleFilterLabel">
         <option value="">{{ messages.admin.users.roleAll }}</option>
         <option value="STUDENT">{{ messages.admin.users.roleStudent }}</option>
         <option value="TEACHER">{{ messages.admin.users.roleTeacher }}</option>
         <option value="TEACHER_PENDING">{{ messages.admin.users.rolePending }}</option>
         <option value="ADMIN">{{ messages.admin.users.roleAdmin }}</option>
       </select>
-      <select v-model="statusFilter" class="input admin-users__select" :aria-label="messages.admin.users.statusFilterLabel">
+      <select v-model="statusFilter" class="admin-users__select" :aria-label="messages.admin.users.statusFilterLabel">
         <option value="">{{ messages.admin.users.statusAll }}</option>
         <option value="active">{{ messages.admin.users.statusActive }}</option>
         <option value="locked">{{ messages.admin.users.statusLocked }}</option>
       </select>
       <Button size="sm" variant="secondary" class="admin-users__search-btn" @click="load">
-        <Search :size="14" /> {{ messages.admin.users.search }}
+        <Search :size="16" /> {{ messages.admin.users.search }}
       </Button>
     </div>
 
@@ -167,58 +197,66 @@ async function submitReview(): Promise<void> {
       <Skeleton v-for="i in 6" :key="i" height="56px" />
     </div>
 
+    <div v-else-if="loadError" class="admin-users__error" role="alert">
+      <p class="admin-users__error-text">{{ messages.admin.users.loadError }}</p>
+      <Button size="sm" variant="secondary" @click="load">
+        <RefreshCw :size="14" /> {{ messages.admin.users.retry }}
+      </Button>
+    </div>
+
     <EmptyState
       v-else-if="filtered.length === 0"
       icon="user"
       :title="tab === 'pending' ? messages.admin.users.emptyPending : messages.admin.users.emptyTitle"
+      :description="tab === 'pending' ? messages.admin.users.emptyPendingDesc : messages.admin.users.emptyTitleDesc"
     />
 
-    <div v-else class="admin-users__table card">
+    <div v-else class="admin-users__table">
       <div class="admin-users__table-scroll">
         <table>
           <thead>
             <tr>
-              <th>{{ messages.admin.users.colUser }}</th>
-              <th>{{ messages.admin.users.colRole }}</th>
-              <th>{{ messages.admin.users.colStatus }}</th>
-              <th>{{ messages.admin.users.colCreated }}</th>
-              <th class="admin-users__actions-col">{{ messages.admin.users.colActions }}</th>
+              <th scope="col">{{ messages.admin.users.colUser }}</th>
+              <th scope="col">{{ messages.admin.users.colRole }}</th>
+              <th scope="col">{{ messages.admin.users.colStatus }}</th>
+              <th scope="col">{{ messages.admin.users.colCreated }}</th>
+              <th scope="col" class="admin-users__actions-col">{{ messages.admin.users.colActions }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="user in filtered" :key="user.id">
-              <td>
+              <td :data-label="messages.admin.users.colUser">
                 <div class="admin-users__user">
                   <span class="admin-users__avatar" aria-hidden="true">{{ initial(user.displayName) }}</span>
                   <div class="admin-users__user-meta">
                     <p class="admin-users__name">{{ user.displayName }}</p>
-                    <p class="admin-users__email text-muted">{{ user.email }}</p>
+                    <p class="admin-users__email">{{ user.email }}</p>
                   </div>
                 </div>
               </td>
-              <td>
+              <td :data-label="messages.admin.users.colRole">
                 <Badge :variant="user.role === 'TEACHER_PENDING' ? 'warning' : 'primary'">{{ roleLabel[user.role] }}</Badge>
               </td>
-              <td>
+              <td :data-label="messages.admin.users.colStatus">
                 <Badge :variant="user.isActive ? 'success' : 'danger'">
                   {{ user.isActive ? messages.admin.users.active : messages.admin.users.locked }}
                 </Badge>
               </td>
-              <td class="admin-users__date text-muted">{{ formatDate(user.createdAt) }}</td>
-              <td>
+              <td :data-label="messages.admin.users.colCreated" class="admin-users__date">{{ formatDate(user.createdAt) }}</td>
+              <td :data-label="messages.admin.users.colActions">
                 <div class="admin-users__actions">
                   <template v-if="user.role === 'TEACHER_PENDING'">
                     <Button size="sm" variant="secondary" @click="openReview(user, 'approve')">
-                      <Check :size="14" /> {{ messages.admin.users.approve }}
+                      <Check :size="16" /> {{ messages.admin.users.approve }}
                     </Button>
                     <Button size="sm" variant="danger" @click="openReview(user, 'reject')">
-                      <X :size="14" /> {{ messages.admin.users.reject }}
+                      <X :size="16" /> {{ messages.admin.users.reject }}
                     </Button>
                   </template>
                   <template v-else>
-                    <Button size="sm" variant="ghost" :aria-label="`${user.isActive ? messages.admin.users.lock : messages.admin.users.unlock} ${user.displayName}`" @click="toggleLock(user)">
-                      <LockOpen v-if="!user.isActive" :size="14" />
-                      <Lock v-else :size="14" />
+                    <Button size="sm" variant="ghost" :aria-label="`${user.isActive ? messages.admin.users.lock : messages.admin.users.unlock} ${user.displayName || user.email}`" @click="toggleLock(user)">
+                      <LockOpen v-if="!user.isActive" :size="16" />
+                      <Lock v-else :size="16" />
                       {{ user.isActive ? messages.admin.users.lock : messages.admin.users.unlock }}
                     </Button>
                   </template>
@@ -241,7 +279,7 @@ async function submitReview(): Promise<void> {
         </span>
         <div class="admin-users__review-text">
           <p class="admin-users__review-name">{{ reviewTarget?.displayName }}</p>
-          <p class="text-muted">{{ reviewTarget?.email }}</p>
+          <p class="admin-users__review-email">{{ reviewTarget?.email }}</p>
         </div>
       </div>
       <div v-if="hasReviewInfo" class="admin-users__review-info">
@@ -287,118 +325,215 @@ async function submitReview(): Promise<void> {
   gap: var(--space-lg);
 }
 
-/* ── Hero gradient Aurora soft (cùng pattern LeaderboardView) ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .admin-users__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.admin-users__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.admin-users__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
-}
-
-.admin-users__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-
-.admin-users__hero-icon {
-  width: 48px;
-  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--card-raised);
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--shadow-md);
+  padding: var(--space-xl);
 }
 
-.admin-users__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.admin-users__hero-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.admin-users__hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.admin-users__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .admin-users__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--foreground);
 }
 
-.admin-users__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+.admin-users__sub {
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+  margin: 0;
+}
 
-.admin-users__hero-badge { margin-left: auto; }
+/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
+.admin-users__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.admin-users__strip-panel {
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.admin-users__strip-blocks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.admin-users__strip-block {
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--data-core);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i) * 45ms + 60ms);
+}
+
+.admin-users__strip-block--empty {
+  background: transparent;
+  border: 1px dashed var(--data-core);
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.admin-users__strip-index {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.admin-users__strip-index span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--index-muted);
+  text-align: center;
+}
+
+.admin-users__strip-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+
+@keyframes admin-strip-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-users__strip-block {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* ── Filter bar ── */
-.admin-users__filters { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; padding: var(--space-md); }
+.admin-users__filters {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
 
 .admin-users__search-box { position: relative; flex: 1 1 220px; min-width: 200px; }
 
 .admin-users__search-icon {
   position: absolute;
-  left: 12px;
+  left: var(--space-sm);
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-muted);
+  color: var(--foreground-quaternary);
   pointer-events: none;
 }
 
-.admin-users__search { padding-left: 34px; }
+.admin-users__search,
+.admin-users__select {
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  padding: 0 var(--space-md);
+  transition: border-color 150ms;
+}
+
+.admin-users__search { padding-left: var(--space-xl); }
+
+.admin-users__search::placeholder { color: var(--foreground-quaternary); }
 
 .admin-users__select { width: auto; }
 
-/* ── Loading ── */
+/* ── Loading / Error ── */
 .admin-users__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-/* ── Table ── */
-.admin-users__table { padding: 0; }
+.admin-users__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.admin-users__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
+
+/* ── Table (DESIGN §4.6) ── */
+.admin-users__table {
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
 
 .admin-users__table-scroll { overflow-x: auto; border-radius: inherit; }
 
-.admin-users__table table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.admin-users__table table { width: 100%; border-collapse: collapse; }
 
 .admin-users__table th {
   text-align: left;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--foreground-tertiary);
+  padding: 0 var(--space-md);
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
   white-space: nowrap;
 }
 
 .admin-users__table td {
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: 12px var(--space-md);
+  border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
   vertical-align: middle;
 }
 
-.admin-users__table tbody tr { transition: background-color 150ms ease; }
+.admin-users__table tbody tr { transition: background-color 150ms; }
 
-.admin-users__table tbody tr:hover { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
+.admin-users__table tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
 
 .admin-users__table tbody tr:last-child td { border-bottom: none; }
 
@@ -408,24 +543,30 @@ async function submitReview(): Promise<void> {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 600;
   font-size: var(--text-sm);
   flex-shrink: 0;
 }
 
 .admin-users__user-meta { min-width: 0; }
 
-.admin-users__name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-.admin-users__email { font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.admin-users__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.admin-users__email { font-size: var(--text-xs); color: var(--foreground-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 
-.admin-users__date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.admin-users__date {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  font-variant-numeric: tabular-nums;
+}
 
-.admin-users__actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+.admin-users__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 /* ── Modal duyệt ── */
 .admin-users__review { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
@@ -434,8 +575,8 @@ async function submitReview(): Promise<void> {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -443,7 +584,8 @@ async function submitReview(): Promise<void> {
 }
 
 .admin-users__review-text { display: flex; flex-direction: column; min-width: 0; }
-.admin-users__review-name { font-weight: 700; font-size: var(--text-sm); }
+.admin-users__review-name { font-weight: 600; font-size: var(--text-sm); }
+.admin-users__review-email { font-size: var(--text-xs); color: var(--foreground-tertiary); }
 
 /* ── Thông tin đăng ký GV trong modal duyệt (task L) ── */
 .admin-users__review-info {
@@ -452,17 +594,15 @@ async function submitReview(): Promise<void> {
   gap: var(--space-xs);
   margin-bottom: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--color-muted);
+  background: var(--muted);
 }
 
 .admin-users__review-info-title {
   font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  font-weight: 600;
+  color: var(--foreground-tertiary);
 }
 
 .admin-users__review-info-row {
@@ -474,7 +614,7 @@ async function submitReview(): Promise<void> {
 .admin-users__review-info-label {
   flex-shrink: 0;
   min-width: 7rem;
-  color: var(--color-text-muted);
+  color: var(--foreground-tertiary);
 }
 
 .admin-users__review-info-value {
@@ -484,6 +624,43 @@ async function submitReview(): Promise<void> {
 }
 
 @media (max-width: 640px) {
-  .admin-users__hero-badge { margin-left: 0; }
+  .admin-users__hero { padding: var(--space-lg); }
+  .admin-users__hero-strip { flex-basis: 100%; }
+  .admin-users__strip-caption { text-align: left; }
+
+  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
+  .admin-users__table-scroll { overflow-x: visible; }
+
+  .admin-users__table thead { display: none; }
+
+  .admin-users__table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .admin-users__table tbody tr:last-child { border-bottom: none; }
+
+  .admin-users__table td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .admin-users__table td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    color: var(--foreground-tertiary);
+  }
+
+  .admin-users__table td:first-child { grid-column: 1 / -1; }
+  .admin-users__table td:last-child { align-items: flex-start; }
+
+  .admin-users__name,
+  .admin-users__email { max-width: 100%; white-space: normal; }
 }
 </style>

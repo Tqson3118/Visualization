@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // AdminLadderView — Màn N-6: soạn node (gắn quiz/lab/code) — dạng cơ bản:
-// danh sách node + chọn exercise gắn vào. H-B: hero Aurora soft + info banner
-// + node list có gradient id/selected state + attach panel giữ id select cũ.
+// danh sách node + chọn exercise gắn vào.
+// View-quality 14/08 (Nhóm D): banner surface band level-2; node row qua
+// Button.vue (grep `<button` raw = 0); node-id = block-token tối index mono
+// (dữ liệu tuần tự — quyết định #4); bỏ hover-lift/gradient; error state + retry.
 import { computed, onMounted, ref } from 'vue';
-import { Check, Info, Link2, ListOrdered } from 'lucide-vue-next';
+import { Check, Info, Link2, ListOrdered, RefreshCw } from 'lucide-vue-next';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseSummaryDto } from '@/api/exercises';
@@ -19,6 +21,7 @@ const ui = useUiStore();
 
 const exercises = ref<ExerciseSummaryDto[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 
 const NODES = Array.from({ length: 8 }, (_, i) => ({
   id: i + 1,
@@ -29,16 +32,20 @@ const NODES = Array.from({ length: 8 }, (_, i) => ({
 const selectedNode = ref<number | null>(null);
 const selectedExercise = ref<number | null>(null);
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  loading.value = true;
+  loadError.value = false;
   try {
     exercises.value = await exercisesApi.fetchExercises({});
   } catch {
-    ui.showToast('Không thể tải danh sách bài tập (backend chưa khả dụng).', 'error');
+    loadError.value = true;
     exercises.value = [];
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(load);
 
 const stageLabel: Record<number, string> = { 1: 'Quiz (Bậc 1)', 2: 'Lab (Bậc 2)', 3: 'Code (Bậc 3)' };
 
@@ -67,21 +74,24 @@ async function attach(): Promise<void> {
 
 <template>
   <main class="admin-ladder container">
-    <!-- Hero gradient Aurora soft -->
+    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="admin-ladder__hero">
-      <div class="admin-ladder__hero-body">
-        <span class="admin-ladder__hero-icon" aria-hidden="true"><ListOrdered :size="24" /></span>
-        <div class="admin-ladder__hero-title-wrap">
+      <div class="admin-ladder__hero-inner">
+        <div class="admin-ladder__hero-main">
+          <div class="admin-ladder__hero-badges">
+            <Badge variant="primary">
+              <ListOrdered :size="12" /> {{ messages.admin.badge }}
+            </Badge>
+          </div>
           <h1 class="admin-ladder__title">{{ messages.admin.ladder.title }}</h1>
           <p class="admin-ladder__sub">{{ messages.admin.ladder.subtitle }}</p>
         </div>
-        <Badge variant="primary" class="admin-ladder__hero-badge">{{ messages.admin.badge }}</Badge>
       </div>
     </header>
 
     <AdminNav active="ladder" />
 
-    <div class="admin-ladder__note card">
+    <div class="admin-ladder__note">
       <Info :size="16" class="admin-ladder__note-icon" aria-hidden="true" />
       <p class="admin-ladder__note-text">{{ messages.admin.ladder.note }}</p>
     </div>
@@ -92,13 +102,13 @@ async function attach(): Promise<void> {
 
     <div v-else class="admin-ladder__grid">
       <!-- Danh sách node -->
-      <div class="admin-ladder__nodes card">
+      <div class="admin-ladder__nodes">
         <h2 class="admin-ladder__subtitle">{{ messages.admin.ladder.nodeList }}</h2>
         <ul class="admin-ladder__node-list">
           <li v-for="node in NODES" :key="node.id">
-            <button
-              type="button"
-              class="admin-ladder__node hover-lift"
+            <Button
+              variant="secondary"
+              class="admin-ladder__node"
               :class="{ 'admin-ladder__node--selected': selectedNode === node.id }"
               :aria-pressed="selectedNode === node.id"
               @click="selectedNode = node.id"
@@ -106,25 +116,32 @@ async function attach(): Promise<void> {
               <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
               <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
               <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
-                <Check :size="11" /> {{ messages.admin.ladder.attached }}
+                <Check :size="12" /> {{ messages.admin.ladder.attached }}
               </Badge>
               <Badge v-else variant="muted" class="admin-ladder__node-badge">
                 {{ messages.admin.ladder.empty }}
               </Badge>
-            </button>
+            </Button>
           </li>
         </ul>
       </div>
 
       <!-- Gắn bài tập -->
-      <div class="admin-ladder__attach card">
+      <div class="admin-ladder__attach">
         <h2 class="admin-ladder__subtitle">
-          <Link2 :size="15" class="admin-ladder__subtitle-icon" aria-hidden="true" />
+          <Link2 :size="16" class="admin-ladder__subtitle-icon" aria-hidden="true" />
           {{ messages.admin.ladder.attachTitle }}
         </h2>
 
+        <div v-if="loadError" class="admin-ladder__error" role="alert">
+          <p class="admin-ladder__error-text">Không thể tải danh sách bài tập (backend chưa khả dụng).</p>
+          <Button size="sm" variant="secondary" @click="load">
+            <RefreshCw :size="14" /> {{ messages.admin.ladder.retry }}
+          </Button>
+        </div>
+
         <EmptyState
-          v-if="exercises.length === 0"
+          v-else-if="exercises.length === 0"
           icon="puzzle"
           :title="messages.admin.ladder.emptyTitle"
           :description="messages.admin.ladder.emptyDesc"
@@ -153,7 +170,7 @@ async function attach(): Promise<void> {
 
           <div class="admin-ladder__actions">
             <Button :disabled="selectedNode === null || selectedExercise === null" @click="attach">
-              <Link2 :size="14" /> {{ messages.admin.ladder.attachBtn }}
+              <Link2 :size="16" /> {{ messages.admin.ladder.attachBtn }}
             </Button>
           </div>
         </template>
@@ -171,119 +188,141 @@ async function attach(): Promise<void> {
   max-width: 1000px;
 }
 
-/* ── Hero gradient Aurora soft ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .admin-ladder__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.admin-ladder__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.admin-ladder__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
-}
-
-.admin-ladder__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-
-.admin-ladder__hero-icon {
-  width: 48px;
-  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--card-raised);
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--shadow-md);
+  padding: var(--space-xl);
 }
 
-.admin-ladder__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.admin-ladder__hero-inner {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.admin-ladder__hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.admin-ladder__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .admin-ladder__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--foreground);
 }
 
-.admin-ladder__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
-
-.admin-ladder__hero-badge { margin-left: auto; }
+.admin-ladder__sub {
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+  margin: 0;
+}
 
 /* ── Info banner ── */
-.admin-ladder__note { display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-md); }
+.admin-ladder__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
 
-.admin-ladder__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--color-info); }
+.admin-ladder__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--info); }
 
-.admin-ladder__note-text { font-size: var(--text-sm); color: var(--color-text-muted); }
+.admin-ladder__note-text { margin: 0; font-size: var(--text-sm); color: var(--foreground-secondary); }
 
 .admin-ladder__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
 .admin-ladder__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); align-items: start; }
 
-.admin-ladder__subtitle { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-md); margin-bottom: var(--space-md); }
+/* ── Panels ── */
+.admin-ladder__nodes,
+.admin-ladder__attach {
+  padding: var(--space-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
 
-.admin-ladder__subtitle-icon { color: var(--color-primary); }
+.admin-ladder__attach { display: flex; flex-direction: column; gap: var(--space-md); }
+
+.admin-ladder__subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.admin-ladder__subtitle-icon { color: var(--foreground-secondary); }
+
+/* ── Error ── */
+.admin-ladder__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.admin-ladder__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
 
 /* ── Node list ── */
 .admin-ladder__node-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
 
+/* Node row = Button.vue (outline md) — chỉ override layout, không đè padding */
 .admin-ladder__node {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  color: var(--color-foreground);
+  justify-content: flex-start;
+  border-color: var(--border);
+  color: var(--foreground);
+  transition: border-color 150ms, background-color 150ms;
 }
+
+.admin-ladder__node:hover { border-color: var(--border-strong); }
 
 .admin-ladder__node--selected {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 7%, var(--card));
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
+.admin-ladder__node--selected:hover { border-color: var(--primary); }
+
+/* Node-id = block-token tối + index mono (dữ liệu tuần tự — quyết định #4) */
 .admin-ladder__node-id {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(66, 85, 255, 0.3);
+  background: var(--canvas-ink);
+  color: var(--data-core);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: 500;
   flex-shrink: 0;
 }
 
@@ -292,9 +331,16 @@ async function attach(): Promise<void> {
 .admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
 
 /* ── Attach panel ── */
-.admin-ladder__attach { display: flex; flex-direction: column; gap: var(--space-md); }
-
 .admin-ladder__field { display: flex; flex-direction: column; gap: var(--space-xs); }
+
+/* Select chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
+.admin-ladder__field .input {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  transition: border-color 150ms;
+}
 
 .admin-ladder__actions { display: flex; justify-content: flex-end; }
 
@@ -303,6 +349,6 @@ async function attach(): Promise<void> {
 }
 
 @media (max-width: 640px) {
-  .admin-ladder__hero-badge { margin-left: 0; }
+  .admin-ladder__hero { padding: var(--space-lg); }
 }
 </style>

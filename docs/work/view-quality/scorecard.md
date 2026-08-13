@@ -63,14 +63,14 @@
 | ProfileView — `/profile` | | | | | | | | | | | | | | CAO |
 | PremiumView — `/premium` | | | | | | | | | | | | | | |
 | SubscriptionView — `/account/subscription` | | | | | | | | | | | | | | |
-| ClassesView — `/classes` | | | | | | | | | | | | | | |
-| ClassDetailView — `/classes/:id` | | | | | | | | | | | | | | |
-| ClassReportView — `/classes/:id/report` | | | | | | | | | | | | | | |
-| AdminUsersView — `/admin/users` | | | | | | | | | | | | | | |
-| AdminStatsView — `/admin/stats` | | | | | | | | | | | | | | |
-| AdminSettingsView — `/admin/settings` | | | | | | | | | | | | | | |
-| AdminContentView — `/admin/content` | | | | | | | | | | | | | | |
-| AdminLadderView — `/admin/ladder` | | | | | | | | | | | | | | |
+| ClassesView — `/classes` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 8.5 | ĐẠT | |
+| ClassDetailView — `/classes/:id` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 9 | ĐẠT | |
+| ClassReportView — `/classes/:id/report` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 9 | ĐẠT | |
+| AdminUsersView — `/admin/users` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 8 | ĐẠT | |
+| AdminStatsView — `/admin/stats` | 7.5 | 5.5 | 12.5 | 13.5 | 16 | 9 | 7.5 | 11 | 5.5 | 5.5 | 93.5 | 8.5 | ĐẠT | |
+| AdminSettingsView — `/admin/settings` | 8 | 5.5 | 12 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 7.5 | ĐẠT | |
+| AdminContentView — `/admin/content` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 8.5 | ĐẠT | |
+| AdminLadderView — `/admin/ladder` | 7.5 | 5.5 | 12 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92 | 8 | ĐẠT | |
 | NodeHubView — `/path/:topicId/node/:nodeId` | | | | | | | | | | | | | | |
 | FinalTestView — `/path/:topicId/final-test` | | | | | | | | | | | | | | |
 | NotFoundView — `/:pathMatch(.*)*` (404) | | | | | | | | | | | | | | |
