@@ -220,6 +220,88 @@ describe('GraphRenderer', () => {
   });
 });
 
+describe('GraphRenderer — meta layout (Task 5)', () => {
+  /** Graph n node với meta.x/y cho từng đỉnh (status default → mỗi đỉnh đúng 1 arc). */
+  function graphWithMeta(xs: number[], ys: number[]): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < xs.length; i++) {
+      elements.push({ id: `node:${i}`, label: String(i), status: 'default', meta: { x: xs[i], y: ys[i] } });
+    }
+    return { kind: 'graph', elements, links: [] };
+  }
+
+  /** Graph n node không có meta (hành vi cũ). */
+  function graphPlain(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) elements.push({ id: `node:${i}`, label: String(i), status: 'default' });
+    return { kind: 'graph', elements, links: [] };
+  }
+
+  /** Các lần gọi ctx.arc — mỗi lần [x, y, r, start, end]. */
+  function arcCalls(mock: MockContext): unknown[][] {
+    return vi.mocked(mock.ctx.arc).mock.calls;
+  }
+
+  test('graph 5 node có meta.x/y: normalize vào vùng vẽ — node đầu ≈ góc trái (margin, paddingTop), khác circular', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphWithMeta([0, 10, 20, 30, 40], [0, 0, 10, 10, 20]));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5); // mỗi đỉnh vẽ đúng 1 lần
+    const x = arcs[0][0] as number;
+    const y = arcs[0][1] as number;
+    // Tọa độ nhỏ nhất trong meta → normalize về lề trái / đầu vùng vẽ.
+    expect(x).toBeCloseTo(CANVAS_LAYOUT.margin, 5);
+    expect(y).toBeCloseTo(CANVAS_LAYOUT.paddingTop, 5);
+    // Circular cũ đặt node 0 ở đỉnh giữa trên (x≈w/2, y≈h/2-radius) — không được giống.
+    expect(x).not.toBeCloseTo(800 / 2, 1);
+  });
+
+  test('graph 5 node không có meta: giữ layout circular cũ — 5 arc, node đầu x≈w/2, y≈h/2-radius', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphPlain(5));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5); // không đổi so với trước
+    const radius = Math.max(50, Math.min(800, 600) / 2 - 54);
+    const x = arcs[0][0] as number;
+    const y = arcs[0][1] as number;
+    expect(x).toBeCloseTo(800 / 2, 5);
+    expect(y).toBeCloseTo(600 / 2 - radius, 5);
+  });
+
+  test('node label dưới circle: fillText "A" vẽ ≥2 lần, có lần nằm dưới tâm đỉnh (y > y_circle + NODE_R)', () => {
+    const renderer = new GraphRenderer();
+    const structure: Structure = {
+      kind: 'graph',
+      elements: [{ id: 'node:0', label: 'A', status: 'default', meta: { x: 0, y: 0 } }],
+      links: [],
+    };
+    const mock = renderAll(renderer, structure);
+    const arcs = arcCalls(mock);
+    expect(arcs).toHaveLength(1);
+    const yCircle = arcs[0][1] as number;
+
+    const texts = vi.mocked(mock.ctx.fillText).mock.calls;
+    const aCalls = texts.filter((c) => c[0] === 'A');
+    expect(aCalls.length).toBeGreaterThanOrEqual(2); // trong đỉnh + dưới đỉnh
+    expect(aCalls.some((c) => (c[2] as number) > yCircle + 20)).toBe(true); // label dưới đỉnh
+  });
+
+  test('edge case cùng meta.y: dàn ngang — x khác nhau, mọi arc cùng y (giữa vùng vẽ)', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphWithMeta([0, 10, 20, 30, 40], [5, 5, 5, 5, 5]));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5);
+    const xs = new Set(arcs.map((c) => c[0] as number));
+    expect(xs.size).toBe(5); // x dàn đều khác nhau
+    for (const c of arcs) {
+      expect(c[1] as number).toBeCloseTo(600 / 2, 5); // cùng y giữa vùng vẽ
+    }
+  });
+});
+
 describe('StackQueueRenderer', () => {
   const stack: Structure = {
     kind: 'stack',
