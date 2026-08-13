@@ -10,8 +10,9 @@ namespace DsaVisual.Application.Persistence.Seed;
 /// SEED-V2 (PROMPT_K_SEED_PROD_V2) — Task 6: BugReports V2 (7 báo cáo — 4 trạng thái), CodeSubmissions V2
 /// (7 bài nộp code — user Hardworking/Average) + Premium showcase (gói 12 tháng cho showcase@demo.local).
 /// Khác V1 SeedDemoActivity.Misc.cs: V1 guard count==0 (bảng rỗng mới seed) — V2 ĐỔI guard theo
-/// (UserId, Description) cho BugReports và (UserId, ExerciseId, SubmittedAt) cho CodeSubmissions
-/// (idempotent, chạy lại lần 2 → 0 thêm, KHÔNG đụng dữ liệu runtime/V1).
+/// (UserId, Description) cho BugReports và (UserId, ExerciseId) cho CodeSubmissions
+/// (idempotent tuyệt đối — Task 6c: bỏ SubmittedAt khỏi guard vì now thay đổi mỗi lần chạy,
+/// SubmittedAt giờ deterministic từ mốc cố định; chạy lại lần 2 → 0 thêm, KHÔNG đụng dữ liệu runtime/V1).
 /// Dùng chung user <see cref="V2Users.All"/> + helpers <see cref="LoadV2ActivityUsersAsync"/>
 /// (V2.Activity.cs) và <see cref="NowUtc7"/> (V1 Progress.cs) — không tự tạo user mới.
 /// </summary>
@@ -78,18 +79,20 @@ public static partial class SeedDemoActivity
         logger.LogInformation("Seed: V2 BugReports thêm {Added} / bỏ qua {Skipped} (đã tồn tại)", added, skipped);
     }
 
-    // ── 2. CodeSubmissions V2 (SDD §7.3.24) — guard (UserId, ExerciseId, SubmittedAt) ──
+    // ── 2. CodeSubmissions V2 (SDD §7.3.24) — guard (UserId, ExerciseId) ──
 
     /// <summary>
     /// 7 bài nộp code của 5 user V2 (Hardworking/Average) — Score 60-95 (2 bài 85-100: Bubble Sort 95,
     /// Binary Search 88), PassedTests = round(TotalTests × Score / MaxScore) ≤ TotalTests
-    /// (TotalTests từ ConfigJson — <see cref="TotalTestsFromConfig"/> pattern V1), SubmittedAt rải 2-27 ngày.
-    /// Bảng không UNIQUE → guard (UserId, ExerciseId, SubmittedAt) — SubmittedAt deterministic nên chạy lại
-    /// lần 2 → 0 thêm (KHÔNG dùng guard count==0 như V1).
+    /// (TotalTests từ ConfigJson — <see cref="TotalTestsFromConfig"/> pattern V1), SubmittedAt rải 2-27 ngày
+    /// tính từ MỐC CỐ ĐỊNH 2026-07-10 (Task 6c: KHÔNG dùng now — now đổi mỗi lần chạy → SubmittedAt khác
+    /// → guard cũ không khớp → seed lần 2 thêm 7 dòng trùng; mọi giá trị ≤ 2026-08-06 vẫn "trong quá khứ").
+    /// Bảng không UNIQUE → guard (UserId, ExerciseId) — mỗi (user, exercise) trong plan chỉ 1 bài nộp
+    /// nên guard đủ idempotent tuyệt đối, chạy lại lần 2 → 0 thêm (KHÔNG dùng guard count==0 như V1).
     /// </summary>
     public static async Task SeedCodeSubmissionsV2Async(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
-        var now = NowUtc7(clock);                        // hôm nay UTC+7
+        var baseUtc = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc);   // mốc cố định (deterministic)
         var users = await LoadV2ActivityUsersAsync(db, ct);
         var exercises = await db.Exercises.AsNoTracking()
             .Where(e => e.Type == ExerciseType.Code && e.DeletedAt == null && e.Status == ExerciseStatus.Active)
@@ -124,9 +127,9 @@ public static partial class SeedDemoActivity
                 continue;
             }
 
-            var submittedAt = now.AddDays(-row.DaysAgo).AddHours(-(row.Score % 12)).AddMinutes(-(row.DaysAgo * 7) % 60);
+            var submittedAt = baseUtc.AddDays(row.DaysAgo).AddHours(row.Score % 12).AddMinutes((row.DaysAgo * 7) % 60);
             var exists = await db.CodeSubmissions.AnyAsync(
-                s => s.UserId == user.Id && s.ExerciseId == exercise.Id && s.SubmittedAt == submittedAt, ct);
+                s => s.UserId == user.Id && s.ExerciseId == exercise.Id, ct);
             if (exists)
             {
                 skipped++;
