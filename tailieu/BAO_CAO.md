@@ -736,33 +736,33 @@ Hai route cũ `/learn` và `/dashboard` tự chuyển hướng sang `/path` và 
 
 ### 4.2.3 Giao diện chức năng
 
-Dưới đây là 12 màn hình chính của hệ thống. Ảnh hiện tại là placeholder, sẽ được thay bằng ảnh chụp thật khi hoàn thiện giao diện.
+Dưới đây là 12 màn hình chính của hệ thống, ảnh chụp từ ứng dụng thật (13/08/2026).
 
 #### Màn 01 — Trang chủ
 
-![Hình 4.1 - Trang chủ](placeholders/01-home.png)
-*Hình 4.1: Trang chủ giới thiệu sản phẩm, 6 thẻ tính năng và 3 demo công khai. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.1 - Trang chủ](screenshots/01-home.png)
+*Hình 4.1: Trang chủ giới thiệu sản phẩm, 6 thẻ tính năng và 3 demo công khai. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Trang chủ công khai gồm hero giới thiệu, 6 thẻ tính năng, khối "Cách hoạt động", số liệu hệ thống và 3 thẻ demo công khai (Bubble Sort, Binary Search, BFS) chạy được ngay không cần đăng nhập. Khách bấm "Đăng ký miễn phí" để tạo tài khoản hoặc "Chạy thử" để xem demo; người đã đăng nhập thấy nút "Học tiếp" trỏ về Lộ trình.
 
 #### Màn 02 — Đăng nhập/Đăng ký
 
-![Hình 4.2 - Đăng nhập/Đăng ký](placeholders/02-login.png)
-*Hình 4.2: Màn đăng nhập và đăng ký với validation inline. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.2 - Đăng nhập/Đăng ký](screenshots/02-login.png)
+*Hình 4.2: Màn đăng nhập và đăng ký với validation inline. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Màn xác thực gồm đăng nhập và đăng ký trên 2 route riêng. Biểu mẫu kiểm tra ngay khi rời ô nhập, mật khẩu có checklist sống (đủ dài, có chữ hoa, số, ký tự đặc biệt), checkbox "Tôi là giảng viên" đưa tài khoản vào trạng thái chờ duyệt. Tài khoản đã bật xác thực 2 lớp phải nhập thêm mã OTP gửi qua email. Sau khi đăng nhập, sinh viên về Lộ trình, giảng viên/quản trị về trang quản trị.
 
 #### Màn 04 — Chi tiết bài học
 
-![Hình 4.3 - Chi tiết bài học](placeholders/04-lesson-detail.png)
-*Hình 4.3: Màn chi tiết bài học hiển thị lý thuyết và thẻ liên kết tài nguyên. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.3 - Chi tiết bài học](screenshots/04-lesson-detail.png)
+*Hình 4.3: Màn chi tiết bài học hiển thị lý thuyết và thẻ liên kết tài nguyên. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Màn hiển thị nội dung lý thuyết dạng rich-text; không nhúng mô phỏng hay bài tập trong trang mà đưa thẻ liên kết mở các trang riêng. Người học ghi chú cá nhân (tự lưu sau 1 giây), đánh giá sao 1-5 sau khi đã học, và bấm "Xem bước này" để mở mô phỏng đúng đoạn liên quan.
 
 #### Màn 05 — Màn hình mô phỏng (quan trọng nhất)
 
-![Hình 4.4 - Màn hình mô phỏng](placeholders/05-simulator.png)
-*Hình 4.4: Màn mô phỏng 3 vùng đồng bộ: mã giả, canvas trực quan, giải thích từng bước. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.4 - Màn hình mô phỏng](screenshots/05-simulator.png)
+*Hình 4.4: Màn mô phỏng 3 vùng đồng bộ: mã giả, canvas trực quan, giải thích từng bước. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Đây là màn quan trọng nhất của hệ thống, bố cục 3 vùng đồng bộ trong cùng một frame: trái là panel mã giả (dòng đang chạy tô vàng kèm giá trị biến), giữa là canvas vẽ cấu trúc dữ liệu theo trạng thái màu, phải là panel giải thích từng bước bằng tiếng Việt. Thanh điều khiển bên dưới canvas có phát/dừng/bước tới/bước lùi, thanh tiến trình kéo thả và tốc độ 0.25x-4x; người học có thể cấu hình lại dữ liệu đầu vào theo từng loại CTDL, đặt breakpoint, tự thực hành bước thủ công và dùng phím tắt (Space phát/dừng, mũi tên sang bước). Bố cục dự kiến như wireframe sau:
 
@@ -789,57 +789,57 @@ Màn hiển thị nội dung lý thuyết dạng rich-text; không nhúng mô ph
 
 #### Màn 06 — Bài tập trắc nghiệm
 
-![Hình 4.5 - Bài tập trắc nghiệm](placeholders/06-exercise.png)
-*Hình 4.5: Màn làm bài trắc nghiệm với mini-map định vị câu hỏi. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.5 - Bài tập trắc nghiệm](screenshots/06-exercise.png)
+*Hình 4.5: Màn làm bài trắc nghiệm với mini-map định vị câu hỏi. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Người học làm bài trắc nghiệm Bậc 1 của Practice Ladder hoặc bài kiểm tra cuối lộ trình: câu hỏi ở giữa, mini-map bên phải đánh dấu câu đã trả lời/đang xem/đánh dấu xem lại. Hết giờ tự nộp nếu có cấu hình. Sau nộp hiện kết quả chi tiết: điểm, thống kê đúng/sai và giải thích từng câu kèm lý do đáp án đã chọn sai. Có chế độ Luyện tập không chấm điểm và nút Gợi ý tốn token.
 
 #### Màn 13 — Bản đồ Learning Path
 
-![Hình 4.6 - Learning Path](placeholders/13-learning-path.png)
-*Hình 4.6: Bản đồ lộ trình dạng đường mòn, node khóa/mở/đã qua. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.6 - Learning Path](screenshots/13-learning-path.png)
+*Hình 4.6: Bản đồ lộ trình dạng đường mòn, node khóa/mở/đã qua. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Bản đồ node kiểu "đường mòn" cuộn dọc giúp người học thấy thứ tự học và trạng thái từng node (khóa, đang mở, đã qua kèm số sao). Pass một node sẽ mở khóa node kế tiếp; node cuối lộ trình là bài kiểm tra cuối, chỉ mở khi qua toàn bộ node. Header có thanh tiến độ tổng và widget tim/gems.
 
 #### Màn 14 — Practice Ladder
 
-![Hình 4.7 - Practice Ladder](placeholders/14-ladder.png)
-*Hình 4.7: Khung luyện tập 3 bậc Quiz, Lab, Code với stepper trên cùng. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.7 - Practice Ladder](screenshots/14-ladder.png)
+*Hình 4.7: Khung luyện tập 3 bậc Quiz, Lab, Code với stepper trên cùng. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Khung luyện tập 3 bậc của một node: Quiz (Bậc 1) → Interactive Lab (Bậc 2) → Code Challenge (Bậc 3). Stepper trên cùng cho biết bậc đã qua, đang làm, đang khóa; mỗi bậc là một component tách, qua bậc nào tự chuyển bậc kế. Điểm node tính Quiz 20% + Lab 30% + Code 50%, giữ điểm cao nhất mỗi bậc; phiên học 30 phút cho phép thoát ra vào tiếp tục.
 
 #### Màn 15 — Interactive Lab
 
-![Hình 4.8 - Interactive Lab](placeholders/15-lab.png)
-*Hình 4.8: Màn luyện tập Bậc 2, thao tác trực tiếp trên canvas. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.8 - Interactive Lab](screenshots/15-lab.png)
+*Hình 4.8: Màn luyện tập Bậc 2, thao tác trực tiếp trên canvas. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Bậc 2 yêu cầu người học tự thao tác trên canvas (kéo thả ô, chọn nút cha) để giải bài theo kịch bản sắp xếp, BST hoặc đồ thị. Bảng điều khiển cho biết số thao tác đã dùng so với giới hạn (chuẩn x 1.5), có nút Hoàn tác, Làm lại, Gợi ý tốn token, Nộp bài. Server chấm trạng thái cuối cùng khớp chuẩn và số bước không vượt giới hạn.
 
 #### Màn 16 — Code Runner
 
-![Hình 4.9 - Code Runner](placeholders/16-code-runner.png)
-*Hình 4.9: Màn Code Runner với trình soạn mã Monaco và canvas trực quan. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.9 - Code Runner](screenshots/16-code-runner.png)
+*Hình 4.9: Màn Code Runner với trình soạn mã Monaco và canvas trực quan. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Trình soạn mã Monaco nạp sẵn code mẫu, người học hoàn thiện hàm theo chữ ký cố định rồi chạy trong sandbox Web Worker (giới hạn 10 giây, 64MB, 200 dòng). Canvas bên phải phát trực quan đồng bộ 2 chiều: bấm dòng code nhảy đúng bước tương ứng. Khi vào từ Bậc 3, màn thêm nút Nộp bài với bộ test ẩn chấm theo đầu ra và lịch sử nộp bài.
 
 #### Màn 17 — Benchmark Lab
 
-![Hình 4.10 - Benchmark Lab](placeholders/17-benchmark.png)
-*Hình 4.10: Màn Benchmark so sánh số liệu thật của các giải thuật. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.10 - Benchmark Lab](screenshots/17-benchmark.png)
+*Hình 4.10: Màn Benchmark so sánh số liệu thật của các giải thuật. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 So sánh số liệu thật (thời gian, số so sánh, số hoán đổi/ghi) của 2-5 giải thuật cùng cấu trúc dữ liệu tại nhiều kích thước n (10/50/100/500/1000). Kết quả hiển thị dạng bảng số liệu và biểu đồ cột có đường cong lý thuyết tự fit; màn tự sinh khối kết luận. Màn này miễn phí tim, không tính vào lộ trình.
 
 #### Màn 24 — Bảng xếp hạng
 
-![Hình 4.11 - Bảng xếp hạng](placeholders/24-leaderboard.png)
-*Hình 4.11: Bảng xếp hạng 3 tab Tuần, Level, Lớp. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.11 - Bảng xếp hạng](screenshots/24-leaderboard.png)
+*Hình 4.11: Bảng xếp hạng 3 tab Tuần, Level, Lớp. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Xếp hạng người học theo 3 tab: Tuần (reset thứ Hai hằng tuần), Level (theo tổng kinh nghiệm) và Lớp (theo lớp học của mình). Bảng phân trang 20 dòng, ghim vị trí của người dùng nếu nằm ngoài top 50, bấm vào một người xem hồ sơ học tập của họ.
 
 #### Màn 32 — Hồ sơ
 
-![Hình 4.12 - Hồ sơ cá nhân](placeholders/32-profile.png)
-*Hình 4.12: Hồ sơ cá nhân với 4 tab Tổng quan, Tiến độ, Thành tích, Cài đặt. (ảnh placeholder — chụp thật thay sau)*
+![Hình 4.12 - Hồ sơ cá nhân](screenshots/32-profile.png)
+*Hình 4.12: Hồ sơ cá nhân với 4 tab Tổng quan, Tiến độ, Thành tích, Cài đặt. (Ảnh chụp từ ứng dụng — 13/08/2026)*
 
 Trang hồ sơ trả lời câu hỏi "Tôi đang ở đâu?": tổng quan level, XP, streak, tim, gems, tiến độ lộ trình; 4 tab Tổng quan/Tiến độ/Thành tích/Cài đặt, mỗi tab một component tách. Có thẻ tắt nhanh sang Quest, Bảng xếp hạng và Shop; trong Cài đặt đổi mật khẩu, bật xác thực 2 lớp và dark mode.
 
