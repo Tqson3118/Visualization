@@ -153,17 +153,18 @@ public class SeedDemoActivityTests
         {
             var node = nodes[row.NodeId];
 
-            // Node bài học ("Học: X") → exercise MCQ của lesson (NodeId == null, không phải final test);
-            // node kiểm tra cuối → exercise qua FinalTestId. Node luyện tập không có exercise → chỉ Status=1.
+            // Node bài học ("Học: X") → exercise MCQ gắn NodeId node (H-FINAL1 — seed gán NodeId/Stage
+            // cho exercise lesson); node kiểm tra cuối → exercise qua FinalTestId. Node luyện tập
+            // không có exercise → chỉ Status=1.
             Exercise? exercise = null;
             if (node.FinalTestId is { } finalTestId)
             {
                 exercise = exercises.FirstOrDefault(e => e.Id == finalTestId);
             }
-            else if (node.LessonId is { } lessonId)
+            else if (node.LessonId is { })
             {
                 exercise = exercises.FirstOrDefault(e =>
-                    e.LessonId == lessonId && e.Type == ExerciseType.Mcq && e.NodeId == null);
+                    e.NodeId == node.Id && e.Type == ExerciseType.Mcq);
             }
 
             Assert.True(exercise is not null,

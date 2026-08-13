@@ -19,9 +19,9 @@ namespace DsaVisual.Application.Persistence.Seed;
 /// ExerciseSubmission.SubmittedAt của bài nộp full-score tương ứng; chạy lại lần 2 → 0 dòng thêm.
 ///
 /// Rule ràng buộc: UserNodeProgress.Status=2 BẮT BUỘC có ExerciseSubmission Score == MaxScore của
-/// exercise gắn node — node bài học ("Học: X") gắn exercise qua LessonId → bài nộp Quiz full-score
-/// của lesson; node kiểm tra cuối gắn exercise qua NodeId/FinalTestId → bài nộp full-score. Node
-/// luyện tập tổng hợp (không có exercise) chỉ đạt Status=1.
+/// exercise gắn node — node bài học ("Học: X") gắn exercise qua NodeId (Quiz Stage=1, H-FINAL1) →
+/// bài nộp Quiz full-score của lesson; node kiểm tra cuối gắn exercise qua NodeId/FinalTestId →
+/// bài nộp full-score. Node luyện tập tổng hợp (không có exercise) chỉ đạt Status=1.
 /// Stars = ceil(score×3/maxScore) clamp 0..3 (full-score → 3).
 /// </summary>
 public static partial class SeedDemoActivity
@@ -264,10 +264,14 @@ public static partial class SeedDemoActivity
         var lessonsByTitle = lessons.ToDictionary(l => l.Title, StringComparer.Ordinal);
         var byLesson = exercises.GroupBy(e => e.LessonId).ToDictionary(g => g.Key, g => g.ToList());
 
-        Exercise Quiz(string title) => byLesson[lessonsByTitle[title].Id].First(e => e.Type == ExerciseType.Mcq && e.NodeId == null);
+        // H-FINAL1: exercise lesson có NodeId != null (Quiz/Lab/Code gắn node "Học: X"); phân biệt
+        // quiz lesson bằng title chính xác (final test cùng LessonId, title "Kiểm tra cuối: ...").
+        Exercise Quiz(string title) => byLesson[lessonsByTitle[title].Id].First(e => e.Type == ExerciseType.Mcq && e.Title == $"Quiz: {title}");
         Exercise Lab(string title) => byLesson[lessonsByTitle[title].Id].First(e => e.Type == ExerciseType.SimulationLab);
         Exercise Code(string title) => byLesson[lessonsByTitle[title].Id].First(e => e.Type == ExerciseType.Code);
-        var finals = exercises.Where(e => e.NodeId != null).OrderBy(e => e.Id).ToList();
+        var finals = exercises
+            .Where(e => e.NodeId != null && e.Title.StartsWith("Kiểm tra cuối: ", StringComparison.Ordinal))
+            .OrderBy(e => e.Id).ToList();
 
         DateTime At(Random r, int minDaysAgo, int maxDaysAgo) =>
             now.AddDays(-r.Next(minDaysAgo, maxDaysAgo + 1)).AddHours(-r.Next(0, 24)).AddMinutes(-r.Next(0, 60));
@@ -486,9 +490,8 @@ public static partial class SeedDemoActivity
             {
                 NodeKind.Lesson0 or NodeKind.Lesson1 when node.LessonId is { } lessonId =>
                     submissions.FirstOrDefault(s =>
-                        s.Exercise.LessonId == lessonId &&
+                        s.Exercise.NodeId == node.Id &&        // H-FINAL1: quiz lesson gắn NodeId node bài học
                         s.Exercise.Type == ExerciseType.Mcq &&
-                        s.Exercise.NodeId == null &&
                         s.Score == s.Exercise.MaxScore),
                 NodeKind.Final => submissions.FirstOrDefault(s =>
                     s.Exercise.Id == finalNode.FinalTestId && s.Score == s.Exercise.MaxScore),
