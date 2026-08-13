@@ -22,12 +22,14 @@
   );
   --aurora-soft: oklch(0.96 0.03 200);
 
-  /* ── 2) Sunset — amber → orange → rose (Learn streak / huy hiệu) ── */
+  /* ── 2) Sunset — amber → orange → rose (Learn streak / huy hiệu) ──
+     GP-T9b / H-C round1: tối nhẹ (0.55→0.5, 0.45→0.42) để chữ trắng
+     trên stop sáng nhất ≥ 4.5:1, giảm độ chói mắt — giữ tông. */
   --gradient-sunset: linear-gradient(
     135deg,
-    oklch(0.55 0.13 75) 0%,
-    oklch(0.55 0.16 45) 50%,
-    oklch(0.45 0.18 20) 100%
+    oklch(0.5 0.13 75) 0%,
+    oklch(0.5 0.16 45) 50%,
+    oklch(0.42 0.18 20) 100%
   );
   --sunset-soft: oklch(0.97 0.03 60);
 
