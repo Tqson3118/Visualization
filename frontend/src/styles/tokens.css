@@ -29,6 +29,26 @@
   --color-warning:        #D97706;
   --color-info:           #0891B2;
 
+  /* Text 4 tầng (DESIGN.md §2.2) — tầng 1–2 alias về biến đã chốt, 3–4 mới */
+  --color-text-primary:     var(--color-foreground); /* tier 1 — heading/body chính */
+  --color-text-secondary:   var(--color-text-muted); /* tier 2 — label, description quan trọng */
+  --color-text-tertiary:    #627675;                 /* tier 3 — caption, meta, bảng phụ */
+  --color-text-quaternary:  #738483;                 /* tier 4 — placeholder, disabled, ghi chú */
+
+  /* Border 3 tầng (DESIGN.md §2.2) — subtle/strong semi-transparent */
+  --color-border-subtle:    rgba(0, 0, 0, 0.06);
+  --color-border-strong:    rgba(0, 0, 0, 0.14);
+
+  /* Surface raised — card level-2 (hero-stat, banner band) */
+  --color-card-raised:      #F7FDFD;
+
+  /* Canvas palette (DESIGN-IDENTITY §1.2 — nguồn canvasTheme.ts, LUÔN tối) */
+  --color-canvas-ink:       #0D1020;
+  --color-data-core:        #4255FF;
+  --color-resolved:         #34D399;
+  --color-conflict:         #F87171;
+  --color-index-muted:      #6B7385;
+
   /* ── TYPOGRAPHY (Phase 1a G: Geist + JetBrains Mono self-host) ── */
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -104,6 +124,19 @@
   --color-success:        #34D399;
   --color-warning:        #FBBF24;
   --color-info:           #22D3EE;
+
+  /* Text 4 tầng dark (DESIGN.md §2.2) */
+  --color-text-primary:     var(--color-foreground);
+  --color-text-secondary:   var(--color-text-muted);
+  --color-text-tertiary:    #94AAA8;
+  --color-text-quaternary:  #829392;
+
+  /* Border 3 tầng dark — semi-transparent trắng trên nền tối */
+  --color-border-subtle:    rgba(255, 255, 255, 0.06);
+  --color-border-strong:    rgba(255, 255, 255, 0.16);
+
+  /* Surface raised dark — sáng hơn --color-surface 1 bậc */
+  --color-card-raised:      #134E4A;
 
   /* Shadow nhẹ hơn trên nền tối */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
