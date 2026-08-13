@@ -577,6 +577,70 @@ export const messages = {
     cancelInfo:
       'Hủy gia hạn: endpoint /me/subscription/cancel sẽ được bổ sung ở backend. Gói vẫn dùng tới hết hạn.',
   },
+
+  // ── Đợt H (H-E2): Khám phá (N-3) + CheatSheet (18) + Trợ giúp (12) ──
+  // Chỉ THÊM chuỗi mới — không sửa/xóa chuỗi cũ (quy tắc H-E2).
+  explore: {
+    breadcrumbHome: 'Trang chủ',
+    title: 'Khám phá',
+    sub: (count: number) =>
+      `${count} mô phỏng — xem tự do kiểu VisuAlgo. Mở mô phỏng cụ thể trừ 1 tim (3 demo công khai miễn phí).`,
+    demoBadge: '3 demo miễn phí',
+    statSimulations: 'mô phỏng',
+    statGroups: 'nhóm CTDL',
+    statLevels: 'mức độ',
+    tabCatalog: 'Danh mục',
+    tabCompare: 'So sánh (Benchmark)',
+    tabCheatsheet: 'CheatSheet (Big-O)',
+    searchPlaceholder: 'Tìm theo tên hoặc key...',
+    searchAria: 'Tìm kiếm mô phỏng',
+    structureAria: 'Lọc theo cấu trúc',
+    structureAll: 'CTDL: Tất cả',
+    levelAria: 'Lọc theo mức độ',
+    levelAll: 'Mức độ: Tất cả',
+    levelBasic: 'Cơ bản',
+    levelAdvanced: 'Nâng cao',
+    tagAria: 'Lọc theo tag',
+    tagAll: 'Tag: Tất cả',
+    clearFilters: 'Xóa bộ lọc',
+    emptyTitle: 'Không có mô phỏng phù hợp',
+    emptyDesc: 'Thử xóa bộ lọc hoặc đổi từ khóa.',
+    badgeDemo: 'Demo',
+    badgeAlgorithm: 'Thuật toán',
+    badgeStructure: 'CTDL',
+    complexityLabel: 'Độ phức tạp',
+    open: 'Mở',
+    openSimulation: (title: string) => `Mở mô phỏng ${title}`,
+    paginationAria: 'Phân trang',
+    prevPage: 'Trang trước',
+    nextPage: 'Trang sau',
+    pageOf: (page: number, total: number) => `${page}/${total}`,
+  },
+
+  cheatsheet: {
+    breadcrumbParent: 'Khám phá',
+    title: 'CheatSheet — Độ phức tạp Big-O',
+    sub: 'Bảng tra cứu nhanh · "▶ Xem mô phỏng" mở simulator (trừ 1 tim theo 20.4 — 3 demo công khai miễn phí).',
+    badge: (count: number) => `${count} mục`,
+  },
+
+  help: {
+    breadcrumbHome: 'Trang chủ',
+    title: 'Trợ giúp',
+    sub: 'Câu hỏi thường gặp — nếu chưa có câu trả lời, gửi liên hệ bên dưới.',
+    faqAria: 'Câu hỏi thường gặp',
+    contactTitle: 'Liên hệ',
+    contactSub: 'Phản hồi của bạn được ghi nhận — chúng tôi sẽ trả lời sớm nhất có thể.',
+    nameLabel: 'Tên của bạn',
+    namePlaceholder: 'VD: Nguyễn Văn A',
+    emailLabel: 'Email',
+    emailPlaceholder: 'ban@truong.edu.vn',
+    messageLabel: 'Nội dung cần hỗ trợ',
+    messagePlaceholder: 'Nội dung cần hỗ trợ (tối đa 1000 ký tự)...',
+    submit: 'Gửi liên hệ',
+    sentTitle: 'Đã gửi — chúng tôi sẽ phản hồi sớm!',
+    sentDesc: 'Cảm ơn bạn đã góp ý. Kiểm tra email để nhận phản hồi.',
+  },
 } as const;
 
 export type MessageKey = keyof typeof messages;
