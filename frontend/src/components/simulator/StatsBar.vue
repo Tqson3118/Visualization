@@ -64,22 +64,24 @@ const stepLabel = computed(() =>
 .stats__item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: var(--color-surface);
+  gap: var(--space-xs);
+  background: var(--color-card);
   border: 1px solid var(--color-border);
-  padding: 3px 10px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-full);
   white-space: nowrap;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 500;
   color: var(--color-foreground);
 }
 
 .stats__item svg { color: var(--color-primary); }
 
 .stats__item--step {
-  background-image: var(--gradient-mint);
+  background: var(--color-primary);
   border-color: transparent;
   color: var(--color-on-primary);
+  font-weight: 600;
 }
 
 .stats__item--step svg { color: var(--color-on-primary); }

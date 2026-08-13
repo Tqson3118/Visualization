@@ -10,7 +10,9 @@ import { buttonVariants } from './button';
 const props = withDefaults(
   defineProps<{
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-    size?: 'sm' | 'md' | 'lg';
+    // 'icon'/'icon-sm'/'icon-lg' map thẳng buttonVariants (DESIGN.md §4.1) — bổ sung cho
+    // nút icon (SimulatorView favorite/share), backward compatible với size cũ.
+    size?: 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm' | 'icon-lg';
     loading?: boolean;
     disabled?: boolean;
     type?: 'button' | 'submit';
@@ -37,6 +39,9 @@ const sizeMap: Record<string, NonNullable<Parameters<typeof buttonVariants>[0]>[
   sm: 'sm',
   md: 'default',
   lg: 'lg',
+  icon: 'icon',
+  'icon-sm': 'icon-sm',
+  'icon-lg': 'icon-lg',
 };
 
 const classes = computed(() =>
