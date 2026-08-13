@@ -87,6 +87,9 @@ internal static class TestServices
     public static ExerciseService CreateExerciseService(AppDbContext db, FixedClock clock, SubmissionLockRegistry locks) =>
         new(db, clock, locks, NullLogger<ExerciseService>.Instance);
 
+    public static UserService CreateUserService(AppDbContext db, FixedClock clock) =>
+        new(db, clock, CreateConfig(), NullLogger<UserService>.Instance);
+
     public static LessonService CreateLessonService(AppDbContext db, FixedClock clock) =>
         new(db, new LessonValidator(), new LessonFeedbackRequestValidator(), new Ganss.Xss.HtmlSanitizer(), clock, NullLogger<LessonService>.Instance);
 
