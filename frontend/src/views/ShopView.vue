@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // ShopView — Màn 22: lưới vật phẩm + mua (atomic chống double-spend).
-// H-D: hero gradient Aurora + gem counter, card shadcn + hover-lift,
-// icon lucide theo slot (tint aurora/mint/sunset), i18n shop.*.
+// View-quality C (DESIGN.md §1/§6): hero = surface band level-2 (không gradient/blob),
+// gems = 1 stat hero duy nhất (block-token tối + index mono), icon lucide đồng nhất
+// (bỏ tint gradient theo slot), giá mono, không hover-lift/shadow card.
 import { computed, onMounted, ref } from 'vue';
 import type { Component } from 'vue';
 import { Frame, Gem, Image, Lightbulb, Package, Palette, Snowflake, ShoppingBag, Zap } from 'lucide-vue-next';
@@ -14,6 +15,7 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import BlockToken from '@/components/ui/BlockToken.vue';
 import { formatNumber } from '@/utils/format';
 import { messages } from '@/i18n/vi';
 
@@ -52,7 +54,7 @@ async function buy(item: ShopItemDto): Promise<void> {
   }
 }
 
-// Icon lucide + tint gradient theo slot vật phẩm (fallback Package/mint)
+// Icon lucide theo slot (đồng nhất màu — không tint gradient lung tung)
 const SLOT_ICON: Record<string, Component> = {
   hint: Lightbulb,
   freeze: Snowflake,
@@ -61,42 +63,31 @@ const SLOT_ICON: Record<string, Component> = {
   frame: Frame,
   boost: Zap,
 };
-const SLOT_TINT: Record<string, 'aurora' | 'mint' | 'sunset'> = {
-  hint: 'mint',
-  freeze: 'aurora',
-  avatar: 'sunset',
-  theme: 'aurora',
-  frame: 'sunset',
-  boost: 'sunset',
-};
 const itemIcon = (slot: string | null): Component => SLOT_ICON[slot ?? ''] ?? Package;
-const itemTint = (slot: string | null): 'aurora' | 'mint' | 'sunset' => SLOT_TINT[slot ?? ''] ?? 'mint';
 const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[slot as keyof typeof messages.shop.slot] ?? '') : '');
 </script>
 
 <template>
   <main class="shop container">
-    <!-- Hero gradient Aurora (palette gamification) -->
+    <!-- Hero — surface band level-2 (không gradient, không blob) -->
     <header class="shop__hero">
       <div class="shop__hero-body">
-        <span class="shop__hero-icon" aria-hidden="true"><ShoppingBag :size="24" /></span>
+        <span class="shop__hero-icon" aria-hidden="true"><ShoppingBag :size="20" /></span>
         <div class="shop__hero-title-wrap">
           <h1 class="shop__title">{{ messages.shop.title }}</h1>
           <p class="shop__sub">{{ messages.shop.subtitle }}</p>
         </div>
-        <Badge variant="primary" class="shop__hero-badge">{{ messages.shop.badge }}</Badge>
       </div>
       <div class="shop__stats">
-        <div class="shop__stat-block">
-          <span class="shop__stat-label">{{ messages.shop.gemsLabel }}</span>
-          <span class="shop__stat-value">
-            <Gem :size="16" aria-hidden="true" /> {{ formatNumber(gamification.gems) }}
-          </span>
-        </div>
+        <BlockToken label="GEMS" :value="formatNumber(gamification.gems)" index="01 · ví" />
         <div class="shop__stat-block">
           <span class="shop__stat-label">Vật phẩm</span>
-          <span class="shop__stat-value shop__stat-value--sm">{{ items.length }}</span>
-        </div>      </div>
+          <div class="shop__stat-line">
+            <span class="shop__stat-value">{{ items.length }}</span>
+            <span class="shop__stat-unit">ITEMS</span>
+          </div>
+        </div>
+      </div>
     </header>
 
     <div v-if="loading" class="shop__loading" aria-busy="true">
@@ -114,23 +105,22 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
       <article
         v-for="item in items"
         :key="item.id"
-        class="shop__card card hover-lift"
+        class="shop__card card"
         :class="{ 'shop__card--unaffordable': !canAfford(item.priceGems) }"
       >
         <div class="shop__top">
-          <span class="shop__icon" :class="`shop__icon--${itemTint(item.slot)}`" aria-hidden="true">
+          <span class="shop__icon" aria-hidden="true">
             <component :is="itemIcon(item.slot)" :size="20" />
           </span>
           <Badge v-if="slotLabel(item.slot)" variant="muted">{{ slotLabel(item.slot) }}</Badge>
         </div>
         <h2 class="shop__name">{{ item.name }}</h2>
-        <p class="shop__desc text-muted">{{ item.description }}</p>
+        <p class="shop__desc">{{ item.description }}</p>
         <footer class="shop__foot">
-          <span class="shop__price text-amber-700 dark:text-amber-400" aria-label="Giá">
+          <span class="shop__price" aria-label="Giá">
             <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
           </span>
           <Button
-            size="sm"
             :disabled="!canAfford(item.priceGems)"
             :loading="buyingId === item.id"
             @click="buy(item)"
@@ -141,7 +131,7 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
       </article>
     </div>
 
-    <footer class="shop__footer text-muted">{{ messages.shop.footer }}</footer>
+    <footer class="shop__footer">{{ messages.shop.footer }}</footer>
   </main>
 </template>
 
@@ -153,40 +143,20 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   gap: var(--space-lg);
 }
 
-/* ── Hero gradient Aurora (palette 1 — gamification) ── */
+/* Card dùng class global .card (global.css có shadow-md) — §6 cấm shadow card → override */
+.shop .card {
+  box-shadow: none;
+}
+
+/* ── Hero — surface band level-2 (DESIGN.md §6) ── */
 .shop__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-}
-
-.shop__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.shop__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
+  padding: var(--space-lg) var(--space-xl);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
 }
 
 .shop__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
@@ -195,59 +165,62 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   width: 48px;
   height: 48px;
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
-.shop__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.shop__hero-title-wrap { display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .shop__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
 }
 
 .shop__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
 
-.shop__hero-badge { margin-left: auto; }
-
+/* ── Stats: 1 hero (gems — block-token tối) + 1 stat phụ level-1 ── */
 .shop__stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-sm);
   padding-top: var(--space-md);
-  border-top: 1px dashed var(--color-border);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+@media (min-width: 640px) {
+  .shop__stats { grid-template-columns: repeat(2, 1fr); }
 }
 
 .shop__stat-block {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
 }
 
-.shop__stat-label { font-size: var(--text-xs); color: var(--color-text-muted); }
+.shop__stat-label { font-size: var(--text-xs); color: var(--color-text-tertiary); font-weight: 500; }
+
+.shop__stat-line { display: flex; align-items: baseline; gap: var(--space-sm); }
 
 .shop__stat-value {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-lg);
-  font-weight: 800;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
 }
 
-.shop__stat-value--sm { font-size: var(--text-xs); font-weight: 600; }
+.shop__stat-unit { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 .shop__loading { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-md); }
 
@@ -257,7 +230,15 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   gap: var(--space-md);
 }
 
-.shop__card { display: flex; flex-direction: column; gap: var(--space-sm); align-items: flex-start; }
+.shop__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shop__card:hover { border-color: var(--color-border-strong); }
 
 .shop__card--unaffordable { opacity: 0.72; }
 
@@ -267,21 +248,17 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
-  box-shadow: var(--shadow-sm);
 }
 
-.shop__icon--aurora { background-image: var(--gradient-aurora); }
-.shop__icon--mint { background-image: var(--gradient-mint); }
-.shop__icon--sunset { background-image: var(--gradient-sunset); }
+.shop__name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 
-.shop__name { font-size: var(--text-md); }
-
-.shop__desc { font-size: var(--text-xs); flex: 1; line-height: 1.55; }
+.shop__desc { font-size: var(--text-xs); flex: 1; line-height: 1.55; color: var(--color-text-muted); }
 
 .shop__foot {
   display: flex;
@@ -295,15 +272,14 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
 .shop__price {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 800;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
   font-size: var(--text-sm);
+  color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.shop__footer { font-size: var(--text-xs); }
 
-@media (max-width: 640px) {
-  .shop__hero-badge { margin-left: 0; }
-}
+.shop__footer { font-size: var(--text-xs); color: var(--color-text-muted); }
 </style>
