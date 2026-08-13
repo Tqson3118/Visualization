@@ -57,6 +57,25 @@ public static class SeedData
         new("student@demo.local", "Sinh viên mẫu", Role: 0, IsPrimaryAdmin: false, DevPassword: "Student@123"), // STUDENT
     ];
 
+    /// <summary>
+    /// Sinh viên demo — Email UNIQUE @university.edu.vn; displayName tiếng Việt.
+    /// Mật khẩu DEV (chỉ dùng local) — seed logic hash bằng PasswordHasher, KHÔNG lưu hash ở đây.
+    /// Dùng cho dữ liệu hoạt động người dùng (SDD §7.5).
+    /// </summary>
+    public sealed record SeedStudent(string Email, string DisplayName, string DevPassword);
+
+    public static readonly IReadOnlyList<SeedStudent> Students =
+    [
+        new("nguyenminhanh@university.edu.vn", "Nguyễn Minh Anh", DevPassword: "Student@123"),
+        new("tranquocbao@university.edu.vn", "Trần Quốc Bảo", DevPassword: "Student@123"),
+        new("lethikimngan@university.edu.vn", "Lê Thị Kim Ngân", DevPassword: "Student@123"),
+        new("phamhoanglong@university.edu.vn", "Phạm Hoàng Long", DevPassword: "Student@123"),
+        new("vuthanhtung@university.edu.vn", "Vũ Thanh Tùng", DevPassword: "Student@123"),
+        new("nguyentrang@university.edu.vn", "Nguyễn Trang", DevPassword: "Student@123"),
+        new("doanminhduc@university.edu.vn", "Đoàn Minh Đức", DevPassword: "Student@123"),
+        new("huynhthuy@university.edu.vn", "Huỳnh Thúy", DevPassword: "Student@123"),
+    ];
+
     /// <summary>Quest template (SDD §7.5 — 8 quest) — ConditionJson/RewardJson theo SDD §7.3.26 + GamificationService.</summary>
     public sealed record SeedQuest(string QuestKey, string Title, int Type, string ConditionJson, string RewardJson);
 
@@ -70,6 +89,27 @@ public static class SeedData
         new("code-run-5", "Chạy code 5 lần", 2, """{"activity":"code_run","count":5}""", """{"gems":8,"xp":50}"""),
         new("lesson-viewed-2", "Xem 2 bài học", 0, """{"activity":"lesson_viewed","count":2}""", """{"gems":3,"xp":20}"""),
         new("streak-3", "Giữ chuỗi 3 ngày", 2, """{"activity":"streak","days":3}""", """{"gems":10,"xp":60}"""),
+    ];
+
+    /// <summary>
+    /// Thành tích định nghĩa (SDD §7.3.19, FR-5.5) — Code UNIQUE. ConditionJson theo SDD:
+    /// {"type":"count","key":...,"min":N} / {"type":"streak","days":N} / {"type":"score","exercisePct":N,"count":N}.
+    /// IconUrl = null (chưa có icon riêng).
+    /// </summary>
+    public sealed record SeedAchievement(string Code, string Name, string Description, string? IconUrl, string ConditionJson, int SortOrder);
+
+    public static readonly IReadOnlyList<SeedAchievement> Achievements =
+    [
+        new("first-lesson", "Bài học đầu tiên", "Hoàn thành bài học đầu tiên trên lộ trình.", IconUrl: null, """{"type":"count","key":"lessons","min":1}""", 1),
+        new("first-simulation", "Khám phá mô phỏng", "Chạy mô phỏng thuật toán lần đầu tiên.", IconUrl: null, """{"type":"count","key":"simulations","min":1}""", 2),
+        new("streak-7", "Chuỗi 7 ngày", "Giữ chuỗi học tập 7 ngày liên tục.", IconUrl: null, """{"type":"streak","days":7}""", 3),
+        new("quiz-50", "Cỗ máy trắc nghiệm", "Hoàn thành 50 bài quiz.", IconUrl: null, """{"type":"count","key":"quizzes","min":50}""", 4),
+        new("lab-10", "Tay mô phỏng", "Hoàn thành 10 lab mô phỏng.", IconUrl: null, """{"type":"count","key":"labs","min":10}""", 5),
+        new("code-100", "Chiến binh code", "Chạy code 100 lần trong thử thách lập trình.", IconUrl: null, """{"type":"count","key":"code-runs","min":100}""", 6),
+        new("path-1", "Vượt lộ trình", "Hoàn thành trọn vẹn 1 lộ trình học.", IconUrl: null, """{"type":"count","key":"paths","min":1}""", 7),
+        new("sort-master", "Bậc thầy sắp xếp", "Đạt từ 80% trở lên ở 8 bài tập chủ đề sắp xếp.", IconUrl: null, """{"type":"score","exercisePct":80,"count":8}""", 8),
+        new("perfect-score", "Điểm tuyệt đối", "Đạt 100% điểm ở một bài tập bất kỳ.", IconUrl: null, """{"type":"score","exercisePct":100,"count":1}""", 9),
+        new("streak-30", "Kỷ luật bền bỉ", "Giữ chuỗi học tập 30 ngày liên tục.", IconUrl: null, """{"type":"streak","days":30}""", 10),
     ];
 
     /// <summary>Vật phẩm cửa hàng gems (SDD §7.3.28, Màn 22) — map từ frontend/src/data/shop_items.json.</summary>
@@ -87,13 +127,43 @@ public static class SeedData
         new("frame-cyber", "Cyberpunk Frame", 400, Type: 1),
     ];
 
+    /// <summary>
+    /// Phản hồi nội dung (SDD §7.3.21, FR-7.4) — Rating 1-5, Comment tiếng Việt ≤ 200 ký tự.
+    /// Seed logic tự gán UserId/LessonId khi chèn (UNIQUE (UserId, LessonId)).
+    /// </summary>
+    public sealed record SeedFeedback(int Rating, string Comment);
+
+    public static readonly IReadOnlyList<SeedFeedback> Feedbacks =
+    [
+        new(5, "Bài học trực quan, mô phỏng từng bước rất dễ hiểu."),
+        new(4, "Nội dung hay nhưng phần bài tập nâng cao hơi khó."),
+        new(5, "Mô phỏng AVL giúp em hiểu xoay cây rõ ràng hơn hẳn."),
+        new(3, "Giải thích tốt, mong bổ sung thêm ví dụ thực tế."),
+        new(5, "Quiz có giải thích sau khi nộp rất hữu ích."),
+        new(4, "Giao diện mượt, mong thêm nhiều bài tập code hơn."),
+        new(5, "Rất thích phần mô phỏng BFS và đường đi ngắn nhất."),
+        new(2, "Một số chỗ trình bày chưa rõ, cần minh họa thêm."),
+        new(5, "Giáo trình chuẩn, phù hợp với sinh viên năm hai."),
+        new(4, "Lab thú vị, làm xong hiểu sâu thuật toán hơn."),
+    ];
+
+    /// <summary>
+    /// Lớp học (SDD §7.3.16, Module H) — InviteCode 6 ký tự A-Z0-9 UNIQUE; Status: 0=Mở (Open), 1=Đóng (Closed).
+    /// </summary>
+    public sealed record SeedClassProfile(string ClassName, string Semester, int Status, string InviteCode, string Description);
+
+    public static readonly IReadOnlyList<SeedClassProfile> ClassProfiles =
+    [
+        new("SD21361 — Cấu trúc dữ liệu HK1 2026", "HK1-2026", Status: 0, "DSA213", "Lớp chính khóa môn Cấu trúc dữ liệu và Giải thuật — học kỳ 1 năm 2026."),
+        new("SD21361NC — Giải thuật nâng cao HK1 2026", "HK1-2026", Status: 1, "ADVNCE", "Lớp nâng cao chuyên sâu thuật toán cho sinh viên khá giỏi — đã đóng tuyển."),
+    ];
+
     /// <summary>Settings theo SDD §7.5 — Key UNIQUE.</summary>
     public sealed record SeedSetting(string Key, string Value, string Description);
 
     public static readonly IReadOnlyList<SeedSetting> Settings =
     [
         new("site.name", "DSA Visual", "Tên website"),
-        new("allowed.email.domains", "university.edu.vn", "Danh sách domain email được phép (phân tách phẩy)"),
         new("password.policy.minLength", "8", "Độ dài tối thiểu mật khẩu"),
         new("upload.maxSizeMb", "5", "Kích thước upload tối đa (MB)"),
         new("simulation.maxArraySize", "100", "Kích thước mảng tối đa khi mô phỏng"),
