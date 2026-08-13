@@ -45,16 +45,10 @@ public class SeedDemoActivityTests
     };
 
     /// <summary>
-    /// 9 user activity V1 (8 student SeedData.Students + student@demo.local) — invariant Xp/Gems chỉ áp
-    /// dụng cho V1 (user load TRACKED, recompute persist — Activity.cs). V2 (Task 1-6) có lỗi đã biết:
-    /// SeedDemoActivity.V2.Activity.cs cập nhật Xp/Gems trên entity AsNoTracking (detached) → giá trị
-    /// KHÔNG persist (xem report Task 6) → các test balance/XP giới hạn phạm vi V1.
+    /// Invariant Xp/Gems áp dụng TOÀN BỘ user (V1 + V2): seeder recompute Xp/Gems từ DB rows
+    /// (Activity.cs / V2.Activity.cs load user TRACKED) nên balance luôn khớp — Task 6b đã sửa
+    /// lỗi AsNoTracking làm V2 không persist.
     /// </summary>
-    private static HashSet<string> V1ActivityEmails() => SeedData.Students
-        .Select(s => s.Email.ToLowerInvariant())
-        .Append("student@demo.local")
-        .ToHashSet(StringComparer.Ordinal);
-
     private static void AssertNoDuplicateKey<T>(IEnumerable<T> rows, Func<T, object> keySelector, string label)
     {
         var duplicates = rows.GroupBy(keySelector).Where(g => g.Count() > 1).ToList();
@@ -113,10 +107,7 @@ public class SeedDemoActivityTests
     {
         var db = await SeedOnceAsync(nameof(Seed_GemsBalance_EqualsEarnMinusSpend));
         var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id);
-        var activityEmails = V1ActivityEmails();
-        var transactions = (await db.GemTransactions.AsNoTracking().ToListAsync())
-            .Where(t => users.TryGetValue(t.UserId, out var u) && activityEmails.Contains(u.Email))
-            .ToList();
+        var transactions = await db.GemTransactions.AsNoTracking().ToListAsync();
 
         Assert.NotEmpty(transactions);
         foreach (var group in transactions.GroupBy(t => t.UserId))
@@ -135,14 +126,11 @@ public class SeedDemoActivityTests
     {
         var db = await SeedOnceAsync(nameof(Seed_UsersWithClaimedQuests_HaveXpAndLevel));
         var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id);
-        var activityEmails = V1ActivityEmails();
-        var claimedUserIds = (await db.UserQuests.AsNoTracking()
+        var claimedUserIds = await db.UserQuests.AsNoTracking()
             .Where(q => q.Claimed)
             .Select(q => q.UserId)
             .Distinct()
-            .ToListAsync())
-            .Where(id => users.TryGetValue(id, out var u) && activityEmails.Contains(u.Email))
-            .ToList();
+            .ToListAsync();
 
         Assert.NotEmpty(claimedUserIds);
         foreach (var userId in claimedUserIds)

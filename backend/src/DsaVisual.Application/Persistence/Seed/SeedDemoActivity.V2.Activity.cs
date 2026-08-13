@@ -390,11 +390,17 @@ public static partial class SeedDemoActivity
         };
     }
 
-    /// <summary>69 user V2 theo V2Users.All (dict theo Email) — KHÔNG đụng user V1/khác.</summary>
+    /// <summary>
+    /// 69 user V2 theo V2Users.All (dict theo Email) — KHÔNG đụng user V1/khác.
+    /// Load TRACKED (không AsNoTracking) vì caller set Xp/Gems/StreakDays/... trên user rồi
+    /// SaveChangesAsync persist (pattern V1 Activity.cs) — AsNoTracking sẽ làm entity DETACHED
+    /// → mọi thay đổi mất (bug Task 6b đã sửa). Các caller read-only (GemTransactions/Favorites)
+    /// vẫn an toàn vì chỉ đọc Id.
+    /// </summary>
     private static async Task<Dictionary<string, User>> LoadV2ActivityUsersAsync(AppDbContext db, CancellationToken ct)
     {
         var emails = V2Users.All.Select(u => u.Email).ToList();
-        var users = await db.Users.AsNoTracking()
+        var users = await db.Users
             .Where(u => u.Role == UserRole.Student && u.DeletedAt == null && emails.Contains(u.Email))
             .ToListAsync(ct);
         return users.ToDictionary(u => u.Email, StringComparer.OrdinalIgnoreCase);
