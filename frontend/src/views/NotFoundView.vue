@@ -64,6 +64,12 @@ import { messages } from '@/i18n/vi';
   margin-bottom: var(--space-sm);
 }
 
+/* H-E2: dark — gradient Aurora sáng (0.72-0.86) làm chữ 404 trắng chỉ 2.29:1 (fail 3:1 large text)
+   → phủ scrim tối rgba(4,47,46,0.68) (pattern HomeView/LoginView) → ≥ 3.6:1 mọi stop. */
+.dark .not-found__ring {
+  background-image: linear-gradient(rgba(4, 47, 46, 0.68), rgba(4, 47, 46, 0.68)), var(--gradient-aurora);
+}
+
 .not-found__ring::before {
   content: '';
   position: absolute;
