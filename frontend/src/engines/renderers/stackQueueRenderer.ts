@@ -147,7 +147,8 @@ function isEmptyCell(el: Element): boolean {
 
 /** Element đang bị transition điều khiển (useStructureTransition) → KHÔNG áp dụng FLY_OFFSET tĩnh. */
 function hasAnimOverride(el: Element): boolean {
-  return typeof el.meta?.animAlpha === 'number';
+  const anim = el.meta;
+  return typeof anim?.animX === 'number' || typeof anim?.animY === 'number' || typeof anim?.animAlpha === 'number';
 }
 
 function sortedElements(structure: Structure): Element[] {
