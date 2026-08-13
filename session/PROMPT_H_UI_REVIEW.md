@@ -5,6 +5,12 @@ Dán vào `/pm "..." --auto`:
 ```
 Đọc session/HANDOFF_2026-08-13-UI.md + docs/pm-report-gp.md (đợt G phụ — phải merge xong vào dev trước khi bắt đầu) + docs/work/g-f3d.md + g-f2*.md (đã polish màn nào rồi — không làm lại) + docs/SCREEN_MAP.md (Màn 01-32 + N-1..N-16) + docs/BAO_CAO_SPEC.md §6.2 (12 màn bắt buộc đẹp nhất).
 Nguồn chuẩn: docs/PRODUCTION_PROMPT.md → SDD (tokens §8.1, stack §3.1) → SCREEN_MAP. Phân vai theo .opencode/agent/: dev-ux sửa, dev-e2e chụp+Ollama, dev-test verify, dev-review chốt, dev-docs đồng bộ. Task NHỎ theo TỪNG MÀN/nhóm màn, trạng thái docs/work/<task>.md.
+NGUỒN THAM CHIẾU ĐÃ RESEARCH (13/08 — dùng đúng, KHÔNG tự suy luận stack):
+- shadcn-vue + Tailwind v4: `https://www.shadcn-vue.com/docs/installation/vite` + `https://www.shadcn-vue.com/docs/tailwind-v4` (CLI init Tailwind v4, @theme directive, data-slot attribute; cài: `pnpm add tailwindcss @tailwindcss/vite` + `@import "tailwindcss"`).
+- motion-v (Motion for Vue): `npm install motion-v` → import { motion } from 'motion-v' — `<motion.div :animate=... :initial=... :whileHover=... layout />` (tài liệu: motion.dev/docs/vue, repo motiondivision/motion-vue). KHÔNG dùng @vueuse/motion (ngừng phát triển).
+- vue-echarts (bản hiện tại cho Vue 3, KHÔNG phải v7 cũ cho Vue 2): `import VChart from 'vue-echarts'` + `use()` từ `echarts/core` + CanvasRenderer + từng chart/component import riêng (tree-shaking) — repo ecomfe/vue-echarts.
+- WCAG 2.2 SC 1.4.3: text thường ≥ 4.5:1, text LỚN (≥18pt hoặc ≥14pt đậm) ≥ 3:1 (w3.org/WAI/WCAG22/Understanding/contrast-minimum).
+- GSAP (timeline canvas mô phỏng), Lenis (`npm i lenis`), vue-sonner, lucide-vue-next — theo đúng docs chính thức từng gói, phiên bản lấy `npm ls` thật.
 
 Đợt H — REVIEW + NÂNG CẤP UX/UI TOÀN BỘ. Quy tắc:
 - Đi qua TẤT CẢ 38 route thực tế (36 view) theo nhóm, mỗi nhóm 1 task nhánh riêng:

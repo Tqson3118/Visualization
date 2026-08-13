@@ -12,17 +12,22 @@ Dán vào `/pm "..." --auto` (⚠ **CHẾ ĐỘ LOCAL-ONLY**: G_Phu đang chạy
 
 QUY TRÌNH 3 BƯỚC (bắt buộc — KHÔNG vẽ từ số 0):
 
-## BƯỚC 1 — RESEARCH MẪU (dev-docs + webfetch)
-1. Lấy mẫu .drawio CHÍNH THỐNG từ **jgraph/drawio-diagrams** (ĐÃ XÁC MINH tồn tại 13/08 — KHÔNG dùng `jgraph/drawio-templates`, repo đó 404):
+## BƯỚC 1 — RESEARCH MẪU (dev-docs + webfetch + exa MCP)
+0. **Nguồn CHÍNH THỨC (ưu tiên đọc trước — KHÔNG tự suy luận)**:
+   - draw.io docs dành riêng cho AI generation: `https://www.drawio.com/docs/reference/diagram-generation/` (file format, key rules) + `https://www.drawio.com/docs/reference/diagram-generation/style-reference/` (STYLE REFERENCE — mọi style property, shape, edge routing) + `https://github.com/jgraph/drawio-mcp/blob/main/shared/xml-reference.md` (canonical XML generation reference) + `https://github.com/jgraph/drawio-mcp/blob/main/shared/mxfile.xsd` (schema validate).
+   - draw.io MCP chính thức: repo `jgraph/drawio-mcp` (5170★ — ĐÃ XÁC MINH tồn tại 13/08) — đọc shared/ để nắm rules thay vì đoán style string.
+1. Lấy mẫu .drawio từ **jgraph/drawio-diagrams** (ĐÃ XÁC MINH):
    - Use case: `examples/uml-use-case-example.drawio` + `templates/software/use_case_1..4.xml`.
    - ERD: `templates/software/entity_relationship_1..5.xml` + `templates/basic/erd.xml`.
-   - Tải 2-3 file mẫu về `docs/work/diagram-samples/` (raw qua raw.githubusercontent.com/jgraph/drawio-diagrams/dev/...). Nếu raw fail → dùng GitHub API contents để lấy nội dung. Không tự bịa mẫu.
-2. Research chuẩn UML use case (1 trang ghi chú docs/work/diagram-notes.md): **CẢ «include» LẪN «extend» đều nét ĐỨT + mũi tên HỞ (open arrowhead)** — KHÔNG dùng tam giác rỗng (hollow triangle là ký hiệu generalization/actor kế thừa, CẤM dùng cho include/extend). Hướng: include từ UC gốc → UC bị include; extend từ UC mở rộng → UC gốc, kèm điều kiện. **MỌI dây include/extend PHẢI có nhãn trên dây: `<<include>>` hoặc `<<extend>>`** (kèm điều kiện cho extend, VD `<<extend>> khi quên MK`); actor bên ngoài khung, UC trong khung hệ thống.
+   - Tải 2-3 file mẫu về `docs/work/diagram-samples/` (raw qua raw.githubusercontent.com/jgraph/drawio-diagrams/dev/...). Nếu raw fail → dùng GitHub API contents. Không tự bịa mẫu.
+2. Research chuẩn UML use case — **theo UML 2.5.1 §18.1.4 (OMG spec — ĐÃ XÁC MINH qua Exa)**: **CẢ «include» LẪN «extend» đều nét ĐỨT + mũi tên HỞ (open arrowhead)** — KHÔNG tam giác rỗng (hollow triangle = generalization, nét LIỀN — 3 loại quan hệ khác nhau). Hướng: include từ UC gốc → UC bị include; extend từ UC mở rộng → UC gốc, kèm điều kiện. Nhãn dùng `«include»`/`«extend»` (guillemets; ASCII `<<include>>` được chấp nhận). **MỌI dây include/extend PHẢI có nhãn**. Actor bên ngoài khung, UC trong khung hệ thống. Ghi nguồn vào diagram-notes.md (SE Book: uml-diagrams.org, Martin Fowler IncludeAndExtend).
 3. Research ERD notation: crow's foot / chen (nếu mẫu dùng loại nào thì theo loại đó; mermaid SDD đang dùng crow's foot `||--o{`).
 
-## BƯỚC 2 — PHÂN TÍCH XML MẪU (dev-docs, ghi vào docs/work/diagram-xml-notes.md)
-1. Mở file .drawio mẫu (định dạng XML mxGraphModel): liệt kê cấu trúc — phần tử <mxCell> cho shape (vertex, style="...;shape=actor/ellipse/table...") và edge (style="...;edgeStyle=...;dashed=1"), phần <mxGeometry> (x/y/width/height), <mxPoint> (anchor), style strings cụ thể cho: actor hình người que, use case elip, khung hệ thống, bảng ERD (3 dòng tên/PK/cột), mũi tên include/extend.
-2. Chốt STYLE CHUẨN cho dự án (copy nguyên style string từ mẫu, đổi màu sang teal #0D9488 + mã màu chuẩn): viết vào docs/work/diagram-style-guide.md — file này là chuẩn duy nhất để dựng 6 ảnh.
+## BƯỚC 2 — PHÂN TÍCH XML THEO NGUỒN CHÍNH THỨC (dev-docs, ghi vào docs/work/diagram-xml-notes.md)
+1. Đọc style-reference.md + xml-reference.md (từ BƯỚC 1.0) TRƯỚC: nắm cấu trúc mxGraphModel (mxCell id=0 root + id=1 layer bắt buộc; vertex="1"/edge="1"; style key=value; mxGeometry; edge routing; perimeter khớp shape — ellipse cần perimeter=ellipsePerimeter), quy tắc: không comment XML, id duy nhất, giá trị HTML phải XML-escape.
+2. Mở file .drawio mẫu để đối chiếu style string THẬT (actor/ellipse/table/edge) với style-reference — xác nhận không tự chế.
+3. Chốt STYLE CHUẨN cho dự án (copy nguyên style string từ mẫu/source đã xác minh, đổi màu sang teal #0D9488 + mã màu chuẩn): viết vào docs/work/diagram-style-guide.md — file này là chuẩn duy nhất để dựng 6 ảnh.
+4. **Validate mọi file .drawio tạo ra bằng mxfile.xsd** (xmllint hoặc script XML schema) — lỗi schema → sửa trước khi export.
 
 ## BƯỚC 3 — APPLY DỮ LIỆU DỰ ÁN → 6 file .drawio XML → export PNG (dev-docs)
 1. USE CASE 4 ảnh (dữ liệu từ docs/SRS.md §5.1 — mã UC GIỮ NGUYÊN, **tên hiển thị theo BẢNG RENAME user chốt 13/08** — mọi thay đổi tên ghi decision log):
@@ -45,7 +50,7 @@ QUY TRÌNH 3 BƯỚC (bắt buộc — KHÔNG vẽ từ số 0):
    - Mục tiêu đo đếm được: **0 dây chéo** trong mỗi ảnh (kiểm bằng script intersect) + mọi dây dài ≤ 2 hàng.
 2. ERD 2 ảnh (dữ liệu từ SDD §7.1 + §7.2 — 32 bảng, PK/FK/cardinality giữ NGUYÊN): 05-er-tổng-quan (32 bảng gom 2 khối: lõi học tập 24 + gamification 8, quan hệ chính giữa khối) + 06-er-chi-tiết (bảng chi tiết: Users, Lessons, Exercises, LearningPathNodes, NodeSessions, UserProgress, ClassMembers, CodeRuns, PremiumSubscriptions — bảng 3 dòng: tên/PK/cột theo SDD).
 3. Tạo 6 file .drawio XML theo style-guide (thư mục tailieu/diagrams/).
-4. EXPORT PNG 1920×1080: cài draw.io nếu chưa có (`winget install JGraph.Draw`) → **kiểm tra CLI trước: `drawio --version` (nếu fail do PATH → dùng full path `"C:\Program Files\draw.io\draw.io.exe" --version`)** → `drawio -x -f png -o <out> <file>.drawio` (hoặc npm `drawio-headless` nếu winget fail — ghi rõ tool dùng). Xác nhận 6 PNG tồn tại, kích thước đúng.
+4. EXPORT PNG 1920×1080: cài draw.io nếu chưa có (`winget install JGraph.Draw`) → **kiểm tra CLI trước: `drawio --version` (nếu fail do PATH → dùng full path `"C:\Program Files\draw.io\draw.io.exe" --version` — ĐÃ XÁC MINH qua Exa: portable exe KHÔNG hiện output nhưng vẫn chạy; cần path tuyệt đối)** → `drawio -x -f png -o <out> <file>.drawio` (hoặc `"C:\Program Files\draw.io\draw.io.exe" --export <file> --format png --output <out>`). Lưu ý: CLI export có thể bỏ qua background color của file → thêm nền trắng 1920×1080 bằng cách vẽ rectangle nền trong XML hoặc --transparent rồi ghép. Xác nhận 6 PNG tồn tại, kích thước đúng.
 5. Build lại docx: pandoc tailieu/BAO_CAO.md -o tailieu/BaoCaoDoAn.docx --toc (C:\Users\Administrator\AppData\Local\Pandoc\pandoc.exe) — kiểm tra BAO_CAO.md trỏ ảnh qua đường dẫn nào (placeholders/ hay diagrams/) để thay đúng.
 
 ## VERIFY (dev-test + dev-review)
