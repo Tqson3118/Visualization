@@ -14,4 +14,6 @@ public sealed class StatsDto
     public int TotalCodeSubmissions { get; set; }
     public int TotalClasses { get; set; }
     public int TotalFavorites { get; set; }
+    public int TotalSimulations { get; set; }
+    public int ActiveUsersToday { get; set; }
 }
