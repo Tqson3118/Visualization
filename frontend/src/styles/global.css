@@ -3,14 +3,12 @@
    Tham khảo phong cách theme.css V1 nhưng KHÔNG chép toàn bộ.
    ════════════════════════════════════════════════════════════════ */
 
-/* ── Reset ── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ── Reset ──
+   2026-08-13 (nhóm C, xem pm-decision-log): block reset * { margin/padding: 0 }
+   BỊ XÓA — unlayered thắng @layer utilities của Tailwind v4 → mọi utility padding
+   (px-*, py-*, p-*) trên component shadcn bị vô hiệu (button "Chỉnh sửa" padding 0px).
+   Tailwind preflight đã reset margin/padding/box-sizing trong @layer base —
+   utilities giờ thắng đúng chuẩn cascade. Không cần reset trùng. */
 
 html {
   -webkit-text-size-adjust: 100%;

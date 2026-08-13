@@ -1,0 +1,9 @@
+# NOTES — view-quality (nhóm C)
+
+- **`/dashboard` là redirect → `/profile`** (router/index.ts dòng 193–196) — KHÔNG có view riêng, không cần xử lý (ghi chú theo task).
+- **BE :5000 có phản hồi nhưng trả 404 cho route thật** (14/08/2026 — swagger/index.html 200 nhưng `/api/v1/me` 404): visual check 6 view bằng Playwright + route interception mock `/api/v1/*` (auth/refresh, auth/me, premium/status, me/hearts, me/streak...). Xác nhận 2 view mới (Premium/Subscription) render đủ trạng thái (data/empty/error/success checkout), light+dark+390px, overflowX = 0, console error = 0 (trừ 1 lỗi 500 mock chủ đích khi test error state).
+- **Cảnh báo console duy nhất còn lại (toàn app, component chung)**: `[WARNING] Missing Description or aria-describedby="undefined" for DialogContent` — shadcn-vue Dialog nội bộ, xuất hiện với MỌI Modal (có trước nhóm C). Đề xuất Phase 2: Modal.vue thêm description/aria-describedby mặc định.
+- **Cảnh báo còn lại từ trước (LeaderboardView)**: `[ECharts] Can't get DOM width or height` ở mobile (≤640px) — chart `display:none` nhưng VChartLazy vẫn init. Đề xuất Phase 2: render VChartLazy có điều kiện theo breakpoint.
+- **Nút md 40px trên mobile** (Premium/Subscription + 4 view cũ): §8 khuyến nghị CTA chính ≥44px mobile — nhóm C giữ 40px đồng nhất (hit target ≥24×24 vẫn đạt). Đề xuất Phase 2: Button.vue auto-upgrade `size="lg"` theo breakpoint hoặc document.
+- **`cssVar()` trùng lặp** giữa ProfileView + LeaderboardView (và có thể view khác): đề xuất đẩy sang `src/composables/useThemeCssVar.ts` ở Phase 2 — ngoài phạm vi nhóm C.
+- Ollama gate: đã chạy qwen2.5vl:3b 3 gate × 6 view → `docs/work/view-quality/ollama-log/<view>.md`. Kết quả 2 view mới: Premium gate1 7.5/10, Subscription 8.5/10; gate2 không lỗi spacing; gate3 nhận diện được "DSA learning app" + block tối. Model 3b có hallucination (chấm "card shadow"/"font dark to hơn" khi computed style khẳng định ngược lại) — điểm tham khảo, không thay thế assertion Playwright.

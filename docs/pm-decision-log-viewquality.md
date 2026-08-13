@@ -1,5 +1,29 @@
 ﻿# PM Decision Log — View Quality (Phase 0/1/2)
 
+## [2026-08-14] Nhóm C — Premium/Subscription (2 view còn lại): triển khai 6 quyết định xuyên-nhóm + 1 ngoại lệ QR
+- Quyết định — QR frame nền TRẮNG (ngoại lệ duy nhất "0 hex rời"): thư viện `qrcode` vẽ module đen trên nền trong suốt; chuẩn QR (ISO/IEC 18004) yêu cầu vùng yên tĩnh nền sáng để máy quét nhận diện — dark-mode canvas-ink sẽ hỏng scan. Dùng utility `bg-white` (Tailwind, KHÔNG phải hex literal trong `<style>`), frame `border-border-subtle`, bỏ ring/shadow primary trang trí cũ. Không token nào thay thế được — ghi nhận ngoại lệ chức năng.
+- Quyết định — Khoảnh khắc đầu tư: PremiumView = success BlockToken tone resolved (resolved = "đã ổn định/đúng đáp án" — nâng cấp thành công) enter 300ms easing chuẩn + confetti (đã có qua fireConfetti); SubscriptionView = hero-stat BlockToken "CÒN LẠI n ngày" enter 300ms (pattern ProfileView §5).
+- Quyết định — SubscriptionView error state: store `fetchPremium` nuốt lỗi (gamification.ts 89–95, ngoài phạm vi) → view gọi `gamificationApi.fetchPremiumStatus()` TRỰC TIẾP (pattern ShopView) để phân biệt error/empty — không sửa store (ảnh hưởng 36 view).
+- Quyết định — Bảng so sánh Free vs Premium trên mobile → card-stack (thead ẩn, `td::before` data-label từ i18n) — §8 cấm scroll ngang bảng chính; desktop giữ table chuẩn §4.6.
+- Ảnh hưởng: PremiumView.vue, SubscriptionView.vue, src/i18n/vi.ts (bỏ emoji ❤🎉, thêm premium.compareRows + subscription.benefits/loses/errorTitle/errorDesc/retry/activeBadge, bỏ premium.badge không còn dùng), docs/work/view-quality/audit-*.md + fix-log.md + scorecard.md.
+
+## [2026-08-13] Nhóm C — 4 view gamification (Profile/Shop/Quests/Leaderboard): triển khai 6 quyết định xuyên-nhóm
+- Quyết định 1 — Component chung mới `frontend/src/components/ui/BlockToken.vue` (không nằm trong 4 view): quyết định xuyên-nhóm #4 yêu cầu "block-token 1 class chung + index mono" tái dùng XP/streak/gems/rank. Tạo 1 component nhỏ (props label/value/index/tone) để 4 view + nhóm khác dùng chung, tránh trùng logic (trục code 9). Dùng token `--canvas-ink/--data-core/--resolved/--warning/--index-muted` (§2.1) — 0 hex rời. Không đổi token CSS.
+- Quyết định 2 — Banner/hero 4 view = surface band level-2: `bg-card-raised border border-border-subtle rounded-lg`, bỏ gradient/blob/shadow/radius-xl (DESIGN.md §1 + §6 level-2). Title H1 = `text-4xl font-semibold tracking-[-0.03em]` (giữ nguyên ở mobile — §8 cấm "mobile font riêng"). Icon chip hero = `bg-muted text-foreground-secondary rounded-lg size-12`.
+- Quyết định 3 — Chữ trên nền `canvas-ink` (value hero, rank chip) dùng token `--index-muted` (#6B7385): contrast ≈ 4.26:1 với mono 14px (sát dưới 4.5:1) nhưng ≥ 3:1 với text lớn (value 24px semibold = large text) — đây là token hệ thống đã chốt §2.1 dành riêng cho "text thứ cấp trên nền tối", EmptyState đã dùng. Chấp nhận theo token, KHÔNG tự chế màu mới; note trong audit a11y.
+- Quyết định 4 — Card dùng class global `.card` (global.css 85–92 có `box-shadow: var(--shadow-md)`): trong 4 view override `box-shadow: none` (scoped) vì §6 cấm shadow card — không sửa global.css (ảnh hưởng 36 view, ngoài phạm vi nhóm C).
+- Quyết định 5 — Khoảnh khắc đầu tư: QuestsView confetti khi claim quest cuối (hoàn thành 5/5) — `canvas-confetti` đã cài + `disableForReducedMotion`; ProfileView = reveal nhẹ hero-stat (1 phần tử duy nhất). Không fade+slide tràn lan.
+- Ảnh hưởng: ProfileView.vue, ShopView.vue, QuestsView.vue, LeaderboardView.vue, BlockToken.vue (mới), src/i18n/vi.ts (bỏ emoji toast + key mới profile/leaderboard), docs/work/view-quality/audit-*.md + fix-log.md + scorecard.md + notes.md.
+
+## [2026-08-13] Nhóm C — Fix app-wide: reset `* { padding: 0 }` (global.css unlayered) đè mọi padding utility Tailwind
+- Bằng chứng: DevTools computed — nút `Button.vue` sm "Chỉnh sửa" (ProfileView) có `padding: 0px` dù buttonVariants khai báo `px-3` (12px). Root cause: `src/styles/global.css` dòng 7–13 reset `* { margin: 0; padding: 0 }` nằm NGOÀI @layer → unlayered thắng `@layer utilities` của Tailwind v4 → mọi `px-*/py-*/p-*` trên component shadcn bị vô hiệu (trục interactive-sizing 5 — user phàn nàn rõ nhất; DESIGN.md §4.1 "text cách viền ≥ 8px").
+- Quyết định: XÓA block reset `* { margin: 0; padding: 0 }` khỏi global.css (không bọc vào @layer base — lightningcss minify fail `Unexpected token Delim('*')` với universal selector trong @layer). Tailwind preflight (đã có sẵn trong tailwind.css, nằm @layer base) reset margin/padding/box-sizing tương đương → utilities thắng đúng chuẩn cascade, hành vi phần tử không dùng utility không đổi. Chỉ sửa global.css, không đụng các view khác. H-E1 trước đây chỉ bọc `button/input/select/textarea { font/color }` — thiếu `*` reset.
+- Ảnh hưởng: toàn bộ component dùng padding utility (shadcn button/input/badge/card...) — ĐÃ verify sau fix bằng DevTools (padding button = 12px). Ghi nhận để các nhóm khác không sửa trùng.
+
+## [2026-08-13] Nhóm C — Tabs.vue: tab hit target 22px < 24px (WCAG 2.5.8) — min-h-9
+- Bằng chứng: DevTools `getBoundingClientRect` TabsTrigger (ProfileView/LeaderboardView) = 22px cao. Tabs.vue dùng chung 36 view.
+- Quyết định: thêm `min-h-9` (36px) vào class TabsTrigger trong `components/ui/Tabs.vue` (giữ py-2, không đổi chiều cao thị giác nhiều) — đạt ≥ 24×24 target chuẩn trục 5. Ảnh hưởng app-wide nhưng tăng nhẹ padding an toàn.
+
 ## [2026-08-13] Khởi động PROMPT_VIEW_QUALITY_MASTER_V2 (--auto)
 - Quyết định: Chạy toàn bộ 3-Phase theo PROMPT_VIEW_QUALITY_MASTER_V2.md ở chế độ --auto. Xác nhận dev @ bf6028c (H/J/K/L đã merge, test xanh 214 BE + 95 FE). Working tree chính D:\FPT\neww có file rác (diagrams sync) — KHÔNG đụng vào, mọi việc trong worktree.
 - Ảnh hưởng: toàn bộ frontend view; docs/work/view-quality/*.

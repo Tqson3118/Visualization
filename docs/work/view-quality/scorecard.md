@@ -57,12 +57,12 @@
 | LabView — `/ladder/:nodeId/lab` | | | | | | | | | | | | | | CAO |
 | CodeRunnerView — `/code/:key` | | | | | | | | | | | | | | CAO |
 | BenchmarkView — `/benchmark/:k1/:k2` | | | | | | | | | | | | | | CAO |
-| ShopView — `/shop` | | | | | | | | | | | | | | |
-| QuestsView — `/quests` | | | | | | | | | | | | | | |
-| LeaderboardView — `/leaderboard` | | | | | | | | | | | | | | CAO |
-| ProfileView — `/profile` | | | | | | | | | | | | | | CAO |
-| PremiumView — `/premium` | | | | | | | | | | | | | | |
-| SubscriptionView — `/account/subscription` | | | | | | | | | | | | | | |
+| ShopView — `/shop` | 7.5 | 5.5 | 12.5 | 12.5 | 15 | 9 | 7.5 | 10.5 | 5.5 | 6 | **91.5** | 7.5 | ĐẠT | |
+| QuestsView — `/quests` | 7.5 | 5.5 | 12.5 | 12.5 | 15 | 9 | 7.5 | 10.5 | 5.5 | 6 | **91.5** | 7.5 | ĐẠT | |
+| LeaderboardView — `/leaderboard` | 7.5 | 5.5 | 12.5 | 12.5 | 15 | 9 | 7.5 | 10.5 | 5 | 6 | **91** | 8 | ĐẠT | CAO |
+| ProfileView — `/profile` | 7.5 | 5.5 | 12.5 | 12.5 | 15 | 9 | 7.5 | 10.5 | 5 | 6 | **91** | 8 | ĐẠT | CAO |
+| PremiumView — `/premium` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9.5 | 7.5 | 10.5 | 6 | 6 | **93.5** | 8 | ĐẠT | |
+| SubscriptionView — `/account/subscription` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9.5 | 7.5 | 11 | 5.5 | 6 | **93.5** | 8 | ĐẠT | |
 | ClassesView — `/classes` | | | | | | | | | | | | | | |
 | ClassDetailView — `/classes/:id` | | | | | | | | | | | | | | |
 | ClassReportView — `/classes/:id/report` | | | | | | | | | | | | | | |
