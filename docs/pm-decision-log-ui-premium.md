@@ -23,6 +23,9 @@
 | 14 | 14/08 | Footer CTA section mới trước footer: surface level-2 + CTA lg | Nâng nhịp trang, không đổi brand | HomeView |
 | 15 | 14/08 | Admin sidebar collapse <1024px; bảng chuyển card-stack trên mobile | Responsive admin (thiếu) | Admin views |
 | 16 | 14/08 | Không đổi 6 màu palette, không đổi font, không gradient trang trí mới | KILL-LIST + DESIGN-IDENTITY | toàn bộ |
+| 17 | 14/08 | ProgressRing: transform rotate dùng tâm `size/2` động (không hardcode 50,50) | dev-review MAJOR: vòng lệch/vô hình khi size ≠ 100 | ProgressRing.vue |
+| 18 | 14/08 | BlockToken pulse keyframe dùng `color-mix` với `--color-data-core` thay rgba rời | DESIGN §2.4: 0 hex/rgba rời trong component | BlockToken.vue |
+| 19 | 14/08 | `MOTION` presets giữ làm API chuẩn (tài liệu tham chiếu), chưa bắt buộc import ở mọi view | Thống nhất easing; view dùng motion-v trực tiếp vẫn hợp lệ | utils/motion.ts |
 
 ## Quyết định bị trì hoãn
 
