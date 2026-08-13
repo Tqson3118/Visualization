@@ -9,6 +9,8 @@
 // - BAR MODE (13/08 — khắc phục "canvas đen loãng", nguồn V3 renderArrayBar): khi mọi label là số,
 //   vẽ bar cao tỉ lệ giá trị từ đáy canvas (gradient + glow) — tận dụng chiều cao, không còn 1 hàng
 //   ô nhỏ lơ lửng giữa khoảng đen; giá trị nằm trên bar, index dưới đáy bar. Label chữ → giữ ô vuông.
+// - WRAP (14/08 — Task 7): mảng dài → chia nhiều hàng (bar: slotW < 44; ô: cellSize < 36), hàng cách
+//   nhau CANVAS_LAYOUT.rowGap; index toàn cục 0..n-1; positions theo row/col → con trỏ vẫn trỏ đúng ô.
 
 import type { Element, Structure } from '@/engines/core/types';
 import { CANVAS_COLORS, CANVAS_LAYOUT, hexToRgba } from './canvasTheme';
@@ -79,21 +81,51 @@ export class ArrayRenderer implements Renderer {
     }
   }
 
-  /** Ô vuông (fallback khi label không phải số — giữ hành vi cũ). */
+  /**
+   * Ô vuông (fallback khi label không phải số — giữ hành vi cũ).
+   * Mảng dài (ô hẹp < 36px) → wrap nhiều hàng, hàng cách nhau CANVAS_LAYOUT.rowGap.
+   */
   private renderSquares(cells: Element[], elements: Element[], w: number, h: number, options: RenderOptions): void {
     const n = cells.length;
-    const cellSize = Math.max(MIN_CELL_SIZE, Math.min(CELL_SIZE, (w - 2 * CANVAS_LAYOUT.margin) / n));
-    const y0 = Math.max(16, (h - cellSize) / 2);
+    const rawCell = (w - 2 * CANVAS_LAYOUT.margin) / Math.max(1, n);
 
     // Vị trí tâm + đỉnh của từng ô (dùng cho con trỏ).
     const positions = new Map<string, { cx: number; top: number }>();
-    cells.forEach((el, i) => {
-      const x = CANVAS_LAYOUT.margin + i * cellSize;
-      const cx = x + cellSize / 2;
-      positions.set(el.id, { cx, top: y0 });
-      // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
-      if (el.group !== 'pointer') this.drawCell(el, x, y0, cellSize, options);
-    });
+
+    if (rawCell < 36) {
+      // Wrap: maxPerRow = max(10, floor((w-2*margin)/36)); cellSize tính lại theo hàng đông nhất.
+      const maxPerRow = Math.max(10, Math.floor((w - 2 * CANVAS_LAYOUT.margin) / 36));
+      const rows = Math.ceil(n / maxPerRow);
+      const cellSize = Math.max(
+        MIN_CELL_SIZE,
+        Math.min(CELL_SIZE, (w - 2 * CANVAS_LAYOUT.margin) / Math.min(n, maxPerRow)),
+      );
+      const rowHeight = cellSize + CANVAS_LAYOUT.rowGap;
+      const y0 = Math.max(16, (h - (rows * cellSize + (rows - 1) * CANVAS_LAYOUT.rowGap)) / 2);
+
+      cells.forEach((el, i) => {
+        const row = Math.floor(i / maxPerRow);
+        const col = i % maxPerRow;
+        const x = CANVAS_LAYOUT.margin + col * cellSize;
+        const cx = x + cellSize / 2;
+        const y = y0 + row * rowHeight;
+        positions.set(el.id, { cx, top: y });
+        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
+        if (el.group !== 'pointer') this.drawCell(el, x, y, cellSize, options);
+      });
+    } else {
+      // Mảng ngắn: 1 hàng (công thức cũ).
+      const cellSize = Math.max(MIN_CELL_SIZE, Math.min(CELL_SIZE, rawCell));
+      const y0 = Math.max(16, (h - cellSize) / 2);
+
+      cells.forEach((el, i) => {
+        const x = CANVAS_LAYOUT.margin + i * cellSize;
+        const cx = x + cellSize / 2;
+        positions.set(el.id, { cx, top: y0 });
+        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
+        if (el.group !== 'pointer') this.drawCell(el, x, y0, cellSize, options);
+      });
+    }
 
     this.drawPointers(elements, positions, options);
   }
@@ -101,6 +133,9 @@ export class ArrayRenderer implements Renderer {
   /**
    * Bar mode (13/08 — canvas không còn "loãng", nguồn V3 renderArrayBar):
    * bar cao tỉ lệ giá trị, đáy chung, giá trị trên bar, index dưới đáy.
+   * 14/08 (Task 7) — wrap nhiều hàng khi mảng dài (slotW < 44): maxPerRow = max(10, floor((w-2*margin)/44)),
+   * usable chia đều theo số hàng, index toàn cục 0..n-1, positions theo row/col → con trỏ vẫn đúng ô.
+   * Mảng ngắn (slotW ≥ 44) giữ nguyên công thức 1 hàng cũ.
    */
   private renderBars(cells: Element[], elements: Element[], w: number, h: number, options: RenderOptions): void {
     const values = new Map<string, number>();
@@ -114,25 +149,57 @@ export class ArrayRenderer implements Renderer {
       }
     }
 
-    const slotW = (w - 2 * CANVAS_LAYOUT.margin) / Math.max(1, cells.length);
-    const barW = Math.max(14, Math.min(88, slotW - 6));
+    const n = cells.length;
     const top = CANVAS_LAYOUT.paddingTop;
     const baseY = h - 8 - (options.showIndex ? BAR_INDEX_SPACE : 8);
-    const usable = Math.max(30, baseY - top - 8);
+    const slotW = (w - 2 * CANVAS_LAYOUT.margin) / Math.max(1, n);
 
     const positions = new Map<string, { cx: number; top: number }>();
-    cells.forEach((el, i) => {
-      const cx = CANVAS_LAYOUT.margin + i * slotW + slotW / 2;
-      const x = cx - barW / 2;
-      const v = values.get(el.id);
-      const barH = v === undefined
-        ? BAR_PLACEHOLDER_H
-        : Math.max(BAR_MIN_H, Math.min(usable, (v / Math.max(1, maxVal)) * usable));
-      const y = baseY - barH;
-      positions.set(el.id, { cx, top: y });
-      // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
-      if (el.group !== 'pointer') this.drawBar(el, x, y, barW, barH, options);
-    });
+
+    if (slotW < 44) {
+      // Wrap: mảng dài → nhiều hàng; tỉ lệ bar vẫn theo maxVal TOÀN mảng (không tính lại theo hàng).
+      const maxPerRow = Math.max(10, Math.floor((w - 2 * CANVAS_LAYOUT.margin) / 44));
+      const rows = Math.ceil(n / maxPerRow);
+      const usablePerRow = Math.max(30, (baseY - top - rows * CANVAS_LAYOUT.rowGap) / rows);
+      const rowBaseY: number[] = [];
+      for (let r = 0; r < rows; r++) {
+        rowBaseY.push(top + usablePerRow * (r + 1) + CANVAS_LAYOUT.rowGap * r);
+      }
+
+      cells.forEach((el, i) => {
+        const row = Math.floor(i / maxPerRow);
+        const col = i % maxPerRow;
+        const rowSlotW = (w - 2 * CANVAS_LAYOUT.margin) / Math.min(n - row * maxPerRow, maxPerRow);
+        const barW = Math.max(14, Math.min(88, rowSlotW - 6));
+        const cx = CANVAS_LAYOUT.margin + col * rowSlotW + rowSlotW / 2;
+        const x = cx - barW / 2;
+        const v = values.get(el.id);
+        const barH = v === undefined
+          ? BAR_PLACEHOLDER_H
+          : Math.max(BAR_MIN_H, Math.min(usablePerRow, (v / Math.max(1, maxVal)) * usablePerRow));
+        const y = rowBaseY[row] - barH;
+        positions.set(el.id, { cx, top: y });
+        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
+        if (el.group !== 'pointer') this.drawBar(el, x, y, barW, barH, options);
+      });
+    } else {
+      // Mảng ngắn: 1 hàng (công thức cũ — giữ nguyên hành vi).
+      const barW = Math.max(14, Math.min(88, slotW - 6));
+      const usable = Math.max(30, baseY - top - 8);
+
+      cells.forEach((el, i) => {
+        const cx = CANVAS_LAYOUT.margin + i * slotW + slotW / 2;
+        const x = cx - barW / 2;
+        const v = values.get(el.id);
+        const barH = v === undefined
+          ? BAR_PLACEHOLDER_H
+          : Math.max(BAR_MIN_H, Math.min(usable, (v / Math.max(1, maxVal)) * usable));
+        const y = baseY - barH;
+        positions.set(el.id, { cx, top: y });
+        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
+        if (el.group !== 'pointer') this.drawBar(el, x, y, barW, barH, options);
+      });
+    }
 
     this.drawPointers(elements, positions, options);
   }

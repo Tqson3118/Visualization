@@ -8,7 +8,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import type { Structure } from '../core/types';
 import { ArrayRenderer, MUTED_CELL_ALPHA } from '../renderers/arrayRenderer';
-import { CANVAS_COLORS, hexToRgba } from '../renderers/canvasTheme';
+import { CANVAS_COLORS, CANVAS_LAYOUT, hexToRgba } from '../renderers/canvasTheme';
 import { CanvasPainter } from '../renderers/painter/canvasPainter';
 import { GraphRenderer } from '../renderers/graphRenderer';
 import { HashTableRenderer } from '../renderers/hashTableRenderer';
@@ -395,5 +395,100 @@ describe('CanvasPainter primitives (Task 6)', () => {
     expect(maxBlur).toBeGreaterThan(0); // arcGlow đã chạy cho đỉnh active
     expect(mock.ctx.shadowBlur).toBe(0); // reset sau render
     expect(mock.fillStyles).toContain(hexToRgba(CANVAS_COLORS.compare, 0.3)); // glow dùng màu status
+  });
+});
+
+describe('ArrayRenderer — wrap layout mảng dài (Task 7)', () => {
+  // Chỉ vẽ index (không vẽ giá trị) → fillText chỉ chứa label index, kiểm tra chính xác.
+  const OPTS_NO_VALUES: RenderOptions = { showIndex: true, showValues: false, zoom: 1, showLegend: false };
+
+  function numericArray(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) elements.push({ id: `cell:${i}`, label: String(i), status: 'default' });
+    return { kind: 'array', elements, links: [] };
+  }
+
+  /** Render với options tùy chỉnh (renderAll dùng OPTS cố định). */
+  function renderAllWith(renderer: Renderer, structure: Structure, opts: RenderOptions): MockContext {
+    const mock = createMockContext();
+    mountRenderer(renderer, mock);
+    renderer.render(structure, opts);
+    return mock;
+  }
+
+  /** Số hàng thực tế = số đáy bar/ô khác nhau (y + h làm tròn). */
+  function rowCount(mock: MockContext): number {
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    return new Set(calls.map((a) => Math.round((a[1] as number) + (a[3] as number)))).size;
+  }
+
+  test('bar mode n=60 (800×600): wrap ≥2 hàng, mọi bar width > 0, index toàn cục 0 và 59 xuất hiện', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAllWith(renderer, numericArray(60), OPTS_NO_VALUES);
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(60); // mỗi phần tử vẽ đúng 1 bar
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(2); // ≥ 2 hàng
+    for (const args of calls) {
+      expect(args[2]).toBeGreaterThan(0); // bar width > 0
+    }
+    // showValues=false → fillText chỉ là index dưới đáy bar: 0 (hàng đầu) và 59 (hàng cuối).
+    const texts = vi.mocked(mock.ctx.fillText).mock.calls.map((c) => String(c[0]));
+    expect(texts).toContain('0');
+    expect(texts).toContain('59');
+  });
+
+  test('bar mode n=5 (800×600): giữ hành vi cũ — 1 hàng, số bar vẽ bằng n (không wrap)', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAll(renderer, numericArray(5));
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(5);
+    expect(rowCount(mock)).toBe(1); // slotW = 148 ≥ 44 → 1 hàng duy nhất
+  });
+
+  test('bar mode n=100 (800×600): ≥3 hàng, không tràn khỏi margin', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAll(renderer, numericArray(100));
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(100);
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(3);
+    for (const args of calls) {
+      expect(args[0] as number).toBeGreaterThanOrEqual(CANVAS_LAYOUT.margin); // x ≥ margin
+      expect((args[0] as number) + (args[2] as number)).toBeLessThanOrEqual(800 - CANVAS_LAYOUT.margin); // x + w ≤ w - margin
+    }
+  });
+
+  test('renderSquares n=40 (500×400): label chữ → wrap ≥2 hàng, không throw', () => {
+    const renderer = new ArrayRenderer();
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < 40; i++) {
+      elements.push({ id: `cell:${i}`, label: String.fromCharCode(97 + (i % 26)), status: 'default' });
+    }
+    const mock = createMockContext();
+    const canvas = { getContext: vi.fn(() => mock.ctx), width: 500, height: 400 } as unknown as HTMLCanvasElement;
+    renderer.mount(canvas);
+    renderer.resize(500, 400);
+
+    expect(() => renderer.render({ kind: 'array', elements, links: [] }, OPTS)).not.toThrow();
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    expect(calls.length).toBe(40); // mỗi ô vẽ đúng 1 lần
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(2); // ≥ 2 hàng
+  });
+
+  test('con trỏ trỏ đúng ô sau wrap (target cell:59 ở hàng cuối)', () => {
+    const renderer = new ArrayRenderer();
+    const structure = numericArray(60);
+    structure.elements.push({ id: 'ptr', label: 'P', status: 'active', group: 'pointer', meta: { target: 'cell:59' } });
+    const mock = renderAll(renderer, structure);
+
+    // cell:59 là phần tử vẽ thứ 60 (các cell:0..59 đều không phải pointer) — lấy tâm bar từ roundRect.
+    const barCalls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    const barCx = (barCalls[59][0] as number) + (barCalls[59][2] as number) / 2;
+    // Trong bar mode, moveTo chỉ do mũi tên con trỏ gọi → lần gọi đầu tiên là mũi tên của pointer.
+    const moveToCalls = vi.mocked(mock.ctx.moveTo).mock.calls;
+    expect(moveToCalls.length).toBeGreaterThan(0);
+    expect(moveToCalls[0][0] as number).toBeCloseTo(barCx, 5); // mũi tên thẳng đứng tại tâm ô đích
   });
 });
