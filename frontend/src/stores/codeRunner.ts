@@ -5,6 +5,7 @@ import * as codeRunnerApi from '@/api/codeRunner';
 import type { CodeRunSummary, CodeSubmitResult } from '@/api/codeRunner';
 import { getCatalogMeta } from '@/engines/catalog';
 import { runCode } from '@/engines/core/stepExecutor';
+import type { RunResult } from '@/engines/core/stepExecutor';
 
 /** Store codeRunner theo SDD §3.2 — Module I (Code Runner, ADR-012: sandbox Web Worker client) */
 export type RunState = 'idle' | 'running' | 'passed' | 'failed' | 'error';
@@ -82,10 +83,10 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
   }
 
   /** Chạy code trong sandbox client (SDD §4.0.3 — runCode; giới hạn 50.000 event). */
-  async function run(): Promise<void> {
+  async function run(): Promise<RunResult | null> {
     if (!editorCode.value.trim()) {
       runError.value = 'Hãy nhập code trước khi chạy.';
-      return;
+      return null;
     }
     runState.value = 'running';
     runError.value = null;
@@ -100,7 +101,7 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
       if (result.error) {
         runState.value = 'error';
         runError.value = `Lỗi dòng ${result.error.line}: ${result.error.message}`;
-        return;
+        return null;
       }
       lastOutput.value = result.output;
       lastStats.value = result.stats;
@@ -121,9 +122,11 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
       } catch {
         lastRun.value = null;
       }
+      return result;
     } catch (err) {
       runState.value = 'error';
       runError.value = err instanceof Error ? err.message : 'Lỗi không xác định khi chạy code.';
+      return null;
     }
   }
 
