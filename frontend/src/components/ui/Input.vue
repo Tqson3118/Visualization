@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Input — wrapper giữ API cũ (G-F1b): label + error + hint + icon, control là shadcn Input.
+// View-quality: icon nhận thêm Component (lucide-vue-next) — string legacy vẫn qua BaseIcon.
 import { useId } from 'vue';
+import type { Component } from 'vue';
 
 import { cn } from '@/lib/utils';
 import BaseIcon from './BaseIcon.vue';
@@ -12,7 +14,7 @@ const props = withDefaults(
     label?: string;
     error?: string;
     hint?: string;
-    icon?: string;
+    icon?: string | Component;
     type?: string;
     modelValue?: string | number | null;
     placeholder?: string;
@@ -54,9 +56,16 @@ function onUpdate(value: string | number | null): void {
     </label>
     <div class="relative">
       <BaseIcon
-        v-if="icon"
+        v-if="typeof icon === 'string' && icon"
         :name="icon"
         :size="16"
+        class="ui-input__icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+      />
+      <component
+        :is="icon"
+        v-else-if="icon"
+        :size="16"
+        aria-hidden="true"
         class="ui-input__icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
       />
       <Input

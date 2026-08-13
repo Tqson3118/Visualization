@@ -1,11 +1,17 @@
 <script setup lang="ts">
 // CheatSheetTable — bảng Big-O tương tác (Màn 18 — FR-2.10)
-// Dữ liệu từ engines/catalog (44 mô phỏng); lọc nhóm; nút "▶ Xem mô phỏng" deep-link.
+// Dữ liệu từ engines/catalog (44 mô phỏng); lọc nhóm; nút "Xem mô phỏng" deep-link.
+// View-quality (nhóm A): chip lọc + nút sim qua Button shadcn (0 raw <button>; aria-pressed);
+// giá trị Big-O → block-token chip tối canvas-ink + mono (vùng dữ liệu LUÔN tối); mobile
+// ≤640px = card-stack (cấm scroll ngang bảng chính §8); i18n thay hardcode.
 import { computed, ref } from 'vue';
+import { Play } from 'lucide-vue-next';
 
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
 import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/button/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { messages } from '@/i18n/vi';
 
 const emit = defineEmits<{
   'open-simulation': [key: string];
@@ -16,15 +22,15 @@ const groups = computed(() => {
   for (const item of CATALOG) {
     set.add(item.dataStructure);
   }
-  return ['Tất cả', ...set];
+  return [messages.cheatsheet.all, ...set];
 });
 
-const activeGroup = ref('Tất cả');
+const activeGroup = ref<string>(messages.cheatsheet.all);
 const filterKey = ref('');
 
 const filtered = computed(() => {
   let list: CatalogMeta[] = CATALOG;
-  if (activeGroup.value !== 'Tất cả') {
+  if (activeGroup.value !== messages.cheatsheet.all) {
     list = list.filter((item) => item.dataStructure === activeGroup.value);
   }
   const q = filterKey.value.trim().toLowerCase();
@@ -35,7 +41,7 @@ const filtered = computed(() => {
 });
 
 function clearFilters(): void {
-  activeGroup.value = 'Tất cả';
+  activeGroup.value = messages.cheatsheet.all;
   filterKey.value = '';
 }
 </script>
@@ -43,33 +49,39 @@ function clearFilters(): void {
 <template>
   <section class="cheatsheet">
     <header class="cheatsheet__header">
-      <div class="cheatsheet__filters">
-        <button
+      <div class="cheatsheet__filters" role="group" :aria-label="messages.cheatsheet.filterGroupAria">
+        <Button
           v-for="group in groups"
           :key="group"
-          type="button"
-          class="cheatsheet__chip"
-          :class="{ 'cheatsheet__chip--active': activeGroup === group }"
+          variant="outline"
+          size="sm"
+          :aria-pressed="activeGroup === group"
+          :class="
+            activeGroup === group
+              ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+              : ''
+          "
           @click="activeGroup = group"
         >
           {{ group }}
-        </button>
+        </Button>
       </div>
       <input
         v-model="filterKey"
+        name="cheatsheet-search"
         class="cheatsheet__search input"
         type="search"
-        placeholder="Tìm theo tên hoặc key..."
-        :aria-label="'Tìm kiếm'"
+        :placeholder="messages.cheatsheet.searchPlaceholder"
+        :aria-label="messages.cheatsheet.searchAria"
       />
     </header>
 
     <EmptyState
       v-if="filtered.length === 0"
       icon="search"
-      title="Không có mô phỏng phù hợp"
-      description="Thử xóa bộ lọc hoặc đổi từ khóa tìm kiếm."
-      action-label="Xóa bộ lọc"
+      :title="messages.cheatsheet.emptyTitle"
+      :description="messages.cheatsheet.emptyDesc"
+      :action-label="messages.cheatsheet.clearFilters"
       @action="clearFilters"
     />
 
@@ -77,12 +89,12 @@ function clearFilters(): void {
       <table class="cheatsheet__table">
         <thead>
           <tr>
-            <th>Giải thuật / CTDL</th>
-            <th>Best</th>
-            <th>Average</th>
-            <th>Worst</th>
-            <th>Không gian</th>
-            <th aria-label="Hành động"></th>
+            <th scope="col">{{ messages.cheatsheet.colAlgorithm }}</th>
+            <th scope="col">{{ messages.cheatsheet.colBest }}</th>
+            <th scope="col">{{ messages.cheatsheet.colAverage }}</th>
+            <th scope="col">{{ messages.cheatsheet.colWorst }}</th>
+            <th scope="col">{{ messages.cheatsheet.colSpace }}</th>
+            <th scope="col" :aria-label="messages.cheatsheet.colAction"></th>
           </tr>
         </thead>
         <tbody>
@@ -92,32 +104,41 @@ function clearFilters(): void {
               <div class="cheatsheet__meta">
                 <Badge variant="muted">{{ item.dataStructure }}</Badge>
                 <Badge :variant="item.level === 'basic' ? 'primary' : 'warning'">
-                  {{ item.level === 'basic' ? 'Cơ bản' : 'Nâng cao' }}
+                  {{ item.level === 'basic' ? messages.explore.levelBasic : messages.explore.levelAdvanced }}
                 </Badge>
-                <Badge v-if="item.demoAllowed" variant="success">Demo</Badge>
+                <Badge v-if="item.demoAllowed" variant="success">{{ messages.explore.badgeDemo }}</Badge>
               </div>
             </td>
-            <td class="cheatsheet__complexity">{{ item.complexity.best }}</td>
-            <td class="cheatsheet__complexity">{{ item.complexity.average }}</td>
-            <td class="cheatsheet__complexity">{{ item.complexity.worst }}</td>
-            <td class="cheatsheet__complexity">{{ item.complexity.space }}</td>
-            <td>
-              <button
-                type="button"
-                class="cheatsheet__sim-btn"
-                :aria-label="`Mở mô phỏng ${item.title}`"
+            <td :data-label="messages.cheatsheet.colBest">
+              <code class="cheatsheet__bigo">{{ item.complexity.best }}</code>
+            </td>
+            <td :data-label="messages.cheatsheet.colAverage">
+              <code class="cheatsheet__bigo">{{ item.complexity.average }}</code>
+            </td>
+            <td :data-label="messages.cheatsheet.colWorst">
+              <code class="cheatsheet__bigo">{{ item.complexity.worst }}</code>
+            </td>
+            <td :data-label="messages.cheatsheet.colSpace">
+              <code class="cheatsheet__bigo">{{ item.complexity.space }}</code>
+            </td>
+            <td :data-label="messages.cheatsheet.colAction">
+              <Button
+                variant="outline"
+                size="sm"
+                :aria-label="messages.cheatsheet.openSimulation(item.title)"
                 @click="emit('open-simulation', item.key)"
               >
-                ▶ Xem mô phỏng
-              </button>
+                <Play aria-hidden="true" />
+                {{ messages.cheatsheet.simulate }}
+              </Button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <footer class="cheatsheet__footer text-muted">
-      Nguồn dữ liệu: <code>shared/simulation-catalog.json</code> — 44 mô phỏng.
+    <footer class="cheatsheet__footer">
+      {{ messages.cheatsheet.source(CATALOG.length) }}
     </footer>
   </section>
 </template>
@@ -127,29 +148,17 @@ function clearFilters(): void {
 
 .cheatsheet__header { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.cheatsheet__filters { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
-
-.cheatsheet__chip {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-
-.cheatsheet__chip--active { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+.cheatsheet__filters { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .cheatsheet__search { max-width: 320px; }
 
+/* ── Bảng dữ liệu — level-1 (§4.6): thead h-10 medium tertiary, td 12/16px, hover muted ── */
 .cheatsheet__table-wrap { overflow-x: auto; }
 
 .cheatsheet__table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--color-surface);
+  background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -158,36 +167,105 @@ function clearFilters(): void {
 
 .cheatsheet__table th {
   text-align: left;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-text-muted);
+  height: 40px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
   padding: var(--space-sm) var(--space-md);
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   background: var(--color-muted);
 }
 
-.cheatsheet__table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+.cheatsheet__table td {
+  padding: 12px var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
 
-.cheatsheet__name { font-weight: 700; }
+.cheatsheet__table tbody tr:last-child td { border-bottom: none; }
 
-.cheatsheet__meta { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.cheatsheet__table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+}
 
-.cheatsheet__complexity { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-foreground); white-space: nowrap; }
+.cheatsheet__name { font-weight: 600; }
 
-.cheatsheet__sim-btn {
-  background: none;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
-  padding: 4px 10px;
+.cheatsheet__meta { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); flex-wrap: wrap; }
+
+/* Big-O chip — block-token tối (vùng dữ liệu LUÔN tối): mono text-sm, min-h 24px (trục 5f) */
+.cheatsheet__bigo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-md);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  cursor: pointer;
+  background: var(--color-canvas-ink);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.4;
   white-space: nowrap;
 }
-.cheatsheet__sim-btn:hover { background: var(--color-surface-hover); }
 
-.cheatsheet__footer { font-size: var(--text-xs); }
-.cheatsheet__footer code { font-family: var(--font-mono); }
+.cheatsheet__footer {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* ── Mobile ≤640px: card-stack (1 tr = 1 card, cấm scroll ngang bảng chính — §8) ── */
+@media (max-width: 640px) {
+  .cheatsheet__table-wrap { overflow: visible; }
+
+  .cheatsheet__table {
+    min-width: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .cheatsheet__table thead { display: none; }
+
+  .cheatsheet__table,
+  .cheatsheet__table tbody,
+  .cheatsheet__table tr { display: block; }
+
+  .cheatsheet__table tr {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+
+  .cheatsheet__table tr:last-child { margin-bottom: 0; }
+
+  .cheatsheet__table tbody tr:hover { background: var(--color-card); }
+
+  .cheatsheet__table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cheatsheet__table td:last-child { border-bottom: none; }
+
+  .cheatsheet__table td[data-label]::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+  }
+
+  /* Cột tên (title + badges) — full width, không flex 2 bên */
+  .cheatsheet__table td:first-child {
+    display: block;
+    padding: 0 0 var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+  }
+}
 </style>
