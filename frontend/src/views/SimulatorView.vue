@@ -5,7 +5,7 @@
 // Phase 1 view-quality: chrome = surface band level-2 (bỏ gradient-mint + blob + text-gradient),
 // nút icon/toggle qua Button.vue (lucide), khung canvas = nền canvas-ink (motif tối lan tỏa §6).
 // KHÔNG đụng CanvasArea/engine — vùng dữ liệu giữ NGUYÊN.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import ControlBar from '@/components/simulator/ControlBar.vue';
@@ -29,6 +29,7 @@ import { messages } from '@/i18n/vi';
 import { ChevronDown, ChevronRight, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
+import Tooltip from '@/components/ui/Tooltip.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -80,6 +81,18 @@ const showCallStack = ref(false);
 const theoryOpen = ref(false);
 const pseudocodeCollapsed = ref(false);
 const renderOptions = ref({ showIndex: true, showValues: true, zoom: 1 });
+
+const practiceRef = ref<InstanceType<typeof ManualPracticePanel> | null>(null);
+
+/** Nút "Tự thực hành" chỉ disabled khi CHƯA chạy sim và CHƯA bật practice — đang practice luôn thoát được */
+const practiceDisabled = computed(() => steps.value.length === 0 && !practiceMode.value);
+
+// UX fix: bật practice → scroll panel vào tầm nhìn (sau khi v-if render xong)
+watch(practiceMode, async (on) => {
+  if (!on) return;
+  await nextTick();
+  practiceRef.value?.rootEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
 
 const notFound = computed(() => !currentSim.value && steps.value.length === 0 && status.value === 'idle' && !loading.value && !loadError.value);
 
@@ -217,9 +230,16 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           <Button size="sm" variant="secondary" @click="configOpen = true">
             {{ messages.simulator.inputConfig }}
           </Button>
-          <Button size="sm" variant="ghost" @click="practiceMode = !practiceMode">
-            {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
-          </Button>
+          <Tooltip :text="practiceDisabled ? 'Chạy mô phỏng trước để bật Tự thực hành' : ''">
+            <Button
+              size="sm"
+              variant="ghost"
+              :disabled="practiceDisabled"
+              @click="practiceMode = !practiceMode"
+            >
+              {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
+            </Button>
+          </Tooltip>
         </div>
       </div>
     </header>
@@ -303,6 +323,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           <LegendPanel :collapsed="!showLegend" />
           <ManualPracticePanel
             v-if="practiceMode"
+            ref="practiceRef"
             :steps="steps"
             :current-index="currentIndex"
             @skip="stepForward"

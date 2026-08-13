@@ -25,28 +25,21 @@ const correctCount = ref(0);
 const wrongCount = ref(0);
 const finished = ref(false);
 
-/** Chưa chạy mô phỏng (chưa có bước nào) → hiện hướng dẫn thay cho vùng trống. */
-const hasRun = computed(() => props.steps.length > 0);
+/** Root element - cho SimulatorView scroll tới khi bật practice mode */
+const rootEl = ref<HTMLElement | null>(null);
+defineExpose({ rootEl });
 
-const panelEl = ref<HTMLElement | null>(null);
+/** Chưa chạy mô phỏng → không có trace để đoán bước kế → hiện hint thay vì radio vô nghĩa */
+const isEmpty = computed(() => props.steps.length === 0);
+
+/** Chưa chạy mô phỏng (chưa có bước nào) → hiện hướng dẫn thay cho vòng trống. */
+const hasRun = computed(() => props.steps.length > 0);
 
 /** Auto-scroll: khi panel xuất hiện (bật chế độ Tự thực hành) → cuộn mượt vào view. */
 onMounted(async () => {
   await nextTick();
-  panelEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  rootEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
-
-/** Timer tự động sang bước kế sau khi trả lời (feedback hiện rõ ~400ms). */
-let advanceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function clearAdvanceTimer(): void {
-  if (advanceTimer !== null) {
-    clearTimeout(advanceTimer);
-    advanceTimer = null;
-  }
-}
-
-onBeforeUnmount(clearAdvanceTimer);
 
 /** Các thao tác gợi ý (≤ 6) cho bước kế */
 const OPTIONS = [
@@ -74,7 +67,7 @@ function inferExpected(): string {
 }
 
 function submit(): void {
-  if (!selected.value || advanceTimer !== null) return;
+  if (!selected.value) return;
   const expected = inferExpected();
   if (selected.value === expected) {
     lastResult.value = 'correct';
@@ -84,30 +77,29 @@ function submit(): void {
     wrongCount.value += 1;
   }
   selected.value = '';
-
-  // Tự sang bước kế sau ~400ms — cùng hàm stepForward mà nút "Bước tới" dùng (parent @skip="stepForward").
-  advanceTimer = setTimeout(() => {
-    advanceTimer = null;
-    lastResult.value = null;
-    emit('skip');
-  }, 400);
+  // UX fix: sau khi kiểm tra (đúng/sai) → tự chuyển bước kế tiếp, không bắt user bấm "Bỏ qua".
+  // Feedback ✓/✗ còn hiển thị (lastResult) + panel giải thích bên phải.
+  emit('skip');
 }
 
 function skip(): void {
-  clearAdvanceTimer();
   lastResult.value = null;
   emit('skip');
 }
 
 function finish(): void {
-  clearAdvanceTimer();
   finished.value = true;
   emit('done', { correct: correctCount.value, wrong: wrongCount.value });
 }
 </script>
 
 <template>
-  <section ref="panelEl" class="practice card" aria-label="Tự thực hành">
+  <section
+    ref="rootEl"
+    class="practice card"
+    :class="{ 'practice--active': !isEmpty }"
+    aria-label="Tự thực hành"
+  >
     <header class="practice__header">
       <h3 class="practice__title">Tự thực hành</h3>
       <span class="practice__score">
@@ -126,6 +118,10 @@ function finish(): void {
 
     <p v-else-if="finished" class="practice__result" role="status">
       Kết thúc luyện tập: {{ correctCount }} đúng / {{ wrongCount }} sai
+    </p>
+
+    <p v-else-if="isEmpty" class="practice__empty" role="status">
+      ⏵ Hãy bấm Play để chạy mô phỏng trước, rồi bật Tự thực hành để đoán bước kế tiếp.
     </p>
 
     <template v-else>
@@ -158,6 +154,24 @@ function finish(): void {
 
 <style scoped>
 .practice { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* Accent khi panel đang hoạt động (có trace thật) — border primary + bg nổi bật, token sẵn có */
+.practice.practice--active {
+  border: 2px solid var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+/* Empty state — lời mời hành động (DESIGN §7.7): chưa chạy sim thì hướng dẫn chứ không hiện radio vô nghĩa */
+.practice__empty {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--color-text-tertiary);
+}
 
 .practice__header { display: flex; justify-content: space-between; align-items: center; }
 
