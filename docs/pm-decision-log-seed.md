@@ -30,3 +30,7 @@
 ## [2026-08-13 15:20] SEED-5 phát hiện 2 bug seed — giao sửa (lần 1)
 - Quyết định: dev-test (verify độc lập) phát hiện: (1) SeedDemoActivity.Activity.cs LoadActivityUsersAsync dùng AsNoTracking → user.Xp/Gems set không được lưu (0 hết); (2) SeedDemoActivity.Misc.cs lookup exercise thiếu prefix "Code: " → 0 CodeSubmissions. Giao dev-backend sửa 2 điểm (đúng quy trình: dev viết → test verify → fix → verify lại). Test giữ nguyên — chạy lại để xác nhận.
 - Ảnh hưởng: SeedDemoActivity.Activity.cs, SeedDemoActivity.Misc.cs + verify lại SEED-5.
+
+## [2026-08-13 15:45] Hoàn tất — PR #10
+- Quyết định: PR #10 (feature/seed-prod → dev) đã tạo qua GitHub REST API (không có gh CLI — dùng token từ credential manager). Giữ worktree D:\FPT\neww-seed (PR chưa merge — có thể cần sửa theo review). Bug /api/v1/progress/me 500 (ProgressService.cs:223) ngoài phạm vi — đề xuất task riêng.
+- Ảnh hưởng: repo; báo cáo docs/pm-report-seed.md.
