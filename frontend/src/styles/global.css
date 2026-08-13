@@ -269,3 +269,34 @@ h1, h2, h3, h4, h5, h6 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   UI-PREMIUM 0A — GLOBAL MOTION PRIMITIVES
+   ════════════════════════════════════════════════════════════════ */
+
+/* Pulse glow — block "đang so sánh" (BlockToken pulse, compare state) */
+@keyframes ui-pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Shimmer gradient — skeleton/loading overlay */
+@keyframes ui-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Gentle bounce — price tag gems, CTA icon nhắc hành động */
+@keyframes ui-bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Error shake — câu trả lời sai, form lỗi */
+@keyframes ui-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}

@@ -1,0 +1,114 @@
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE — 5 breakpoint chuẩn (UI-PREMIUM 0D)
+   sm: 640px · md: 768px (tablet) · lg: 1024px (laptop) · xl: 1280px · 2xl: 1536px
+   Container chuẩn 1200px + utility cho common patterns.
+   KHÔNG đổi token màu/typography theo màn hình (DESIGN.md §8).
+   ════════════════════════════════════════════════════════════════ */
+
+/* Container — đè global.css .container (giữ max-width 1200px, thêm padding theo màn) */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: var(--space-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-inline: var(--space-xl);
+  }
+}
+
+/* ── Section rhythm ── */
+.section-rhythm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  padding-block: var(--space-3xl);
+}
+
+@media (min-width: 768px) {
+  .section-rhythm {
+    gap: var(--space-4xl);
+    padding-block: var(--space-4xl);
+  }
+}
+
+/* ── Utility grid: auto-fit theo breakpoint ── */
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: var(--space-lg);
+  }
+}
+
+/* ── Hide/Show theo breakpoint ── */
+.hide-md {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .hide-md {
+    display: revert;
+  }
+}
+
+.hide-lg {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .hide-lg {
+    display: revert;
+  }
+}
+
+.show-md {
+  display: revert;
+}
+
+@media (min-width: 768px) {
+  .show-md {
+    display: none;
+  }
+}
+
+/* ── Table → card-stack trên mobile (DESIGN.md §8: bảng chính cấm scroll ngang) ── */
+@media (max-width: 767px) {
+  .table-stack thead {
+    display: none;
+  }
+
+  .table-stack tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .table-stack td {
+    display: block;
+    padding: 0;
+  }
+
+  .table-stack td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+  }
+}

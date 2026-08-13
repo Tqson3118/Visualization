@@ -13,6 +13,7 @@ import './styles/tokens.css';
 import './styles/tailwind.css';
 import './styles/palettes.css';
 import 'lenis/dist/lenis.css';
+import './styles/responsive.css';
 import './styles/global.css';
 
 /**

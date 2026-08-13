@@ -71,6 +71,30 @@
   --space-xl:  2rem;     /* 32px */
   --space-2xl: 3rem;     /* 48px */
   --space-3xl: 4rem;     /* 64px */
+  /* UI-PREMIUM: section rhythm — gaps lớn cho hero/page top */
+  --space-4xl: 6rem;     /* 96px — section hero */
+  --space-5xl: 8rem;     /* 128px — page top */
+
+  /* ── ELEVATION (UI-PREMIUM 0A — luminance stacking, backward compatible) ── */
+  --elevation-0: var(--color-background);  /* base */
+  --elevation-1: var(--color-surface);     /* card level-1 */
+  --elevation-2: var(--color-card-raised); /* hero/banner band */
+  --elevation-3: var(--color-surface);     /* popover/dropdown (shadow đi kèm) */
+
+  /* ── MOTION (UI-PREMIUM 0A — thống nhất toàn app) ── */
+  --ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quad:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:    150ms;
+  --duration-normal:  250ms;
+  --duration-slow:    400ms;
+  --duration-entrance: 500ms;
+
+  /* ── GLOW / FOCUS (UI-PREMIUM 0A — ring + trạng thái thuật toán) ── */
+  --glow-primary:    0 0 0 3px rgba(13, 148, 136, 0.15);
+  --glow-data-core:  0 0 12px rgba(66, 85, 255, 0.25);
+  --glow-resolved:   0 0 12px rgba(52, 211, 153, 0.25);
+  --glow-conflict:   0 0 12px rgba(248, 113, 113, 0.25);
 
   /* ── SHADOW (MASTER.md) ── */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
