@@ -641,6 +641,44 @@ export const messages = {
     sentTitle: 'Đã gửi — chúng tôi sẽ phản hồi sớm!',
     sentDesc: 'Cảm ơn bạn đã góp ý. Kiểm tra email để nhận phản hồi.',
   },
+
+  // ── Đợt H (H-E3): NodeHub (Màn 31) + Kiểm tra cuối lộ trình (Màn 30) ──
+  // Chỉ THÊM chuỗi mới — không sửa/xóa chuỗi cũ (quy tắc H-E2).
+  nodeHub: {
+    breadcrumbPath: 'Lộ trình',
+    backToMap: 'Về bản đồ',
+    badgeNode: (nodeId: number) => `Đang học · Node ${nodeId}`,
+    subtitle: (nodeId: number) =>
+      `Node ${nodeId} — điểm vào duy nhất cho luồng học: lý thuyết → luyện tập → cheatsheet.`,
+    tabTheory: 'Lý thuyết',
+    tabPractice: 'Luyện tập (Ladder)',
+    tabCheatsheet: 'Cheatsheet',
+    openSimulation: 'Mở mô phỏng',
+    fallbackTitle: (title: string) => `📖 Lý thuyết — ${title}`,
+    fallbackText:
+      'Node này chưa được gắn bài học lý thuyết trên backend. Hãy mở mô phỏng để xem thuật toán chạy từng bước, hoặc tra bảng độ phức tạp ở tab Cheatsheet.',
+    fallbackCta: (key: string) => `▶ Mở mô phỏng ${key}`,
+  },
+
+  finalTest: {
+    breadcrumbPath: 'Lộ trình',
+    breadcrumbLabel: 'Kiểm tra cuối',
+    badge: 'Final · 20%',
+    title: 'Kiểm tra cuối lộ trình',
+    subtitle: (threshold: number) =>
+      `Ngưỡng đạt: ≥ ${threshold}% · Điểm lộ trình = ĐTB node × 80% + final × 20%`,
+    rulesAria: 'Quy tắc kiểm tra cuối lộ trình',
+    ruleThreshold: 'Ngưỡng đạt',
+    ruleThresholdValue: '≥ 70%',
+    ruleWeight: 'Trọng số',
+    ruleWeightValue: '20% điểm lộ trình',
+    ruleRetry: 'Làm lại',
+    ruleRetryValue: 'Tự do trong phiên',
+    backToMap: '← Về bản đồ lộ trình',
+    toastPassed: '🏅 Hoàn thành lộ trình! Đã mở khóa lộ trình kế tiếp (nếu có).',
+    toastFailed: (threshold: number, pct: number) =>
+      `Đạt ${pct}% — cần ≥ ${threshold}%. Làm lại trong phiên miễn phí.`,
+  },
 } as const;
 
 export type MessageKey = keyof typeof messages;
