@@ -45,6 +45,27 @@ public static partial class SeedDemoActivity
         await SeedLessonNotesAsync(db, clock, logger, ct);
         await SeedClassesAsync(db, clock, logger, ct);
 
+        // === Seed V2 (PROD-K) — Task 1-6: 69 user V2 + hoạt động mở rộng (SEED-V2) ===
+        await SeedNewStudentsV2Async(db, logger, ct);
+        await SeedAchievementsV2Async(db, logger, ct);
+        await SeedUserAchievementsV2Async(db, clock, logger, ct);
+        await SeedUserProgressV2Async(db, clock, logger, ct);
+        await SeedUserNodeProgressV2Async(db, clock, logger, ct);
+        await SeedExerciseSubmissionsV2Async(db, clock, logger, ct);
+        await SeedUserQuestsV2Async(db, clock, logger, ct);
+        await SeedGemTransactionsV2Async(db, clock, logger, ct);
+        await SeedUserInventoryV2Async(db, clock, logger, ct);
+        await SeedFavoritesV2Async(db, clock, logger, ct);
+        await SeedContentFeedbackV2Async(db, clock, logger, ct);
+        await SeedClassesV2Async(db, clock, logger, ct);
+        await SeedBugReportsV2Async(db, clock, logger, ct);
+        await SeedCodeSubmissionsV2Async(db, clock, logger, ct);
+        await SeedPremiumShowcaseAsync(db, clock, logger, ct);
+
+        logger.LogInformation("Seed: V2 hoàn tất — Users={Users}, BugReports={BugReports}, CodeSubmissions={CodeSubmissions}, PremiumSubscriptions={PremiumSubscriptions}",
+            await db.Users.CountAsync(ct), await db.BugReports.CountAsync(ct),
+            await db.CodeSubmissions.CountAsync(ct), await db.PremiumSubscriptions.CountAsync(ct));
+
         logger.LogInformation(
             "SeedDemoActivity hoàn tất: Users={Users}, Achievements={Achievements}, UserAchievements={UserAchievements}, Settings={Settings}, UserProgress={UserProgress}, UserNodeProgress={UserNodeProgress}, ExerciseSubmissions={ExerciseSubmissions}, UserQuests={UserQuests}, GemTransactions={GemTransactions}, UserInventory={UserInventory}, Favorites={Favorites}, ContentFeedback={ContentFeedback}, CodeSubmissions={CodeSubmissions}, BugReports={BugReports}, LessonNotes={LessonNotes}, Classes={Classes}",
             await db.Users.CountAsync(ct), await db.Achievements.CountAsync(ct),

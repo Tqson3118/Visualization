@@ -44,6 +44,11 @@ public class SeedDemoActivityTests
         ["LessonNotes"] = await db.LessonNotes.CountAsync(),
     };
 
+    /// <summary>
+    /// Invariant Xp/Gems áp dụng TOÀN BỘ user (V1 + V2): seeder recompute Xp/Gems từ DB rows
+    /// (Activity.cs / V2.Activity.cs load user TRACKED) nên balance luôn khớp — Task 6b đã sửa
+    /// lỗi AsNoTracking làm V2 không persist.
+    /// </summary>
     private static void AssertNoDuplicateKey<T>(IEnumerable<T> rows, Func<T, object> keySelector, string label)
     {
         var duplicates = rows.GroupBy(keySelector).Where(g => g.Count() > 1).ToList();
@@ -60,7 +65,7 @@ public class SeedDemoActivityTests
         var db = await SeedOnceAsync(nameof(Seed_Counts_MeetExpectations));
 
         Assert.True(await db.Users.CountAsync() >= 9, "Users >= 9");
-        Assert.Equal(10, await db.Achievements.CountAsync());
+        Assert.Equal(17, await db.Achievements.CountAsync());   // 10 V1 + 7 V2 (SortOrder 11-17)
         Assert.True(await db.UserAchievements.CountAsync() >= 10, "UserAchievements >= 10");
         Assert.True(await db.UserProgress.CountAsync() >= 15, "UserProgress >= 15");
         Assert.True(await db.UserNodeProgress.CountAsync() >= 20, "UserNodeProgress >= 20");
@@ -70,7 +75,7 @@ public class SeedDemoActivityTests
         Assert.True(await db.UserInventory.CountAsync() >= 7, "UserInventory >= 7");
         Assert.True(await db.Favorites.CountAsync() >= 10, "Favorites >= 10");
         Assert.True(await db.ContentFeedback.CountAsync() >= 5, "ContentFeedback >= 5");
-        Assert.Equal(2, await db.Classes.CountAsync());
+        Assert.Equal(3, await db.Classes.CountAsync());         // DSA213 + ADVNCE (V1) + AI1702 (V2)
         Assert.True(await db.ClassMembers.CountAsync() >= 10, "ClassMembers >= 10");
         Assert.True(await db.ClassAssignments.CountAsync() >= 6, "ClassAssignments >= 6");
         Assert.True(await db.CodeSubmissions.CountAsync() >= 3, "CodeSubmissions >= 3");
