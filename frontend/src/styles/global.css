@@ -4,11 +4,18 @@
    ════════════════════════════════════════════════════════════════ */
 
 /* ── Reset ──
-   2026-08-13 (nhóm C, xem pm-decision-log): block reset * { margin/padding: 0 }
-   BỊ XÓA — unlayered thắng @layer utilities của Tailwind v4 → mọi utility padding
-   (px-*, py-*, p-*) trên component shadcn bị vô hiệu (button "Chỉnh sửa" padding 0px).
-   Tailwind preflight đã reset margin/padding/box-sizing trong @layer base —
-   utilities giờ thắng đúng chuẩn cascade. Không cần reset trùng. */
+   View-quality: reset margin/padding đưa vào @layer base (Tailwind v4 utilities
+   nằm trong @layer utilities — reset unlayered sẽ thắng mọi utility padding của
+   shadcn button/input → chữ chạm viền; đã đo getComputedStyle pl=0 dù có px-3). */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+}
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -51,13 +58,23 @@ button {
   cursor: pointer;
 }
 
-a {
-  color: var(--color-primary);
-  text-decoration: none;
+/* Link color — đưa vào @layer base (view-quality HOTFIX 2): trước đây unlayered → thắng cả
+   @layer utilities → text-primary-foreground chết trên mọi RouterLink-as-button
+   (chữ teal trên nền teal ~1.2:1, fail WCAG AA — đo thực tế CTA HomeView + 404). */
+@layer base {
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
-a:hover {
-  text-decoration: underline;
+/* Anchor dạng button (buttonVariants/legacy .btn đều có inline-flex) — không gạch chân khi hover */
+a.inline-flex:hover {
+  text-decoration: none;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -191,10 +208,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Page transition (App.vue <Transition name="page">) ──
    Fade + slide nhẹ; mode out-in. Reduced-motion bị cắt ở media query
-   phía dưới (transition-duration 0.01ms). */
-.page-enter-active,
+   phía dưới (transition-duration 0.01ms).
+   Easing chuẩn view-quality (DESIGN.md §1 + §6): enter expo-out
+   cubic-bezier(0.16,1,0.3,1), exit expo-in cubic-bezier(0.7,0,0.84,0). */
+.page-enter-active {
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .page-leave-active {
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 180ms cubic-bezier(0.7, 0, 0.84, 0), transform 180ms cubic-bezier(0.7, 0, 0.84, 0);
 }
 
 .page-enter-from {

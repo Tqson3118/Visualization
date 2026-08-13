@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // LabView — Màn 15: Interactive Lab (Bậc 2) tại /ladder/:nodeId/lab
 // Canvas editable + chấm trạng thái cuối + giới hạn bước ×1.5 + nộp labAnswer
-// G-F2c: hero gradient mint nhẹ + 3 thẻ (Mô tả bài / Mục tiêu / Hướng dẫn) Card shadcn + icon lucide.
+// P1-B2: banner surface band level-2 (không gradient), info card hover border-color,
+// icon lucide, breadcrumb mono, ArrowLeft. LabStage (component con) xử lý canvas tối.
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { BookOpen, Lightbulb, Target } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, Lightbulb, Target } from 'lucide-vue-next';
 
 import { getCatalogMeta } from '@/engines/catalog';
 import LabStage from '@/components/ladder/LabStage.vue';
@@ -46,11 +47,20 @@ const INFO_CARDS = [
 
 <template>
   <main class="lab-view container">
-    <nav class="lab-view__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'ladder', params: { nodeId } }">Ladder</RouterLink>
-      <span aria-hidden="true">/</span>
-      <span>Lab — {{ title }}</span>
-    </nav>
+    <!-- Banner — surface band level-2 + kicker mono (DESIGN.md §1, không gradient) -->
+    <header class="lab-view__banner">
+      <nav class="lab-view__breadcrumb" aria-label="Breadcrumb">
+        <RouterLink :to="{ name: 'ladder', params: { nodeId } }">Ladder</RouterLink>
+        <span aria-hidden="true">/</span>
+        <span>Lab — {{ title }}</span>
+      </nav>
+      <p class="lab-view__kicker">INTERACTIVE LAB · NODE {{ nodeId }}</p>
+      <h1 class="lab-view__title">Thao tác dữ liệu thật</h1>
+      <p class="lab-view__sub">
+        Hoán đổi các ô liền kề tới khi dãy đúng trạng thái cuối — số bước giới hạn
+        {{ 'chuẩn × 1.5' }} như trong đề bài.
+      </p>
+    </header>
 
     <!-- Thẻ mô tả / mục tiêu / hướng dẫn (SDD Màn 15) -->
     <div class="lab-view__info-grid">
@@ -61,7 +71,7 @@ const INFO_CARDS = [
       >
         <CardHeader class="lab-view__info-header">
           <span class="lab-view__info-icon" aria-hidden="true">
-            <component :is="info.icon" :size="18" />
+            <component :is="info.icon" :size="16" />
           </span>
           <CardTitle class="lab-view__info-title">{{ info.title }}</CardTitle>
         </CardHeader>
@@ -81,7 +91,8 @@ const INFO_CARDS = [
 
     <div class="lab-view__actions">
       <Button variant="ghost" @click="router.push({ name: 'ladder', params: { nodeId } })">
-        ← Về Ladder
+        <ArrowLeft :size="16" aria-hidden="true" />
+        Về Ladder
       </Button>
     </div>
   </main>
@@ -95,14 +106,49 @@ const INFO_CARDS = [
   gap: var(--space-lg);
 }
 
+/* Banner — surface band level-2 + luminance stacking (DESIGN.md §1 + §6) */
+.lab-view__banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+}
+
 .lab-view__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
 }
 
 .lab-view__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+
+.lab-view__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.lab-view__title {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+}
+
+.lab-view__sub {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
 
 .lab-view__info-grid {
   display: grid;
@@ -110,11 +156,12 @@ const INFO_CARDS = [
   gap: var(--space-md);
 }
 
-.lab-view__info-card { transition: box-shadow 180ms ease, transform 180ms ease; }
+.lab-view__info-card {
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 .lab-view__info-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
 }
 
 .lab-view__info-header {
@@ -128,23 +175,26 @@ const INFO_CARDS = [
   width: 34px;
   height: 34px;
   border-radius: var(--radius-md);
-  background-image: var(--gradient-mint);
-  color: var(--color-on-primary);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
-.lab-view__info-title { font-size: var(--text-md); }
+.lab-view__info-title { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.015em; }
 
-.lab-view__info-text { font-size: var(--text-base); color: var(--color-text-muted); line-height: 1.6; }
+.lab-view__info-text { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.6; }
 
 .lab-view__actions {
   display: flex;
   justify-content: flex-start;
   padding-top: var(--space-md);
   border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-view__info-card { transition: none; }
 }
 </style>
