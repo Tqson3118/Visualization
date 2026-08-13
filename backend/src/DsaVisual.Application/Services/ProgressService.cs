@@ -21,7 +21,7 @@ public sealed class ProgressService(
 
     public async Task<Result<ProgressOverviewDto>> GetMyOverviewAsync(int userId, CancellationToken ct)
     {
-        var (lessonsTotal, exercisesTotal, topics) = await LoadCountsAsync(ct);
+        var (lessonsTotal, exercisesTotal, topics) = await LoadCountsAsync(userId, ct);
 
         var viewed = await db.UserProgress.AsNoTracking()
             .Where(p => p.UserId == userId)
@@ -204,7 +204,7 @@ public sealed class ProgressService(
 
     // ── Private ───────────────────────────────────────────────
 
-    private async Task<(int LessonsTotal, int ExercisesTotal, List<TopicAggregate> Topics)> LoadCountsAsync(CancellationToken ct)
+    private async Task<(int LessonsTotal, int ExercisesTotal, List<TopicAggregate> Topics)> LoadCountsAsync(int userId, CancellationToken ct)
     {
         var topics = await db.Topics.AsNoTracking()
             .Where(t => t.DeletedAt == null)
@@ -218,7 +218,7 @@ public sealed class ProgressService(
 
         var lessonIds = lessons.Select(l => l.Id).ToList();
         var progress = await db.UserProgress.AsNoTracking()
-            .Where(p => lessonIds.Contains(p.LessonId))
+            .Where(p => lessonIds.Contains(p.LessonId) && p.UserId == userId)
             .ToListAsync(ct);
         var progressByLesson = progress.ToDictionary(p => p.LessonId);
 

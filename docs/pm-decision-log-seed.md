@@ -34,3 +34,11 @@
 ## [2026-08-13 15:45] Hoàn tất — PR #10
 - Quyết định: PR #10 (feature/seed-prod → dev) đã tạo qua GitHub REST API (không có gh CLI — dùng token từ credential manager). Giữ worktree D:\FPT\neww-seed (PR chưa merge — có thể cần sửa theo review). Bug /api/v1/progress/me 500 (ProgressService.cs:223) ngoài phạm vi — đề xuất task riêng.
 - Ảnh hưởng: repo; báo cáo docs/pm-report-seed.md.
+
+## [2026-08-13 16:00] Fix bug /api/v1/progress/me 500 — CHẶN MERGE PR #10 (sửa lại quyết định "ngoài phạm vi")
+- Quyết định: User/review chỉ đạo — bug 500 (ProgressService.cs:220-223, LoadCountsAsync thiếu filter p.UserId == userId → ToDictionary duplicate key) KHÔNG phải ngoài phạm vi: seed K làm bug bung ra (trước K: 1 dòng UserProgress; sau K: 31 dòng/9 user → mọi student 500). Sửa: thêm tham số userId vào LoadCountsAsync + filter query + truyền từ GetMyOverviewAsync (call site dòng 24); viết test tái hiện (2 user cùng lesson → 200). Lưu ý đợt J chạy cùng vùng service — rà conflict khi merge.
+- Ảnh hưởng: ProgressService.cs, ProgressServiceTests.cs (mới), PR #10 (thêm commit), docs (decision log + seed-prod.md + pm-report).
+
+## [2026-08-13 16:20] Verify fix progress/me hoàn tất — PASS
+- Quyết định: API local :5001 (code fix): /progress/me 200 cho huynhthuy + nguyentrang, dữ liệu riêng biệt (lessonsViewed 2/8 vs 3/8) — filter userId đúng. Backend docker :5000 là bản cũ (vẫn 500) — sau merge PR #10 phải rebuild/restart backend để hết bug.
+- Ảnh hưởng: PR #10 thêm commit fix; backend deploy cần restart.
