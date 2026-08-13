@@ -25,8 +25,9 @@ import { useUiStore } from '@/stores/ui';
 import * as favoritesApi from '@/api/favorites';
 import { getCatalogMeta } from '@/engines/catalog';
 import { buildSimOverviewHtml } from '@/utils/simOverview';
+import { getReference } from '@/data/referenceLinks';
 import { messages } from '@/i18n/vi';
-import { ChevronDown, ChevronRight, Share2, Star } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, ExternalLink, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 import Tooltip from '@/components/ui/Tooltip.vue';
@@ -84,6 +85,41 @@ const renderOptions = ref({ showIndex: true, showValues: true, zoom: 1 });
 
 const practiceRef = ref<InstanceType<typeof ManualPracticePanel> | null>(null);
 
+// ── "📖 Tài liệu" — dropdown link tham khảo (REFERENCE_LINKS theo key hiện tại) ──
+const docOpen = ref(false);
+const docMenuRef = ref<HTMLElement | null>(null);
+
+/** Link tài liệu cho key hiện tại — rỗng → ẩn nút (không placeholder). */
+const docLinks = computed(() => {
+  const ref = getReference(key.value);
+  if (!ref) return [];
+  const links: { label: string; url: string }[] = [];
+  if (ref.wikipedia) links.push({ label: 'Wikipedia', url: ref.wikipedia });
+  if (ref.geeksforgeeks) links.push({ label: 'GeeksforGeeks', url: ref.geeksforgeeks });
+  return links;
+});
+
+function onDocPointerDown(event: PointerEvent): void {
+  if (docMenuRef.value && !docMenuRef.value.contains(event.target as Node)) {
+    docOpen.value = false;
+  }
+}
+
+function onDocKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') docOpen.value = false;
+}
+
+// Mở dropdown → đăng ký đóng khi click ngoài / Escape; đóng → gỡ listener.
+watch(docOpen, (open) => {
+  if (open) {
+    document.addEventListener('pointerdown', onDocPointerDown);
+    document.addEventListener('keydown', onDocKeydown);
+  } else {
+    document.removeEventListener('pointerdown', onDocPointerDown);
+    document.removeEventListener('keydown', onDocKeydown);
+  }
+});
+
 /** Nút "Tự thực hành" chỉ disabled khi CHƯA chạy sim và CHƯA bật practice — đang practice luôn thoát được */
 const practiceDisabled = computed(() => steps.value.length === 0 && !practiceMode.value);
 
@@ -98,6 +134,8 @@ const notFound = computed(() => !currentSim.value && steps.value.length === 0 &&
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
+  document.removeEventListener('pointerdown', onDocPointerDown);
+  document.removeEventListener('keydown', onDocKeydown);
 });
 
 watch(key, () => {
@@ -240,6 +278,37 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
               {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
             </Button>
           </Tooltip>
+          <div v-if="docLinks.length > 0" ref="docMenuRef" class="simulator__doc">
+            <Button
+              size="sm"
+              variant="ghost"
+              :aria-expanded="docOpen"
+              aria-controls="simulator-doc-menu"
+              @click="docOpen = !docOpen"
+            >
+              📖 Tài liệu
+            </Button>
+            <div
+              v-if="docOpen"
+              id="simulator-doc-menu"
+              class="simulator__doc-menu"
+              :aria-label="`Tài liệu tham khảo — ${currentSim?.title ?? key}`"
+            >
+              <p class="simulator__doc-title">📖 Đọc thêm</p>
+              <a
+                v-for="link in docLinks"
+                :key="link.url"
+                :href="link.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="simulator__doc-link"
+                @click="docOpen = false"
+              >
+                <span>{{ link.label }}</span>
+                <ExternalLink :size="14" aria-hidden="true" />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -456,6 +525,53 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 .simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
 
 .simulator__fav-on { color: var(--color-warning); }
+
+/* "📖 Tài liệu" — dropdown link tham khảo (popover level-3 §6: shadow hợp lệ) */
+.simulator__doc { position: relative; }
+
+.simulator__doc-menu {
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  right: 0;
+  z-index: var(--z-raised);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.simulator__doc-title {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.simulator__doc-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.simulator__doc-link:hover { background: var(--color-muted); }
+
+.simulator__doc-link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
 
 .simulator__grid {
   display: grid;

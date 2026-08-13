@@ -142,6 +142,16 @@ function clearFilters(): void {
   page.value = 1;
 }
 
+/** Link "Đọc thêm" cho 1 key (wikipedia + geeksforgeeks từ REFERENCE_LINKS object) — không có thì trả mảng rỗng. */
+function linksFor(key: string): { label: string; url: string }[] {
+  const ref = getReference(key);
+  if (!ref) return [];
+  const links: { label: string; url: string }[] = [];
+  if (ref.wikipedia) links.push({ label: 'Wikipedia', url: ref.wikipedia });
+  if (ref.geeksforgeeks) links.push({ label: 'GeeksforGeeks', url: ref.geeksforgeeks });
+  return links;
+}
+
 function openSimulation(key: string): void {
   void router.push({ name: 'simulator', params: { key } });
 }
@@ -331,10 +341,25 @@ function referenceUrl(key: string): string | undefined {
                   <BookOpen :size="14" aria-hidden="true" />
                   Đọc tài liệu
                 </a>
+              </div>
                 <span class="simulations__open">
                   {{ messages.explore.open }}
                   <ArrowRight :size="14" aria-hidden="true" />
                 </span>
+              </div>
+              <div v-if="linksFor(item.key).length > 0" class="simulations__links">
+                <span class="simulations__links-label">🔗 Đọc thêm:</span>
+                <a
+                  v-for="link in linksFor(item.key)"
+                  :key="link.url"
+                  :href="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="simulations__link"
+                  @click.stop
+                >
+                  {{ link.label }}
+                </a>
               </div>
             </CardContent>
           </Card>
@@ -602,10 +627,57 @@ function referenceUrl(key: string): string | undefined {
 .simulations__card-content {
   margin-top: auto;
   display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+}
+
+.simulations__card-row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-sm);
-  padding-top: var(--space-md);
+}
+
+/* "Đọc thêm" — chip link nhỏ, chỉ hiện khi key có REFERENCE_LINKS (ẩn khi không) */
+.simulations__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-sm);
+}
+
+.simulations__links-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.simulations__link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition:
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.simulations__link:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-muted);
+}
+
+.simulations__link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 .simulations__complexity {
