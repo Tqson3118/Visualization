@@ -1,7 +1,9 @@
 # Seed — Dữ liệu khởi tạo (SDD §7.5)
 
 Seeder **THẬT** chạy qua `AppDbContext` (EF Core 10) — file `SeedRunner.cs` (idempotent: kiểm tra tồn tại trước khi chèn — SDD §7.5/§10.5).
-Dữ liệu khai báo tại `SeedData.cs` (5 Topics, 8 Lessons, 3 Users, 8 Quests, 8 ShopItems, 9 Settings).
+Dữ liệu khai báo tại `SeedData.cs` (5 Topics, 8 Lessons, 3 Users, 8 Quests, 8 ShopItems, 9 Settings) + `SeedData.Students` (8 student demo `@university.edu.vn`).
+
+SAU `SeedSettingsAsync`, `SeedRunner` gọi **`SeedDemoActivity.SeedAsync`** (file `SeedDemoActivity.cs` skeleton + partial `Students/Progress/Activity/Misc/Class`) — **seed dữ liệu hoạt động người dùng demo (SDD §7.5)**: 8 student `@university.edu.vn`, achievements, progress, submissions, quest/gems/inventory/favorites/feedback, 2 lớp học, code submissions/bug reports/lesson notes (chỉ khi bảng trống).
 
 ## Lệnh chạy seed
 
@@ -27,6 +29,7 @@ Seed idempotent — chạy lại lần 2 an toàn, mọi bước ghi log `Seed: 
 | `teacher@demo.local` | TEACHER | `Teacher@123` | |
 | `student@demo.local` | STUDENT | `Student@123` | |
 
+- **8 student demo `*@university.edu.vn`** (SeedData.Students — tạo bởi SeedDemoActivity): mật khẩu dev = **`Student@123`** (⚠️ CHỈ local dev, không dùng production — đổi trước khi deploy, xem dòng dưới).
 - Hash: PBKDF2-SHA256 100.000 vòng + salt 16 byte (`DsaVisual.Application/Common/PasswordHasher.cs` — hash thật, verify được).
 - **Đổi mật khẩu**: login → `POST /auth/change-password` hoặc Admin reset qua `POST /admin/users/{id}/reset-password` (UsersController). **Bắt buộc đổi trước khi deploy production.**
 - Ghi chú: SDD §7.5 có "ép đổi mật khẩu lần đầu", nhưng bảng `Users` hiện **chưa có cột** `MustChangePassword` (entity chỉ có `IsPrimaryAdmin`) → seeder không set cờ này; cần migration bổ sung nếu muốn ép đổi (đề xuất — xem report).
@@ -45,7 +48,32 @@ Seed idempotent — chạy lại lần 2 an toàn, mọi bước ghi log `Seed: 
 | DailyQuests | 8 quest templates (ConditionJson/RewardJson theo SDD §7.3.26) | `SeedData.cs` |
 | ShopItems | 8 item (ItemKey UNIQUE) | `SeedData.cs` ← frontend shop_items.json |
 | Settings | 9 setting (Key UNIQUE) | `SeedData.cs` |
-| ExerciseSubmissions | **KHÔNG seed** (dữ liệu người dùng) | — |
+| ExerciseSubmissions | 9 user activity (8 student `@university.edu.vn` + `student@demo.local`) — bài nộp MCQ/LAB/CODE | `SeedDemoActivity.Progress.cs` |
+
+### SeedDemoActivity — dữ liệu hoạt động người dùng demo (gọi SAU SeedSettingsAsync)
+
+| Bảng | Dữ liệu | Nguồn |
+|---|---|---|
+| Settings | xóa `allowed.email.domains` nếu còn (fix domain đăng ký) | `SeedDemoActivity.Students.cs` |
+| Users | +8 student `*@university.edu.vn` (PasswordHasher PBKDF2 thật, mật khẩu `Student@123`) | `SeedData.Students` |
+| Achievements | 10 huy hiệu | `SeedDemoActivity.Achievements.cs` |
+| UserAchievements | trao huy hiệu theo map từng student | `SeedDemoActivity.Achievements.cs` |
+| UserProgress / UserNodeProgress | tiến độ bài học + node lộ trình (CompletedAt/PassedAt khớp SubmittedAt) | `SeedDemoActivity.Progress.cs` |
+| ExerciseSubmissions | bài nộp MCQ/LAB/CODE cho 9 user | `SeedDemoActivity.Progress.cs` |
+| UserQuests | quest theo ngày (1-13 ngày hoạt động, "app phát hành 1 tháng") | `SeedDemoActivity.Activity.cs` |
+| GemTransactions | giao dịch gem (thưởng quest, mua item) | `SeedDemoActivity.Activity.cs` |
+| UserInventory | item trong kho | `SeedDemoActivity.Activity.cs` |
+| Favorites | bài học yêu thích | `SeedDemoActivity.Activity.cs` |
+| ContentFeedback | phản hồi nội dung | `SeedDemoActivity.Activity.cs` |
+| CodeSubmissions / BugReports | **CHỈ khi bảng trống** (có runtime → bỏ qua) | `SeedDemoActivity.Misc.cs` |
+| LessonNotes | ghi chú bài học | `SeedDemoActivity.Misc.cs` |
+| Classes / ClassMembers / ClassAssignments | 2 lớp học demo | `SeedDemoActivity.Class.cs` |
+
+### Bảng KHÔNG seed (dữ liệu runtime — SDD §7.5)
+
+- **NodeSessions, CodeRuns**: tạo runtime khi user vào node / nộp code chạy sandbox (`GamificationService.StartNodeSession`, `CodeRunnerService` — ADR-012) — seed session/benchmark giả không có ý nghĩa.
+- **RefreshTokens, OtpCodes, PasswordResetTokens**: auth runtime (`AuthService` tạo khi login/refresh/OTP/reset) — token/hash thật, seed giả vô nghĩa và rủi ro bảo mật.
+- **Ngoài ra**: trạng thái per-user phát sinh runtime khác (quest/streak tiếp diễn sau ngày seed, hearts, ...) không seed — SeedDemoActivity chỉ seed "câu chuyện" hoạt động 1 tháng đầu cho 9 user demo.
 
 Mô phỏng gắn bài: Bubble→`sort.bubble`; Binary→`search.binary`; Stack→`stack.push/pop/peek`; Linked List→`list.insert/traverse`; BST→`tree.bst-insert/inorder/search`; AVL→`tree.avl-insert`; Hash→`hash.insert/search`; BFS→`graph.bfs`.
 
@@ -100,6 +128,12 @@ Cấu hình exercise:
 - Users: theo `Email` (UNIQUE, lowercase). Topics: theo `Name` (gốc). Lessons: theo `(TopicId, Title)`.
 - LessonSimulations: theo `(LessonId, SimulationKey)`; Exercises: theo `(LessonId, Title)` + `DeletedAt = null`.
 - LearningPaths: theo `Title`; Nodes: theo `(PathId, Title)`; DailyQuests: `QuestKey`; ShopItems: `ItemKey`; Settings: `Key`.
+- **SeedDemoActivity**: cùng pattern guard → Add → SaveChanges → log; Users mới theo `Email`; các bảng KHÔNG unique (CodeSubmissions, BugReports, LessonNotes, ...) **chỉ seed khi bảng đang RỖNG** — đã có dữ liệu runtime → log bỏ qua, return.
+
+### Fix domain đăng ký — `allowed.email.domains` (quyết định user 13/08/2026)
+
+- Setting **`allowed.email.domains` KHÔNG còn được seed** (đã xóa khỏi `SeedData.Settings`).
+- Nếu DB cũ còn setting này, bước **`SeedCleanupSettingsAsync`** (bước đầu của SeedDemoActivity) **tự xóa** nó khỏi bảng `Settings` — kết quả: **mọi email đều đăng ký được** (bỏ chặn domain).
 
 ## Verify sau seed (golden data — SDD §7.5)
 
@@ -109,10 +143,32 @@ UNION ALL SELECT 'Lessons', COUNT(*) FROM Lessons UNION ALL SELECT 'LessonSimula
 UNION ALL SELECT 'Exercises', COUNT(*) FROM Exercises UNION ALL SELECT 'Questions', COUNT(*) FROM Questions
 UNION ALL SELECT 'LearningPaths', COUNT(*) FROM LearningPaths UNION ALL SELECT 'LearningPathNodes', COUNT(*) FROM LearningPathNodes
 UNION ALL SELECT 'DailyQuests', COUNT(*) FROM DailyQuests UNION ALL SELECT 'ShopItems', COUNT(*) FROM ShopItems
-UNION ALL SELECT 'Settings', COUNT(*) FROM Settings;
+UNION ALL SELECT 'Settings', COUNT(*) FROM Settings UNION ALL SELECT 'Achievements', COUNT(*) FROM Achievements
+UNION ALL SELECT 'UserAchievements', COUNT(*) FROM UserAchievements UNION ALL SELECT 'UserProgress', COUNT(*) FROM UserProgress
+UNION ALL SELECT 'UserNodeProgress', COUNT(*) FROM UserNodeProgress UNION ALL SELECT 'ExerciseSubmissions', COUNT(*) FROM ExerciseSubmissions
+UNION ALL SELECT 'UserQuests', COUNT(*) FROM UserQuests UNION ALL SELECT 'GemTransactions', COUNT(*) FROM GemTransactions
+UNION ALL SELECT 'UserInventory', COUNT(*) FROM UserInventory UNION ALL SELECT 'Favorites', COUNT(*) FROM Favorites
+UNION ALL SELECT 'ContentFeedback', COUNT(*) FROM ContentFeedback UNION ALL SELECT 'CodeSubmissions', COUNT(*) FROM CodeSubmissions
+UNION ALL SELECT 'BugReports', COUNT(*) FROM BugReports UNION ALL SELECT 'LessonNotes', COUNT(*) FROM LessonNotes
+UNION ALL SELECT 'Classes', COUNT(*) FROM Classes UNION ALL SELECT 'ClassMembers', COUNT(*) FROM ClassMembers
+UNION ALL SELECT 'ClassAssignments', COUNT(*) FROM ClassAssignments;
 ```
 
 Ngưỡng (bản chạy thật 2026-08-12): Users=3, Topics=5, Lessons=8, LessonSimulations=14, Exercises=29, Questions=76, LearningPaths=5, LearningPathNodes=18, DailyQuests=8, ShopItems=8, Settings=9.
+
+### Ngưỡng sau khi seed hoạt động demo (SeedDemoActivity — 2026-08-13)
+
+| Bảng | Ngưỡng | Bảng | Ngưỡng |
+|---|---|---|---|
+| Users | ≥ 9 | UserQuests | ≥ 20 |
+| Achievements | = 10 | GemTransactions | ≥ 30 |
+| UserAchievements | ≥ 10 | UserInventory | ≥ 7 |
+| UserProgress | ≥ 15 | Favorites | ≥ 10 |
+| UserNodeProgress | ≥ 20 | ContentFeedback | ≥ 5 |
+| ExerciseSubmissions | ≥ 30 | Classes | = 2 |
+| CodeSubmissions | ≥ 3 | ClassMembers | ≥ 10 |
+| BugReports | ≥ 2 | ClassAssignments | ≥ 6 |
+| LessonNotes | ≥ 2 | | |
 
 ## ⚠️ KHÔNG dùng `source/VisualizationDSA1/backend/seed-demo-course.sql`
 
@@ -121,4 +177,5 @@ File SQL cũ của V1 **KHÔNG được bê/dùng**: schema khác hẳn v2 (`Asp
 ## Trạng thái
 
 - `SeedData.cs` + `SeedRunner.cs`: **seed thật chạy được qua AppDbContext sau Migrate** (`--seed`), idempotent — đã chạy thật lên SQL Server docker local (xem ngưỡng ở trên).
+- `SeedDemoActivity` (skeleton + partial Students/Progress/Activity/Misc/Class): **đã nối vào SeedRunner** — gọi SAU `SeedSettingsAsync` (SEED-4), idempotent, chỉ seed hoạt động khi bảng trống (CodeSubmissions/BugReports) và tự xóa `allowed.email.domains` ở DB cũ.
 - 32 bài nguồn còn lại (ngoài 8 bài seed) → backlog GĐ2 (SDD §7.5): thêm Lessons/Exercises/Questions tương tự (SeedData + QuizSelection + CodeTestCases).
