@@ -33,12 +33,20 @@ svg {
   max-width: 100%;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
+/* Form control reset — đặt trong @layer base (H-E1 fix P1):
+   trước đây unlayered → thắng MỌI @layer của Tailwind (kể cả utilities) →
+   nút shadcn bg-primary/text-primary-foreground bị color: inherit
+   (chữ = --color-foreground trên nền primary, contrast 1.91:1 light /
+   2.09:1 dark — fail WCAG AA). Tailwind preflight đã có rule tương đương
+   trong base layer nên element KHÔNG có color utility không đổi hành vi. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 button {
