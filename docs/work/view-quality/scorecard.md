@@ -39,15 +39,15 @@
 
 | view | spacing(/8) | breakpoint(/6) | animation(/14) | thị-giác(/14) | interactive-sizing(/16) | typography(/10) | depth(/8) | a11y(/12) | code(/6) | performance(/6) | TỔNG hygiene(/100) | đặc-trưng(/10) | đạt/không-đạt | ưu tiên sửa |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| HomeView — `/` | | | | | | | | | | | | | | CAO |
-| LoginView — `/login` | | | | | | | | | | | | | | |
-| RegisterView — `/register` | | | | | | | | | | | | | | |
-| ForgotPasswordView — `/forgot-password` | | | | | | | | | | | | | | |
-| ResetPasswordView — `/reset-password` | | | | | | | | | | | | | | |
-| PrivacyView — `/privacy` | | | | | | | | | | | | | | |
-| HelpView — `/help` | | | | | | | | | | | | | | |
-| CheatSheetView — `/cheatsheet` | | | | | | | | | | | | | | |
-| SimulationsView — `/simulations` | | | | | | | | | | | | | | |
+| HomeView — `/` | 8 | 6 | 12.5 | 13 | 15 | 9.5 | 8 | 11.5 | 6 | 5.5 | 95 | 9 | ĐẠT | CAO |
+| LoginView — `/login` | 8 | 6 | 12 | 13 | 15 | 9.5 | 8 | 11.5 | 6 | 6 | 95 | 8 | ĐẠT | |
+| RegisterView — `/register` | 8 | 6 | 12 | 13 | 15 | 9.5 | 8 | 11.5 | 6 | 6 | 95 | 8 | ĐẠT | |
+| ForgotPasswordView — `/forgot-password` | 8 | 6 | 12 | 13 | 15 | 9.5 | 8 | 11.5 | 6 | 6 | 95 | 8 | ĐẠT | |
+| ResetPasswordView — `/reset-password` | 8 | 6 | 12 | 13 | 15 | 9.5 | 8 | 11.5 | 6 | 6 | 95 | 8 | ĐẠT | |
+| PrivacyView — `/privacy` | 8 | 6 | 11 | 13 | 15 | 10 | 7.5 | 11.5 | 6 | 6 | 94 | 7 | ĐẠT | |
+| HelpView — `/help` | 8 | 6 | 12 | 13.5 | 15 | 9.5 | 7.5 | 11.5 | 5.5 | 6 | 94.5 | 7 | ĐẠT | |
+| CheatSheetView — `/cheatsheet` | 8 | 6 | 12 | 13.5 | 15.5 | 9.5 | 7.5 | 11.5 | 6 | 6 | 94 | 9 | ĐẠT | |
+| SimulationsView — `/simulations` | 8 | 6 | 11.5 | 13.5 | 15.5 | 9.5 | 7.5 | 11 | 5.5 | 6 | 94 | 9 | ĐẠT | |
 | PathRedirectView — `/path` (redirect từ `/learn`) | | | | | | | | | | | | | | |
 | PathView — `/path/:topicId` | | | | | | | | | | | | | | CAO |
 | LessonView — `/learn/:lessonId` | | | | | | | | | | | | | | CAO |
@@ -73,7 +73,7 @@
 | AdminLadderView — `/admin/ladder` | | | | | | | | | | | | | | |
 | NodeHubView — `/path/:topicId/node/:nodeId` | | | | | | | | | | | | | | |
 | FinalTestView — `/path/:topicId/final-test` | | | | | | | | | | | | | | |
-| NotFoundView — `/:pathMatch(.*)*` (404) | | | | | | | | | | | | | | |
+| NotFoundView — `/:pathMatch(.*)*` (404) | 8 | 6 | 12 | 13.5 | 16 | 10 | 7.5 | 11.5 | 6 | 6 | 96.5 | 9 | ĐẠT | |
 | PlaceholderView — (chưa có route trỏ — standby, router comment "0 route trỏ PlaceholderView") | | | | | | | | | | | | | | |
 
 > Ghi chú: 36 view = 35 view có route thực tế trong `frontend/src/router/index.ts` + PlaceholderView (chưa route — giữ trong danh sách vì tồn tại trong `frontend/src/views/`; nếu Phase 1 không audit được trên UI thật thì ghi rõ "không audit được" ở nhật ký, không bỏ qua).

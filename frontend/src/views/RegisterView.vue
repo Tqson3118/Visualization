@@ -1,18 +1,32 @@
 <script setup lang="ts">
-// RegisterView — Màn 02 đăng ký: split layout đồng bộ LoginView (H-E1 polish:
-// brand aside gradient Aurora + form card, validation inline, checklist mật khẩu sống)
-// + segmented "Đăng ký với vai trò" (Sinh viên/Giảng viên — task L) + form con giảng viên
-// (Khoa/Bộ môn, Mã GV, Kinh nghiệm) + đồng ý chính sách. GIỮ nguyên logic validate/submit
-// + selector e2e (form.register__card, label.register__row, button.register__role-option).
+// RegisterView — Màn 02 đăng ký: split layout đồng bộ LoginView (brand aside + form card),
+// validation inline, checklist mật khẩu sống + segmented "Đăng ký với vai trò" + form con
+// giảng viên + đồng ý chính sách.
+// View-quality (nhóm A): aside tối canvas-ink (bỏ gradient/blob/glassmorphism), icon
+// lucide-vue-next, Motion easing chuẩn cubic-bezier, segmented vai trò qua Button.vue
+// (giữ selector e2e button.register__role-option), bỏ shadow shell/role-option.
+// GIỮ nguyên logic validate/submit + selector e2e.
 import { computed, reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { Motion } from 'motion-v';
+import {
+  BadgeCheck,
+  Building2,
+  Check,
+  CheckCircle2,
+  Circle,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  User,
+} from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/api/client';
 import { messages } from '@/i18n/vi';
 import { isValidEmail, validatePassword } from '@/utils/validators';
-import BaseIcon from '@/components/ui/BaseIcon.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 
@@ -141,9 +155,19 @@ async function onSubmit(): Promise<void> {
 }
 
 const BRAND_POINTS = [
-  { icon: 'sparkles', text: messages.auth.brandPoint1 },
-  { icon: 'target', text: messages.auth.brandPoint2 },
-  { icon: 'check-circle', text: messages.auth.brandPoint3 },
+  { icon: Sparkles, text: messages.auth.brandPoint1 },
+  { icon: Target, text: messages.auth.brandPoint2 },
+  { icon: CheckCircle2, text: messages.auth.brandPoint3 },
+] as const;
+
+/** Strip block-token trang trí (aria-hidden) — dấu vân tay Data Bench. */
+const BENCH_BLOCKS = [
+  { value: '7', state: 'done' },
+  { value: '3', state: 'swap' },
+  { value: '8', state: 'active' },
+  { value: '1', state: 'default' },
+  { value: '9', state: 'default' },
+  { value: '2', state: 'default' },
 ] as const;
 </script>
 
@@ -153,16 +177,29 @@ const BRAND_POINTS = [
       class="register__shell"
       :initial="{ opacity: 0, y: 12 }"
       :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.32, ease: 'easeOut' }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <!-- Brand panel: gradient Aurora + feature list (đồng bộ LoginView) -->
+      <!-- Brand panel: nền tối canvas-ink + block-token (KHÔNG gradient) -->
       <aside class="register__aside" aria-label="Giới thiệu DSA Visual">
         <div class="register__aside-inner">
           <span class="register__aside-badge">{{ messages.app.name }}</span>
           <h2 class="register__aside-title">{{ messages.app.tagline }}</h2>
+
+          <div class="register__aside-bench" aria-hidden="true">
+            <div
+              v-for="(b, idx) in BENCH_BLOCKS"
+              :key="b.value"
+              class="register__aside-block"
+              :class="`register__aside-block--${b.state}`"
+            >
+              <span class="register__aside-block-value">{{ b.value }}</span>
+              <span class="register__aside-block-index">{{ String(idx).padStart(2, '0') }}</span>
+            </div>
+          </div>
+
           <ul class="register__points">
-            <li v-for="point in BRAND_POINTS" :key="point.icon" class="register__point">
-              <BaseIcon :name="point.icon" :size="18" class="register__point-icon" />
+            <li v-for="point in BRAND_POINTS" :key="point.text" class="register__point">
+              <component :is="point.icon" :size="16" class="register__point-icon" aria-hidden="true" />
               <span>{{ point.text }}</span>
             </li>
           </ul>
@@ -171,12 +208,12 @@ const BRAND_POINTS = [
 
       <!-- Form đăng ký -->
       <div class="register__form-col">
-        <form class="register__card card" novalidate @submit.prevent="onSubmit">
-          <h1 class="register__title text-gradient-aurora">{{ messages.auth.registerTitle }}</h1>
-          <p class="register__subtitle text-muted">{{ messages.register.subtitle }}</p>
+        <form class="register__card" novalidate @submit.prevent="onSubmit">
+          <h1 class="register__title">{{ messages.auth.registerTitle }}</h1>
+          <p class="register__subtitle">{{ messages.register.subtitle }}</p>
 
           <div v-if="registeredTeacher" class="register__pending" role="status">
-            <BaseIcon name="shield" :size="24" class="register__pending-icon" />
+            <ShieldCheck :size="24" class="register__pending-icon" aria-hidden="true" />
             <div class="register__pending-body">
               <p class="register__pending-title">{{ messages.auth.teacherPendingSuccess }}</p>
               <p class="register__pending-desc">{{ messages.auth.teacherPendingNote }}</p>
@@ -190,7 +227,7 @@ const BRAND_POINTS = [
             <Input
               v-model="form.displayName"
               label="Họ tên"
-              icon="user"
+              :icon="User"
               :error="touched.displayName ? fieldErrors.displayName : ''"
               :placeholder="messages.register.displayNamePlaceholder"
               autocomplete="name"
@@ -202,7 +239,7 @@ const BRAND_POINTS = [
               v-model="form.email"
               label="Email"
               type="email"
-              icon="mail"
+              :icon="Mail"
               :error="touched.email ? fieldErrors.email : ''"
               :placeholder="messages.register.emailPlaceholder"
               autocomplete="email"
@@ -214,7 +251,7 @@ const BRAND_POINTS = [
               v-model="form.password"
               label="Mật khẩu"
               type="password"
-              icon="lock"
+              :icon="Lock"
               :error="touched.password ? fieldErrors.password : ''"
               :placeholder="messages.register.passwordPlaceholder"
               autocomplete="new-password"
@@ -229,7 +266,8 @@ const BRAND_POINTS = [
                 class="register__check"
                 :class="{ 'register__check--ok': rule.ok }"
               >
-                <span class="register__check-mark" aria-hidden="true">{{ rule.ok ? '✓' : '○' }}</span>
+                <Check v-if="rule.ok" :size="14" class="register__check-mark" aria-hidden="true" />
+                <Circle v-else :size="14" class="register__check-mark" aria-hidden="true" />
                 {{ rule.label }}
               </span>
             </div>
@@ -238,7 +276,7 @@ const BRAND_POINTS = [
               v-model="form.confirmPassword"
               label="Xác nhận mật khẩu"
               type="password"
-              icon="lock"
+              :icon="Lock"
               :error="touched.confirmPassword ? fieldErrors.confirmPassword : ''"
               :placeholder="messages.register.confirmPlaceholder"
               autocomplete="new-password"
@@ -247,19 +285,21 @@ const BRAND_POINTS = [
             />
 
             <fieldset class="register__role">
-              <legend class="label register__role-label">{{ messages.auth.roleLabel }}</legend>
+              <legend class="register__role-label">{{ messages.auth.roleLabel }}</legend>
               <div class="register__role-group">
-                <button
+                <Button
                   v-for="opt in roleOptions"
                   :key="opt.value"
                   type="button"
-                  :aria-pressed="role === opt.value"
+                  variant="ghost"
+                  size="sm"
                   class="register__role-option"
                   :class="{ 'register__role-option--active': role === opt.value }"
+                  :aria-pressed="role === opt.value"
                   @click="selectRole(opt.value)"
                 >
                   {{ opt.label }}
-                </button>
+                </Button>
               </div>
             </fieldset>
 
@@ -267,6 +307,7 @@ const BRAND_POINTS = [
               <Input
                 v-model="form.department"
                 :label="messages.auth.department"
+                :icon="Building2"
                 :error="touched.department ? fieldErrors.department : ''"
                 :placeholder="messages.auth.departmentPlaceholder"
                 autocomplete="organization"
@@ -278,6 +319,7 @@ const BRAND_POINTS = [
               <Input
                 v-model="form.staffCode"
                 :label="messages.auth.staffCode"
+                :icon="BadgeCheck"
                 :error="touched.staffCode ? fieldErrors.staffCode : ''"
                 :placeholder="messages.auth.staffCodePlaceholder"
                 autocomplete="off"
@@ -287,11 +329,11 @@ const BRAND_POINTS = [
               />
 
               <div class="register__field">
-                <label class="label" for="register-teacher-bio">{{ messages.auth.teacherBio }}</label>
+                <label class="register__field-label" for="register-teacher-bio">{{ messages.auth.teacherBio }}</label>
                 <textarea
                   id="register-teacher-bio"
                   v-model="form.teacherBio"
-                  class="input register__bio"
+                  class="register__bio"
                   :placeholder="messages.auth.teacherBioPlaceholder"
                   :maxlength="TEACHER_BIO_MAX"
                   :aria-invalid="Boolean(touched.teacherBio && fieldErrors.teacherBio)"
@@ -327,11 +369,11 @@ const BRAND_POINTS = [
               {{ submitError }}
             </p>
 
-            <Button type="submit" class="register__submit" :loading="submitting" block>
+            <Button type="submit" size="lg" class="register__submit" :loading="submitting" block>
               {{ messages.register.submit }}
             </Button>
 
-            <p class="text-muted register__switch">
+            <p class="register__switch">
               {{ messages.register.hasAccount }}
               <RouterLink :to="{ name: 'login' }">{{ messages.register.toLogin }}</RouterLink>
             </p>
@@ -351,63 +393,25 @@ const BRAND_POINTS = [
   padding: var(--space-lg);
 }
 
+/* Shell — elevation bằng surface + border (KHÔNG shadow, §6) */
 .register__shell {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   width: 100%;
   max-width: 940px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-xl);
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-card);
 }
 
-/* ── Brand panel ── */
+/* ── Brand panel — LUÔN tối (quyết định xuyên-nhóm 5) ── */
 .register__aside {
-  background-image: var(--gradient-aurora);
-  color: #fff;
+  background: var(--color-canvas-ink);
+  color: rgba(255, 255, 255, 0.92);
   padding: clamp(1.5rem, 4vw, 2.5rem);
   display: flex;
   align-items: center;
-  position: relative;
-  isolation: isolate;
-}
-
-/* GP-T9b (#8): dark mode gradient Aurora sáng → phủ lớp tối để chữ trắng ≥ 4.5:1. */
-.dark .register__aside {
-  background-image: linear-gradient(rgba(4, 47, 46, 0.62), rgba(4, 47, 46, 0.62)), var(--gradient-aurora);
-}
-
-.dark .register__aside::before,
-.dark .register__aside::after {
-  opacity: 0.12;
-}
-
-.register__aside::before,
-.register__aside::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(52px);
-  opacity: 0.45;
-  z-index: -1;
-}
-
-.register__aside::before {
-  width: 260px;
-  height: 260px;
-  background: rgba(255, 255, 255, 0.4);
-  top: -90px;
-  left: -70px;
-}
-
-.register__aside::after {
-  width: 220px;
-  height: 220px;
-  background: rgba(255, 255, 255, 0.3);
-  bottom: -80px;
-  right: -50px;
 }
 
 .register__aside-inner {
@@ -419,22 +423,62 @@ const BRAND_POINTS = [
 .register__aside-badge {
   display: inline-flex;
   width: fit-content;
-  padding: 4px 14px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(4px);
+  color: var(--color-index-muted);
 }
 
 .register__aside-title {
   font-size: var(--text-xl);
+  font-weight: 600;
   line-height: 1.35;
+  letter-spacing: -0.015em;
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Block-token strip — signature "dữ liệu được đánh số" */
+.register__aside-bench {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-block: var(--space-xs);
+}
+
+.register__aside-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 36px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+.register__aside-block--swap { background: var(--color-conflict); }
+.register__aside-block--done { background: var(--color-resolved); }
+.register__aside-block--active { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4); }
+
+.register__aside-block-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+}
+
+.register__aside-block-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-index-muted);
+  line-height: 1.4;
 }
 
 .register__points {
@@ -442,7 +486,7 @@ const BRAND_POINTS = [
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-top: var(--space-sm);
+  margin: 0;
 }
 
 .register__point {
@@ -450,13 +494,13 @@ const BRAND_POINTS = [
   align-items: flex-start;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .register__point-icon {
   margin-top: 2px;
   flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* ── Form ── */
@@ -473,20 +517,20 @@ const BRAND_POINTS = [
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  box-shadow: none;
-  border: none;
-  background: transparent;
-  padding: 0;
 }
 
 .register__title {
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   margin: 0;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-xs);
 }
 
 .register__subtitle {
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
   margin-bottom: var(--space-sm);
 }
 
@@ -494,9 +538,9 @@ const BRAND_POINTS = [
 .register__checklist {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 12px;
+  gap: var(--space-xs) var(--space-md);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-tertiary);
   padding-inline: var(--space-xs);
 }
 
@@ -507,54 +551,58 @@ const BRAND_POINTS = [
   white-space: nowrap;
 }
 
-/* GP-T9b: text ok dùng primary (≥ 4.5:1 cả 2 theme); dấu ✓ nhấn màu success */
+.register__check-mark {
+  color: var(--color-text-quaternary);
+  flex-shrink: 0;
+}
+
 .register__check--ok {
-  color: var(--color-primary);
-  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
 .register__check--ok .register__check-mark {
   color: var(--color-success);
 }
 
-/* ── Segmented chọn vai trò ── */
+/* ── Segmented chọn vai trò (Button ghost + active bg-card/border, không shadow) ── */
 .register__role {
   border: none;
   padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
 }
 
-.register__role-label { margin-bottom: 0; }
+.register__role-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xs);
+}
 
 .register__role-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-sm);
+  padding: var(--space-xs);
   background: var(--color-muted);
   border-radius: var(--radius-md);
 }
 
 .register__role-option {
-  padding: 0.5rem;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius-md) - 4px);
-  background: transparent;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
-  transition: var(--transition-fast);
+  color: var(--color-text-tertiary);
 }
 
-.register__role-option:hover { color: var(--color-primary); }
+.register__role-option:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-foreground);
+}
 
 .register__role-option--active {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
 }
 
 /* ── Form con giảng viên ── */
@@ -565,12 +613,29 @@ const BRAND_POINTS = [
   padding: var(--space-md);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+  background: var(--color-muted);
 }
 
 .register__field { display: flex; flex-direction: column; gap: var(--space-xs); }
 
-.register__bio { min-height: 96px; resize: vertical; line-height: 1.5; }
+.register__field-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.register__bio {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.5;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  background: var(--color-card);
+}
 
 .register__bio-meta {
   display: flex;
@@ -581,31 +646,33 @@ const BRAND_POINTS = [
 
 .register__bio-count {
   margin-left: auto;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
 }
 
-.register__note { font-size: var(--text-xs); color: var(--color-text-muted); }
+.register__note { font-size: var(--text-xs); color: var(--color-text-tertiary); margin: 0; }
 
 .register__row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
   cursor: pointer;
+  padding-block: var(--space-xs);
 }
 
 .register__row input[type='checkbox'] {
-  width: 1rem;
-  height: 1rem;
+  width: 1.125rem;
+  height: 1.125rem;
   accent-color: var(--color-primary);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .register__row a {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .register__error {
@@ -627,8 +694,9 @@ const BRAND_POINTS = [
 
 .register__switch {
   text-align: center;
-  margin-top: var(--space-md);
+  margin: 0;
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
 /* ── Pending teacher ── */
@@ -650,7 +718,7 @@ const BRAND_POINTS = [
 }
 
 .register__pending-title {
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: var(--space-xs);
 }
 
@@ -659,7 +727,7 @@ const BRAND_POINTS = [
 }
 
 .register__pending-link {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 @media (max-width: 820px) {
