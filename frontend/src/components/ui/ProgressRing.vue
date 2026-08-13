@@ -120,7 +120,7 @@ watch(
         stroke-linecap="round"
         :stroke-dasharray="circumference"
         :stroke-dashoffset="dashOffset"
-        transform="rotate(-90 50 50)"
+        :transform="`rotate(-90 ${size / 2} ${size / 2})`"
         class="ui-progress-ring__bar"
       />
     </svg>

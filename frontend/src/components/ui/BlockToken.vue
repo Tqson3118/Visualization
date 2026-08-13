@@ -103,8 +103,8 @@ const sizeClass = computed(() => {
 }
 
 @keyframes ui-blocktoken-pulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(66, 85, 255, 0); }
-  50% { box-shadow: 0 0 16px rgba(66, 85, 255, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 color-mix(in srgb, var(--color-data-core) 0%, transparent); }
+  50% { box-shadow: 0 0 16px color-mix(in srgb, var(--color-data-core) 35%, transparent); }
 }
 
 @media (prefers-reduced-motion: reduce) {
