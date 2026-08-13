@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // ClassesView — Màn 19: danh sách lớp + nhập mã mời 6 ký tự + tạo lớp (Teacher)
-// H-C: hero gradient Sunset (vùng học tập) + Card shadcn + invite-code chip + modal giữ logic.
+// View-quality Phase 1 (Nhóm D): banner = surface band level-2 + mono strip
+// block-token dữ liệu thật (DESIGN §1/#1); card level-1 không shadow (hover chỉ
+// đổi border); mã mời = block-token tối canvas-ink (quyết định #4/#5).
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { GraduationCap, KeyRound, Plus, Users } from 'lucide-vue-next';
@@ -34,7 +36,21 @@ const creating = ref(false);
 
 const isTeacher = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
-const isManagerOf = (cls: ClassDto): boolean => cls.role === 'OWNER' || cls.role === 'TEACHER';
+/** API list KHÔNG trả `role` (chỉ OwnerId — ClassService.ToDto) → tính từ owner. */
+const isManagerOf = (cls: ClassDto): boolean => cls.ownerId === auth.user?.id || auth.role === 'ADMIN';
+
+/** Strip banner: block-token dữ liệu thật — số lớp (tối đa 5 block) + index mono. */
+const stripBlocks = computed<boolean[]>(() => {
+  const count = Math.min(classStore.classes.length, 5);
+  const size = Math.max(count, 1);
+  return Array.from({ length: size }, (_, i) => i < count);
+});
+
+const stripLabel = computed(() => {
+  const total = classStore.classes.length;
+  const members = classStore.classes.reduce((sum, cls) => sum + cls.memberCount, 0);
+  return messages.classes.stripLabel(total, members);
+});
 
 onMounted(async () => {
   try {
@@ -49,6 +65,10 @@ onMounted(async () => {
 /** Chuẩn hóa mã mời: viết hoa + chỉ A-Z0-9 + tối đa 6 ký tự (UX: nhập sai tự sửa). */
 function onInviteInput(value: string): void {
   inviteCode.value = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+function goDetail(id: number): void {
+  void router.push({ name: 'class-detail', params: { id: String(id) } });
 }
 
 async function join(): Promise<void> {
@@ -88,20 +108,43 @@ async function createClass(): Promise<void> {
 
 <template>
   <main class="classes container">
-    <!-- Hero gradient Sunset (vùng học tập — cùng pattern LessonView) -->
+    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="classes__hero">
-      <div class="classes__hero-badges">
-        <Badge variant="primary">{{ messages.classes.badge }}</Badge>
-      </div>
-      <h1 class="classes__hero-title">{{ messages.classes.title }}</h1>
-      <p class="classes__hero-desc">{{ messages.classes.subtitle }}</p>
-      <div class="classes__hero-actions">
-        <Button v-if="isTeacher" size="md" @click="createOpen = true">
-          <Plus :size="16" aria-hidden="true" /> {{ messages.classes.createBtn }}
-        </Button>
-        <Button v-else size="md" @click="joinOpen = true">
-          <KeyRound :size="16" aria-hidden="true" /> {{ messages.classes.joinBtn }}
-        </Button>
+      <div class="classes__hero-inner">
+        <div class="classes__hero-main">
+          <div class="classes__hero-badges">
+            <Badge variant="primary">{{ messages.classes.badge }}</Badge>
+          </div>
+          <h1 class="classes__hero-title">{{ messages.classes.title }}</h1>
+          <p class="classes__hero-desc">{{ messages.classes.subtitle }}</p>
+          <div class="classes__hero-actions">
+            <Button v-if="isTeacher" size="lg" @click="createOpen = true">
+              <Plus :size="16" aria-hidden="true" /> {{ messages.classes.createBtn }}
+            </Button>
+            <Button v-else size="lg" @click="joinOpen = true">
+              <KeyRound :size="16" aria-hidden="true" /> {{ messages.classes.joinBtn }}
+            </Button>
+          </div>
+        </div>
+
+        <!-- Mono strip: block-token dữ liệu thật (số lớp) + index mono (quyết định #4) -->
+        <div class="classes__hero-strip" aria-hidden="true">
+          <div class="classes__strip-panel">
+            <div class="classes__strip-blocks">
+              <span
+                v-for="(filled, i) in stripBlocks"
+                :key="i"
+                class="classes__strip-block"
+                :class="{ 'classes__strip-block--empty': !filled }"
+                :style="{ '--i': i }"
+              />
+            </div>
+            <div class="classes__strip-index">
+              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
+            </div>
+          </div>
+          <p class="classes__strip-caption">{{ stripLabel }}</p>
+        </div>
       </div>
     </header>
 
@@ -124,17 +167,18 @@ async function createClass(): Promise<void> {
       <Card
         v-for="cls in classStore.classes"
         :key="cls.id"
-        class="classes__card hover-lift"
+        class="classes__card"
         role="button"
         tabindex="0"
         :aria-label="cls.name"
-        @click="router.push({ name: 'class-detail', params: { id: String(cls.id) } })"
-        @keydown.enter="router.push({ name: 'class-detail', params: { id: String(cls.id) } })"
+        @click="goDetail(cls.id)"
+        @keydown.enter="goDetail(cls.id)"
+        @keydown.space.prevent="goDetail(cls.id)"
       >
         <div class="classes__card-head">
           <span class="classes__card-icon" aria-hidden="true"><GraduationCap :size="18" /></span>
           <div class="classes__card-meta">
-            <h2 class="classes__card-name">{{ cls.name }}</h2>
+            <h3 class="classes__card-name">{{ cls.name }}</h3>
             <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
           </div>
           <Badge :variant="isManagerOf(cls) ? 'primary' : 'muted'">
@@ -146,6 +190,7 @@ async function createClass(): Promise<void> {
             <Users :size="13" aria-hidden="true" />
             {{ messages.classes.members(cls.memberCount) }}
           </span>
+          <!-- Mã mời = block-token tối (dữ liệu tuần tự — quyết định #4/#5) -->
           <span v-if="isManagerOf(cls)" class="classes__invite-chip" :title="messages.classes.inviteLabel">
             <KeyRound :size="12" aria-hidden="true" />
             <code>{{ cls.inviteCode }}</code>
@@ -204,43 +249,43 @@ async function createClass(): Promise<void> {
   gap: var(--space-lg);
 }
 
-/* ── Hero gradient Sunset (cùng pattern LessonView — GP-T9b dark overlay) ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .classes__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--card-raised);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.classes__hero-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.classes__hero-main {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  padding: var(--space-xl);
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-sunset);
-  color: #fff;
-  box-shadow: var(--shadow-lg);
-}
-
-.classes__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 55%);
-}
-
-.dark .classes__hero::after {
-  background: rgba(4, 47, 46, 0.62);
+  min-width: 0;
+  flex: 1 1 320px;
 }
 
 .classes__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .classes__hero-title {
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  color: var(--foreground);
 }
 
 .classes__hero-desc {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--foreground-secondary);
   font-size: var(--text-sm);
   max-width: 60ch;
   margin: 0;
@@ -254,6 +299,80 @@ async function createClass(): Promise<void> {
   margin-top: var(--space-sm);
 }
 
+/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
+.classes__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.classes__strip-panel {
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.classes__strip-blocks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.classes__strip-block {
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--data-core);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: classes-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i) * 45ms + 60ms);
+}
+
+.classes__strip-block--empty {
+  background: transparent;
+  border: 1px dashed var(--data-core);
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.classes__strip-index {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.classes__strip-index span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--index-muted);
+  text-align: center;
+}
+
+.classes__strip-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+
+@keyframes classes-strip-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .classes__strip-block {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ── Loading ── */
 .classes__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
@@ -264,6 +383,7 @@ async function createClass(): Promise<void> {
   gap: var(--space-md);
 }
 
+/* Card level-1: hover chỉ đổi border → strong (DESIGN §6 — cấm shadow) */
 .classes__card {
   display: flex;
   flex-direction: column;
@@ -271,6 +391,15 @@ async function createClass(): Promise<void> {
   padding: var(--space-lg);
   cursor: pointer;
   min-width: 0;
+  border-color: var(--border);
+  transition: border-color 150ms;
+}
+
+.classes__card:hover { border-color: var(--border-strong); }
+
+.classes__card:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .classes__card-head { display: flex; align-items: flex-start; gap: var(--space-sm); min-width: 0; }
@@ -279,19 +408,21 @@ async function createClass(): Promise<void> {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background-image: var(--gradient-sunset);
-  color: var(--color-on-primary);
+  background: var(--muted);
+  color: var(--foreground-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
-.classes__card-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.classes__card-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .classes__card-name {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -299,7 +430,7 @@ async function createClass(): Promise<void> {
 
 .classes__card-desc {
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--foreground-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -312,34 +443,35 @@ async function createClass(): Promise<void> {
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
-  border-top: 1px dashed var(--color-border);
+  border-top: 1px solid var(--border);
   padding-top: var(--space-sm);
 }
 
 .classes__card-stat {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--foreground-tertiary);
   white-space: nowrap;
 }
 
-/* ── Invite-code chip (signature của nhóm màn lớp học) ── */
+/* ── Invite-code chip: block-token tối (signature Data Bench — quyết định #4/#5) ── */
 .classes__invite-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 3px 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
-  border: 1px dashed color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  color: var(--color-primary);
+  border: 1px solid rgba(66, 85, 255, 0.3);
+  background: var(--canvas-ink);
+  color: var(--resolved);
   white-space: nowrap;
+  min-height: 24px;
 }
 
 /* ── Modal ── */
@@ -354,5 +486,7 @@ async function createClass(): Promise<void> {
 
 @media (max-width: 640px) {
   .classes__hero { padding: var(--space-lg); }
+  .classes__hero-strip { flex-basis: 100%; }
+  .classes__strip-caption { text-align: left; }
 }
 </style>

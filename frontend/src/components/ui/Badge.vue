@@ -16,7 +16,6 @@ const props = withDefaults(
 );
 
 const classes = computed(() => {
-  // View-quality (decision log 2026-08-13): min-h-6 — badge height ≥ 24px (trục 5f)
   const base = 'inline-flex min-h-6 items-center gap-1 whitespace-nowrap';
   switch (props.variant) {
     case 'primary':

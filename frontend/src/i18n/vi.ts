@@ -290,7 +290,9 @@ export const messages = {
       lock: 'Khóa',
       unlock: 'Mở khóa',
       emptyTitle: 'Không có người dùng phù hợp',
+      emptyTitleDesc: 'Thử xóa bộ lọc hoặc tìm từ khóa khác.',
       emptyPending: 'Không có tài khoản chờ duyệt',
+      emptyPendingDesc: 'Khi giảng viên đăng ký, hồ sơ chờ duyệt sẽ xuất hiện ở đây.',
       approveTitle: 'Duyệt giảng viên',
       rejectTitle: 'Từ chối giảng viên',
       rejectReasonLabel: 'Lý do từ chối (bắt buộc)',
@@ -298,6 +300,10 @@ export const messages = {
       cancel: 'Hủy',
       confirmApprove: 'Xác nhận duyệt',
       confirmReject: 'Xác nhận từ chối',
+      // View-quality: strip block-token banner + error state
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỜ DUYỆT`,
+      loadError: 'Không thể tải danh sách người dùng.',
+      retry: 'Thử lại',
       // Task L — thông tin đăng ký GV hiển thị trong modal duyệt
       reviewTeacherInfo: 'Thông tin giảng viên',
       department: 'Khoa/Bộ môn',
@@ -320,6 +326,8 @@ export const messages = {
       noteSimsSuffix: '(engines/catalog)',
       noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
       loadError: 'Không thể tải thống kê.',
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỈ SỐ THEO DÕI`,
+      retry: 'Thử lại',
     },
     settings: {
       title: 'Cấu hình hệ thống',
@@ -340,6 +348,7 @@ export const messages = {
       save: 'Lưu cấu hình',
       loadError: 'Không thể tải cấu hình (backend chưa khả dụng — hiển thị mặc định).',
       saved: 'Đã lưu cấu hình hệ thống.',
+      retry: 'Thử lại',
     },
     content: {
       title: 'Quản trị nội dung',
@@ -357,7 +366,7 @@ export const messages = {
       colTopic: 'Chủ đề',
       colStatus: 'Trạng thái',
       colSim: 'Mô phỏng',
-      colCreated: 'Ngày tạo',
+      colIndex: '#',
       colActions: 'Thao tác',
       edit: 'Sửa',
       delete: 'Xóa',
@@ -381,6 +390,10 @@ export const messages = {
       cancel: 'Hủy',
       save: 'Lưu',
       create: 'Tạo',
+      // View-quality: strip block-token banner + error state
+      stripLabel: (lessons: number, topics: number) =>
+        `${String(lessons).padStart(2, '0')} BÀI · ${String(topics).padStart(2, '0')} CHỦ ĐỀ`,
+      retry: 'Thử lại',
     },
     ladder: {
       title: 'Soạn Ladder (node)',
@@ -397,6 +410,7 @@ export const messages = {
       emptyTitle: 'Chưa có bài tập',
       emptyDesc: 'Tạo bài tập ở backend/admin API (POST /exercises) trước.',
       attachBtn: 'Gắn exercise vào node',
+      retry: 'Thử lại',
     },
   },
 
@@ -417,6 +431,9 @@ export const messages = {
     noDescription: 'Chưa có mô tả',
     members: (n: number) => `${n} thành viên`,
     inviteLabel: 'Mã mời',
+    // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
+    stripLabel: (total: number, members: number) =>
+      `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,
     // Modal tham gia lớp
     joinTitle: 'Tham gia lớp',
     joinCodeLabel: 'Mã mời (6 ký tự)',
@@ -499,12 +516,16 @@ export const messages = {
     reportKpiCompletion: 'Hoàn thành',
     reportKpiAvgScore: 'Điểm TB',
     reportKpiSubmissions: 'Bài nộp',
-    reportColStudent: 'Sinh viên',
-    reportColViewed: 'Đã xem',
-    reportColSims: 'Mô phỏng',
-    reportColExercises: 'Bài tập',
-    reportColBest: 'Điểm cao nhất',
+    reportKpiAssignments: 'Bài gán',
+    reportColContent: 'Nội dung',
+    reportColOnTime: 'Đúng hạn',
+    reportColLate: 'Trễ',
+    reportColNotSubmitted: 'Chưa nộp',
+    reportColBest: 'Điểm TB',
     reportColStatus: 'Trạng thái',
+    reportLaggingTitle: 'Học viên chậm tiến độ',
+    reportLaggingEmpty: 'Không có học viên nào chậm tiến độ',
+    reportLaggingMissing: (n: number) => `THIẾU ${String(n).padStart(2, '0')}`,
     reportEmptyTitle: 'Không có dữ liệu báo cáo',
     reportEmptyDesc: 'Lớp chưa có dữ liệu học tập — hãy gán lộ trình cho lớp trước.',
     reportBackDetail: 'Về chi tiết lớp',
