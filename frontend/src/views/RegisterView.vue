@@ -309,7 +309,7 @@ const BRAND_POINTS = [
   width: fit-content;
   padding: 4px 14px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.45);
   font-size: var(--text-xs);
   font-weight: 800;
