@@ -1,0 +1,50 @@
+### Bố cục Trang:
+- **Tiêu đề**: "Đăng ký với vai trò"
+- **Form đăng ký**:
+  - **Mật khẩu**: Khu vực nhập mật khẩu.
+  - **Vai trò**: Chọn giữa "Sinh viên" và "Giảng viên".
+  - **Khoa/Bộ môn**: Khu vực nhập mã khoa/bộ môn.
+  - **Mã giảng viên**: Khu vực nhập mã giảng viên.
+  - **Kinh nghiệm giảng dạy**: Khu vực nhập mô tả kinh nghiệm giảng dạy.
+- **Nút đăng ký và đăng nhập**:
+  - **Đăng ký**: Nút màu xanh.
+  - **Đăng nhập ngay**: Nút màu vàng.
+
+### Màu sắc:
+- Mùa chủ đạo: Xanh lá cây, màu trắng nền.
+
+### Lỗi Hiển Thị:
+1. **Khoa/Bộ môn và Mã giảng viên bỏ trống**:
+   - **Lỗi đỏ hiện dưới field**.
+   
+2. **Chữ nhỏ khó đọc**:
+   - Khu vực nhập mã khoa/bộ môn và mã giảng viên có kích thước chữ quá nhỏ.
+
+3. **Cắt chữ**:
+   - Khu vực nhập mã khoa/bộ môn có phần chữ bị cắt ở giữa.
+
+### Chấm 7 tiêu chí:
+
+#### UI-1 Thẩm mỹ (màu sắc hài hòa, không chói/mờ, không nhàm):
+X/5 - Nhận xét: Màu xanh lá cây và trắng nền không gây mỏi mắt. Gợi ý: Sử dụng màu trắng nền để tăng độ tương phản.
+
+#### UI-2 Nhất quán (spacing/bo góc/typography/màu đồng bộ):
+X/5 - Nhận xét: Không có sự đồng nhất trong khoảng cách và màu sắc. Gợi ý: Điều chỉnh khoảng cách giữa các phần tử để tạo sự đồng nhất.
+
+#### UI-3 Rõ ràng (hierarchy tiêu đề/body/nút, không chồng lấn, không cắt chữ):
+X/5 - Nhận xét: Khu vực nhập mã khoa/bộ môn và mã giảng viên bị cắt ở giữa. Gợi ý: Điều chỉnh kích thước font để không bị cắt.
+
+#### UI-4 Phản hồi trực quan (hover/focus/loading/empty state, thông báo lỗi rõ):
+X/5 - Nhận xét: Không có phản hồi trực quan như hover hoặc focus. Gợi ý: Thêm phản hồi trực quan cho các field để tăng tính tương tác.
+
+#### UX-5 Luồng thao tác (thao tác chính dễ tìm, ít bước, không bế tắc):
+X/5 - Nhận xét: Có quá nhiều bước để hoàn thành form. Gợi ý: Tăng cường việc sắp xếp các bước đăng ký để giảm thiểu thời gian chờ đợi.
+
+#### UX-6 Khả năng tiếp cận (contrast text, kích thước chạm, label rõ, focus ring):
+X/5 - Nhận xét: Kích thước chữ nhỏ và không có focus ring. Gợi ý: Điều chỉnh kích thước font và thêm focus ring cho các field để tăng khả năng tiếp cận.
+
+#### UX-7 Độ thỏa mãn (cảm giác muốn dùng tiếp, điểm wow):
+X/5 - Nhận xét: Không có điểm wow trong thiết kế. Gợi ý: Thêm một số điểm wow như hình ảnh minh họa hoặc thông báo tích cực khi đăng ký thành công để tăng cảm giác hài lòng.
+
+### Kết luận:
+Trang đăng ký với vai trò giảng viên cần được cải thiện về mặt thẩm mỹ, nhất quán, rõ ràng và khả năng tiếp cận. Điều chỉnh các lỗi hiển thị và cải tiến thiết kế sẽ giúp tăng cường trải nghiệm người dùng.

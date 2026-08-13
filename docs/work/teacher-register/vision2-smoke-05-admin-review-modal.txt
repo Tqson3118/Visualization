@@ -1,0 +1,9 @@
+TÓM TẮT: Trang web hiển thị thông tin giảng viên đang chờ duyệt trong tab "Chờ duyệt Teacher". Modal "Duyệt giảng viên" hiện thông tin giảng viên, bao gồm Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy. Có nút Xác nhận duyệt/Từ chối.
+
+UI-1 Thẩm mỹ: 2/5 - Trang web có màu sắc tương phản tốt nhưng không rõ ràng về độ sáng tối. | Gợi ý: Tăng cường độ sáng tối để tăng tính tương phản.
+UI-2 Nhất quán: 3/5 - Các phần tử trên trang web được sắp xếp một cách hợp lý, nhưng không đồng nhất hoàn toàn trong kích thước và màu sắc. | Gợi ý: Đánh giá lại màu sắc và kích thước của các phần tử để đảm bảo sự nhất quán.
+UI-3 Rõ ràng: 4/5 - Thông tin giảng viên rõ ràng và dễ đọc, dù có một số khoảng trống nhỏ giữa các phần tử. | Gợi ý: Kiểm tra độ rộng của khoảng trống để đảm bảo không gây khó đọc.
+UI-4 Phản hồi trực quan: 3/5 - Nút Xác nhận duyệt/Từ chối có màu sắc tương phản tốt, nhưng không rõ ràng về kích thước và vị trí. | Gợi ý: Đánh giá lại kích thước và vị trí của nút để đảm bảo tính phản hồi.
+UX-5 Luồng thao tác: 4/5 - Luồng thao tác rõ ràng với các bước duyệt thông tin giảng viên, nhưng có một số khoảng trống nhỏ giữa các phần tử. | Gợi ý: Kiểm tra độ rộng của khoảng trống để đảm bảo không gây khó đọc.
+UX-6 Tiếp cận: 3/5 - Trang web có giao diện dễ tiếp cận, nhưng cần cải thiện sự đồng nhất trong màu sắc và kích thước. | Gợi ý: Đánh giá lại màu sắc và kích thước để tăng tính tương phản.
+UX-7 Thỏa mãn: 2/5 - Trang web cung cấp thông tin rõ ràng về giảng viên đang chờ duyệt, nhưng không có thông báo rõ ràng về trạng thái của việc duyệt. | Gợi ý: Tăng cường thông báo trạng thái duyệt để tăng sự tham gia của người dùng.

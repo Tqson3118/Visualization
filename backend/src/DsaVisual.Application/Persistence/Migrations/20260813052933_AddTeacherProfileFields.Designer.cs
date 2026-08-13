@@ -4,6 +4,7 @@ using DsaVisual.Application.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DsaVisual.Application.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813052933_AddTeacherProfileFields")]
+    partial class AddTeacherProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -280,21 +283,12 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ClientRequestId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ExerciseId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("IsClientDeclared")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
 
                     b.Property<int>("PassedTests")
                         .HasColumnType("int");
@@ -318,11 +312,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ExerciseId");
-
-                    b.HasIndex("UserId", "ExerciseId", "ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_CodeSubmissions_User_Exercise_ClientRequestId")
-                        .HasFilter("[ClientRequestId] IS NOT NULL");
 
                     b.HasIndex("UserId", "ExerciseId", "SubmittedAt");
 
@@ -471,10 +460,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.HasIndex("LessonId");
 
-                    b.HasIndex("LessonId", "Title")
-                        .IsUnique()
-                        .HasFilter("[DeletedAt] IS NULL");
-
                     b.HasIndex("NodeId", "Stage");
 
                     b.ToTable("Exercises", (string)null);
@@ -494,10 +479,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<int?>("ClassAssignmentId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ClientRequestId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
 
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("int");
@@ -525,11 +506,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.HasIndex("ExerciseId");
 
                     b.HasIndex("UserId", "ExerciseId", "SubmittedAt");
-
-                    b.HasIndex("UserId", "ExerciseId", "ClassAssignmentId", "ClientRequestId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_ExerciseSubmissions_User_Exercise_Assignment_ClientRequestId")
-                        .HasFilter("[ClientRequestId] IS NOT NULL");
 
                     b.ToTable("ExerciseSubmissions", (string)null);
                 });
@@ -635,9 +611,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.HasIndex("CreatedBy");
 
-                    b.HasIndex("Title")
-                        .IsUnique();
-
                     b.HasIndex("TopicId");
 
                     b.ToTable("LearningPaths", (string)null);
@@ -675,9 +648,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.HasIndex("LessonId");
 
                     b.HasIndex("PathId", "SortOrder")
-                        .IsUnique();
-
-                    b.HasIndex("PathId", "Title")
                         .IsUnique();
 
                     b.ToTable("LearningPathNodes", (string)null);
@@ -740,10 +710,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.HasIndex("CreatedBy", "Status");
 
-                    b.HasIndex("TopicId", "Title")
-                        .IsUnique()
-                        .HasFilter("[DeletedAt] IS NULL");
-
                     b.ToTable("Lessons", (string)null);
                 });
 
@@ -794,8 +760,7 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<string>("SimulationKey")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
@@ -806,10 +771,9 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LessonId", "SimulationKey")
-                        .IsUnique();
+                    b.HasIndex("LessonId");
 
-                    b.ToTable("LessonSimulations", (string)null);
+                    b.ToTable("LessonSimulations");
                 });
 
             modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.NodeSession", b =>
@@ -825,11 +789,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<int>("NodeId")
                         .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<int?>("Stage")
                         .HasColumnType("int");
@@ -950,11 +909,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.Property<string>("PlanId")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
@@ -1287,11 +1241,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("StaffCode")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1323,12 +1272,7 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("LastActivityDate");
-
                     b.HasIndex("PremiumUntil");
-
-                    b.HasIndex("Xp")
-                        .HasFilter("[DeletedAt] IS NULL");
 
                     b.HasIndex("Role", "IsActive");
 
@@ -1391,11 +1335,6 @@ namespace DsaVisual.Application.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(1);
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -1425,11 +1364,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<DateTime?>("PassedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<int>("Stars")
                         .HasColumnType("int");
@@ -1472,11 +1406,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<int>("LessonId")
                         .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<int>("SimulationCount")
                         .HasColumnType("int");
@@ -1523,11 +1452,6 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     b.Property<int>("QuestId")
                         .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");

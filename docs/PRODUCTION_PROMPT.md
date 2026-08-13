@@ -343,10 +343,10 @@ Hệ thống DSA-Visual giải quyết bằng: (a) mô phỏng hoạt ảnh từ
 ## 3.1 Module A — Xác thực và tài khoản
 
 ### FR-1.1 | Đăng ký tài khoản | Cao
-- **Mô tả**: Người dùng đăng ký bằng email + mật khẩu. Vai trò mặc định `Student`. Tài khoản được kích hoạt ngay (hoặc theo chính sách duyệt — cấu hình, mặc định kích hoạt ngay).
-- **Luồng**: (1) Nhập họ tên, email, mật khẩu, xác nhận mật khẩu, (2) chọn/không chọn "Tôi là giảng viên" (đánh dấu yêu cầu Admin duyệt — FR-1.8), (3) hệ thống kiểm tra trùng email, (4) tạo tài khoản, mã hóa mật khẩu, (5) hiển thị thông báo thành công, tự động đăng nhập.
-- **Ngoại lệ**: Email trùng → lỗi "Email đã được sử dụng" (400, mã EMAIL_EXISTS). Mật khẩu không đạt chính sách → liệt kê lỗi cụ thể. Email sai định dạng → 400.
-- **Tiêu chí chấp nhận**: Tạo được tài khoản mới; mật khẩu lưu là hash (không phải plaintext); tài khoản mới có thể đăng nhập ngay.
+- **Mô tả**: Người dùng đăng ký bằng email + mật khẩu. Vai trò mặc định `Student`. Tài khoản được kích hoạt ngay (hoặc theo chính sách duyệt — cấu hình, mặc định kích hoạt ngay). Đăng ký theo vai trò bằng nút chuyển (segmented) **Sinh viên/Giảng viên** (mặc định Sinh viên — task L).
+- **Luồng**: (1) Nhập họ tên, email, mật khẩu, xác nhận mật khẩu, (2) chọn vai trò Sinh viên/Giảng viên — chọn **Giảng viên** → điền form con 3 trường: **Khoa/Bộ môn** (`department`, bắt buộc), **Mã giảng viên** (`staffCode`, bắt buộc), **Kinh nghiệm giảng dạy** (`teacherBio`, ≤ 500 ký tự, không bắt buộc) — đánh dấu yêu cầu Admin duyệt (FR-1.8), (3) hệ thống kiểm tra trùng email, (4) tạo tài khoản, mã hóa mật khẩu, lưu 3 trường giảng viên (chỉ khi chọn Giảng viên), (5) hiển thị thông báo thành công: Sinh viên → tự động đăng nhập; Giảng viên → màn hình chờ duyệt + link "Về đăng nhập".
+- **Ngoại lệ**: Email trùng → lỗi "Email đã được sử dụng" (400, mã EMAIL_EXISTS). Mật khẩu không đạt chính sách → liệt kê lỗi cụ thể. Email sai định dạng → 400. Chọn Giảng viên thiếu `department`/`staffCode` hoặc `teacherBio` > 500 → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (details từng trường; dùng lại mã có sẵn, KHÔNG thêm ErrorCode mới — task L).
+- **Tiêu chí chấp nhận**: Tạo được tài khoản mới; mật khẩu lưu là hash (không phải plaintext); tài khoản mới có thể đăng nhập ngay; đăng ký Giảng viên thiếu thông tin → 400 không tạo tài khoản.
 
 ### FR-1.2 | Đăng nhập | Cao
 - **Mô tả**: Đăng nhập bằng email + mật khẩu, nhận JWT access token + refresh token.
@@ -1186,9 +1186,9 @@ Hệ thống DSA-Visual giải quyết bằng: (a) mô phỏng hoạt ảnh từ
   - Người học → SPA: nhấn nút điều khiển → SPA: xử lý state machine
 
 ## UC-02 | Tạo tài khoản | Nguồn: FR-1.1, FR-1.8
-- **Luồng chính**: (1) vào trang đăng ký, (2) nhập thông tin + đồng ý chính sách, (3) hệ thống kiểm tra và tạo tài khoản Student (hoặc Teacher chờ duyệt), (4) tự động đăng nhập → trang chủ.
-- **Luồng thay thế**: 3a. chọn "Tôi là giảng viên" → tài khoản TeacherPending, hiện thông báo "Chờ quản trị viên duyệt".
-- **Ngoại lệ**: email trùng; mật khẩu yếu; email domain không được phép (nếu bật chính sách domain).
+- **Luồng chính**: (1) vào trang đăng ký, (2) nhập thông tin + đồng ý chính sách, (3) chọn vai trò Sinh viên/Giảng viên (mặc định Sinh viên — task L); chọn Giảng viên → điền form con: Khoa/Bộ môn + Mã giảng viên (bắt buộc) + Kinh nghiệm giảng dạy (≤ 500 ký tự), (4) hệ thống kiểm tra và tạo tài khoản Student (hoặc Teacher chờ duyệt), (5) tự động đăng nhập → trang chủ (Giảng viên → màn hình chờ duyệt + link "Về đăng nhập").
+- **Luồng thay thế**: 3a. chọn vai trò "Giảng viên" → tài khoản TeacherPending, hiện thông báo "Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt".
+- **Ngoại lệ**: email trùng; mật khẩu yếu; email domain không được phép (nếu bật chính sách domain); chọn Giảng viên thiếu Khoa/Bộ môn/Mã giảng viên hoặc Kinh nghiệm > 500 ký tự → 400 `VALIDATION_FAILED`.
 - **Tiêu chí chấp nhận**: FR-1.1, FR-1.8 PASS.
 
 ## UC-03 | Đăng nhập và duy trì phiên | Nguồn: FR-1.2, FR-1.3, FR-1.4
@@ -1433,7 +1433,7 @@ graph LR
 
 ### Màn 02 — Đăng nhập / Đăng ký (`/login`, `/register`)
 - Form trung tâm (max-width 420px), validation inline khi blur, thông báo lỗi dưới từng trường.
-- Đăng ký: tên, email, mật khẩu (có icon mắt), xác nhận mật khẩu, checkbox "Tôi là giảng viên", checkbox đồng ý chính sách (bắt buộc).
+- Đăng ký: tên, email, mật khẩu (có icon mắt), xác nhận mật khẩu, segmented chọn vai trò "Đăng ký với vai trò" (Sinh viên mặc định / Giảng viên) + form con giảng viên (Khoa/Bộ môn, Mã giảng viên — bắt buộc; Kinh nghiệm giảng dạy ≤ 500 ký tự + bộ đếm; ghi chú "Thông tin sẽ được Admin xét duyệt"), checkbox đồng ý chính sách (bắt buộc) — task L.
 - Yêu cầu mật khẩu hiển thị dạng checklist sống (đủ dài, chữ hoa, số, ký tự đặc biệt).
 - Liên kết quên mật khẩu.
 
@@ -2834,6 +2834,9 @@ Dijkstra(s): d[s] ← 0; d[v] ← ∞; PQ chứa (d, v)
 | email | string | ✔ | email hợp lệ, ≤ 256 |
 | password | string | ✔ | 8-64, chữ hoa + số + ký tự đặc biệt |
 | isTeacher | bool | ✔ | mặc định false |
+| department | string | ✘ (bắt buộc khi `isTeacher=true`) | Khoa/Bộ môn; ≤ 100; trim; không lưu khi Sinh viên |
+| staffCode | string | ✘ (bắt buộc khi `isTeacher=true`) | Mã giảng viên; ≤ 50; trim; không lưu khi Sinh viên |
+| teacherBio | string | ✘ | Kinh nghiệm giảng dạy; ≤ 500; trim; không lưu khi Sinh viên |
 
 ### 9.5.2 `LoginRequest` / `RefreshResponse`
 `{ email, password }`; response `{ accessToken, expiresIn, user: UserSummary }`.
@@ -3014,7 +3017,7 @@ erDiagram
     Users ||--o{ UserNodeProgress : "tiến độ node"
     LearningPathNodes ||--o{ UserNodeProgress : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     RefreshTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; datetime? RevokedAt; string? CreatedByIp; datetime CreatedAt }
     PasswordResetTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; bool Used; datetime CreatedAt }
     Topics { int Id PK; int? ParentId FK; string Name; string Description; int SortOrder; int CreatedBy FK; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
@@ -3055,7 +3058,7 @@ erDiagram
     Exercises ||--o{ CodeRuns : "chạy thử (tùy chọn)"
     Exercises ||--o{ CodeSubmissions : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     DailyQuests { int Id PK; string QuestKey UK; string Title; int Type; string ConditionJson; string RewardJson; bool PoolEnabled }
     UserQuests { int Id PK; int UserId FK; int QuestId FK; date QuestDate; int Progress; bool Claimed }
     ShopItems { int Id PK; string ItemKey UK; string Name; int PriceGems; int MaxStack; int Type; int? DurationHours }
@@ -3103,6 +3106,9 @@ erDiagram
 | CreatedAt | datetime2 | NOT NULL | GETUTCDATE() | |
 | UpdatedAt | datetime2 | NULL | | |
 | DeletedAt | datetime2 | NULL | | xóa mềm/ẩn danh hóa |
+| Department | nvarchar(100) | NULL | | Khoa/Bộ môn (form đăng ký GV — task L); bắt buộc nhập khi `isTeacher=true`; trim; không lưu với Sinh viên |
+| StaffCode | nvarchar(50) | NULL | | Mã giảng viên (form đăng ký GV — task L); bắt buộc nhập khi `isTeacher=true`; trim; không lưu với Sinh viên |
+| TeacherBio | nvarchar(500) | NULL | | Kinh nghiệm/giới thiệu giảng dạy (form đăng ký GV — task L); ≤ 500 ký tự; không bắt buộc |
 
 ### 10.2.2 `Lessons`
 | Cột | Kiểu | Ràng buộc | Mặc định | Ghi chú |
@@ -5249,7 +5255,7 @@ graph LR
 - Nội dung: đồng hồ đếm ngược tới tim tiếp theo, nút "Xem lại node đã pass" (miễn phí, không bị chặn — theo 19.2), nút "Nâng cấp Premium" (dẫn `/premium`), nút "Đóng".
 
 #### Màn 29 — Duyệt tài khoản giảng viên (`/admin/users` — tab con, KHÔNG tạo route riêng)
-- Thêm 1 tab "Chờ duyệt Teacher" trong Màn 10 sẵn có (7.4): danh sách tài khoản đăng ký với checkbox "Tôi là giảng viên", nút Duyệt/Từ chối.
+- Thêm 1 tab "Chờ duyệt Teacher" trong Màn 10 sẵn có (7.4): danh sách tài khoản đăng ký với vai trò Giảng viên (kèm thông tin **Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy** hiển thị trong modal duyệt — task L), nút Duyệt/Từ chối.
 
 #### Màn 30 — Bài kiểm tra tổng hợp cuối lộ trình (FR-4.12)
 - Route con `/path/{topicId}/final-test` — tái sử dụng layout Màn 06 (quiz) và bổ sung dạng "dự đoán bước" trộn lẫn (theo mô tả 19.1 Module D) — KHÔNG tạo component mới, ghép QuizStage đã build ở Màn 14.
@@ -5496,3 +5502,4 @@ Các việc bắt buộc AI phải làm khi sinh tài liệu, ngoài các bướ
 | 12/08/2026 | v2.10 | VÁ REVIEW RÀ SOÁT TÀI LIỆU (3 điểm, đồng bộ prompt ↔ docs): (1) §17.3.1 + §17.5: sửa "sequenceDiagram UC-01, UC-03" → **UC-01, UC-04** cho khớp §6 (SRS đã sinh đủ UC-01/03/04/06/09); (2) §10.3 bổ sung index **ExerciseSubmissions.ClassAssignmentId** (THƯỜNG — báo cáo lớp FR-8.3/8.4, cột thêm từ v2.8 mà thiếu index); (3) NFR-12: "sinh bước: 20 req/phút" là rate limit chết (bước sinh client-side ADR-001, `POST /simulations/run` đã cắt v2.3) → thay bằng "code-runs (sandbox): 20 req/phút/người dùng" |
 | 12/08/2026 | v2.11 | RÀ SOÁT ĐỘ SÂU TÀI LIỆU (3 điểm, vá lỗ hổng quy tắc 0.3.3): (1) thêm **§3.9A** — đặc tả 7 thuộc tính cho 14 FR chỉ có trong master matrix (FR-2.10, 2.11, 3.20, 3.20b, 4.11, 4.12, 7.6, 9.6, 10.2→10.7) — nguồn: Phần 19/20 + UC + màn; (2) **AC-2** (mục Tiêu chí chấp nhận tổng thể) chuẩn hóa "≥ 20 bộ dữ liệu" → "≥ 10 bộ (5 nhóm N1-N5 × ≥ 2 bộ theo §8.8; N6 seed cố định)" cho khớp §8.8; (3) **§10.2.23 CodeRuns**: sửa lỗi dòng `DurationMs` dính vào `TraceJson`, thêm ghi chú **trust boundary** — trace/output do client upload, server chỉ lưu, không tái thực thi, không xem là bằng chứng chống gian lận (khớp FR-9.3 v2.4/ADR-012) |
 | 12/08/2026 | v2.12 | RÀ SOÁT TỐI ƯU CSDL (32 bảng — database review): (1) **`Users` thêm cột `TwoFactorEnabled bit`** (mặc định 0) — FR-1.11 (2FA email) đang thiếu nơi lưu trạng thái; (2) **`Achievements` sửa lỗi thiếu length**: `Name/Description nvarchar` → `Name nvarchar(200)`, `Description nvarchar(500)` (nvarchar không khai length = nvarchar(1) mặc định — lỗi nghiêm trọng); (3) **`ContentFeedback.Comment nvarchar(500)→nvarchar(200)`** cho khớp FR-7.4 "bình luận ≤ 200 ký tự"; (4) **bổ sung 5 index §10.3**: Topics(ParentId, Name) UNIQUE (khai báo unique trong spec nhưng thiếu index), UserAchievements(UserId, AchievementId) UNIQUE (chống trao 2 lần — trước chỉ có UserId), Classes.OwnerId (danh sách lớp của GV), Lessons.CreatedBy (danh sách nội dung của GV — quyền sở hữu 5.3), PremiumSubscriptions(Status, ExpiresAt) (job downgrade); đồng bộ ERD 2 sơ đồ + SDD §7.3 |
+| 13/08/2026 | v2.14 | FORM ĐĂNG KÝ GIẢNG VIÊN (task L — nhánh feature/teacher-register): (1) **Bỏ checkbox "Tôi là giảng viên"** → FR-1.1 + Màn 02: segmented chọn vai trò **Sinh viên/Giảng viên** (mặc định Sinh viên) + form con 3 trường **Khoa/Bộ môn** (`Department`), **Mã giảng viên** (`StaffCode`) — bắt buộc khi `isTeacher=true`, và **Kinh nghiệm giảng dạy** (`TeacherBio` ≤ 500 ký tự) — không bắt buộc; (2) **`Users` +3 cột nullable**: `Department nvarchar(100)`, `StaffCode nvarchar(50)`, `TeacherBio nvarchar(500)` (migration `20260813052933_AddTeacherProfileFields`) — cập nhật §10.2.1 + 2 ERD; (3) **§9.5.1 `RegisterRequest` +3 field**; thiếu `department`/`staffCode` khi chọn Giảng viên → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (dùng mã có sẵn, KHÔNG thêm ErrorCode mới); (4) **`AdminUserDto` +3 field nullable** (xem trong modal duyệt); (5) Màn 29 cập nhật — modal duyệt hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã GV, Kinh nghiệm); (6) đăng ký Giảng viên thành công → màn hình chờ duyệt + link "Về đăng nhập" (KHÔNG tự động đăng nhập); đồng bộ SRS FR-1.1/1.8, SDD §7.3.1/Màn 02/Màn 29/ERD, API_REFERENCE §2.2/§3.1/§4.1/§4.8, USER_GUIDE §2.1/§3.1/§4.1/§5.1/§5.5 |

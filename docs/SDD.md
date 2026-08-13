@@ -21,7 +21,8 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 364 dòng, thiếu Phần 8 EDV/31 bảng/32 màn) |
 | 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
 | 1.5 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): Màn 25/26 — checkout 2 bước mới (chọn gói → QR VietQR EMVCo + nội dung CK `DSV{userId}T{months}` + nút "Tôi đã chuyển khoản" sau đếm ngược 60s; `qrcode` npm MIT); §7.3.28 PremiumSubscriptions.OrderRef = `DSV{userId}T{months}`; API `POST /premium/upgrade` trả `contentRef`; §3.9 cập nhật bundle thật 13/08 (qrcode vào chunk lazy PremiumView, JS lần đầu ≈ 852KB không đổi) |
-| 1.6 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §7.5 — setting `allowed.email.domains` KHÔNG còn được seed (bỏ chặn domain — mọi email đăng ký được); nếu DB còn setting cũ, bước SeedCleanupSettingsAsync tự xóa; bổ sung mô tả SeedDemoActivity (seed dữ liệu hoạt động người dùng demo — idempotent) |
+| 1.6 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §7.3.1 `Users` +3 cột `Department nvarchar(100)` / `StaffCode nvarchar(50)` / `TeacherBio nvarchar(500)` (NULL, bắt buộc nhập khi đăng ký vai trò Giảng viên) + migration `20260813052933_AddTeacherProfileFields`; cập nhật 2 sơ đồ ERD (Users); Màn 02 — bỏ checkbox "Tôi là giảng viên" → segmented chọn vai trò Sinh viên/Giảng viên + form con 3 trường; Màn 29 — danh sách chờ duyệt + modal hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã GV, Kinh nghiệm) |
+| 1.7 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §7.5 — setting `allowed.email.domains` KHÔNG còn được seed (bỏ chặn domain — mọi email đăng ký được); nếu DB còn setting cũ, bước SeedCleanupSettingsAsync tự xóa; bổ sung mô tả SeedDemoActivity (seed dữ liệu hoạt động người dùng demo — idempotent) |
 
 ---
 
@@ -1331,7 +1332,7 @@ erDiagram
     Users ||--o{ UserNodeProgress : "tiến độ node"
     LearningPathNodes ||--o{ UserNodeProgress : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     RefreshTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; datetime? RevokedAt; string? CreatedByIp; datetime CreatedAt }
     PasswordResetTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; bool Used; datetime CreatedAt }
     Topics { int Id PK; int? ParentId FK; string Name; string Description; int SortOrder; int CreatedBy FK; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
@@ -1372,7 +1373,7 @@ erDiagram
     Exercises ||--o{ CodeRuns : "chạy thử (tùy chọn)"
     Exercises ||--o{ CodeSubmissions : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     DailyQuests { int Id PK; string QuestKey UK; string Title; int Type; string ConditionJson; string RewardJson; bool PoolEnabled }
     UserQuests { int Id PK; int UserId FK; int QuestId FK; date QuestDate; int Progress; bool Claimed }
     ShopItems { int Id PK; string ItemKey UK; string Name; int PriceGems; int MaxStack; int Type; int? DurationHours }
@@ -1413,6 +1414,11 @@ erDiagram
 | LastActivityDate | date | NULL | | quest/streak theo ngày |
 | StreakLastProcessed | date | NULL | | (v2.8) ngày đã đóng sổ xử lý streak — chống chạy lặp khi job 00:30 lệch mốc reset quest 00:00 |
 | CreatedAt / UpdatedAt / DeletedAt | datetime2 | | | |
+| Department | nvarchar(100) | NULL | | Khoa/Bộ môn (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
+| StaffCode | nvarchar(50) | NULL | | Mã giảng viên (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
+| TeacherBio | nvarchar(500) | NULL | | Kinh nghiệm/giới thiệu giảng dạy (form đăng ký GV — task L); ≤ 500 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+
+> Migration: `20260813052933_AddTeacherProfileFields` (13/08/2026 — task L) thêm 3 cột trên (đều nullable, không phá dữ liệu cũ).
 
 ### 7.3.2 `Lessons`
 
@@ -1772,7 +1778,7 @@ graph LR
 | Màn | Route | Mục đích (1 câu) | Nguồn FR | Ghi chú |
 |---|---|---|---|---|
 | 01 | `/` | Trang chủ: hero + 6 thẻ tính năng + **3 demo công khai** (Bubble Sort, Binary Search, BFS) | FR-7.1, 7.6 | demo không token |
-| 02 | `/login`, `/register` | Đăng nhập/đăng ký: validation inline, checklist mật khẩu sống, checkbox giảng viên | FR-1.1, 1.2 | |
+| 02 | `/login`, `/register` | Đăng nhập/đăng ký: validation inline, checklist mật khẩu sống, chọn vai trò + form con giảng viên | FR-1.1, 1.2 | |
 | 03 | `/learn` (redirect `/path`) | Danh sách bài học (cũ) | FR-2.3 | redirect 20.5.6 |
 | 04 | `/learn/{lessonId}` | Chi tiết bài học: rich-text + thẻ Mô phỏng/Code/Bài tập (trang riêng) + ghi chú + đánh giá + "▶ Xem bước này" | FR-2.4, 2.6, 7.4, 2.11 | KHÔNG nhúng canvas |
 | 05 | `/simulator/{key}` | **Màn mô phỏng 3 vùng** (mã giả 3/12, canvas 6/12, giải thích 3/12) + control bar + input modal + legend + stats + phím tắt | FR-3.2→3.9, 3.12, 3.14-3.16, 2.11 | trừ tim theo 20.4; wireframe §8.5 |
@@ -1861,7 +1867,7 @@ graph LR
 |---|---|---|
 | Login (bước 1) | Email, mật khẩu (icon mắt), checkbox "Ghi nhớ đăng nhập", link "Quên mật khẩu?", nút "Đăng nhập" | Validation khi blur; submit → gọi `POST /auth/login` |
 | Login (bước 2 — 2FA) | 6 ô nhập mã số, nút "Xác nhận", link "Quay lại", checkbox "Ghi nhớ thiết bị này 30 ngày" | Gửi mã qua email (hiệu lực 5 phút, dùng 1 lần); nhập đủ 6 số → tự submit `POST /auth/2fa/verify`; sai 3 lần → khóa bước 2 trong 10 phút |
-| Register | Tên, email, mật khẩu + xác nhận mật khẩu (icon mắt), checkbox "Tôi là giảng viên", checkbox "Đồng ý chính sách" (bắt buộc), nút "Đăng ký" | Validation inline khi blur; checklist mật khẩu sống; submit → `POST /auth/register`; chọn "Tôi là giảng viên" → tài khoản tạo ở trạng thái `TeacherPending`, chờ Admin duyệt (FR-1.8) |
+| Register | Tên, email, mật khẩu + xác nhận mật khẩu (icon mắt), segmented chọn vai trò "Đăng ký với vai trò" (Sinh viên mặc định / Giảng viên), form con giảng viên (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy ≤ 500 ký tự + bộ đếm, ghi chú "Thông tin sẽ được Admin xét duyệt"), checkbox "Đồng ý chính sách" (bắt buộc), nút "Đăng ký" | Validation inline khi blur; checklist mật khẩu sống; submit → `POST /auth/register` (payload kèm `department/staffCode/teacherBio` khi chọn Giảng viên); chọn "Giảng viên" → tài khoản tạo ở trạng thái `TeacherPending`, chờ Admin duyệt (FR-1.8) |
 | Liên kết | "Chưa có tài khoản? Đăng ký" / "Đã có tài khoản? Đăng nhập" | Chuyển qua lại giữa 2 route |
 
 **Tương tác**:
@@ -1871,6 +1877,9 @@ graph LR
 | Nhập email sai định dạng → blur | Lỗi đỏ dưới trường "Email không hợp lệ" | Nút "Đăng ký/Đăng nhập" vô hiệu tới khi hợp lệ |
 | Gõ mật khẩu (register) | Checklist sống: "≥ 8 ký tự", "có chữ hoa", "có chữ số", "có ký tự đặc biệt" — tích xanh từng mục | — |
 | Xác nhận mật khẩu khác mật khẩu | Lỗi "Mật khẩu xác nhận không khớp" | Vô hiệu nút đăng ký |
+| Chọn vai trò "Giảng viên" nhưng bỏ trống Khoa/Bộ môn hoặc Mã giảng viên | Lỗi dưới từng trường ("Vui lòng nhập Khoa/Bộ môn" / "Vui lòng nhập Mã giảng viên") | Vô hiệu nút đăng ký |
+| Kinh nghiệm giảng dạy > 500 ký tự | Bộ đếm chặn ở 500/500 + lỗi "Kinh nghiệm giảng dạy tối đa 500 ký tự" | Vô hiệu nút đăng ký |
+| Server trả 400 VALIDATION_FAILED (thiếu thông tin GV) | Lỗi chung "Vui lòng điền đầy đủ thông tin giảng viên" | Giữ nguyên dữ liệu form |
 | Chưa tick "Đồng ý chính sách" mà submit | Lỗi dưới checkbox "Bạn phải đồng ý chính sách" | Nút giữ nguyên, không gửi request |
 | Submit đúng → tài khoản bật 2FA | Chuyển sang bước 2 nhập mã OTP | Nút "Xác nhận" vô hiệu tới khi đủ 6 số |
 | Nhập đúng mã 2FA | Đăng nhập thành công → redirect theo vai trò: Student → `/path`; Teacher/Admin → `/admin/*` (theo 20.5) | Chuyển trang |
@@ -1881,7 +1890,7 @@ graph LR
 - **empty**: không áp dụng (form tĩnh).
 - **error**: lỗi server hiển thị dưới trường tương ứng (email trùng → dưới email; sai mật khẩu → 1 dòng chung không tiết lộ email tồn tại).
 - **normal**: form đầy đủ, sẵn sàng nhập.
-- **finished**: đăng nhập thành công → chuyển trang; đăng ký thành công → toast "Đăng ký thành công" + tự động đăng nhập (tài khoản giảng viên → thông báo "Đang chờ duyệt, bạn sẽ nhận email khi được duyệt").
+- **finished**: đăng ký **Sinh viên** thành công → toast "Đăng ký thành công" + tự động đăng nhập → chuyển `/path`; đăng ký **Giảng viên** thành công → thay form bằng khối thông báo "Đăng ký thành công! Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt" + link "Về đăng nhập" (KHÔNG tự động đăng nhập — task L).
 
 **Phím tắt**: —
 **Responsive**: ≥ 1024px: form 420px ở giữa, có ảnh/khối branding bên cạnh (2 cột 5/7). 768-1023px: form chiếm toàn bộ chiều rộng (max 420px), bỏ khối branding.
@@ -3225,11 +3234,11 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 ### Màn 29 — Tab "Chờ duyệt Teacher" (trong `/admin/users` — tab con, không route riêng)
 
-**Mục đích**: Admin duyệt hoặc từ chối tài khoản đăng ký giảng viên (những user tích checkbox "Tôi là giảng viên"), từ chối kèm lý do bắt buộc (v2.8).
+**Mục đích**: Admin duyệt hoặc từ chối tài khoản đăng ký giảng viên (đăng ký với vai trò Giảng viên — kèm Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy), từ chối kèm lý do bắt buộc (v2.8).
 
 **Nguồn yêu cầu**: FR-1.8 (duyệt Teacher), UC-12; v2.8 (`POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 Student, IsActive=true, log lý do).
 
-**Bố cục**: Tab "Chờ duyệt Teacher" nằm trong Màn 10 `/admin/users`: bộ lọc trạng thái (Chờ duyệt / Đã duyệt / Đã từ chối) + danh sách tài khoản (avatar, tên, email, ngày đăng ký, checkbox "Tôi là giảng viên") + 2 nút hành động mỗi dòng: "Duyệt" / "Từ chối" (modal nhập lý do).
+**Bố cục**: Tab "Chờ duyệt Teacher" nằm trong Màn 10 `/admin/users`: bộ lọc trạng thái (Chờ duyệt / Đã duyệt / Đã từ chối) + danh sách tài khoản (avatar, tên, email, ngày đăng ký, dấu "GV ✔") + 2 nút hành động mỗi dòng: "Duyệt" / "Từ chối" (modal nhập lý do). Cả 2 nút đều mở modal có mục **"Thông tin giảng viên"** hiển thị Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy (task L).
 
 **Thành phần**:
 
@@ -3237,14 +3246,14 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 |---|---|---|
 | Bộ lọc | 3 tab trạng thái + ô tìm kiếm email/tên | Lọc danh sách theo trạng thái |
 | Danh sách | Bảng: avatar, tên, email, ngày đăng ký, dấu "GV ✔", nút hành động | TeacherPending mặc định trạng thái "Chờ duyệt" |
-| Nút "Duyệt" | `POST /users/{id}/approve-teacher {approve:true}` | role = 1 (Teacher); dòng chuyển "Đã duyệt" |
-| Nút "Từ chối" | Modal nhập lý do (bắt buộc) → `{approve:false, reason}` | role = 0 (Student), IsActive = true, log lý do (v2.8) |
+| Nút "Duyệt" | Mở modal "Duyệt giảng viên" — hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy) → "Xác nhận duyệt" → `POST /users/{id}/approve-teacher {approve:true}` | role = 1 (Teacher); dòng chuyển "Đã duyệt" |
+| Nút "Từ chối" | Mở modal "Từ chối giảng viên" — hiển thị thông tin GV + nhập lý do (bắt buộc) → `{approve:false, reason}` | role = 0 (Student), IsActive = true, log lý do (v2.8) |
 
 **Tương tác**:
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| Nhấn "Duyệt" | Duyệt ngay (xác nhận nhẹ) → toast "Đã duyệt giảng viên X" | Nút disabled "Đã duyệt" |
+| Nhấn "Duyệt" | Mở modal xác nhận hiển thị thông tin GV → xác nhận → toast "Đã duyệt giảng viên X" | Nút disabled "Đã duyệt" |
 | Nhấn "Từ chối" | Mở modal nhập lý do | Nút xác nhận disabled khi ô lý do rỗng |
 | Xác nhận từ chối | Gửi kèm lý do → toast; user còn hoạt động với vai Student | Dòng chuyển trạng thái "Đã từ chối" + tooltip lý do |
 | Lọc trạng thái | Hiện danh sách tương ứng | Tab active tô đậm |

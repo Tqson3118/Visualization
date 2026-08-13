@@ -1,0 +1,47 @@
+Bối cảnh ảnh: Trang Đăng ký chế độ GIẢNG VIÊN: segmented đã chọn Giảng viên, form con viền dashed gồm Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy (textarea có đếm ký tự) + ghi chú chờ duyệt.
+
+Ảnh chụp màn hình:
+
+1. **Bố cục trang**:
+   - Trang đăng ký có tiêu đề "Đăng ký tài khoản" ở đầu.
+   - Có một form đăng ký với các trường thông tin như Họ tên, Email, Mật khẩu, Xác nhận mật khẩu, Mã giảng viên, Kinh nghiệm giảng dạy...
+   - Có nút "Đăng ký" và "Đăng nhập" ở góc phải.
+
+2. **Màu sắc**:
+   - Màu nền chủ yếu là trắng.
+   - Các phần tử như form, nút, ghi chú có màu xanh lá cây để làm nổi bật.
+
+3. **Lỗi hiển thị**:
+   - **Cắt chữ**: Trong trường "Khoa/Bộ môn", một số ký tự bị cắt ở đầu và cuối.
+   - **Chồng lấn**: Các phần tử trong form như "Mật khẩu" và "Xác nhận mật khẩu" có thể bị chồng lên nhau khi nhìn từ xa.
+   - **Contrast kém**: Một số ký tự trong các trường không đủ contrast với nền màu xanh lá cây.
+
+4. **Thẩm mỹ**:
+   - **Thẩm mỹ**: X/5 - Nhận xét: Màu sắc tổng thể hài hòa, nhưng cần thêm sự đồng bộ về màu sắc cho các phần tử khác nhau.
+   - **Gợi ý**: Thêm một số phần tử có thể sử dụng màu xanh lá cây để làm nổi bật hơn.
+
+5. **Nhat quán**:
+   - **Nhat quán**: X/5 - Nhận xét: spacing và bo góc không đồng nhất, gây cảm giác rối mắt.
+   - **Gợi ý**: Tăng thêm khoảng cách giữa các phần tử trong form để tạo sự nhất quán.
+
+6. **Rõ ràng**:
+   - **Rõ ràng**: X/5 - Nhận xét: Các tiêu đề và body có thể bị cắt ở đầu hoặc cuối khi nhìn từ xa, gây khó đọc.
+   - **Gợi ý**: Tăng thêm khoảng cách giữa các phần tử trong form để tạo sự rõ ràng.
+
+7. **Phản hồi trực quan**:
+   - **Phản hồi trực quan**: X/5 - Nhận xét: Không có phản hồi trực quan như hover, focus, loading, empty state.
+   - **Gợi ý**: Thêm các hiệu ứng phản hồi để tăng tính tương tác cho người dùng.
+
+8. **Luồng thao tác**:
+   - **Luồng thao tác**: X/5 - Nhận xét: Luồng thao tác có thể bị bế tắc do nhiều trường cần điền và không rõ ràng.
+   - **Gợi ý**: Tăng thêm hướng dẫn hoặc thông báo để giúp người dùng dễ dàng tìm thấy các trường cần điền.
+
+9. **Khả năng tiếp cận**:
+   - **Khả năng tiếp cận**: X/5 - Nhận xét: Contrast text có thể chưa đủ, kích thước chạm không rõ ràng.
+   - **Gợi ý**: Tăng thêm contrast text và kích thước chạm để đảm bảo khả năng tiếp cận tốt hơn.
+
+10. **Độ thỏa mãn**:
+    - **Độ thỏa mãn**: X/5 - Nhận xét: Người dùng có thể cảm thấy khó chịu với layout lệch, cắt chữ và chồng lấn.
+    - **Gợi ý**: Tăng thêm sự đồng bộ về màu sắc và khoảng cách để tạo sự thoải mái cho người dùng.
+
+Tóm lại, trang đăng ký này cần cải thiện trong việc thiết kế bố cục, tăng cường phản hồi trực quan và đảm bảo tính dễ tiếp cận cho người dùng.

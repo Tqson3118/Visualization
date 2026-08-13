@@ -1,8 +1,10 @@
-﻿using DsaVisual.Application.Common;
+﻿using System.Net.Mail;
+using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace DsaVisual.Application.Services;
@@ -15,6 +17,7 @@ namespace DsaVisual.Application.Services;
 public sealed class UserService(
     AppDbContext db,
     IDateTimeProvider clock,
+    IConfiguration config,
     ILogger<UserService> logger) : IUserService
 {
     public async Task<Result<PagedResponse<AdminUserDto>>> GetListAsync(
@@ -52,6 +55,9 @@ public sealed class UserService(
                 Role = RoleNames.ToApi(u.Role),
                 IsActive = u.IsActive,
                 AvatarUrl = u.AvatarUrl,
+                Department = u.Department,
+                StaffCode = u.StaffCode,
+                TeacherBio = u.TeacherBio,
                 CreatedAt = u.CreatedAt
             })
             .ToListAsync(ct);
@@ -168,6 +174,10 @@ public sealed class UserService(
 
         logger.LogInformation("Teacher approval for {TargetId}: {Approve} (reason: {Reason}) by {ActorId}",
             id, request.Approve, request.Reason, actorId);
+
+        // Email thông báo kết quả duyệt/từ chối (cam kết UI: "bạn nhận email khi được duyệt").
+        // KHÔNG block luồng: SMTP thiếu → log warning; lỗi gửi → log error (SDD §5.6, pattern AuthService).
+        await SendTeacherDecisionEmailAsync(user, request.Approve, request.Reason, ct);
         return Result.Ok();
     }
 
@@ -273,6 +283,54 @@ public sealed class UserService(
         await db.Users.AsNoTracking()
             .AnyAsync(u => u.Id != id && u.Role == UserRole.Admin && u.IsActive && u.DeletedAt == null, ct);
 
+    /// <summary>
+    /// Email thông báo kết quả duyệt/từ chối giảng viên.
+    /// KHÔNG block luồng: SMTP chưa cấu hình → log warning dev; lỗi gửi → log error (SDD §5.6, pattern AuthService).
+    /// </summary>
+    private async Task SendTeacherDecisionEmailAsync(User user, bool approved, string? reason, CancellationToken ct)
+    {
+        var smtpHost = config["DSA:Email:SmtpHost"];
+        var subject = approved
+            ? "Tài khoản giảng viên của bạn đã được duyệt — DSA Visual"
+            : "Yêu cầu đăng ký giảng viên đã bị từ chối — DSA Visual";
+
+        var body = approved
+            ? $"Xin chào {user.DisplayName},\n\n" +
+              "Yêu cầu đăng ký tài khoản giảng viên của bạn đã được duyệt.\n" +
+              "Bạn có thể đăng nhập và bắt đầu sử dụng các tính năng dành cho giảng viên.\n\n" +
+              "— DSA Visual"
+            : $"Xin chào {user.DisplayName},\n\n" +
+              "Yêu cầu đăng ký tài khoản giảng viên của bạn đã bị từ chối." +
+              (string.IsNullOrWhiteSpace(reason) ? string.Empty : $"\nLý do: {reason}") +
+              "\n\n— DSA Visual";
+
+        if (string.IsNullOrWhiteSpace(smtpHost))
+        {
+            // SMTP chưa cấu hình → ghi log dev, KHÔNG block luồng (SDD §5.6)
+            logger.LogWarning("SMTP chưa cấu hình — email duyệt/từ chối giảng viên (dev) cho user {UserId}: {Subject}",
+                user.Id, subject);
+            return;
+        }
+
+        try
+        {
+            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025))
+            {
+                Timeout = 10_000   // timeout ngắn — không giữ request (GP-T2)
+            };
+            await smtp.SendMailAsync(
+                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
+                user.Email,
+                subject,
+                body, ct);
+        }
+        catch (Exception ex)
+        {
+            // Email lỗi KHÔNG block luồng duyệt/từ chối (quyết định chốt SDD §5.6)
+            logger.LogError(ex, "Gửi email duyệt/từ chối giảng viên thất bại cho user {UserId}", user.Id);
+        }
+    }
+
     private static AdminUserDto ToDto(User user) => new()
     {
         Id = user.Id,
@@ -281,6 +339,9 @@ public sealed class UserService(
         Role = RoleNames.ToApi(user.Role),
         IsActive = user.IsActive,
         AvatarUrl = user.AvatarUrl,
+        Department = user.Department,
+        StaffCode = user.StaffCode,
+        TeacherBio = user.TeacherBio,
         CreatedAt = user.CreatedAt
     };
 }

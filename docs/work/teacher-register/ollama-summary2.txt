@@ -1,0 +1,6 @@
+smoke-01-register-student.png: UI-1=2 UI-2=3 UI-3=4 UI-4=2 UX-5=3 UX-6=4 UX-7=3
+smoke-02-register-teacher.png: UI-1=2 UI-2=3 UI-3=4 UI-4=2 UX-5=3 UX-6=4 UX-7=3
+smoke-03-register-pending.png: UI-1=2 UI-2=3 UI-3=4 UI-4=2 UX-5=3 UX-6=4 UX-7=3
+smoke-04-register-missing-department.png: UI-1=2 UI-2=3 UI-3=4 UI-4=2 UX-5=3 UX-6=4 UX-7=3
+smoke-05-admin-review-modal.png: UI-1=2 UI-2=3 UI-3=4 UI-4=3 UX-5=4 UX-6=3 UX-7=2
+smoke-06-teacher-logged-in.png: UI-1=2 UI-2=3 UI-3=4 UI-4=2 UX-5=3 UX-6=4 UX-7=3

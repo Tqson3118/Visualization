@@ -19,6 +19,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Hearts).HasDefaultValue(10);
         builder.Property(u => u.HeartsMax).HasDefaultValue(10);
         builder.Property(u => u.AvatarUrl).HasMaxLength(500);
+        builder.Property(u => u.Department).HasMaxLength(100);       // form đăng ký GV (nullable)
+        builder.Property(u => u.StaffCode).HasMaxLength(50);         // form đăng ký GV (nullable)
+        builder.Property(u => u.TeacherBio).HasMaxLength(500);       // form đăng ký GV (nullable)
         builder.Property(u => u.CreatedAt).HasColumnType("datetime2");
         builder.Property(u => u.UpdatedAt).HasColumnType("datetime2");
         builder.Property(u => u.DeletedAt).HasColumnType("datetime2");   // xóa mềm (D-5)

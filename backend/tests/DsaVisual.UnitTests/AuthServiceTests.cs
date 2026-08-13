@@ -61,11 +61,278 @@ public class AuthServiceTests
 
         var request = ValidRegister();
         request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = "GV001";
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("TEACHER_PENDING", result.Value!.User.Role);
+    }
+
+    [Fact]
+    public async Task Register_Teacher_MissingDepartment_ReturnsValidationFailed()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_MissingDepartment_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_MissingDepartment_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.StaffCode = "GV001";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("department"));
+        Assert.False(result.FieldErrors.ContainsKey("staffCode"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_MissingStaffCode_ReturnsValidationFailed()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_MissingStaffCode_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_MissingStaffCode_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("staffCode"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_BioTooLong_ReturnsValidationFailed()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_BioTooLong_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_BioTooLong_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = "GV001";
+        request.TeacherBio = new string('a', 501);
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("teacherBio"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_WhitespaceOnlyFields_ReturnsValidationFailed()
+    {
+        // Boundary (task L): trim trước khi validate → chuỗi toàn khoảng trắng coi như thiếu
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_WhitespaceOnlyFields_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_WhitespaceOnlyFields_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "   ";
+        request.StaffCode = "   ";
+        request.TeacherBio = "   ";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("department"));
+        Assert.True(result.FieldErrors.ContainsKey("staffCode"));
+        // Bio sau trim = rỗng → không lỗi độ dài
+        Assert.False(result.FieldErrors.ContainsKey("teacherBio"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_BioExactly500_IsAccepted()
+    {
+        // Boundary (task L): 500 ký tự hợp lệ (lỗi chỉ khi > 500)
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_BioExactly500_IsAccepted));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_BioExactly500_IsAccepted));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = "GV001";
+        request.TeacherBio = new string('b', 500);
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Equal(500, saved.TeacherBio!.Length);
+    }
+
+    [Fact]
+    public async Task Register_Teacher_DepartmentTooLong_ReturnsValidationFailed()
+    {
+        // Review minor 1: Department > 100 → lỗi field, không ném DB truncation
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_DepartmentTooLong_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_DepartmentTooLong_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = new string('d', 101);
+        request.StaffCode = "GV001";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("department"));
+        Assert.False(result.FieldErrors.ContainsKey("staffCode"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_StaffCodeTooLong_ReturnsValidationFailed()
+    {
+        // Review minor 1: StaffCode > 50 → lỗi field, không ném DB truncation
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_StaffCodeTooLong_ReturnsValidationFailed));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_StaffCodeTooLong_ReturnsValidationFailed));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = new string('s', 51);
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.NotNull(result.FieldErrors);
+        Assert.True(result.FieldErrors!.ContainsKey("staffCode"));
+        Assert.False(result.FieldErrors.ContainsKey("department"));
+    }
+
+    [Fact]
+    public async Task Register_Teacher_DepartmentExactly100_IsAccepted()
+    {
+        // Boundary: 100 ký tự hợp lệ (lỗi chỉ khi > 100)
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_DepartmentExactly100_IsAccepted));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_DepartmentExactly100_IsAccepted));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = new string('d', 100);
+        request.StaffCode = "GV001";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Equal(100, saved.Department!.Length);
+    }
+
+    [Fact]
+    public async Task Register_Teacher_StaffCodeExactly50_IsAccepted()
+    {
+        // Boundary: 50 ký tự hợp lệ (lỗi chỉ khi > 50)
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_StaffCodeExactly50_IsAccepted));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_StaffCodeExactly50_IsAccepted));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = new string('s', 50);
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Equal(50, saved.StaffCode!.Length);
+    }
+
+    [Fact]
+    public async Task Register_Teacher_EmptyBio_StoredAsNull()
+    {
+        // Review minor 3: bio rỗng sau trim → lưu null, không lưu ""
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_EmptyBio_StoredAsNull));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_EmptyBio_StoredAsNull));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = "GV001";
+        request.TeacherBio = "   ";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Null(saved.TeacherBio);
+    }
+
+    [Fact]
+    public async Task Register_Student_LongTeacherFields_Ignored()
+    {
+        // Student không bị check độ dài field giảng viên — vẫn lưu null
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Student_LongTeacherFields_Ignored));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Student_LongTeacherFields_Ignored));
+
+        var request = ValidRegister();
+        request.IsTeacher = false;
+        request.Department = new string('d', 101);
+        request.StaffCode = new string('s', 51);
+        request.TeacherBio = new string('b', 501);
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Null(saved.Department);
+        Assert.Null(saved.StaffCode);
+        Assert.Null(saved.TeacherBio);
+    }
+
+    [Fact]
+    public async Task Register_Teacher_StoresTrimmedProfileFields()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_StoresTrimmedProfileFields));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_StoresTrimmedProfileFields));
+
+        var request = ValidRegister();
+        request.IsTeacher = true;
+        request.Department = "  Khoa Công nghệ thông tin  ";
+        request.StaffCode = "  GV001  ";
+        request.TeacherBio = "  10 năm giảng dạy  ";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Equal("Khoa Công nghệ thông tin", saved.Department);
+        Assert.Equal("GV001", saved.StaffCode);
+        Assert.Equal("10 năm giảng dạy", saved.TeacherBio);
+    }
+
+    [Fact]
+    public async Task Register_Student_IgnoresTeacherProfileFields()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Student_IgnoresTeacherProfileFields));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Student_IgnoresTeacherProfileFields));
+
+        var request = ValidRegister();
+        request.IsTeacher = false;
+        request.Department = "Khoa Công nghệ thông tin";
+        request.StaffCode = "GV001";
+        request.TeacherBio = "Giới thiệu";
+
+        var result = await service.RegisterAsync(request, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Null(saved.Department);
+        Assert.Null(saved.StaffCode);
+        Assert.Null(saved.TeacherBio);
     }
 
     [Fact]
