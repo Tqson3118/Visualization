@@ -438,11 +438,16 @@ const BENCH_BLOCKS = [
 }
 
 .login__switch {
-  text-align: center;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+    text-align: center;
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .login__switch a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 
 /* <768px: ẩn aside, form full-width căn giữa (DESIGN.md §8) */
 @media (max-width: 767px) {

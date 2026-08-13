@@ -26,7 +26,7 @@ defineProps<{
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
-  background: color-mix(in srgb, var(--color-secondary) 16%, transparent);
+  background: color-mix(in srgb, var(--color-secondary) 8%, transparent);
   border: 1px solid var(--color-secondary);
   border-radius: var(--radius-lg);
   padding: var(--space-sm) var(--space-md);
@@ -41,5 +41,5 @@ defineProps<{
   border-radius: var(--radius-sm);
 }
 
-.demo-banner__cta { font-weight: 700; font-size: var(--text-sm); white-space: nowrap; }
+.demo-banner__cta { font-weight: 700; font-size: var(--text-sm); white-space: nowrap; color: var(--color-text-primary); }
 </style>

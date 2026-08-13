@@ -393,13 +393,13 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
 }
 
 .canvas-area__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-}
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    font-size: var(--text-xs);
+    color: rgba(255, 255, 255, 0.85);
+  }
 
 .canvas-area__opt {
   display: inline-flex;
@@ -424,12 +424,13 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
 }
 
 .canvas-area__kind {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: var(--color-muted);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-}
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--color-muted);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--color-foreground-secondary);
+  }
 
 /* Chiều cao CỐ ĐỊNH 420px: chặn vòng lặp ResizeObserver
    (viewport trước đây flex:1 theo content → canvas phình → viewport phình → ...) */

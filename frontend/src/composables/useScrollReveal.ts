@@ -18,7 +18,9 @@ export function useScrollReveal(
   let observer: IntersectionObserver | null = null;
 
   const reducedMotion =
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function observe(): void {
     const el = target.value;

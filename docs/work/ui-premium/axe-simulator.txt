@@ -1,0 +1,24 @@
+﻿[1mRunning axe-core 4.13.0 in chrome-headless[22m
+[1m[22m
+[1mTesting [4m[34mhttp://localhost:5174/simulator/sort.bubble[39m[24m[22m ... please wait, this may take a minute.
+
+[31m[1m  Violation of "color-contrast" with 8 occurrences![22m[39m
+[31m[1m[22m[39m    Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds. Correct invalid elements at:
+     - .demo-banner__cta
+     - span[title="i = 0"]
+     - span[title="j = 0"]
+     - span[title="swapped = false"]
+     - span[title="n = 6"]
+     - .canvas-area__opt:nth-child(1) > span[data-v-26630e57=""]
+     - .canvas-area__opt:nth-child(2) > span[data-v-26630e57=""]
+     - .simulator__canvas-label
+    For details, see: [4m[34mhttps://dequeuniversity.com/rules/axe/4.13/color-contrast[39m[24m
+
+[31m[1m  Violation of "heading-order" with 1 occurrences![22m[39m
+[31m[1m[22m[39m    Ensure the order of headings is semantically correct. Correct invalid elements at:
+     - h3
+    For details, see: [4m[34mhttps://dequeuniversity.com/rules/axe/4.13/heading-order[39m[24m
+[31m[1m[22m[39m
+[31m[1m9 Accessibility issues detected.[22m[39m
+[1mTesting complete of 1 pages[22m
+[1m[22m

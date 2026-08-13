@@ -31,3 +31,4 @@
 - 14/08 03:50 — Phase 2: Lighthouse 100/100, console 0 lỗi, bundle OK. 14 ảnh final `docs/work/ui-premium/final-*.png`.
 - 14/08 03:40 — dev-review CHANGES REQUESTED (1 MAJOR ProgressRing rotate hardcode). Đã fix: tâm xoay theo `size/2` + BlockToken color-mix. Verify vue-tsc + 95/95 + browser (size 100 đúng). Commit `4688e7c`. → dev-review APPROVE.
 - 14/08 04:10 — Phase 2 hoàn tất: Performance trace LCP 630ms/CLS 0.04/TTFB 5ms; Ollama 7 tiêu chí 14 ảnh = 3.46/5 trung bình (giới hạn ảnh tĩnh — decision #20); decision log 21 mục.
+- 14/08 06:30 — Bước sau hoàn tất: (1) test component mới 14 test → **109/109 PASS** (bắt bug thật CardPremium glow); (2) **axe-core 0 violations** mọi route (fix 10+ violation); (3) **View Transitions API** cho route (verified startViewTransition=true, 0 lỗi console); (4) Lenis đã có toàn cục; (5) Ollama hover re-review: phản hồi trực quan 2→4/5. Decision log **27 mục**.

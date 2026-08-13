@@ -320,12 +320,13 @@ const BENCH_BLOCKS = [
               @blur="onBlur('password')"
             />
 
-            <div class="register__checklist" role="list" :aria-label="'Yêu cầu mật khẩu'">
+            <div class="register__checklist" :aria-label="'Yêu cầu mật khẩu'">
               <span
                 v-for="rule in passwordRules"
                 :key="rule.key"
                 class="register__check"
                 :class="{ 'register__check--ok': rule.ok }"
+                role="listitem"
               >
                 <Check v-if="rule.ok" :size="14" class="register__check-mark" aria-hidden="true" />
                 <Circle v-else :size="14" class="register__check-mark" aria-hidden="true" />
@@ -690,8 +691,8 @@ const BENCH_BLOCKS = [
 }
 
 .register__role-option {
-  color: var(--color-text-tertiary);
-}
+    color: var(--color-foreground-secondary);
+  }
 
 .register__role-option:hover {
   background: var(--color-surface-hover);
@@ -823,11 +824,16 @@ const BENCH_BLOCKS = [
 }
 
 .register__switch {
-  text-align: center;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+    text-align: center;
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .register__switch a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 
 /* ── Pending teacher ── */
 .register__pending {

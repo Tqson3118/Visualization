@@ -32,11 +32,11 @@ const props = withDefaults(
 const glowClass = computed(() => {
   switch (props.glow) {
     case 'resolved':
-      return 'ui-cardpremium__glow--resolved';
+      return 'ui-cardpremium--glow-resolved';
     case 'conflict':
-      return 'ui-cardpremium__glow--conflict';
+      return 'ui-cardpremium--glow-conflict';
     case 'data-core':
-      return 'ui-cardpremium__glow--data';
+      return 'ui-cardpremium--glow-data';
     default:
       return '';
   }
@@ -109,20 +109,20 @@ const glowClass = computed(() => {
 }
 
 /* Glow theo trạng thái thuật toán — nguồn palette 6 màu (KHÔNG màu mới) */
-.ui-cardpremium--glow\:data .ui-cardpremium__icon,
-.ui-cardpremium--glow\:data-core .ui-cardpremium__icon {
+.ui-cardpremium--glow-data .ui-cardpremium__icon,
+.ui-cardpremium--glow-data-core .ui-cardpremium__icon {
   box-shadow: var(--glow-data-core);
   background: color-mix(in srgb, var(--color-data-core) 12%, var(--color-muted));
   color: var(--color-data-core);
 }
 
-.ui-cardpremium--glow\:resolved .ui-cardpremium__icon {
+.ui-cardpremium--glow-resolved .ui-cardpremium__icon {
   box-shadow: var(--glow-resolved);
   background: color-mix(in srgb, var(--color-resolved) 12%, var(--color-muted));
   color: var(--color-resolved);
 }
 
-.ui-cardpremium--glow\:conflict .ui-cardpremium__icon {
+.ui-cardpremium--glow-conflict .ui-cardpremium__icon {
   box-shadow: var(--glow-conflict);
   background: color-mix(in srgb, var(--color-conflict) 12%, var(--color-muted));
   color: var(--color-conflict);

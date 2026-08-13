@@ -333,4 +333,34 @@ router.beforeEach((to) => {
   return true;
 });
 
+// ── View Transitions API (UI-PREMIUM — decision D1) ──
+// Wrap navigation trong document.startViewTransition khi browser hỗ trợ +
+// không reduced-motion. Fallback: next() ngay → Transition CSS
+// .page-enter/.page-leave (global.css) vẫn chạy như cũ.
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (cb: () => void) => { finished: Promise<void>; ready: Promise<void> };
+};
+
+function supportsViewTransition(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  return typeof (document as ViewTransitionDocument).startViewTransition === 'function';
+}
+
+// Đánh dấu session active để App.vue tắt <Transition name="page"> khi đã
+// có view transition (tránh 2 animation chạy cùng lúc — nhảy hình).
+export const viewTransitionActive = supportsViewTransition();
+
+router.beforeResolve((to, from, next) => {
+  if (to.fullPath === from.fullPath || !supportsViewTransition()) {
+    next();
+    return;
+  }
+  const doc = document as ViewTransitionDocument;
+  const vt = doc.startViewTransition!(() => {
+    next();
+  });
+  void vt.finished.catch(() => {});
+});
+
 export default router;

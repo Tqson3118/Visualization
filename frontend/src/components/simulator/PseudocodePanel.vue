@@ -93,7 +93,7 @@ onMounted(() => void nextTick(syncHighlight));
 <template>
   <section class="pseudo" :class="{ 'pseudo--collapsed': collapsed }" aria-label="Mã giả">
     <header class="pseudo__header">
-      <h3 class="pseudo__title">{{ messages.simulator.controlsTitle }}</h3>
+      <h2 class="pseudo__title">{{ messages.simulator.controlsTitle }}</h2>
       <button
         type="button"
         class="pseudo__collapse"
@@ -316,12 +316,12 @@ onMounted(() => void nextTick(syncHighlight));
 }
 
 .pseudo__var {
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--color-primary);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
-}
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    background: var(--color-surface);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
+  }
 </style>

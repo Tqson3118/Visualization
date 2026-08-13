@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount } from 'vue';
 import { RouterView } from 'vue-router';
 import { Toaster } from 'vue-sonner';
 
@@ -7,11 +7,17 @@ import AppHeader from '@/components/layout/AppHeader.vue';
 import { useLenis } from '@/composables/useLenis';
 import { messages } from '@/i18n/vi';
 import { useUiStore } from '@/stores/ui';
+import { viewTransitionActive } from '@/router';
 
 const ui = useUiStore();
 
 // G-F2a: smooth scroll toàn cục (singleton — App đời là tạo 1 lần duy nhất).
 const { scrollToTop } = useLenis();
+
+// UI-PREMIUM: khi browser có View Transitions API (và không reduced-motion),
+// router guard đã wrap navigation → BỎ <Transition name="page"> để tránh
+// 2 animation chạy cùng lúc (nhảy hình). Fallback = Transition CSS cũ.
+const usePageTransition = computed(() => !viewTransitionActive);
 
 // Đánh dấu điều hướng back/forward (popstate) → không reset scroll về đầu,
 // giữ vị trí cũ như savedPosition.
@@ -36,16 +42,21 @@ function onPageEnter(): void {
   <div class="app-shell">
     <AppHeader />
 
-    <main class="app-shell__main">
+    <!-- Wrapper div (KHÔNG phải <main> — mỗi view đã có <main> riêng;
+         lồng 2 main = axe landmark-main-is-top-level/no-duplicate-main) -->
+    <div class="app-shell__main">
       <!-- G-F2a: page transition theo route.fullPath — fade + slide nhẹ,
            mode out-in tránh nhảy layout, tôn trọng prefers-reduced-motion
-           (global.css đã cắt transition khi reduce). -->
+           (global.css đã cắt transition khi reduce).
+           UI-PREMIUM: bỏ Transition khi View Transitions API active
+           (router guard đã wrap — tránh 2 animation cùng lúc). -->
       <RouterView v-slot="{ Component, route }">
-        <Transition name="page" mode="out-in" @after-enter="onPageEnter">
+        <Transition v-if="usePageTransition" name="page" mode="out-in" @after-enter="onPageEnter">
           <component :is="Component" :key="route.fullPath" />
         </Transition>
+        <component :is="Component" v-else :key="route.fullPath" @vue:mounted="onPageEnter" />
       </RouterView>
-    </main>
+    </div>
 
     <footer class="app-shell__footer">
       <div class="container app-shell__footer-inner">

@@ -484,14 +484,14 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 .simulator__corner--br { bottom: 8px; right: 8px; border-left: none; border-top: none; border-bottom-right-radius: var(--radius-md); }
 
 .simulator__canvas-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-index-muted);
-}
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: rgba(255, 255, 255, 0.85);
+  }
 
 .simulator__canvas-dot {
   width: 8px;

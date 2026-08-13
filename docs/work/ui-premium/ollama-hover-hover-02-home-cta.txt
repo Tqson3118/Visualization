@@ -1,0 +1,9 @@
+# Ollama hover review — Trang chủ — CTA "Bắt đầu ngay" ĐANG HOVER (press scale + glow ring)
+# Ảnh: hover-02-home-cta.png
+# Model: qwen2.5vl:3b
+
+Tiêu chí 1 - phản hồi trực quan: 4/5 - Màn hình có thể thấy sự thay đổi khi hovering, nhưng không phải là một phản hồi hoàn hảo.
+Tiêu chí 2 - thẩm mỹ: 3/5 - Thiết kế có vẻ đơn giản và dễ nhìn, nhưng không có nhiều chi tiết làm tăng tính thẩm mỹ cao cấp.
+Tiêu chí 3 - thỏa mãn: 4/5 - Màn hình tạo cảm giác chuyên nghiệp và hiệu quả, nhưng không có sự wow factor đặc biệt.
+
+TỔNG: trung bình 3.7/5

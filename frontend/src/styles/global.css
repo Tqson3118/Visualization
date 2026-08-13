@@ -271,6 +271,43 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   UI-PREMIUM — VIEW TRANSITIONS API (route transition)
+   Chỉ áp dụng khi browser hỗ trợ + không reduced-motion (guard router
+   đã kiểm tra trước khi kích hoạt). Slide ngang nhẹ + fade — chỉ
+   transform/opacity, easing expo chuẩn.
+   ════════════════════════════════════════════════════════════════ */
+@supports (view-transition-name: root) {
+  ::view-transition-old(root) {
+    animation: vt-old 260ms cubic-bezier(0.7, 0, 0.84, 0) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: vt-new 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes vt-old {
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes vt-new {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
    UI-PREMIUM 0A — GLOBAL MOTION PRIMITIVES
    ════════════════════════════════════════════════════════════════ */
 
