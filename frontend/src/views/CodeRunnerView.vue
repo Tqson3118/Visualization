@@ -15,7 +15,10 @@ import { useCodeRunnerStore } from '@/stores/codeRunner';
 import { useSimulationStore } from '@/stores/simulation';
 import { useUiStore } from '@/stores/ui';
 import { getCatalogMeta } from '@/engines/catalog';
+import type { TraceEvent } from '@/engines/core/stepExecutor';
+import { useCodeTracePlayback } from '@/composables/useCodeTracePlayback';
 import CanvasArea from '@/components/simulator/CanvasArea.vue';
+import ControlBar from '@/components/simulator/ControlBar.vue';
 import StatsBar from '@/components/simulator/StatsBar.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -27,6 +30,41 @@ const router = useRouter();
 const codeStore = useCodeRunnerStore();
 const simStore = useSimulationStore();
 const ui = useUiStore();
+
+// Trace playback (useCodeTracePlayback) — refs lồng trong object thường KHÔNG tự unwrap ở
+// template (chỉ top-level binding unwrap), nên destructure refs ra top-level để template
+// dùng trực tiếp (playbackIndex/playbackStructure/...); method vẫn gọi qua `playback`.
+const playback = useCodeTracePlayback();
+const {
+  currentIndex: playbackIndex,
+  totalFrames: playbackFrames,
+  currentStructure: playbackStructure,
+  currentLine: playbackLine,
+} = playback;
+
+/** Trace lần chạy gần nhất (sandbox) — null khi không có → fallback generator preview. */
+const traceRef = ref<TraceEvent[] | null>(null);
+const traceMode = computed(() => !!traceRef.value && traceRef.value.length > 0);
+
+/** Trạng thái playback cho ControlBar — 'running'/'idle' hợp lệ với SimulationStatus. */
+const playbackStatus = computed(() => (playback.isPlaying.value ? 'running' : 'idle'));
+
+/** Speed multiplier cho ControlBar — ngược với ms: mult = 1000 / durationPerStep (250ms = 4x). */
+const playbackSpeed = computed(() => Math.round(1000 / playback.durationPerStep.value));
+
+/** Biến frame trace hiện tại — tối đa 10 mục cho vars panel. */
+const playbackVarsList = computed<{ key: string; value: unknown }[]>(() =>
+  Object.entries(playback.currentVars.value)
+    .slice(0, 10)
+    .map(([key, value]) => ({ key, value })),
+);
+
+function formatVarValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
 
 const key = computed(() => String(route.params.key ?? ''));
 const loading = ref(true);
@@ -61,14 +99,53 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  playback.dispose();
   simStore.stopPlayback();
 });
 
 async function onRun(): Promise<void> {
-  await codeStore.run();
+  const result = await codeStore.run();
+  if (codeStore.runState === 'passed' && result && Array.isArray(result.trace) && result.trace.length > 0) {
+    traceRef.value = result.trace;
+    playback.init(result.trace);
+    playback.play();
+  } else {
+    // Trace rỗng/error/timeout → giữ hành vi cũ: generator preview + stats + 2 nút step
+    traceRef.value = null;
+  }
   if (codeStore.runState === 'passed') {
     ui.showToast('Chạy thành công!', 'success');
   }
+}
+
+/** Bỏ trace → quay về preview generator mẫu (stats giữ nguyên, playback reset về đầu). */
+function showSamplePreview(): void {
+  traceRef.value = null;
+  playback.reset();
+}
+
+function onPlaybackPlay(): void {
+  playback.play();
+}
+
+function onPlaybackPause(): void {
+  playback.pause();
+}
+
+function onPlaybackStepBack(): void {
+  playback.stepBack();
+}
+
+function onPlaybackStepForward(): void {
+  playback.stepForward();
+}
+
+function onPlaybackReset(): void {
+  playback.reset();
+}
+
+function onPlaybackSpeed(multiplier: number): void {
+  playback.setSpeed(1000 / multiplier);
 }
 
 async function toggleHistory(): Promise<void> {
@@ -131,7 +208,12 @@ async function toggleHistory(): Promise<void> {
 
           <div class="code-runner__editor-wrap">
             <div ref="gutterRef" class="code-runner__gutter" aria-hidden="true">
-              <span v-for="line in gutterLines" :key="line" class="code-runner__gutter-line">
+              <span
+                v-for="line in gutterLines"
+                :key="line"
+                class="code-runner__gutter-line"
+                :class="{ 'code-runner__gutter-line--active': traceMode && line === playbackLine }"
+              >
                 {{ line }}
               </span>
             </div>
@@ -197,38 +279,66 @@ async function toggleHistory(): Promise<void> {
 
           <div class="code-runner__visual">
             <CanvasArea
-              :structure="simStore.currentStep?.structure ?? null"
+              :structure="traceMode ? playbackStructure : simStore.currentStep?.structure ?? null"
               :empty-text="'Canvas 2 chiều — đồng bộ theo trace code của bạn'"
             />
             <StatsBar
               :comparisons="codeStore.lastStats?.comparisons ?? 0"
               :swaps="codeStore.lastStats?.swaps ?? 0"
               :writes="codeStore.lastStats?.writes ?? 0"
-              :step="simStore.currentIndex"
-              :total-steps="simStore.steps.length"
+              :step="traceMode ? playbackIndex : simStore.currentIndex"
+              :total-steps="traceMode ? playbackFrames : simStore.steps.length"
             />
+            <div
+              v-if="traceMode && playbackVarsList.length > 0"
+              class="code-runner__vars"
+              aria-label="Biến hiện tại"
+            >
+              <div v-for="entry in playbackVarsList" :key="entry.key" class="code-runner__vars-row">
+                <span class="code-runner__vars-key">{{ entry.key }}</span>
+                <span class="code-runner__vars-eq" aria-hidden="true">=</span>
+                <span class="code-runner__vars-value">{{ formatVarValue(entry.value) }}</span>
+              </div>
+            </div>
             <div class="code-runner__sim-controls">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Bước lùi"
-                :disabled="simStore.isFirst"
-                @click="simStore.stepBack()"
-              >
-                <StepBack :size="16" aria-hidden="true" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Bước tới"
-                :disabled="simStore.isLast"
-                @click="simStore.stepForward()"
-              >
-                <StepForward :size="16" aria-hidden="true" />
-              </Button>
-              <span class="code-runner__step-info">
-                Bước {{ simStore.currentIndex + 1 }}/{{ simStore.steps.length }}
-              </span>
+              <template v-if="traceMode">
+                <ControlBar
+                  :current-index="playbackIndex"
+                  :total-frames="playbackFrames"
+                  :status="playbackStatus"
+                  :speed="playbackSpeed"
+                  @play="onPlaybackPlay"
+                  @pause="onPlaybackPause"
+                  @step-back="onPlaybackStepBack"
+                  @step-forward="onPlaybackStepForward"
+                  @reset="onPlaybackReset"
+                  @set-speed="onPlaybackSpeed"
+                />
+                <Button variant="ghost" size="sm" @click="showSamplePreview">Xem lại mẫu</Button>
+              </template>
+              <template v-else>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Bước lùi"
+                  :disabled="simStore.isFirst"
+                  @click="simStore.stepBack()"
+                >
+                  <StepBack :size="16" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Bước tới"
+                  :disabled="simStore.isLast"
+                  @click="simStore.stepForward()"
+                >
+                  <StepForward :size="16" aria-hidden="true" />
+                </Button>
+                <span class="code-runner__step-info">
+                  Bước {{ simStore.currentIndex + 1 }}/{{ simStore.steps.length }}
+                </span>
+              </template>
             </div>
           </div>
         </section>
@@ -357,7 +467,8 @@ async function toggleHistory(): Promise<void> {
   width: 48px;
   flex-shrink: 0;
   overflow: hidden;
-  padding: var(--space-md) var(--space-sm) var(--space-md) 0;
+  /* padding-left giữ chỗ cho border-left của dòng active (không xê dịch text khi đổi dòng) */
+  padding: var(--space-md) var(--space-sm) var(--space-md) var(--space-xs);
   background: color-mix(in srgb, var(--color-canvas-ink) 60%, var(--color-index-muted) 8%);
   border-right: 1px solid color-mix(in srgb, var(--color-index-muted) 35%, transparent);
   text-align: right;
@@ -370,6 +481,13 @@ async function toggleHistory(): Promise<void> {
   font-size: var(--text-xs);
   line-height: 1.6;
   color: var(--color-index-muted);
+}
+
+.code-runner__gutter-line--active {
+  color: var(--color-primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-left: 2px solid var(--color-primary);
 }
 
 .code-runner__textarea {
@@ -460,6 +578,38 @@ async function toggleHistory(): Promise<void> {
 }
 
 .code-runner__visual { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+/* ── Vars panel (trace playback) — nền dữ liệu tối canvas-ink (quyết định #5) ── */
+.code-runner__vars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 96px;
+  overflow-y: auto;
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
+}
+
+.code-runner__vars-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  line-height: 1.6;
+}
+
+.code-runner__vars-key {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.code-runner__vars-eq { color: var(--color-index-muted); }
+
+.code-runner__vars-value { word-break: break-all; }
 
 .code-runner__sim-controls {
   display: flex;

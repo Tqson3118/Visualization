@@ -60,7 +60,7 @@ export class StackQueueRenderer implements Renderer {
     let topCellY: number | null = null;
     cells.forEach((el, i) => {
       let cy = bottom - (i + 1) * cellSize + cellSize / 2;
-      const flying = el.status === 'swap';
+      const flying = el.status === 'swap' && !hasAnimOverride(el);
       if (flying) cy -= FLY_OFFSET; // pop: bay lên
       this.drawCell(el, cx - cellSize / 2, cy - cellSize / 2, cellSize, cellSize, options, flying ? FLY_ALPHA : undefined);
       if (topCellY === null && !isEmptyCell(el)) topCellY = cy;
@@ -89,7 +89,7 @@ export class StackQueueRenderer implements Renderer {
 
     cells.forEach((el, i) => {
       let cx = CANVAS_LAYOUT.margin + i * cellSize + cellSize / 2;
-      const flying = el.status === 'swap';
+      const flying = el.status === 'swap' && !hasAnimOverride(el);
       if (flying) cx -= FLY_OFFSET; // dequeue: bay ra trái
       this.drawCell(el, cx - cellSize / 2, cy - cellSize / 2, cellSize, cellSize, options, flying ? FLY_ALPHA : undefined);
       // Nhãn front/rear dưới ô tương ứng.
@@ -103,11 +103,20 @@ export class StackQueueRenderer implements Renderer {
   }
 
   private drawCell(el: Element, x: number, y: number, w: number, h: number, options: RenderOptions, alpha?: number): void {
+    // Override meta từ useStructureTransition (Task 3): animX/animY dịch tương đối
+    // (element trượt/bay trong lúc push/pop), animAlpha thay thế alpha (fade khi pop/dequeue).
+    const anim = el.meta;
+    const animX = typeof anim?.animX === 'number' ? anim.animX : 0;
+    const animY = typeof anim?.animY === 'number' ? anim.animY : 0;
+    const alphaOverride = typeof anim?.animAlpha === 'number' ? anim.animAlpha : undefined;
+    x += animX;
+    y += animY;
     const cx = x + w / 2;
     const cy = y + h / 2;
     const empty = isEmptyCell(el);
-    const fill = alpha !== undefined
-      ? this.painter.statusColorWithAlpha(el.status, alpha)
+    const effAlpha = alphaOverride ?? alpha;
+    const fill = effAlpha !== undefined
+      ? this.painter.statusColorWithAlpha(el.status, effAlpha)
       : empty
         ? this.painter.statusColorWithAlpha('muted', 0.35)
         : this.painter.statusColor(el.status);
@@ -134,6 +143,12 @@ export class StackQueueRenderer implements Renderer {
 
 function isEmptyCell(el: Element): boolean {
   return el.label === '—' || el.meta?.empty === true;
+}
+
+/** Element đang bị transition điều khiển (useStructureTransition) → KHÔNG áp dụng FLY_OFFSET tĩnh. */
+function hasAnimOverride(el: Element): boolean {
+  const anim = el.meta;
+  return typeof anim?.animX === 'number' || typeof anim?.animY === 'number' || typeof anim?.animAlpha === 'number';
 }
 
 function sortedElements(structure: Structure): Element[] {

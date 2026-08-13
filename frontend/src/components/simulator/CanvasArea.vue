@@ -8,6 +8,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { Element, ElementStatus, Structure } from '@/engines/core/types';
 import type { Renderer } from '@/engines/renderers/interface';
 import { getRendererForKind } from '@/engines/renderers/rendererRegistry';
+import { useStructureTransition } from '@/composables/useStructureTransition';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
 
 const props = withDefaults(
@@ -45,6 +46,12 @@ let observer: ResizeObserver | null = null;
 let activeRenderer: Renderer | null = null;
 let activeKind = '';
 let lastView = { w: 0, h: 0 };
+
+// Transition push/pop stack/queue (Task 3): viewport LOGIC (đã chia zoom) để layout trong
+// composable khớp layout renderer (renderer vẽ theo logicalWidth/Height = viewport / zoom).
+const transition = useStructureTransition({
+  viewport: () => ({ width: lastView.w / props.zoom, height: lastView.h / props.zoom }),
+});
 
 const ZOOM_OPTIONS = [0.5, 0.75, 1, 1.5, 2];
 
@@ -187,11 +194,11 @@ function ensureRenderer(): Renderer | null {
   return activeRenderer;
 }
 
-function render(): void {
+/** Vẽ 1 structure (thường hoặc frame transition) lên canvas — dùng chung render() và transition. */
+function doRender(structure: Structure | null): void {
   if (!canvasRef.value || !ctx) return;
   const canvas = canvasRef.value;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const structure = props.structure;
   if (!structure) return;
 
   // Renderer thật (SDD §8.3) — ưu tiên; kind chưa có renderer → fallback vẽ inline cũ.
@@ -275,9 +282,16 @@ function render(): void {
   ctx.restore();
 }
 
+function render(): void {
+  if (!canvasRef.value || !ctx) return;
+  if (transition.isAnimating()) return; // transition đang vẽ từng frame — không vẽ đè
+  doRender(props.structure);
+}
+
 function resize(): void {
   const canvas = canvasRef.value;
   if (!canvas) return;
+  transition.cancel(); // resize → vẽ thẳng, không chạy transition
   const parent = canvas.parentElement;
   if (!parent) return;
   const dpr = window.devicePixelRatio || 1;
@@ -313,10 +327,32 @@ function onCanvasClick(event: MouseEvent): void {
   }
 }
 
+// Structure đổi → transition (push/pop stack/queue); options đổi → vẽ thẳng.
+let prevStructure: Structure | null = null;
+
 watch(
-  () => [props.structure, props.showIndex, props.showValues, props.zoom] as const,
-  () => render(),
+  () => props.structure,
+  (next) => {
+    if (next === null) {
+      transition.cancel();
+      doRender(null);
+      prevStructure = null;
+      return;
+    }
+    transition.update(prevStructure, next, (s) => {
+      doRender(s);
+      prevStructure = next; // cập nhật sau khi đã vẽ (trong callback renderFrame)
+    });
+  },
   { deep: true },
+);
+
+watch(
+  () => [props.showIndex, props.showValues, props.zoom] as const,
+  () => {
+    transition.cancel(); // đổi option/zoom → vẽ thẳng fallback
+    render();
+  },
 );
 
 onMounted(() => {
@@ -332,6 +368,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  transition.cancel();
   observer?.disconnect();
   window.removeEventListener('resize', resize);
   activeRenderer?.dispose();

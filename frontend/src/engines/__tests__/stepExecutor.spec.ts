@@ -149,3 +149,53 @@ describe('ADAPTER EDV — runMeasure (SDD §4.0.3 v2.5)', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('ADAPTER EDV — runCode phản ánh CODE (không hardcode)', () => {
+  const DEFAULT_ARRAY = [5, 3, 8, 1, 9, 2, 7];
+
+  const BUBBLE_SORT: CodeSimulation = {
+    code: `for (let i = 0; i < arr.length - 1; i++) {
+  for (let j = 0; j < arr.length - 1 - i; j++) {
+    compare(arr[j], arr[j + 1]);
+    if (arr[j] > arr[j + 1]) {
+      swap(arr[j], arr[j + 1]);
+    }
+  }
+}`,
+    entry: 'main',
+    bindings: [{ variable: 'arr', structure: 'array' }],
+  };
+
+  const SELECTION_SORT: CodeSimulation = {
+    code: `for (let i = 0; i < arr.length - 1; i++) {
+  let min = i;
+  for (let j = i + 1; j < arr.length; j++) {
+    compare(arr[min], arr[j]);
+    if (arr[j] < arr[min]) {
+      min = j;
+    }
+  }
+  if (min !== i) {
+    swap(arr[i], arr[min]);
+  }
+}`,
+    entry: 'main',
+    bindings: [{ variable: 'arr', structure: 'array' }],
+  };
+
+  it('sửa code → trace đổi: bubble vs selection sort (cùng input) cho trace.length khác nhau', () => {
+    const bubble = runCode(BUBBLE_SORT, DEFAULT_ARRAY);
+    const selection = runCode(SELECTION_SORT, DEFAULT_ARRAY);
+
+    expect(bubble.error).toBeUndefined();
+    expect(selection.error).toBeUndefined();
+    expect(bubble.trace.length).toBeGreaterThan(0);
+    expect(selection.trace.length).toBeGreaterThan(0);
+    // 2 thuật toán khác nhau phải sinh trace KHÁC NHAU (không hardcode cùng 1 trace)
+    expect(bubble.trace.length).not.toBe(selection.trace.length);
+
+    // Cả 2 đều kết thúc đúng trạng thái cuối (mảng đã sort)
+    expect(bubble.output).toEqual([1, 2, 3, 5, 7, 8, 9]);
+    expect(selection.output).toEqual([1, 2, 3, 5, 7, 8, 9]);
+  });
+});

@@ -117,6 +117,10 @@ export class TreeRenderer implements Renderer {
     const muted = el.status === 'muted';
     const fill = muted ? this.painter.statusColorWithAlpha('muted', 0.5) : this.painter.statusColor(el.status);
     const stroke = hexToRgba(this.painter.statusColor(el.status), 0.8);
+    // Glow cho nút đang xét — vẽ trước hình tròn để nằm dưới.
+    if (el.status === 'active' || el.status === 'highlight') {
+      this.painter.arcGlow(x, y, NODE_R, this.painter.statusColor(el.status), 8);
+    }
     this.painter.circle(x, y, NODE_R, fill, stroke);
     if (options.showValues) {
       this.painter.text(el.label, x, y, {

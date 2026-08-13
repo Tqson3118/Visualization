@@ -8,7 +8,8 @@ import { describe, expect, test, vi } from 'vitest';
 
 import type { Structure } from '../core/types';
 import { ArrayRenderer, MUTED_CELL_ALPHA } from '../renderers/arrayRenderer';
-import { CANVAS_COLORS, hexToRgba } from '../renderers/canvasTheme';
+import { CANVAS_COLORS, CANVAS_LAYOUT, hexToRgba } from '../renderers/canvasTheme';
+import { CanvasPainter } from '../renderers/painter/canvasPainter';
 import { GraphRenderer } from '../renderers/graphRenderer';
 import { HashTableRenderer } from '../renderers/hashTableRenderer';
 import type { Renderer, RenderOptions } from '../renderers/interface';
@@ -219,6 +220,88 @@ describe('GraphRenderer', () => {
   });
 });
 
+describe('GraphRenderer — meta layout (Task 5)', () => {
+  /** Graph n node với meta.x/y cho từng đỉnh (status default → mỗi đỉnh đúng 1 arc). */
+  function graphWithMeta(xs: number[], ys: number[]): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < xs.length; i++) {
+      elements.push({ id: `node:${i}`, label: String(i), status: 'default', meta: { x: xs[i], y: ys[i] } });
+    }
+    return { kind: 'graph', elements, links: [] };
+  }
+
+  /** Graph n node không có meta (hành vi cũ). */
+  function graphPlain(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) elements.push({ id: `node:${i}`, label: String(i), status: 'default' });
+    return { kind: 'graph', elements, links: [] };
+  }
+
+  /** Các lần gọi ctx.arc — mỗi lần [x, y, r, start, end]. */
+  function arcCalls(mock: MockContext): unknown[][] {
+    return vi.mocked(mock.ctx.arc).mock.calls;
+  }
+
+  test('graph 5 node có meta.x/y: normalize vào vùng vẽ — node đầu ≈ góc trái (margin, paddingTop), khác circular', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphWithMeta([0, 10, 20, 30, 40], [0, 0, 10, 10, 20]));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5); // mỗi đỉnh vẽ đúng 1 lần
+    const x = arcs[0][0] as number;
+    const y = arcs[0][1] as number;
+    // Tọa độ nhỏ nhất trong meta → normalize về lề trái / đầu vùng vẽ.
+    expect(x).toBeCloseTo(CANVAS_LAYOUT.margin, 5);
+    expect(y).toBeCloseTo(CANVAS_LAYOUT.paddingTop, 5);
+    // Circular cũ đặt node 0 ở đỉnh giữa trên (x≈w/2, y≈h/2-radius) — không được giống.
+    expect(x).not.toBeCloseTo(800 / 2, 1);
+  });
+
+  test('graph 5 node không có meta: giữ layout circular cũ — 5 arc, node đầu x≈w/2, y≈h/2-radius', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphPlain(5));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5); // không đổi so với trước
+    const radius = Math.max(50, Math.min(800, 600) / 2 - 54);
+    const x = arcs[0][0] as number;
+    const y = arcs[0][1] as number;
+    expect(x).toBeCloseTo(800 / 2, 5);
+    expect(y).toBeCloseTo(600 / 2 - radius, 5);
+  });
+
+  test('node label dưới circle: fillText "A" vẽ ≥2 lần, có lần nằm dưới tâm đỉnh (y > y_circle + NODE_R)', () => {
+    const renderer = new GraphRenderer();
+    const structure: Structure = {
+      kind: 'graph',
+      elements: [{ id: 'node:0', label: 'A', status: 'default', meta: { x: 0, y: 0 } }],
+      links: [],
+    };
+    const mock = renderAll(renderer, structure);
+    const arcs = arcCalls(mock);
+    expect(arcs).toHaveLength(1);
+    const yCircle = arcs[0][1] as number;
+
+    const texts = vi.mocked(mock.ctx.fillText).mock.calls;
+    const aCalls = texts.filter((c) => c[0] === 'A');
+    expect(aCalls.length).toBeGreaterThanOrEqual(2); // trong đỉnh + dưới đỉnh
+    expect(aCalls.some((c) => (c[2] as number) > yCircle + 20)).toBe(true); // label dưới đỉnh
+  });
+
+  test('edge case cùng meta.y: dàn ngang — x khác nhau, mọi arc cùng y (giữa vùng vẽ)', () => {
+    const renderer = new GraphRenderer();
+    const mock = renderAll(renderer, graphWithMeta([0, 10, 20, 30, 40], [5, 5, 5, 5, 5]));
+    const arcs = arcCalls(mock);
+
+    expect(arcs).toHaveLength(5);
+    const xs = new Set(arcs.map((c) => c[0] as number));
+    expect(xs.size).toBe(5); // x dàn đều khác nhau
+    for (const c of arcs) {
+      expect(c[1] as number).toBeCloseTo(600 / 2, 5); // cùng y giữa vùng vẽ
+    }
+  });
+});
+
 describe('StackQueueRenderer', () => {
   const stack: Structure = {
     kind: 'stack',
@@ -323,5 +406,244 @@ describe('rendererRegistry', () => {
     expect(ALL_RENDERERS.some((r) => r instanceof GraphRenderer)).toBe(true);
     // Instance đã đăng ký phải đúng instance trong registry.
     expect(getRendererForKind('linkedlist')).toBe(ALL_RENDERERS.find((r) => r instanceof ListRenderer) ?? null);
+  });
+});
+
+describe('CanvasPainter primitives (Task 6)', () => {
+  /** Mount CanvasPainter vào canvas giả (pattern như mountRenderer). */
+  function mountPainter(painter: CanvasPainter, mock: MockContext): void {
+    const canvas = {
+      getContext: vi.fn(() => mock.ctx),
+      width: 800,
+      height: 600,
+    } as unknown as HTMLCanvasElement;
+    painter.mount(canvas);
+  }
+
+  test('dashedRoundRect vẽ không throw, gọi setLineDash với dash rồi reset []', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+
+    expect(() => painter.dashedRoundRect(10, 10, 80, 40, 6, CANVAS_COLORS.muted, 1.5)).not.toThrow();
+    expect(mock.ctx.setLineDash).toHaveBeenCalledWith([6, 4]);
+    expect(mock.ctx.setLineDash).toHaveBeenLastCalledWith([]); // reset dash sau khi vẽ
+    expect(mock.ctx.stroke).toHaveBeenCalled(); // viền đứt được vẽ
+  });
+
+  test('arcGlow vẽ không throw, shadowBlur > 0 trong lúc vẽ và reset về 0 sau khi vẽ', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+    let blurDuringFill = 0;
+    vi.mocked(mock.ctx.fill).mockImplementation(() => {
+      blurDuringFill = Math.max(blurDuringFill, Number(mock.ctx.shadowBlur) || 0);
+    });
+
+    expect(() => painter.arcGlow(100, 100, 20, CANVAS_COLORS.compare, 8)).not.toThrow();
+    expect(blurDuringFill).toBeGreaterThan(0); // glow đang bật khi fill
+    expect(mock.ctx.shadowBlur).toBe(0); // reset — không rò rỉ state canvas
+    expect(mock.ctx.shadowColor).toBe('transparent');
+  });
+
+  test('fadeRect vẽ không throw, fillStyle là rgba với alpha đúng', () => {
+    const mock = createMockContext();
+    const painter = new CanvasPainter();
+    mountPainter(painter, mock);
+
+    expect(() => painter.fadeRect(10, 10, 100, 30, '#4255ff', 0.25)).not.toThrow();
+    expect(mock.ctx.fillRect).toHaveBeenCalledWith(10, 10, 100, 30);
+    expect(mock.fillStyles).toContain(hexToRgba('#4255ff', 0.25));
+  });
+
+  test('graphRenderer: đỉnh active được vẽ arcGlow (shadow set rồi reset, fill màu compare alpha 0.3)', () => {
+    const renderer = new GraphRenderer();
+    const structure: Structure = {
+      kind: 'graph',
+      elements: [
+        { id: 'node:0', label: '0', status: 'active' },
+        { id: 'node:1', label: '1', status: 'default' },
+      ],
+      links: [],
+    };
+    const mock = createMockContext();
+    mountRenderer(renderer, mock);
+    let maxBlur = 0;
+    vi.mocked(mock.ctx.fill).mockImplementation(() => {
+      maxBlur = Math.max(maxBlur, Number(mock.ctx.shadowBlur) || 0);
+    });
+
+    renderer.render(structure, OPTS);
+    expect(maxBlur).toBeGreaterThan(0); // arcGlow đã chạy cho đỉnh active
+    expect(mock.ctx.shadowBlur).toBe(0); // reset sau render
+    expect(mock.fillStyles).toContain(hexToRgba(CANVAS_COLORS.compare, 0.3)); // glow dùng màu status
+  });
+});
+
+describe('ArrayRenderer — wrap layout mảng dài (Task 7)', () => {
+  // Chỉ vẽ index (không vẽ giá trị) → fillText chỉ chứa label index, kiểm tra chính xác.
+  const OPTS_NO_VALUES: RenderOptions = { showIndex: true, showValues: false, zoom: 1, showLegend: false };
+
+  function numericArray(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) elements.push({ id: `cell:${i}`, label: String(i), status: 'default' });
+    return { kind: 'array', elements, links: [] };
+  }
+
+  /** Render với options tùy chỉnh (renderAll dùng OPTS cố định). */
+  function renderAllWith(renderer: Renderer, structure: Structure, opts: RenderOptions): MockContext {
+    const mock = createMockContext();
+    mountRenderer(renderer, mock);
+    renderer.render(structure, opts);
+    return mock;
+  }
+
+  /** Số hàng thực tế = số đáy bar/ô khác nhau (y + h làm tròn). */
+  function rowCount(mock: MockContext): number {
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    return new Set(calls.map((a) => Math.round((a[1] as number) + (a[3] as number)))).size;
+  }
+
+  test('bar mode n=60 (800×600): wrap ≥2 hàng, mọi bar width > 0, index toàn cục 0 và 59 xuất hiện', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAllWith(renderer, numericArray(60), OPTS_NO_VALUES);
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(60); // mỗi phần tử vẽ đúng 1 bar
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(2); // ≥ 2 hàng
+    for (const args of calls) {
+      expect(args[2]).toBeGreaterThan(0); // bar width > 0
+    }
+    // showValues=false → fillText chỉ là index dưới đáy bar: 0 (hàng đầu) và 59 (hàng cuối).
+    const texts = vi.mocked(mock.ctx.fillText).mock.calls.map((c) => String(c[0]));
+    expect(texts).toContain('0');
+    expect(texts).toContain('59');
+  });
+
+  test('bar mode n=5 (800×600): giữ hành vi cũ — 1 hàng, số bar vẽ bằng n (không wrap)', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAll(renderer, numericArray(5));
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(5);
+    expect(rowCount(mock)).toBe(1); // slotW = 148 ≥ 44 → 1 hàng duy nhất
+  });
+
+  test('bar mode n=100 (800×600): ≥3 hàng, không tràn khỏi margin', () => {
+    const renderer = new ArrayRenderer();
+    const mock = renderAll(renderer, numericArray(100));
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+
+    expect(calls.length).toBe(100);
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(3);
+    for (const args of calls) {
+      expect(args[0] as number).toBeGreaterThanOrEqual(CANVAS_LAYOUT.margin); // x ≥ margin
+      expect((args[0] as number) + (args[2] as number)).toBeLessThanOrEqual(800 - CANVAS_LAYOUT.margin); // x + w ≤ w - margin
+    }
+  });
+
+  test('renderSquares n=40 (500×400): label chữ → wrap ≥2 hàng, không throw', () => {
+    const renderer = new ArrayRenderer();
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < 40; i++) {
+      elements.push({ id: `cell:${i}`, label: String.fromCharCode(97 + (i % 26)), status: 'default' });
+    }
+    const mock = createMockContext();
+    const canvas = { getContext: vi.fn(() => mock.ctx), width: 500, height: 400 } as unknown as HTMLCanvasElement;
+    renderer.mount(canvas);
+    renderer.resize(500, 400);
+
+    expect(() => renderer.render({ kind: 'array', elements, links: [] }, OPTS)).not.toThrow();
+    const calls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    expect(calls.length).toBe(40); // mỗi ô vẽ đúng 1 lần
+    expect(rowCount(mock)).toBeGreaterThanOrEqual(2); // ≥ 2 hàng
+  });
+
+  test('con trỏ trỏ đúng ô sau wrap (target cell:59 ở hàng cuối)', () => {
+    const renderer = new ArrayRenderer();
+    const structure = numericArray(60);
+    structure.elements.push({ id: 'ptr', label: 'P', status: 'active', group: 'pointer', meta: { target: 'cell:59' } });
+    const mock = renderAll(renderer, structure);
+
+    // cell:59 là phần tử vẽ thứ 60 (các cell:0..59 đều không phải pointer) — lấy tâm bar từ roundRect.
+    const barCalls = vi.mocked(mock.ctx.roundRect).mock.calls;
+    const barCx = (barCalls[59][0] as number) + (barCalls[59][2] as number) / 2;
+    // Trong bar mode, moveTo chỉ do mũi tên con trỏ gọi → lần gọi đầu tiên là mũi tên của pointer.
+    const moveToCalls = vi.mocked(mock.ctx.moveTo).mock.calls;
+    expect(moveToCalls.length).toBeGreaterThan(0);
+    expect(moveToCalls[0][0] as number).toBeCloseTo(barCx, 5); // mũi tên thẳng đứng tại tâm ô đích
+  });
+});
+
+describe('ListRenderer — wrap layout danh sách dài', () => {
+  /** Chuỗi nối tiếp n node: node:0 → node:1 → ... → node:n-1 (label số, index toàn cục). */
+  function linkedList(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) {
+      elements.push({ id: `node:${i}`, label: String(i), status: 'default', group: 'linkedlist', meta: { index: i } });
+    }
+    const links: Structure['links'] = [];
+    for (let i = 0; i < n - 1; i++) links.push({ from: `node:${i}`, to: `node:${i + 1}`, label: 'next' });
+    return { kind: 'linkedlist', elements, links };
+  }
+
+  /** Render trên canvas kích thước tùy chọn (mountRenderer cố định 800×600). */
+  function renderList(renderer: Renderer, structure: Structure, width: number, height: number): MockContext {
+    const mock = createMockContext();
+    const canvas = { getContext: vi.fn(() => mock.ctx), width, height } as unknown as HTMLCanvasElement;
+    renderer.mount(canvas);
+    renderer.resize(width, height);
+    renderer.render(structure, OPTS);
+    return mock;
+  }
+
+  /** Các roundRect của node thật (nodeW = 80; ô null ∅ width 40 → loại bỏ). */
+  function nodeRects(mock: MockContext): unknown[][] {
+    return vi.mocked(mock.ctx.roundRect).mock.calls.filter((a) => a[2] === 80);
+  }
+
+  /** Số lần vẽ ký tự ∅ (ô null cuối chain). */
+  function nullCount(mock: MockContext): number {
+    return vi.mocked(mock.ctx.fillText).mock.calls.filter((c) => c[0] === '∅').length;
+  }
+
+  test('n=15 (600×400): wrap ≥2 hàng, mọi node trong bounds, ô null vẫn vẽ đúng 1 lần', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(15), 600, 400);
+
+    const rects = nodeRects(mock);
+    expect(rects).toHaveLength(15); // mỗi node vẽ đúng 1 lần
+    // ≥ 2 hàng: các lần vẽ node có ≥ 2 giá trị y khác nhau.
+    const ys = new Set(rects.map((a) => a[1] as number));
+    expect(ys.size).toBeGreaterThanOrEqual(2);
+    // Mọi node nằm trong bounds (x ≥ margin, x + w ≤ w - margin, y ≥ 0, y + h ≤ h).
+    for (const a of rects) {
+      expect(a[0] as number).toBeGreaterThanOrEqual(CANVAS_LAYOUT.margin);
+      expect((a[0] as number) + (a[2] as number)).toBeLessThanOrEqual(600 - CANVAS_LAYOUT.margin);
+      expect(a[1] as number).toBeGreaterThanOrEqual(0);
+      expect((a[1] as number) + (a[3] as number)).toBeLessThanOrEqual(400);
+    }
+    // Ô null (∅) chỉ vẽ ở cuối chain cuối cùng — đúng 1 lần.
+    expect(nullCount(mock)).toBe(1);
+  });
+
+  test('n=3 (600×400): giữ hành vi cũ — 1 hàng (mọi node cùng y), ô null vẫn vẽ', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(3), 600, 400);
+
+    const rects = nodeRects(mock);
+    expect(rects).toHaveLength(3);
+    const ys = new Set(rects.map((a) => a[1] as number));
+    expect(ys.size).toBe(1); // 1 hàng duy nhất — không wrap
+    expect(nullCount(mock)).toBe(1); // ô null cuối chuỗi vẫn vẽ
+  });
+
+  test('mũi tên nối hàng dùng curve (quadraticCurveTo) ≥ 1 lần khi wrap', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(15), 600, 400);
+
+    // painter.curve → ctx.quadraticCurveTo (arrow chỉ dùng lineTo) — chỉ xuất hiện
+    // khi có mũi tên cong nối hàng r → r+1.
+    expect(mock.ctx.quadraticCurveTo).toHaveBeenCalled();
   });
 });
