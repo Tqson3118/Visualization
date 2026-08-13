@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // FinalTestView — Màn 30: kiểm tra cuối lộ trình (trộn quiz + dự đoán, pass ≥ 70%)
 // Tái sử dụng QuizStage (20.3). Đề fallback sinh từ engines/catalog khi backend chưa có.
-// H-E3: chrome hero gradient Aurora (mốc hoàn thành lộ trình) + rules strip + skeleton card
-// + micro-interaction nhẹ (Motion hero) + i18n. GIỮ NGUYÊN logic fetch/build/submit.
+// View-quality (Phase 2 bổ sung): banner gradient aurora + blob + overlay hack → surface band
+// level-2 + kicker mono `FINAL TEST · PASS ≥ 70%` (dữ liệu thật threshold — quyết định #1);
+// rules strip bỏ shadow + hover-lift → level-1, giá trị số mono + weight 600 (bỏ 700);
+// easing chuẩn; icon gradient → ô muted + lucide 20px tertiary; badge muted; bỏ 🏅/← i18n.
+// GIỮ NGUYÊN logic fetch/build/submit.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { Flag, Gauge, Repeat, Trophy } from 'lucide-vue-next';
+import { ArrowLeft, Flag, Gauge, Repeat, Trophy } from 'lucide-vue-next';
 import { Motion } from 'motion-v';
 
 import * as exercisesApi from '@/api/exercises';
@@ -87,49 +90,56 @@ function onPassed(scorePct: number): void {
 
 <template>
   <main class="final-test container">
-    <nav class="final-test__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
-        {{ messages.finalTest.breadcrumbPath }}
-      </RouterLink>
-      <span aria-hidden="true">/</span>
-      <span>{{ messages.finalTest.breadcrumbLabel }}</span>
-    </nav>
-
-    <!-- Hero gradient Aurora (mốc hoàn thành lộ trình — chữ trắng AA, đồng bộ LessonView) -->
+    <!-- Chrome header — surface band level-2 + kicker mono (DESIGN.md §1/§6, không gradient) -->
     <Motion
-      class="final-test__hero"
+      as="header"
+      class="final-test__chrome"
       :initial="{ opacity: 0, y: 12 }"
       :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.32, ease: 'easeOut' }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <div class="final-test__hero-body">
+      <nav class="final-test__breadcrumb" aria-label="Breadcrumb">
+        <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
+          {{ messages.finalTest.breadcrumbPath }}
+        </RouterLink>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ messages.finalTest.breadcrumbLabel }}</span>
+      </nav>
+
+      <p class="final-test__kicker">
+        FINAL TEST · PASS ≥ {{ passThreshold }}%
+      </p>
+
+      <div class="final-test__hero">
         <span class="final-test__icon" aria-hidden="true">
-          <Flag :size="22" />
+          <Flag :size="20" />
         </span>
         <div class="final-test__hero-title-wrap">
           <h1 class="final-test__title">{{ messages.finalTest.title }}</h1>
           <p class="final-test__sub">{{ messages.finalTest.subtitle(passThreshold) }}</p>
         </div>
-        <Badge variant="primary" class="final-test__badge">
+        <Badge variant="muted" class="final-test__badge">
           {{ messages.finalTest.badge }}
         </Badge>
       </div>
     </Motion>
 
-    <!-- Rules strip: ngưỡng đạt / trọng số / làm lại -->
+    <!-- Rules strip: ngưỡng đạt / trọng số / làm lại — level-1, không shadow/hover-lift -->
     <div class="final-test__rules" :aria-label="messages.finalTest.rulesAria">
       <div class="final-test__rule">
         <span class="final-test__rule-icon" aria-hidden="true"><Gauge :size="16" /></span>
         <div class="final-test__rule-text">
           <p class="final-test__rule-label">{{ messages.finalTest.ruleThreshold }}</p>
-          <p class="final-test__rule-value">{{ messages.finalTest.ruleThresholdValue }}</p>
+          <p class="final-test__rule-value"><span class="font-mono">{{ messages.finalTest.ruleThresholdValue }}</span></p>
         </div>
       </div>
       <div class="final-test__rule">
         <span class="final-test__rule-icon" aria-hidden="true"><Trophy :size="16" /></span>
         <div class="final-test__rule-text">
           <p class="final-test__rule-label">{{ messages.finalTest.ruleWeight }}</p>
-          <p class="final-test__rule-value">{{ messages.finalTest.ruleWeightValue }}</p>
+          <p class="final-test__rule-value">
+            <span class="font-mono">20%</span> điểm lộ trình
+          </p>
         </div>
       </div>
       <div class="final-test__rule">
@@ -157,6 +167,7 @@ function onPassed(scorePct: number): void {
 
     <div class="final-test__actions">
       <Button variant="ghost" @click="router.push({ name: 'path-topic', params: { topicId } })">
+        <ArrowLeft :size="16" aria-hidden="true" />
         {{ messages.finalTest.backToMap }}
       </Button>
     </div>
@@ -171,55 +182,38 @@ function onPassed(scorePct: number): void {
   gap: var(--space-lg);
 }
 
-/* ── Breadcrumb (ngoài hero — nền trang, link primary đủ AA) ── */
+/* ── Chrome header — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
+.final-test__chrome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+}
+
 .final-test__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
 }
 
 .final-test__breadcrumb a { color: var(--color-primary); font-weight: 600; }
 
-/* ── Hero gradient — Aurora (palette 1 — teal → cyan → violet, chữ trắng AA) ── */
+.final-test__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
 .final-test__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-/* Điểm sáng trang trí (decorative) */
-.final-test__hero::before {
-  content: '';
-  position: absolute;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  top: -110px;
-  right: -50px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-info) 22%, transparent);
-  filter: blur(56px);
-}
-
-/* GP-T9b (#12): dark mode gradient Aurora sáng (0.72-0.86) làm chữ trắng khó đọc
-   → phủ lớp tối (0.72) để chữ trắng ≥ 4.5:1 (stop violet tối nhất cũng ≥ 4.6:1). */
-.dark .final-test__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: rgba(4, 47, 46, 0.72);
-}
-
-.final-test__hero-body {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -229,41 +223,42 @@ function onPassed(scorePct: number): void {
 .final-test__icon {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
 .final-test__hero-title-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-xs);
   flex: 1;
   min-width: 220px;
 }
 
 .final-test__title {
-  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
-  color: #fff;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
 .final-test__sub {
   font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--color-text-secondary);
   max-width: 64ch;
   margin: 0;
 }
 
 .final-test__badge { margin-left: auto; align-self: flex-start; }
 
-/* ── Rules strip ── */
+/* ── Rules strip — level-1 (§6): surface + border, KHÔNG shadow, hover chỉ đổi border ── */
 .final-test__rules {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -278,14 +273,11 @@ function onPassed(scorePct: number): void {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-sm) var(--space-md);
-  box-shadow: var(--shadow-sm);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .final-test__rule:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  border-color: var(--color-border-strong);
 }
 
 .final-test__rule-icon {
@@ -293,24 +285,26 @@ function onPassed(scorePct: number): void {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
+  background: var(--color-muted);
+  color: var(--color-text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.final-test__rule-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.final-test__rule-text { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
 
 .final-test__rule-label {
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-weight: 600;
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+  margin: 0;
 }
 
 .final-test__rule-value {
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
+  margin: 0;
 }
 
 /* ── Loading ── */
@@ -329,8 +323,9 @@ function onPassed(scorePct: number): void {
 }
 
 @media (max-width: 640px) {
-  .final-test__hero { padding: var(--space-md); }
+  .final-test__chrome { padding: var(--space-md); }
   .final-test__badge { margin-left: 0; }
+  .final-test__hero { align-items: flex-start; }
   .final-test__actions { justify-content: flex-start; }
 }
 </style>

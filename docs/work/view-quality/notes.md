@@ -313,3 +313,11 @@ Ng├áy: 13/08/2026 ┬╖ Worktree `D:\FPT\neww-qa` (nh├ính `feature/view-q
 
 
 - Verify: `npm run build` PASS (vue-tsc -b + vite build); `npm run test` PASS (95/95). Console error = 0; a11y issue = 0 (─æ├ú th├¬m `name` cho search input). ─Éo 3 mß╗æc: 1366 (table full), 768 (table khß╗¢p, hScroll 0), 390 (card-stack ΓÇö thead ß║⌐n, tr = card, td data-label, hScroll 0).
+
+---
+
+## Phase 2 bổ sung (14/08/2026 · dev-frontend · feature/view-quality-merge-check) — 3 view sót: Ladder / NodeHub / FinalTest
+
+- **Ollama gate 3 câu KHÔNG chạy được ở đợt này**: agent chạy model deepseek-v4-flash — không hỗ trợ đọc ảnh. Đã verify thay bằng DOM assertions + computed style light/dark + 3 mốc breakpoint + console error = 0/3 view (chi tiết ollama-log/LadderView.md + NodeHubView.md + FinalTestView.md, kèm screenshot ladder light/dark). Đề xuất: reviewer có mắt chạy lại gate 3 câu trên screenshot đã lưu.
+- **Ngoài phạm vi 3 view — phát hiện để Phase sau**: LessonDetail.vue (component chung của LessonView + NodeHubView tab Lý thuyết) còn emoji nội dung: 📝 Ghi chú, ★ Đánh giá, 🎯 Sắp xếp cơ bản… (heading), 👉 Bấm, 📚 Tham khảo — KILL-LIST icon emoji, cần task riêng (LessonView + component).
+- **Dark mode chưa wire** (lặp lại quan sát cũ, xác nhận lại đợt này): không có chỗ nào gắn class dark vào <html>; đợt này verify dark bằng cách tự thêm class — token OK.

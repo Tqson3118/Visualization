@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // NodeHubView — Màn 31: 3 tab (Lý thuyết / Luyện tập / Cheatsheet) — mỗi tab 1 component tách
-// H-E3: chrome hero gradient Sunset (palette học tập, đồng bộ LessonView/LadderView) + Tabs shadcn
-// (LessonView pattern) + micro-interaction (Motion hero, Transition panel) + i18n.
-// GIỮ NGUYÊN logic: lessonId/simKey/exercise ladder/openSimulation/openExercise.
+// View-quality (Phase 2 bổ sung): banner gradient sunset + blob + overlay hack → surface band
+// level-2 + kicker mono `NODE 04 · SORT.BUBBLE` (dữ liệu thật route/simKey — quyết định #1);
+// easing chuẩn enter/exit; icon gradient + shadow → ô muted + lucide 20px tertiary; CTA sm→md;
+// H1 48px/600/-0.03em; badge muted; bỏ 📖/▶ trong i18n. GIỮ NGUYÊN logic.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { BookOpen, GraduationCap, Play } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, GraduationCap, Play } from 'lucide-vue-next';
 import { Motion } from 'motion-v';
 
 import { useLessonStore } from '@/stores/lesson';
@@ -111,37 +112,42 @@ function openExercise(id: number): void {
 
 <template>
   <main class="node-hub container">
-    <nav class="node-hub__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
-        {{ messages.nodeHub.breadcrumbPath }}
-      </RouterLink>
-      <span aria-hidden="true">/</span>
-      <span>{{ nodeTitle }}</span>
-    </nav>
-
-    <!-- Hero gradient Sunset (palette học tập, đồng bộ LessonView — chữ trắng AA) -->
+    <!-- Chrome header — surface band level-2 + kicker mono (DESIGN.md §1/§6, không gradient) -->
     <Motion
-      class="node-hub__hero"
+      as="header"
+      class="node-hub__chrome"
       :initial="{ opacity: 0, y: 12 }"
       :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.32, ease: 'easeOut' }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <div class="node-hub__hero-body">
+      <nav class="node-hub__breadcrumb" aria-label="Breadcrumb">
+        <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
+          {{ messages.nodeHub.breadcrumbPath }}
+        </RouterLink>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ nodeTitle }}</span>
+      </nav>
+
+      <p class="node-hub__kicker">
+        NODE {{ String(nodeId).padStart(2, '0') }} · <span class="font-mono">{{ simKey.toUpperCase() }}</span>
+      </p>
+
+      <div class="node-hub__hero">
         <span class="node-hub__icon" aria-hidden="true">
-          <GraduationCap :size="22" />
+          <GraduationCap :size="20" />
         </span>
         <div class="node-hub__hero-title-wrap">
           <h1 class="node-hub__title">{{ nodeTitle }}</h1>
           <p class="node-hub__sub">{{ messages.nodeHub.subtitle(nodeId) }}</p>
         </div>
-        <Badge variant="primary" class="node-hub__badge">
+        <Badge variant="muted" class="node-hub__badge">
           {{ messages.nodeHub.badgeNode(nodeId) }}
         </Badge>
       </div>
 
       <div class="node-hub__hero-actions">
-        <Button size="sm" @click="openSimulation(simKey)">
-          <Play :size="14" aria-hidden="true" />
+        <Button @click="openSimulation(simKey)">
+          <Play :size="16" aria-hidden="true" />
           {{ messages.nodeHub.openSimulation }}
         </Button>
       </div>
@@ -165,8 +171,8 @@ function openExercise(id: number): void {
               <h2 class="node-hub__fallback-title">{{ messages.nodeHub.fallbackTitle(nodeTitle) }}</h2>
             </div>
             <p class="node-hub__fallback-text">{{ messages.nodeHub.fallbackText }}</p>
-            <Button size="sm" @click="openSimulation(simKey)">
-              <Play :size="14" aria-hidden="true" />
+            <Button @click="openSimulation(simKey)">
+              <Play :size="16" aria-hidden="true" />
               {{ messages.nodeHub.fallbackCta(simKey) }}
             </Button>
           </Card>
@@ -190,7 +196,8 @@ function openExercise(id: number): void {
 
     <div class="node-hub__actions">
       <Button variant="ghost" @click="router.push({ name: 'path-topic', params: { topicId } })">
-        ← {{ messages.nodeHub.backToMap }}
+        <ArrowLeft :size="16" aria-hidden="true" />
+        {{ messages.nodeHub.backToMap }}
       </Button>
     </div>
   </main>
@@ -204,55 +211,38 @@ function openExercise(id: number): void {
   gap: var(--space-lg);
 }
 
-/* ── Breadcrumb (ngoài hero — nền trang, link primary đủ AA) ── */
+/* ── Chrome header — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
+.node-hub__chrome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+}
+
 .node-hub__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
 }
 
 .node-hub__breadcrumb a { color: var(--color-primary); font-weight: 600; }
 
-/* ── Hero gradient — Sunset (palette 2 — amber → rose, chữ trắng AA) ── */
+.node-hub__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
 .node-hub__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-sunset);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-/* Điểm sáng trang trí (decorative) */
-.node-hub__hero::before {
-  content: '';
-  position: absolute;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  top: -110px;
-  right: -50px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-warning) 22%, transparent);
-  filter: blur(56px);
-}
-
-/* GP-T9b (#12): dark mode gradient Sunset sáng (0.75-0.88) làm chữ trắng khó đọc
-   → phủ lớp tối (0.72) để chữ trắng ≥ 4.5:1. */
-.dark .node-hub__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: rgba(4, 47, 46, 0.72);
-}
-
-.node-hub__hero-body {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -262,34 +252,35 @@ function openExercise(id: number): void {
 .node-hub__icon {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
-  background-image: var(--gradient-sunset);
-  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
 .node-hub__hero-title-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-xs);
   flex: 1;
   min-width: 220px;
 }
 
 .node-hub__title {
-  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
-  color: #fff;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
 .node-hub__sub {
   font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--color-text-secondary);
   max-width: 64ch;
   margin: 0;
 }
@@ -309,10 +300,13 @@ function openExercise(id: number): void {
 
 .node-hub__panel { padding-top: var(--space-xs); }
 
-/* ── Panel transition (micro-interaction nhẹ khi đổi tab) ── */
-.hub-panel-enter-active,
+/* ── Panel transition (easing chuẩn enter/exit — DESIGN.md §7) ── */
+.hub-panel-enter-active {
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .hub-panel-leave-active {
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity 150ms cubic-bezier(0.7, 0, 0.84, 0), transform 150ms cubic-bezier(0.7, 0, 0.84, 0);
 }
 
 .hub-panel-enter-from {
@@ -344,22 +338,23 @@ function openExercise(id: number): void {
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
+  background: var(--color-muted);
+  color: var(--color-text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.node-hub__fallback-title { font-size: var(--text-md); }
+.node-hub__fallback-title { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
 
 .node-hub__fallback-text {
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   max-width: 72ch;
+  margin: 0;
 }
 
-/* ── Actions (ngoài hero — nền trang) ── */
+/* ── Actions (ngoài chrome — nền trang) ── */
 .node-hub__actions {
   display: flex;
   justify-content: flex-end;
@@ -368,8 +363,9 @@ function openExercise(id: number): void {
 }
 
 @media (max-width: 640px) {
-  .node-hub__hero { padding: var(--space-md); }
+  .node-hub__chrome { padding: var(--space-md); }
   .node-hub__badge { margin-left: 0; }
+  .node-hub__hero { align-items: flex-start; }
   .node-hub__actions { justify-content: flex-start; }
 }
 </style>
