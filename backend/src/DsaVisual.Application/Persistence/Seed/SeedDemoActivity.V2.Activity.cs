@@ -6,22 +6,26 @@ using Microsoft.Extensions.Logging;
 namespace DsaVisual.Application.Persistence.Seed;
 
 /// <summary>
-/// SEED-V2 (PROMPT_K_SEED_PROD_V2) — Task 4: UserQuests + GemTransactions + UserInventory +
-/// Favorites + ContentFeedback cho 69 user V2 (68 student @university.edu.vn theo 4 persona +
-/// showcase@demo.local). Pattern y hệt V1 SeedDemoActivity.Activity.cs: kế hoạch deterministic theo
-/// Index của V2Users (KHÔNG random — chạy lại y hệt), guard idempotent, recompute Xp/Gems/StreakDays
-/// TỪ DB rows khi có quest claim mới (không set tay); chạy lại lần 2 → guard bỏ qua hết (0 dòng thêm).
+/// SEED-V2 (PROMPT_K_SEED_PROD_V2) — Task 4 (+ Task 4b sửa gems âm): UserQuests + GemTransactions +
+/// UserInventory + Favorites + ContentFeedback cho 69 user V2 (68 student @university.edu.vn theo 4
+/// persona + showcase@demo.local). Pattern y hệt V1 SeedDemoActivity.Activity.cs: kế hoạch
+/// deterministic theo Index của V2Users (KHÔNG random — chạy lại y hệt), guard idempotent, recompute
+/// Xp/Gems/StreakDays TỪ DB rows khi có quest claim mới (không set tay); chạy lại lần 2 → guard bỏ
+/// qua hết (0 dòng thêm).
 ///
-/// Kế hoạch theo persona (tổng dự kiến — khớp khoảng mục tiêu Task 4):
-///   UserQuests ~2856 (Showcase 150 / Hardworking 1360 / Average 1296 / Slacker 50 / New 0),
-///   GemTransactions ~1369 = claims (~1294 quest-earn) + spend (75 shop),
-///   UserInventory 75, Favorites ~245, ContentFeedback 25.
-///   Showcase: 30 ngày × 5 quest, claim 109 → Xp = 2790, Gems = 439 − 50 = 389, Streak 30.
+/// Kế hoạch theo persona (tổng — khớp khoảng mục tiêu Task 4 + Task 4b):
+///   UserQuests 2856 (Showcase 150 / Hardworking 1360 / Average 1296 / Slacker 50 / New 0),
+///   GemTransactions 1360 = claims (1300 quest-earn) + spend (60 shop),
+///   UserInventory 60, Favorites 245, ContentFeedback 25.
+///   Showcase: 30 ngày × 5 quest, claim 109 → Xp = 2790, Gems = 439 − 150 = 289, Streak 30.
 ///
-/// Lưu ý quyết định (ghi docs/work/seed-v2/quest-xp-showcase.md): 16 user Average (Index%8 ≥ 4,
-/// ngày 12-15) mua 2 shop item → Gems có thể ÂM nhẹ (-88..-11) vì tỷ lệ reward gems/XP của 8 quest
-/// (cao nhất 10 gems / 60 XP) không đủ mua 2 item (≥ 150 gems) trong khung XP 250-750 — chấp nhận để
-/// đạt mục tiêu số lượng UserInventory 73-110; rule "Gems = earn − spend" vẫn đúng tuyệt đối.
+/// Task 4b (fix gems âm): mọi user V2 có Gems ≥ 0 — V2ItemPlan lọc theo ngân sách Σ gems earn từ
+/// quest claim plan (item rẻ mua trước; user không đủ → không mua item đó). 16 user Average
+/// (Index%8 ≥ 4) mua 2 item (150 gems) trước đây bị cắt còn 1 (avatar-ai-bot 50) vì earn tối đa
+/// trong khung XP 250-750 chỉ ~125 gems; bù 1 item cho showcase (2 item, gems 289) + thêm 6 quest
+/// claim cho Hardworking (Index 0-5, ngày 0) để GemTransactions giữ ≥ 1360. UserInventory 60 < mục
+/// tiêu 73-110: trần khả thi khi giữ Gems ≥ 0 + unique (UserId, ItemId) + XP persona là 61
+/// (Average ≤ 1 item, Hardworking ≤ 2, Showcase ≤ 3) — ghi chú tại docs/work/seed-v2/quest-xp-showcase.md.
 /// KHÔNG sửa file V1, KHÔNG wire vào SeedDemoActivity.cs (Task 6 sẽ thêm call).
 /// </summary>
 public static partial class SeedDemoActivity
@@ -50,6 +54,14 @@ public static partial class SeedDemoActivity
             ["code-run-5"] = (50, 8, 5),
             ["lesson-viewed-2"] = (20, 3, 2),
             ["streak-3"] = (60, 10, 3),
+        };
+
+    /// <summary>Giá gems theo ItemKey cho item dùng trong V2ItemPlan — khớp SeedData.ShopItems (pattern V2QuestStats).</summary>
+    private static readonly IReadOnlyDictionary<string, int> V2ShopPrices =
+        new Dictionary<string, int>
+        {
+            ["avatar-ai-bot"] = 50,
+            ["avatar-cyber-hacker"] = 100,
         };
 
     /// <summary>Simulation keys hợp lệ (shared/simulation-catalog.json) — xoay vòng theo Index cho Favorites.</summary>
@@ -203,6 +215,14 @@ public static partial class SeedDemoActivity
                     claims[1] = true;
                 }
 
+                // Task 4b — bù đủ 6 earn-tx để GemTransactions ≥ 1360 khi UserInventory giảm 75 → 60:
+                // 6 user Hardworking đầu (Index 0-5) claim thêm quest j2 ngày 0 (XP sau 1095-1405 ≤ 1500 ✓,
+                // gems +3/+4/+4/+8/+3/+10). Deterministic, chỉ áp dụng ngày 0 → chạy lại vẫn y hệt.
+                if (day == 0 && index <= 5 && rows > 2)
+                {
+                    claims[2] = true;
+                }
+
                 break;
             case V2Users.AveragePersona:
                 claims[0] = true;
@@ -239,23 +259,71 @@ public static partial class SeedDemoActivity
         _ => 0
     };
 
-    /// <summary>Shop items mua theo persona — Showcase 1, Hardworking 2, Average 1-2 (Index%8 ≥ 4 mua thêm), còn lại 0.</summary>
-    private static IReadOnlyList<V2ItemSeed> V2ItemPlan(string persona, int index) => persona switch
+    /// <summary>
+    /// Shop items mua theo persona, LỌC theo ngân sách gems (Task 4b — đảm bảo Gems ≥ 0 cho mọi user):
+    /// Showcase 2 (ai-bot + cyber-hacker), Hardworking 2, Average 1 (Index%8 ≥ 4 trước đây mua thêm
+    /// cyber-hacker 100 → earn tối đa trong XP 250-750 chỉ ~125 gems nên item thứ 2 bị lọc), còn lại 0.
+    /// Rule: chỉ giữ item khi Σ gems earn (từ quest claim plan, xem <see cref="V2GemsEarned"/>) ≥ tổng chi
+    /// đến item đó — item rẻ đứng trước trong plan nên lọc ra danh sách khả mua hợp lý nhất; user không
+    /// đủ gems → 0 item (giữ nguyên quest claim, không đổi XP).
+    /// </summary>
+    private static IReadOnlyList<V2ItemSeed> V2ItemPlan(string persona, int index)
     {
-        V2Users.ShowcasePersona => [new("avatar-ai-bot", Equip: false, DaysAgo: 1)],
-        V2Users.HardworkingPersona =>
-        [
-            new("avatar-ai-bot", Equip: false, DaysAgo: 2),
-            new("avatar-cyber-hacker", Equip: false, DaysAgo: 5 + index % 3),
-        ],
-        V2Users.AveragePersona when index % 8 >= 4 =>
-        [
-            new("avatar-ai-bot", Equip: false, DaysAgo: 1 + index % 4),
-            new("avatar-cyber-hacker", Equip: false, DaysAgo: 4 + index % 3),
-        ],
-        V2Users.AveragePersona => [new("avatar-ai-bot", Equip: false, DaysAgo: 1 + index % 4)],
-        _ => []
-    };
+        IReadOnlyList<V2ItemSeed> desired = persona switch
+        {
+            V2Users.ShowcasePersona =>
+            [
+                new("avatar-ai-bot", Equip: false, DaysAgo: 1),
+                new("avatar-cyber-hacker", Equip: false, DaysAgo: 5),
+            ],
+            V2Users.HardworkingPersona =>
+            [
+                new("avatar-ai-bot", Equip: false, DaysAgo: 2),
+                new("avatar-cyber-hacker", Equip: false, DaysAgo: 5 + index % 3),
+            ],
+            V2Users.AveragePersona => [new("avatar-ai-bot", Equip: false, DaysAgo: 1 + index % 4)],
+            _ => []
+        };
+
+        var earn = V2GemsEarned(persona, index);
+        var spend = 0;
+        var affordable = new List<V2ItemSeed>(desired.Count);
+        foreach (var item in desired)
+        {
+            var price = V2ShopPrices[item.ItemKey];
+            if (spend + price > earn)       // không đủ gems tích lũy → bỏ item (Gems ≥ 0 tuyệt đối)
+            {
+                continue;
+            }
+
+            affordable.Add(item);
+            spend += price;
+        }
+
+        return affordable;
+    }
+
+    /// <summary>Σ gems earn từ quest claim plan (V2QuestDays × V2QuestRows × V2QuestClaims — đồng bộ 100%
+    /// với vòng lặp seed UserQuests, gồm cả extra claim Hardworking Task 4b). Dùng để lọc item khả mua.</summary>
+    private static int V2GemsEarned(string persona, int index)
+    {
+        var gems = 0;
+        var days = V2QuestDays(persona, index);
+        for (var d = 0; d < days; d++)
+        {
+            var rows = V2QuestRows(persona, index, d);
+            var claims = V2QuestClaims(persona, index, d, rows);
+            for (var j = 0; j < rows; j++)
+            {
+                if (claims[j])
+                {
+                    gems += V2QuestStats[V2QuestKeyAt(persona, index, d, j)].Gems;
+                }
+            }
+        }
+
+        return gems;
+    }
 
     /// <summary>Favorites theo persona — Showcase 5, Hardworking 8-10, Average 3-4, Slacker 0-2, New 0.</summary>
     private static IReadOnlyList<V2FavoriteSeed> V2FavoritePlan(string persona, int index)
@@ -335,9 +403,10 @@ public static partial class SeedDemoActivity
     // ── 1. UserQuests V2 ──────────────────────────────────────
 
     /// <summary>
-    /// ~2856 dòng UserQuests V2 theo persona (Showcase 30 ngày × 5 quest, Hardworking 18-25 ngày × 5,
+    /// 2856 dòng UserQuests V2 theo persona (Showcase 30 ngày × 5 quest, Hardworking 18-25 ngày × 5,
     /// Average 8-15 ngày × 3-4, Slacker 1-3 ngày × 2 quest cố định, New 0). Claim → recompute
     /// Xp/Gems/StreakDays từ DB rows (pattern V1 Activity.cs:279-297) — không set tay. Guard (UserId, QuestDate, QuestId).
+    /// Task 4b: thêm 6 claim (Hardworking Index 0-5, ngày 0) → tổng claim 1300, XP Hardworking vẫn ≤ 1500.
     /// </summary>
     public static async Task SeedUserQuestsV2Async(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
@@ -432,9 +501,10 @@ public static partial class SeedDemoActivity
     // ── 2. GemTransactions V2 (append-only) ───────────────────
 
     /// <summary>
-    /// ~1369 giao dịch gems V2: quest-earn cho TỪNG quest Claimed=1 (RefId = UserQuest.Id — khớp
+    /// 1360 giao dịch gems V2: quest-earn cho TỪNG quest Claimed=1 (RefId = UserQuest.Id — khớp
     /// ClaimQuestAsync) + shop-spend mua item (RefId = ShopItem.Id, Amount âm). GemTransactions không
     /// có unique key → guard: user chưa có giao dịch RefType="quest"/"shop" nào thì mới thêm (pattern V1).
+    /// Task 4b: số spend = số item V2ItemPlan sau lọc ngân sách (60) → 1300 earn + 60 spend = 1360.
     /// </summary>
     public static async Task SeedGemTransactionsV2Async(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
@@ -532,9 +602,10 @@ public static partial class SeedDemoActivity
     // ── 3. UserInventory V2 ────────────────────────────────────
 
     /// <summary>
-    /// 75 dòng UserInventory V2 theo persona (Showcase 1, Hardworking 2, Average 1-2 — Index%8 ≥ 4 mua
-    /// thêm avatar-cyber-hacker, Slacker/New 0). Item MỚI thêm → tính lại Gems = earn − spend từ DB rows
-    /// (pattern V1 Activity.cs:463-474). Guard (UserId, ItemId).
+    /// 60 dòng UserInventory V2 theo persona SAU lọc ngân sách gems (Showcase 2, Hardworking 2,
+    /// Average 1 — Index%8 ≥ 4 trước đây mua thêm avatar-cyber-hacker nhưng earn ≤ 125 gems trong XP
+    /// 250-750 không đủ 150 → tự bị lọc bởi <see cref="V2ItemPlan"/>, Slacker/New 0). Item MỚI thêm →
+    /// tính lại Gems = earn − spend từ DB rows (pattern V1 Activity.cs:463-474). Guard (UserId, ItemId).
     /// </summary>
     public static async Task SeedUserInventoryV2Async(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
