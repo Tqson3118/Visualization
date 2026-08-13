@@ -1,7 +1,12 @@
 <script setup lang="ts">
 // NodeHubView — Màn 31: 3 tab (Lý thuyết / Luyện tập / Cheatsheet) — mỗi tab 1 component tách
+// H-E3: chrome hero gradient Sunset (palette học tập, đồng bộ LessonView/LadderView) + Tabs shadcn
+// (LessonView pattern) + micro-interaction (Motion hero, Transition panel) + i18n.
+// GIỮ NGUYÊN logic: lessonId/simKey/exercise ladder/openSimulation/openExercise.
 import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { BookOpen, GraduationCap, Play } from 'lucide-vue-next';
+import { Motion } from 'motion-v';
 
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
@@ -9,10 +14,14 @@ import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
 import { CATALOG, getCatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
+import { messages } from '@/i18n/vi';
 import LessonDetail from '@/components/lesson/LessonDetail.vue';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
+import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -23,6 +32,12 @@ const topicId = computed(() => String(route.params.topicId ?? ''));
 const nodeId = computed(() => Number(route.params.nodeId ?? 0));
 
 const tab = ref<'theory' | 'practice' | 'cheatsheet'>('theory');
+
+const TABS: TabItem[] = [
+  { key: 'theory', label: messages.nodeHub.tabTheory },
+  { key: 'practice', label: messages.nodeHub.tabPractice },
+  { key: 'cheatsheet', label: messages.nodeHub.tabCheatsheet },
+];
 
 /** Node → bài học lý thuyết (map cục bộ topic×node) — fallback khi backend chưa gắn lesson */
 const lessonId = computed(() => {
@@ -97,83 +112,87 @@ function openExercise(id: number): void {
 <template>
   <main class="node-hub container">
     <nav class="node-hub__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path-topic', params: { topicId } }">Lộ trình</RouterLink>
+      <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
+        {{ messages.nodeHub.breadcrumbPath }}
+      </RouterLink>
       <span aria-hidden="true">/</span>
       <span>{{ nodeTitle }}</span>
     </nav>
 
-    <header class="node-hub__header">
-      <div>
-        <h1 class="node-hub__title">{{ nodeTitle }}</h1>
-        <p class="text-muted node-hub__sub">Node {{ nodeId }} — điểm vào duy nhất cho luồng học của node này.</p>
+    <!-- Hero gradient Sunset (palette học tập, đồng bộ LessonView — chữ trắng AA) -->
+    <Motion
+      class="node-hub__hero"
+      :initial="{ opacity: 0, y: 12 }"
+      :animate="{ opacity: 1, y: 0 }"
+      :transition="{ duration: 0.32, ease: 'easeOut' }"
+    >
+      <div class="node-hub__hero-body">
+        <span class="node-hub__icon" aria-hidden="true">
+          <GraduationCap :size="22" />
+        </span>
+        <div class="node-hub__hero-title-wrap">
+          <h1 class="node-hub__title">{{ nodeTitle }}</h1>
+          <p class="node-hub__sub">{{ messages.nodeHub.subtitle(nodeId) }}</p>
+        </div>
+        <Badge variant="primary" class="node-hub__badge">
+          {{ messages.nodeHub.badgeNode(nodeId) }}
+        </Badge>
       </div>
-      <Button variant="ghost" size="sm" @click="router.push({ name: 'path-topic', params: { topicId } })">
-        ← Về bản đồ
-      </Button>
-    </header>
 
-    <div class="node-hub__tabs">
-      <button
-        type="button"
-        class="node-hub__tab"
-        :class="{ 'node-hub__tab--active': tab === 'theory' }"
-        @click="tab = 'theory'"
-      >
-        Lý thuyết
-      </button>
-      <button
-        type="button"
-        class="node-hub__tab"
-        :class="{ 'node-hub__tab--active': tab === 'practice' }"
-        @click="tab = 'practice'"
-      >
-        Luyện tập (Ladder)
-      </button>
-      <button
-        type="button"
-        class="node-hub__tab"
-        :class="{ 'node-hub__tab--active': tab === 'cheatsheet' }"
-        @click="tab = 'cheatsheet'"
-      >
-        Cheatsheet
-      </button>
-    </div>
-
-    <section v-if="tab === 'theory'" class="node-hub__panel">
-      <LessonDetail
-        v-if="lessonId !== null"
-        :lesson-id="lessonId"
-        @open-simulation="openSimulation"
-        @open-exercise="openExercise"
-      />
-      <div v-else class="node-hub__fallback card">
-        <h2 class="node-hub__fallback-title">📖 Lý thuyết — {{ nodeTitle }}</h2>
-        <p class="node-hub__fallback-text">
-          Node này chưa được gắn bài học lý thuyết trên backend. Hãy mở mô phỏng
-          <button type="button" class="node-hub__link" @click="openSimulation(simKey)">
-            {{ simKey }}
-          </button>
-          để xem thuật toán chạy từng bước, hoặc xem tab Cheatsheet để tra độ phức tạp.
-        </p>
-        <Button size="sm" variant="secondary" @click="openSimulation(simKey)">
-          ▶ Mở mô phỏng {{ simKey }}
+      <div class="node-hub__hero-actions">
+        <Button size="sm" @click="openSimulation(simKey)">
+          <Play :size="14" aria-hidden="true" />
+          {{ messages.nodeHub.openSimulation }}
         </Button>
       </div>
-    </section>
+    </Motion>
 
-    <section v-else-if="tab === 'practice'" class="node-hub__panel">
-      <LadderShell
-        :node-id="nodeId"
-        :quiz-exercise="quizExercise"
-        :quiz-loading="quizLoading"
-        :simulation-key="simKey"
-        :code-exercise-id="codeExerciseId"
-      />
-    </section>
+    <!-- Tabs: Lý thuyết / Luyện tập / Cheatsheet (Tabs shadcn — LessonView pattern) -->
+    <Tabs v-model="tab" :tabs="TABS" class="node-hub__tabs">
+      <Transition name="hub-panel" mode="out-in">
+        <section v-if="tab === 'theory'" key="theory" class="node-hub__panel">
+          <LessonDetail
+            v-if="lessonId !== null"
+            :lesson-id="lessonId"
+            @open-simulation="openSimulation"
+            @open-exercise="openExercise"
+          />
+          <Card v-else class="node-hub__fallback">
+            <div class="node-hub__fallback-head">
+              <span class="node-hub__fallback-icon" aria-hidden="true">
+                <BookOpen :size="18" />
+              </span>
+              <h2 class="node-hub__fallback-title">{{ messages.nodeHub.fallbackTitle(nodeTitle) }}</h2>
+            </div>
+            <p class="node-hub__fallback-text">{{ messages.nodeHub.fallbackText }}</p>
+            <Button size="sm" @click="openSimulation(simKey)">
+              <Play :size="14" aria-hidden="true" />
+              {{ messages.nodeHub.fallbackCta(simKey) }}
+            </Button>
+          </Card>
+        </section>
 
-    <section v-else class="node-hub__panel">
-      <CheatSheetTable @open-simulation="openSimulation" />
-    </section>
+        <section v-else-if="tab === 'practice'" key="practice" class="node-hub__panel">
+          <LadderShell
+            :node-id="nodeId"
+            :quiz-exercise="quizExercise"
+            :quiz-loading="quizLoading"
+            :simulation-key="simKey"
+            :code-exercise-id="codeExerciseId"
+          />
+        </section>
+
+        <section v-else key="cheatsheet" class="node-hub__panel">
+          <CheatSheetTable @open-simulation="openSimulation" />
+        </section>
+      </Transition>
+    </Tabs>
+
+    <div class="node-hub__actions">
+      <Button variant="ghost" @click="router.push({ name: 'path-topic', params: { topicId } })">
+        ← {{ messages.nodeHub.backToMap }}
+      </Button>
+    </div>
   </main>
 </template>
 
@@ -185,6 +204,7 @@ function openExercise(id: number): void {
   gap: var(--space-lg);
 }
 
+/* ── Breadcrumb (ngoài hero — nền trang, link primary đủ AA) ── */
 .node-hub__breadcrumb {
   display: flex;
   gap: var(--space-sm);
@@ -192,51 +212,164 @@ function openExercise(id: number): void {
   color: var(--color-text-muted);
 }
 
-.node-hub__header {
+.node-hub__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+
+/* ── Hero gradient — Sunset (palette 2 — amber → rose, chữ trắng AA) ── */
+.node-hub__hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background-image: var(--gradient-sunset);
+  padding: var(--space-lg) var(--space-xl);
+  box-shadow: var(--shadow-lg);
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-md);
-  align-items: flex-start;
+}
+
+/* Điểm sáng trang trí (decorative) */
+.node-hub__hero::before {
+  content: '';
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  top: -110px;
+  right: -50px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-warning) 22%, transparent);
+  filter: blur(56px);
+}
+
+/* GP-T9b (#12): dark mode gradient Sunset sáng (0.75-0.88) làm chữ trắng khó đọc
+   → phủ lớp tối (0.72) để chữ trắng ≥ 4.5:1. */
+.dark .node-hub__hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(4, 47, 46, 0.72);
+}
+
+.node-hub__hero-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
   flex-wrap: wrap;
 }
 
-.node-hub__title { font-size: var(--text-xl); }
-.node-hub__sub { font-size: var(--text-sm); margin-top: 4px; }
-
-.node-hub__tabs {
-  display: flex;
-  gap: var(--space-xs);
-  border-bottom: 2px solid var(--color-border);
-  overflow-x: auto;
+.node-hub__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background-image: var(--gradient-sunset);
+  color: var(--color-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
 }
 
-.node-hub__tab {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-sm) var(--space-md);
-  font-weight: 700;
+.node-hub__hero-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.node-hub__title {
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  color: #fff;
+  margin: 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+}
+
+.node-hub__sub {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.92);
+  max-width: 64ch;
+  margin: 0;
+}
+
+.node-hub__badge { margin-left: auto; align-self: flex-start; }
+
+.node-hub__hero-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: var(--space-xs);
+}
+
+/* ── Tabs ── */
+.node-hub__tabs { margin-top: var(--space-xs); }
+
+.node-hub__panel { padding-top: var(--space-xs); }
+
+/* ── Panel transition (micro-interaction nhẹ khi đổi tab) ── */
+.hub-panel-enter-active,
+.hub-panel-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.hub-panel-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.hub-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* ── Fallback lý thuyết (node chưa gắn lesson) ── */
+.node-hub__fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.node-hub__fallback-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.node-hub__fallback-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-hub__fallback-title { font-size: var(--text-md); }
+
+.node-hub__fallback-text {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  margin-bottom: -2px;
+  max-width: 72ch;
 }
 
-.node-hub__tab--active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+/* ── Actions (ngoài hero — nền trang) ── */
+.node-hub__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
 
-.node-hub__fallback { display: flex; flex-direction: column; gap: var(--space-md); align-items: flex-start; }
-
-.node-hub__fallback-text { font-size: var(--text-sm); }
-
-.node-hub__link {
-  background: none;
-  border: none;
-  color: var(--color-primary);
-  font-weight: 700;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: inherit;
-  text-decoration: underline;
+@media (max-width: 640px) {
+  .node-hub__hero { padding: var(--space-md); }
+  .node-hub__badge { margin-left: 0; }
+  .node-hub__actions { justify-content: flex-start; }
 }
 </style>
