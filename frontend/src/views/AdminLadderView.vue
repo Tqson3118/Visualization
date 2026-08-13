@@ -58,6 +58,21 @@ const nodeExercises = computed(() => {
   return map;
 });
 
+// Số exercise đã gắn vào từng node (đếm từ list exercises đã fetch — không gọi API mới).
+const nodeExerciseCounts = computed(() => {
+  const counts = new Map<number, number>();
+  for (const node of NODES) counts.set(node.id, 0);
+  for (const ex of exercises.value) {
+    if (ex.nodeId !== null) counts.set(ex.nodeId, (counts.get(ex.nodeId) ?? 0) + 1);
+  }
+  return counts;
+});
+
+// TODO(backend): "Số user đã qua node" chưa hiển thị — API GET /exercises trả
+// ExerciseSummaryDto KHÔNG có field user-passed count (không có completedByUserCount /
+// passCount / tương đương). Khi backend bổ sung field (vd: node stats endpoint hoặc
+// completedByUserCount trên summary), hiện badge "N user đã qua" cạnh count bài tập.
+
 async function attach(): Promise<void> {
   if (selectedNode.value === null || selectedExercise.value === null) return;
   try {
@@ -115,6 +130,9 @@ async function attach(): Promise<void> {
             >
               <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
               <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
+              <Badge variant="secondary" class="admin-ladder__node-count">
+                {{ nodeExerciseCounts.get(node.id) }} bài tập
+              </Badge>
               <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
                 <Check :size="12" /> {{ messages.admin.ladder.attached }}
               </Badge>
@@ -327,6 +345,9 @@ async function attach(): Promise<void> {
 }
 
 .admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Count badge nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
+.admin-ladder__node-count { flex-shrink: 0; }
 
 .admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
 
