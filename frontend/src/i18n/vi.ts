@@ -761,6 +761,20 @@ export const messages = {
 
   // ── Đợt H (H-E3): NodeHub (Màn 31) + Kiểm tra cuối lộ trình (Màn 30) ──
   // Chỉ THÊM chuỗi mới — không sửa/xóa chuỗi cũ (quy tắc H-E2).
+  // ── View-quality (Phase 2 bổ sung): LadderView (Màn 14) — thay hardcode + bỏ 🪜 ──
+  practiceLadder: {
+    breadcrumbPath: 'Lộ trình',
+    kicker: (nodeId: number) => `PRACTICE LADDER · NODE ${String(nodeId).padStart(2, '0')}`,
+    title: 'Practice Ladder',
+    sub: (title: string) =>
+      `${title} · Quiz (20%) → Lab (30%) → Code (50%) · giữ MAX mỗi bậc · session 30 phút`,
+    badge: (nodeId: number) => `Đang học · Node ${nodeId}`,
+    stripLabel: 'Bậc thang · Trọng số',
+    stripBlock: (stage: string, weight: string) => `${stage} · ${weight}`,
+    exit: 'Thoát (giữ bậc đã pass)',
+    openLab: 'Mở Lab trực tiếp',
+  },
+
   nodeHub: {
     breadcrumbPath: 'Lộ trình',
     backToMap: 'Về bản đồ',
@@ -771,10 +785,10 @@ export const messages = {
     tabPractice: 'Luyện tập (Ladder)',
     tabCheatsheet: 'Cheatsheet',
     openSimulation: 'Mở mô phỏng',
-    fallbackTitle: (title: string) => `📖 Lý thuyết — ${title}`,
+    fallbackTitle: (title: string) => `Lý thuyết — ${title}`,
     fallbackText:
       'Node này chưa được gắn bài học lý thuyết trên backend. Hãy mở mô phỏng để xem thuật toán chạy từng bước, hoặc tra bảng độ phức tạp ở tab Cheatsheet.',
-    fallbackCta: (key: string) => `▶ Mở mô phỏng ${key}`,
+    fallbackCta: (key: string) => `Mở mô phỏng ${key}`,
   },
 
   finalTest: {
@@ -791,8 +805,8 @@ export const messages = {
     ruleWeightValue: '20% điểm lộ trình',
     ruleRetry: 'Làm lại',
     ruleRetryValue: 'Tự do trong phiên',
-    backToMap: '← Về bản đồ lộ trình',
-    toastPassed: '🏅 Hoàn thành lộ trình! Đã mở khóa lộ trình kế tiếp (nếu có).',
+    backToMap: 'Về bản đồ lộ trình',
+    toastPassed: 'Hoàn thành lộ trình! Đã mở khóa lộ trình kế tiếp (nếu có).',
     toastFailed: (threshold: number, pct: number) =>
       `Đạt ${pct}% — cần ≥ ${threshold}%. Làm lại trong phiên miễn phí.`,
   },

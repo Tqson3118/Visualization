@@ -1,12 +1,19 @@
 <script setup lang="ts">
 // LadderView — Màn 14: Practice Ladder shell (stepper 3 bậc + stages tách component)
+// View-quality (Phase 2 bổ sung): 🪜 glyph vỡ (r2-fixed-07) → lucide ListOrdered; banner
+// gradient sunset + blob + shadow → surface band level-2 + kicker mono + strip block-token
+// tối (trọng số 3 bậc — quyết định xuyên-nhóm #1/#4); H1 48px/600/-0.03em; badge muted;
+// ←/→ ký tự → lucide ArrowLeft/ArrowRight; Motion enter 280ms cubic-bezier(0.16,1,0.3,1).
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { ArrowLeft, ArrowRight, ListOrdered } from 'lucide-vue-next';
+import { Motion } from 'motion-v';
 
 import { useLessonStore } from '@/stores/lesson';
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta } from '@/engines/catalog';
+import { messages } from '@/i18n/vi';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -27,6 +34,13 @@ const simKey = computed(() => {
 });
 
 const nodeTitle = computed(() => getCatalogMeta(simKey.value)?.title ?? `Node ${nodeId.value}`);
+
+/** Strip trọng số 3 bậc — dữ liệu thật (decorative, aria-hidden). */
+const STAGE_WEIGHTS = [
+  { stage: 'Quiz', weight: '20%', index: '01' },
+  { stage: 'Lab', weight: '30%', index: '02' },
+  { stage: 'Code', weight: '50%', index: '03' },
+] as const;
 
 /** Exercise Ladder theo node: quiz (stage 1) + code (stage 3) — GET /exercises?nodeId&stage (SETUP_TODO §6.6) */
 const quizExercise = ref<ExerciseDto | null>(null);
@@ -72,24 +86,48 @@ function onPassed(stage: number): void {
 
 <template>
   <main class="ladder container">
-    <!-- Hero gradient Sunset (G-F2a palette 2) -->
-    <header class="ladder__hero">
+    <!-- Chrome header — surface band level-2 + kicker mono + strip block-token (DESIGN.md §1/§6) -->
+    <Motion
+      as="header"
+      class="ladder__chrome"
+      :initial="{ opacity: 0, y: 12 }"
+      :animate="{ opacity: 1, y: 0 }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
+    >
       <nav class="ladder__breadcrumb" aria-label="Breadcrumb">
-        <RouterLink :to="{ name: 'path-topic', params: { topicId: String(topicId) } }">Lộ trình</RouterLink>
+        <RouterLink :to="{ name: 'path-topic', params: { topicId: String(topicId) } }">
+          {{ messages.practiceLadder.breadcrumbPath }}
+        </RouterLink>
         <span aria-hidden="true">/</span>
-        <span>{{ nodeTitle }}</span>
+        <span aria-current="page">{{ nodeTitle }}</span>
       </nav>
 
-      <div class="ladder__hero-body">
+      <p class="ladder__kicker">{{ messages.practiceLadder.kicker(Number(nodeId) || 0) }}</p>
+
+      <div class="ladder__hero">
+        <span class="ladder__icon" aria-hidden="true">
+          <ListOrdered :size="20" />
+        </span>
         <div class="ladder__hero-title-wrap">
-          <h1 class="ladder__title">🪜 Practice Ladder</h1>
-          <p class="ladder__sub">
-            {{ nodeTitle }} · Quiz (20%) → Lab (30%) → Code (50%) · giữ MAX mỗi bậc · session 30 phút
-          </p>
+          <h1 class="ladder__title">{{ messages.practiceLadder.title }}</h1>
+          <p class="ladder__sub">{{ messages.practiceLadder.sub(nodeTitle) }}</p>
         </div>
-        <Badge variant="primary" class="ladder__hero-badge">Đang học · Node {{ nodeId }}</Badge>
+        <Badge variant="muted" class="ladder__hero-badge">
+          {{ messages.practiceLadder.badge(Number(nodeId) || 0) }}
+        </Badge>
       </div>
-    </header>
+
+      <!-- Strip block-token tối — trọng số 3 bậc + index mono (dữ liệu chỉ số → quyết định #4) -->
+      <div class="ladder__strip" aria-hidden="true">
+        <p class="ladder__strip-label">{{ messages.practiceLadder.stripLabel }}</p>
+        <div class="ladder__strip-blocks">
+          <div v-for="item in STAGE_WEIGHTS" :key="item.index" class="ladder__strip-block">
+            <span class="ladder__strip-value">{{ messages.practiceLadder.stripBlock(item.stage, item.weight) }}</span>
+            <span class="ladder__strip-index">{{ item.index }}</span>
+          </div>
+        </div>
+      </div>
+    </Motion>
 
     <div v-if="quizLoading" class="ladder__loading">
       <Skeleton height="96px" :lines="3" />
@@ -107,10 +145,12 @@ function onPassed(stage: number): void {
 
     <div class="ladder__actions">
       <Button variant="ghost" @click="router.push({ name: 'path-topic', params: { topicId: String(topicId) } })">
-        ← Thoát (giữ bậc đã pass)
+        <ArrowLeft :size="16" aria-hidden="true" />
+        {{ messages.practiceLadder.exit }}
       </Button>
       <Button variant="secondary" @click="router.push({ name: 'lab', params: { nodeId } })">
-        Mở Lab trực tiếp →
+        {{ messages.practiceLadder.openLab }}
+        <ArrowRight :size="16" aria-hidden="true" />
       </Button>
     </div>
   </main>
@@ -124,72 +164,123 @@ function onPassed(stage: number): void {
   gap: var(--space-lg);
 }
 
-/* ── Hero gradient Sunset (palette 2 — amber → rose) ── */
-.ladder__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-warning) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-sunset);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
+/* ── Chrome header — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
+.ladder__chrome {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
-
-.ladder__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 60%, transparent);
-}
-
-.ladder__hero::before {
-  content: '';
-  position: absolute;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  top: -110px;
-  right: -50px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-warning) 26%, transparent);
-  filter: blur(56px);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
 }
 
 .ladder__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
 }
 
 .ladder__breadcrumb a { color: var(--color-primary); font-weight: 600; }
 
-.ladder__hero-body {
+.ladder__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
+.ladder__hero {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-md);
   flex-wrap: wrap;
 }
 
-.ladder__hero-title-wrap { display: flex; flex-direction: column; gap: 6px; }
-
-.ladder__title {
-  font-size: var(--text-3xl);
-  background-image: var(--gradient-sunset);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.ladder__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.ladder__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+.ladder__hero-title-wrap { display: flex; flex-direction: column; gap: var(--space-xs); flex: 1; min-width: 220px; }
 
-.ladder__hero-badge { align-self: flex-start; }
+.ladder__title {
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
+}
+
+.ladder__sub { font-size: var(--text-sm); color: var(--color-text-secondary); max-width: 64ch; margin: 0; }
+
+.ladder__hero-badge { margin-left: auto; align-self: flex-start; }
+
+/* ── Strip block-token tối — chip canvas-ink + index mono (hero motif duy nhất/màn) ── */
+.ladder__strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-md);
+}
+
+.ladder__strip-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
+.ladder__strip-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.ladder__strip-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 64px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-ink);
+}
+
+.ladder__strip-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ladder__strip-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-index-muted);
+  line-height: 1.4;
+}
 
 .ladder__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
@@ -199,5 +290,13 @@ function onPassed(stage: number): void {
   gap: var(--space-sm);
   padding-top: var(--space-md);
   border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 640px) {
+  .ladder__chrome { padding: var(--space-md); }
+  .ladder__hero-badge { margin-left: 0; }
+  .ladder__hero { align-items: flex-start; }
+  .ladder__strip { align-items: flex-start; }
+  .ladder__actions { flex-direction: column; align-items: stretch; }
 }
 </style>

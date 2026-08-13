@@ -53,7 +53,7 @@
 | LessonView ΓÇö `/learn/:lessonId` | | | | | | | | | | | | | | CAO |
 | SimulatorView ΓÇö `/simulator/:key` | | | | | | | | | | | | | | CAO |
 | ExerciseView ΓÇö `/exercise/:id` | | | | | | | | | | | | | | |
-| LadderView ΓÇö `/ladder/:nodeId` | | | | | | | | | | | | | | CAO |
+| LadderView ΓÇö `/ladder/:nodeId` | 8 | 5.5 | 12.5 | 13 | 15.5 | 9.5 | 7.5 | 11.5 | 5.5 | 6 | 94.5 | 8.5 | ─Éß║áT | CAO |
 | LabView ΓÇö `/ladder/:nodeId/lab` | | | | | | | | | | | | | | CAO |
 | CodeRunnerView ΓÇö `/code/:key` | | | | | | | | | | | | | | CAO |
 | BenchmarkView ΓÇö `/benchmark/:k1/:k2` | | | | | | | | | | | | | | CAO |
@@ -71,8 +71,8 @@
 | AdminSettingsView ΓÇö `/admin/settings` | 8 | 5.5 | 12 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 7.5 | ─Éß║áT | |
 | AdminContentView ΓÇö `/admin/content` | 7.5 | 5.5 | 12.5 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92.5 | 8.5 | ─Éß║áT | |
 | AdminLadderView ΓÇö `/admin/ladder` | 7.5 | 5.5 | 12 | 13 | 15.5 | 9 | 7.5 | 11 | 5.5 | 5.5 | 92 | 8 | ─Éß║áT | |
-| NodeHubView ΓÇö `/path/:topicId/node/:nodeId` | | | | | | | | | | | | | | |
-| FinalTestView ΓÇö `/path/:topicId/final-test` | | | | | | | | | | | | | | |
+| NodeHubView ΓÇö `/path/:topicId/node/:nodeId` | 8 | 5.5 | 12.5 | 13 | 15 | 9.5 | 7.5 | 11.5 | 5.5 | 6 | 94 | 8 | ─Éß║áT | |
+| FinalTestView ΓÇö `/path/:topicId/final-test` | 8 | 5.5 | 12.5 | 13 | 15 | 9.5 | 7.5 | 11.5 | 5.5 | 6 | 94 | 8 | ─Éß║áT | |
 | NotFoundView ΓÇö `/:pathMatch(.*)*` (404) | | | | | | | | | | | | | | |
 | PlaceholderView ΓÇö (ch╞░a c├│ route trß╗Å ΓÇö standby, router comment "0 route trß╗Å PlaceholderView") | | | | | | | | | | | | | | |
 
