@@ -30,3 +30,10 @@ Ngày: 2026-08-13 · Nhánh: `feature/ux-h-d` · Từ: `dev` (HEAD 604c11f)
 - Contrast: giá gems dùng chuẩn Badge warning `text-amber-700 dark:text-amber-400` (light 5.02:1 / dark 7.2:1) thay vì `--color-warning` raw (3.19:1 — fail AA).
 - E2E/unit hiện có không tham chiếu selector của 4 view này → không phá test.
 - Chưa push/merge — chờ vòng Ollama review của PM.
+
+## Vòng fix P2 (13/08, commit b2d7f84) — shop nạp gems khi mount
+
+- **Fix**: `frontend/src/views/ShopView.vue:36` — `fetchHearts()` → `gamification.fetchAll()` (nạp hearts/streak/premium khi vào thẳng /shop; không đổi store/contract).
+- **Build**: PASS 0 lỗi · **Test**: 89/89 PASS.
+- **Smoke (Playwright 1366×768, login thật + mock gamification theo e2e H-D)**: vào thẳng /shop (goto+reload) → 6 card, 0 overflow, 0 console error từ view; gems=0 vì **backend không có GET gems balance** (probe 9 endpoint: hearts/streak/quests/shop/inventory/premium/progress/achievements/notes — gems chỉ có trong POST buy/claim → P1 contract, cấm đổi đợt H). Luồng có gems (SPA sau claim 300): nút Mua enabled đúng 5/6 (chỉ XP boost 1000 disabled), mua Hint 300→270 + toast "Đã mua". → UI canAfford đúng; gems fresh-load chờ P1 (SETUP_TODO đợt I/J).
+- **Ghi nhận (pre-existing, ngoài phạm vi)**: `GET /progress/me` 500 "An item with the same key has already been added. Key: 1" (backend, duplicate key seed) — đề xuất đợt I/J cùng P1.
