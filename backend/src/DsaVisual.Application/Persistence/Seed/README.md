@@ -3,7 +3,7 @@
 Seeder **THẬT** chạy qua `AppDbContext` (EF Core 10) — file `SeedRunner.cs` (idempotent: kiểm tra tồn tại trước khi chèn — SDD §7.5/§10.5).
 Dữ liệu khai báo tại `SeedData.cs` (5 Topics, 8 Lessons, 3 Users, 8 Quests, 8 ShopItems, 8 Settings) + `SeedData.Students` (8 student demo `@university.edu.vn`).
 
-SAU `SeedSettingsAsync`, `SeedRunner` gọi **`SeedDemoActivity.SeedAsync`** (file `SeedDemoActivity.cs` skeleton + partial `Students/Progress/Activity/Misc/Class`) — **seed dữ liệu hoạt động người dùng demo (SDD §7.5)**: 8 student `@university.edu.vn`, achievements, progress, submissions, quest/gems/inventory/favorites/feedback, 2 lớp học, code submissions/bug reports/lesson notes (chỉ khi bảng trống).
+SAU `SeedSettingsAsync`, `SeedRunner` gọi **`SeedDemoActivity.SeedAsync`** (file `SeedDemoActivity.cs` skeleton + partial `Students/Progress/Activity/Misc/Class`) — **seed dữ liệu hoạt động người dùng demo (SDD §7.5)**: 8 student `@university.edu.vn`, achievements, progress, submissions, quest/gems/inventory/favorites/feedback, 2 lớp học, code submissions/bug reports/lesson notes (chỉ khi bảng trống). Từ 2026-08-14 có thêm đợt **Seed V2 (PROD-K)** — 6 file partial mới `SeedDemoActivity.V2.*` — xem mục "Seed V2 (PROD-K)" dưới.
 
 ## Lệnh chạy seed
 
@@ -56,8 +56,8 @@ Seed idempotent — chạy lại lần 2 an toàn, mọi bước ghi log `Seed: 
 |---|---|---|
 | Settings | xóa `allowed.email.domains` nếu còn (fix domain đăng ký) | `SeedDemoActivity.Students.cs` |
 | Users | +8 student `*@university.edu.vn` (PasswordHasher PBKDF2 thật, mật khẩu `Student@123`) | `SeedData.Students` |
-| Achievements | 10 huy hiệu | `SeedDemoActivity.Achievements.cs` |
-| UserAchievements | trao huy hiệu theo map từng student | `SeedDemoActivity.Achievements.cs` |
+| Achievements | 10 huy hiệu | `SeedDemoActivity.Students.cs` |
+| UserAchievements | trao huy hiệu theo map từng student | `SeedDemoActivity.Students.cs` |
 | UserProgress / UserNodeProgress | tiến độ bài học + node lộ trình (CompletedAt/PassedAt khớp SubmittedAt) | `SeedDemoActivity.Progress.cs` |
 | ExerciseSubmissions | bài nộp MCQ/LAB/CODE cho 9 user | `SeedDemoActivity.Progress.cs` |
 | UserQuests | quest theo ngày (1-13 ngày hoạt động, "app phát hành 1 tháng") | `SeedDemoActivity.Activity.cs` |
@@ -65,7 +65,7 @@ Seed idempotent — chạy lại lần 2 an toàn, mọi bước ghi log `Seed: 
 | UserInventory | item trong kho | `SeedDemoActivity.Activity.cs` |
 | Favorites | bài học yêu thích | `SeedDemoActivity.Activity.cs` |
 | ContentFeedback | phản hồi nội dung | `SeedDemoActivity.Activity.cs` |
-| CodeSubmissions / BugReports | **CHỈ khi bảng trống** (có runtime → bỏ qua) | `SeedDemoActivity.Misc.cs` |
+| CodeSubmissions / BugReports | V1: **CHỈ khi bảng trống** (có runtime → bỏ qua); **V2: guard theo dòng** — xem mục "Seed V2 (PROD-K)" | `SeedDemoActivity.Misc.cs` + `SeedDemoActivity.V2.Misc.cs` |
 | LessonNotes | ghi chú bài học | `SeedDemoActivity.Misc.cs` |
 | Classes / ClassMembers / ClassAssignments | 2 lớp học demo | `SeedDemoActivity.Class.cs` |
 
@@ -128,7 +128,8 @@ Cấu hình exercise:
 - Users: theo `Email` (UNIQUE, lowercase). Topics: theo `Name` (gốc). Lessons: theo `(TopicId, Title)`.
 - LessonSimulations: theo `(LessonId, SimulationKey)`; Exercises: theo `(LessonId, Title)` + `DeletedAt = null`.
 - LearningPaths: theo `Title`; Nodes: theo `(PathId, Title)`; DailyQuests: `QuestKey`; ShopItems: `ItemKey`; Settings: `Key`.
-- **SeedDemoActivity**: cùng pattern guard → Add → SaveChanges → log; Users mới theo `Email`; các bảng KHÔNG unique (CodeSubmissions, BugReports, LessonNotes, ...) **chỉ seed khi bảng đang RỖNG** — đã có dữ liệu runtime → log bỏ qua, return.
+- **SeedDemoActivity (V1)**: cùng pattern guard → Add → SaveChanges → log; Users mới theo `Email`; các bảng KHÔNG unique (CodeSubmissions, BugReports, LessonNotes, ...) **chỉ seed khi bảng đang RỖNG** — đã có dữ liệu runtime → log bỏ qua, return.
+- **V2 (2026-08-14)**: đổi guard `CodeSubmissions`/`BugReports` từ "bảng rỗng" → **guard theo dòng**: `CodeSubmissions` theo `(UserId, ExerciseId)`, `BugReports` theo `(UserId, Description)` — vẫn idempotent khi DB đã có dữ liệu (chạy lại lần 2 → 0 thêm, không đụng rows cũ).
 
 ### Fix domain đăng ký — `allowed.email.domains` (quyết định user 13/08/2026)
 
@@ -170,6 +171,36 @@ Ngưỡng (bản chạy thật 2026-08-12): Users=3, Topics=5, Lessons=8, Lesson
 | BugReports | ≥ 2 | ClassAssignments | ≥ 6 |
 | LessonNotes | ≥ 2 | | |
 
+### Ngưỡng sau khi seed hoạt động demo — Seed V2 (PROD-K, 2026-08-14)
+
+Bản chạy thật trên SQL Server docker 14/08/2026 (nguồn: `docs/work/seed-v2/sql-counts-final.txt` + `verify-final.md` — chạy seed 2 lần, lần 2 = 0 thêm).
+
+| Bảng | Ngưỡng | Thực tế | Bảng | Ngưỡng | Thực tế |
+|---|---|---|---|---|---|
+| Users | ≥ 85 | 95 | UserQuests | ≥ 3000 | 3136 |
+| Achievements | = 17 | 17 | GemTransactions | ≥ 1500 | 1500 |
+| UserAchievements | ≥ 300 | 370 | UserInventory | ≥ 80 | **66 ⚠️** |
+| UserProgress | ≥ 400 | 409 | Favorites | ≥ 250 | 272 |
+| UserNodeProgress | ≥ 600 | 636 | ContentFeedback | ≥ 20 | 35 |
+| ExerciseSubmissions | ≥ 250 | 371 | Classes | = 4 | 4 |
+| CodeSubmissions | ≥ 10 | 12 | ClassMembers | ≥ 60 | 66 |
+| BugReports | = 10 | 10 | ClassAssignments | ≥ 20 | 20 |
+| LessonNotes | = 3 | 3 | | | |
+
+⚠️ **UserInventory 66 < 80 — lệch ĐÃ DUYỆT, không phải bug seed**: trần toán học do rule hệ thống `Gems ≥ 0` + UNIQUE `(UserId, ItemId)` + XP persona (giá item thấp nhất 50): AVG earn max 125 < 150 → ≤ 1 item; HW ≤ 2; showcase ≤ 3 (kỳ vọng thiết kế ~66-67 theo `docs/work/seed-v2/quest-xp-showcase.md` §4.1). Chi tiết: `docs/pm-decision-log-seed-v2.md` [2026-08-14 04:0x] — muốn đạt 80 cần thêm shop item giá ≤ 30 (ngoài phạm vi, CẤM sửa SeedData).
+
+## Seed V2 (PROD-K — 2026-08-14)
+
+Đợt seed mở rộng cho demo prod (prompt `PROMPT_K_SEED_PROD_V2`, branch `feature/seed-prod-v2`), chạy **trên DB thật đã có dữ liệu V1 + runtime** — chỉ GHI THÊM, không sửa/xóa dữ liệu cũ (xem `docs/pm-decision-log-seed-v2.md`).
+
+- **6 file partial mới** (nối vào `SeedDemoActivity.cs`, gọi SAU V1): `SeedDemoActivity.V2.Data.cs` (data dùng chung: email/persona/index deterministic) + `V2.Students.cs` (69 user + 7 achievement + UserAchievements), `V2.Progress.cs` (submissions/progress), `V2.Activity.cs` (quests/gems/inventory/favorites/feedback), `V2.Class.cs` (lớp mới), `V2.Misc.cs` (code submissions/bug reports/premium showcase).
+- **`PlanSeedV2 = 20260814`** — hằng số riêng, KHÔNG đổi `PlanSeed=20260813` của V1 → kế hoạch deterministic độc lập (`V2.Progress.cs`).
+- **69 user mới theo 5 persona**: Hardworking 13 / Average 32 / Slacker 13 / New 10 + **showcase** → tổng Users = 95 (26 cũ + 69 mới).
+- **Showcase `showcase@demo.local`** (id 2092): Xp **2790** (Level 6), Gems 389, Streak 30, Premium **12m** `DSV2092T12` (ExpiresAt 2027-07-15), HeartsMax 30 — rank 1 leaderboard level/week (verify API smoke).
+- **7 achievement mới** (SortOrder 11-17, guard Code): tree-master, graph-expert, code-wizard, speed-demon, lab-master, social-butterfly, quiz-ace → Achievements = 17 (10 V1 + 7 V2); showcase đạt 17/17.
+- **Lớp mới "AI1702 — Thuật toán Đồ thị"** (InviteCode `GRPH21`, đóng, 24 member, 6 assignment) + bổ sung member/assignment cho lớp cũ → Classes = 4 (3 seed + 1 rác QA).
+- Verify: 16/17 ngưỡng PASS; lệch duy nhất UserInventory (66 < 80 — xem ghi chú trên); chạy seed 2 lần → lần 2 = **0 thêm** (idempotent, kể cả CodeSubmissions với guard `(UserId, ExerciseId)` mới).
+
 ## ⚠️ KHÔNG dùng `source/VisualizationDSA1/backend/seed-demo-course.sql`
 
 File SQL cũ của V1 **KHÔNG được bê/dùng**: schema khác hẳn v2 (`AspNetUsers`/`Courses`/`CourseModules`/`Codelabs` không tồn tại trong SDD v2), PasswordHash chuỗi giả — v2 dùng `PasswordHasher` PBKDF2 thật.
@@ -178,4 +209,5 @@ File SQL cũ của V1 **KHÔNG được bê/dùng**: schema khác hẳn v2 (`Asp
 
 - `SeedData.cs` + `SeedRunner.cs`: **seed thật chạy được qua AppDbContext sau Migrate** (`--seed`), idempotent — đã chạy thật lên SQL Server docker local (xem ngưỡng ở trên).
 - `SeedDemoActivity` (skeleton + partial Students/Progress/Activity/Misc/Class): **đã nối vào SeedRunner** — gọi SAU `SeedSettingsAsync` (SEED-4), idempotent, chỉ seed hoạt động khi bảng trống (CodeSubmissions/BugReports) và tự xóa `allowed.email.domains` ở DB cũ.
+- **Seed V2 (PROD-K)**: 6 file `SeedDemoActivity.V2.*` đã nối vào `SeedDemoActivity.cs` — **đã chạy thật 2 lần idempotent (lần 2 = 0 thêm) trên SQL Server docker 14/08/2026**; 16/17 ngưỡng PASS (xem bảng ngưỡng V2 + `docs/work/seed-v2/verify-final.md`).
 - 32 bài nguồn còn lại (ngoài 8 bài seed) → backlog GĐ2 (SDD §7.5): thêm Lessons/Exercises/Questions tương tự (SeedData + QuizSelection + CodeTestCases).
