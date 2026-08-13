@@ -492,3 +492,76 @@ describe('ArrayRenderer — wrap layout mảng dài (Task 7)', () => {
     expect(moveToCalls[0][0] as number).toBeCloseTo(barCx, 5); // mũi tên thẳng đứng tại tâm ô đích
   });
 });
+
+describe('ListRenderer — wrap layout danh sách dài', () => {
+  /** Chuỗi nối tiếp n node: node:0 → node:1 → ... → node:n-1 (label số, index toàn cục). */
+  function linkedList(n: number): Structure {
+    const elements: Structure['elements'] = [];
+    for (let i = 0; i < n; i++) {
+      elements.push({ id: `node:${i}`, label: String(i), status: 'default', group: 'linkedlist', meta: { index: i } });
+    }
+    const links: Structure['links'] = [];
+    for (let i = 0; i < n - 1; i++) links.push({ from: `node:${i}`, to: `node:${i + 1}`, label: 'next' });
+    return { kind: 'linkedlist', elements, links };
+  }
+
+  /** Render trên canvas kích thước tùy chọn (mountRenderer cố định 800×600). */
+  function renderList(renderer: Renderer, structure: Structure, width: number, height: number): MockContext {
+    const mock = createMockContext();
+    const canvas = { getContext: vi.fn(() => mock.ctx), width, height } as unknown as HTMLCanvasElement;
+    renderer.mount(canvas);
+    renderer.resize(width, height);
+    renderer.render(structure, OPTS);
+    return mock;
+  }
+
+  /** Các roundRect của node thật (nodeW = 80; ô null ∅ width 40 → loại bỏ). */
+  function nodeRects(mock: MockContext): unknown[][] {
+    return vi.mocked(mock.ctx.roundRect).mock.calls.filter((a) => a[2] === 80);
+  }
+
+  /** Số lần vẽ ký tự ∅ (ô null cuối chain). */
+  function nullCount(mock: MockContext): number {
+    return vi.mocked(mock.ctx.fillText).mock.calls.filter((c) => c[0] === '∅').length;
+  }
+
+  test('n=15 (600×400): wrap ≥2 hàng, mọi node trong bounds, ô null vẫn vẽ đúng 1 lần', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(15), 600, 400);
+
+    const rects = nodeRects(mock);
+    expect(rects).toHaveLength(15); // mỗi node vẽ đúng 1 lần
+    // ≥ 2 hàng: các lần vẽ node có ≥ 2 giá trị y khác nhau.
+    const ys = new Set(rects.map((a) => a[1] as number));
+    expect(ys.size).toBeGreaterThanOrEqual(2);
+    // Mọi node nằm trong bounds (x ≥ margin, x + w ≤ w - margin, y ≥ 0, y + h ≤ h).
+    for (const a of rects) {
+      expect(a[0] as number).toBeGreaterThanOrEqual(CANVAS_LAYOUT.margin);
+      expect((a[0] as number) + (a[2] as number)).toBeLessThanOrEqual(600 - CANVAS_LAYOUT.margin);
+      expect(a[1] as number).toBeGreaterThanOrEqual(0);
+      expect((a[1] as number) + (a[3] as number)).toBeLessThanOrEqual(400);
+    }
+    // Ô null (∅) chỉ vẽ ở cuối chain cuối cùng — đúng 1 lần.
+    expect(nullCount(mock)).toBe(1);
+  });
+
+  test('n=3 (600×400): giữ hành vi cũ — 1 hàng (mọi node cùng y), ô null vẫn vẽ', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(3), 600, 400);
+
+    const rects = nodeRects(mock);
+    expect(rects).toHaveLength(3);
+    const ys = new Set(rects.map((a) => a[1] as number));
+    expect(ys.size).toBe(1); // 1 hàng duy nhất — không wrap
+    expect(nullCount(mock)).toBe(1); // ô null cuối chuỗi vẫn vẽ
+  });
+
+  test('mũi tên nối hàng dùng curve (quadraticCurveTo) ≥ 1 lần khi wrap', () => {
+    const renderer = new ListRenderer();
+    const mock = renderList(renderer, linkedList(15), 600, 400);
+
+    // painter.curve → ctx.quadraticCurveTo (arrow chỉ dùng lineTo) — chỉ xuất hiện
+    // khi có mũi tên cong nối hàng r → r+1.
+    expect(mock.ctx.quadraticCurveTo).toHaveBeenCalled();
+  });
+});
