@@ -1,10 +1,14 @@
 <script setup lang="ts">
-// SimulationsView — Màn 33 "Khám phá": 3 tab (Danh mục / So sánh / CheatSheet)
-// H-E2: chrome hero Cyber Mint (đồng bộ BenchmarkView) + shadcn Tabs/Card + icon mapping.
-// GIỮ NGUYÊN logic lọc/phân trang + aria-label (selector/e2e hook).
-import { computed, ref } from 'vue';
+// SimulationsView — Màn 33 "Khám phá": 3 tab (Danh mục / So sánh / CheatSheet).
+// View-quality (nhóm A): bỏ chrome gradient mint + shadow → surface band level-2; thêm strip
+// block-token + index mono trong banner (dữ liệu tuần tự → quyết định 4); stat bỏ gradient/800
+// → Geist 600 text-2xl + label tertiary; card bỏ hover-lift (shadow+ease mặc định) → hover đổi
+// border + Space key; BenchmarkPanel/CheatSheetTable → defineAsyncComponent (lazy theo tab).
+// GIỮ NGUYÊN logic lọc/phân trang + aria-label (selector/e2e hook) + tab key.
+import { computed, defineAsyncComponent, ref } from 'vue';
 import type { Component } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Motion } from 'motion-v';
 import {
   ArrowRight,
   ArrowUpDown,
@@ -22,8 +26,6 @@ import {
 } from 'lucide-vue-next';
 
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
-import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
-import BenchmarkPanel from '@/components/benchmark/BenchmarkPanel.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -36,6 +38,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { messages } from '@/i18n/vi';
+
+// Tab content nặng → lazy-load theo tab (trục 10: route-level splitting)
+const BenchmarkPanel = defineAsyncComponent(() => import('@/components/benchmark/BenchmarkPanel.vue'));
+const CheatSheetTable = defineAsyncComponent(() => import('@/components/lesson/CheatSheetTable.vue'));
 
 const router = useRouter();
 
@@ -76,12 +82,21 @@ const filtered = computed(() => {
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)));
 const paged = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
 
-// Số liệu hero (H-E2) — nguồn CATALOG như HomeView stats
+// Số liệu — nguồn CATALOG (stat phụ level-1, §6: tối đa 1 hero/màn — strip block là hero motif)
 const stats = computed(() => ({
   simulations: CATALOG.length,
   groups: new Set(CATALOG.map((c) => c.dataStructure)).size,
   levels: new Set(CATALOG.map((c) => c.level)).size,
 }));
+
+/** Strip block-token trang trí (aria-hidden) — "tìm kiếm 01 tại index 02" ngôn ngữ dữ liệu. */
+const BENCH_BLOCKS = [
+  { value: '3', found: false },
+  { value: '7', found: false },
+  { value: '1', found: true },
+  { value: '8', found: false },
+  { value: '4', found: false },
+] as const;
 
 /** Icon theo loại mô phỏng (algorithm → prefix key; structure → full key). */
 const STRUCTURE_ICONS: Record<string, Component> = {
@@ -132,16 +147,21 @@ function openSimulation(key: string): void {
 
 <template>
   <main class="simulations container">
-    <!-- Chrome header — Cyber Mint (palette 3, đồng bộ BenchmarkView) -->
-    <header class="simulations__chrome">
+    <!-- Chrome header — surface band level-2 (bỏ gradient mint + shadow, §1/§6) -->
+    <Motion
+      class="simulations__chrome"
+      :initial="{ opacity: 0, y: 12 }"
+      :animate="{ opacity: 1, y: 0 }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
+    >
       <nav class="simulations__breadcrumb" aria-label="Breadcrumb">
         <RouterLink :to="{ name: 'home' }">{{ messages.explore.breadcrumbHome }}</RouterLink>
         <span aria-hidden="true">/</span>
-        <span>{{ messages.explore.title }}</span>
+        <span aria-current="page">{{ messages.explore.title }}</span>
       </nav>
       <div class="simulations__hero">
         <span class="simulations__icon" aria-hidden="true">
-          <FlaskConical :size="22" />
+          <FlaskConical :size="20" />
         </span>
         <div>
           <h1 class="simulations__title">{{ messages.explore.title }}</h1>
@@ -149,27 +169,46 @@ function openSimulation(key: string): void {
         </div>
         <Badge variant="success" class="simulations__badge">{{ messages.explore.demoBadge }}</Badge>
       </div>
-      <dl class="simulations__stats" aria-label="Thống kê">
-        <div class="simulations__stat">
-          <dt>{{ messages.explore.statSimulations }}</dt>
-          <dd>{{ stats.simulations }}</dd>
+
+      <div class="simulations__meta">
+        <dl class="simulations__stats" aria-label="Thống kê">
+          <div class="simulations__stat">
+            <dt>{{ messages.explore.statSimulations }}</dt>
+            <dd>{{ stats.simulations }}</dd>
+          </div>
+          <div class="simulations__stat">
+            <dt>{{ messages.explore.statGroups }}</dt>
+            <dd>{{ stats.groups }}</dd>
+          </div>
+          <div class="simulations__stat">
+            <dt>{{ messages.explore.statLevels }}</dt>
+            <dd>{{ stats.levels }}</dd>
+          </div>
+        </dl>
+
+        <!-- Strip block-token + index mono — dấu vân tay Data Bench (decorative) -->
+        <div class="simulations__bench" aria-hidden="true">
+          <p class="simulations__bench-label">INDEX 00–04 · CATALOG {{ CATALOG.length }}</p>
+          <div class="simulations__bench-blocks">
+            <div
+              v-for="(b, idx) in BENCH_BLOCKS"
+              :key="idx"
+              class="simulations__bench-block"
+              :class="{ 'simulations__bench-block--found': b.found }"
+            >
+              <span class="simulations__bench-value">{{ b.value }}</span>
+              <span class="simulations__bench-index">{{ String(idx).padStart(2, '0') }}</span>
+            </div>
+          </div>
         </div>
-        <div class="simulations__stat">
-          <dt>{{ messages.explore.statGroups }}</dt>
-          <dd>{{ stats.groups }}</dd>
-        </div>
-        <div class="simulations__stat">
-          <dt>{{ messages.explore.statLevels }}</dt>
-          <dd>{{ stats.levels }}</dd>
-        </div>
-      </dl>
-    </header>
+      </div>
+    </Motion>
 
     <!-- Tabs shadcn (giữ key catalog/compare/cheatsheet) -->
     <Tabs :tabs="TAB_ITEMS" :model-value="tab" @change="onTabChange">
       <!-- Tab 1: Danh mục -->
       <section v-if="tab === 'catalog'" class="simulations__catalog">
-        <div class="simulations__filters card">
+        <div class="simulations__filters">
           <input
             v-model="search"
             class="input simulations__search"
@@ -229,12 +268,13 @@ function openSimulation(key: string): void {
           <Card
             v-for="item in paged"
             :key="item.key"
-            class="hover-lift simulations__card"
+            class="simulations__card shadow-none"
             role="button"
             tabindex="0"
             :aria-label="messages.explore.openSimulation(item.title)"
             @click="openSimulation(item.key)"
             @keydown.enter="openSimulation(item.key)"
+            @keydown.space.prevent="openSimulation(item.key)"
           >
             <CardHeader>
               <div class="simulations__card-head">
@@ -312,38 +352,30 @@ function openSimulation(key: string): void {
   gap: var(--space-lg);
 }
 
-/* ── Chrome header — Cyber Mint (đồng bộ BenchmarkView) ── */
+/* ── Chrome header — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
 .simulations__chrome {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-mint);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-}
-
-.simulations__chrome::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  /* H-E2: 68% (thay 62% của BenchmarkView) để text-muted trên chrome ≥ 4.5:1 cả 2 theme */
-  background: color-mix(in srgb, var(--color-background) 68%, transparent);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
 }
 
 .simulations__breadcrumb {
   display: flex;
+  align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
-.simulations__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+.simulations__breadcrumb a {
+  color: var(--color-primary);
+  font-weight: 600;
+  padding-block: var(--space-xs);
+}
 
 .simulations__hero {
   display: flex;
@@ -355,62 +387,120 @@ function openSimulation(key: string): void {
 .simulations__icon {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
-  background-image: var(--gradient-mint);
-  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
 .simulations__title {
-  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
-  background-image: var(--gradient-mint);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
 }
 
 .simulations__sub {
   font-size: var(--text-sm);
-  /* H-E2: foreground 92% — text-muted chỉ 3.47:1 trên chrome light (fail AA) */
-  color: color-mix(in srgb, var(--color-foreground) 92%, transparent);
+  color: var(--color-text-secondary);
   max-width: 64ch;
-  margin-top: 2px;
+  margin-top: var(--space-xs);
 }
 
 .simulations__badge { margin-left: auto; }
 
+/* ── Meta row: stat phụ level-1 + strip block-token (hero motif duy nhất) ── */
+.simulations__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-md);
+}
+
 .simulations__stats {
   display: flex;
-  gap: var(--space-md);
+  gap: var(--space-xl);
   flex-wrap: wrap;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-  padding-top: var(--space-md);
+  margin: 0;
+  padding: 0;
 }
 
 .simulations__stat {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: var(--text-xs);
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 .simulations__stat dt {
-  color: color-mix(in srgb, var(--color-foreground) 92%, transparent);
-  font-weight: 600;
-  order: 2;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 500;
 }
+
 .simulations__stat dd {
-  font-size: var(--text-lg);
-  font-weight: 800;
-  background-image: var(--gradient-mint);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
+}
+
+.simulations__bench {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-xs);
+}
+
+.simulations__bench-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
+.simulations__bench-blocks {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.simulations__bench-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 32px;
+  padding: var(--space-xs) 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+.simulations__bench-block--found { background: var(--color-resolved); }
+
+.simulations__bench-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+}
+
+.simulations__bench-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-index-muted);
+  line-height: 1.4;
 }
 
 /* ── Danh mục ── */
@@ -422,6 +512,9 @@ function openSimulation(key: string): void {
   flex-wrap: wrap;
   align-items: center;
   padding: var(--space-md);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
 .simulations__search { flex: 1; min-width: 200px; }
@@ -433,10 +526,19 @@ function openSimulation(key: string): void {
   gap: var(--space-md);
 }
 
+/* Card clickable — hover chỉ đổi border (§4.2), không shadow/scale; focus-visible ring */
 .simulations__card {
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.simulations__card:hover { border-color: var(--color-border-strong); }
+
+.simulations__card:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 .simulations__card-head {
@@ -458,16 +560,19 @@ function openSimulation(key: string): void {
   flex-shrink: 0;
 }
 
-.simulations__card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.simulations__card-badges { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
 
-.simulations__card-title { font-size: var(--text-md); line-height: 1.3; }
+.simulations__card-title {
+  font-size: var(--text-lg);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
 
 .simulations__card-key {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  margin-top: 4px;
-  /* H-E2: --muted-foreground shadcn dark chỉ 3.34:1 trên --card → dùng legacy token 5.3+ */
-  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  color: var(--color-text-tertiary);
 }
 
 .simulations__card-content {
@@ -482,20 +587,22 @@ function openSimulation(key: string): void {
 .simulations__complexity {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-xs);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-tertiary);
+  margin: 0;
+  padding: 0;
 }
 
-.simulations__complexity dt { font-weight: 700; color: var(--color-foreground); }
+.simulations__complexity dt { font-weight: 500; color: var(--color-foreground); }
 .simulations__complexity dd { font-family: var(--font-mono); }
 
 .simulations__open {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
   color: var(--color-primary);
-  font-weight: 700;
+  font-weight: 500;
   font-size: var(--text-xs);
   white-space: nowrap;
 }
@@ -509,7 +616,7 @@ function openSimulation(key: string): void {
 
 .simulations__page-info {
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -517,5 +624,6 @@ function openSimulation(key: string): void {
   .simulations__chrome { padding: var(--space-md); }
   .simulations__badge { margin-left: 0; }
   .simulations__hero { align-items: flex-start; }
+  .simulations__bench { align-items: flex-start; }
 }
 </style>

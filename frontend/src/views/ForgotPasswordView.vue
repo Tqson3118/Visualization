@@ -1,16 +1,17 @@
 <script setup lang="ts">
 // ForgotPasswordView — Màn N-2: gửi link khôi phục mật khẩu (FR-1.6).
-// H-E1 polish: split layout đồng bộ LoginView (brand aside + form card),
-// toast success sau khi gửi. GIỮ nguyên logic gọi API + state sent.
+// View-quality (nhóm A): aside tối canvas-ink (bỏ gradient/blob/glassmorphism), icon
+// lucide-vue-next, Motion easing chuẩn, bỏ shadow shell, nút back bằng icon lucide
+// (bỏ ký tự '←'). GIỮ nguyên logic gọi API + state sent.
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Motion } from 'motion-v';
 import { toast } from 'vue-sonner';
+import { ArrowLeft, CheckCircle2, Mail, Sparkles, Target } from 'lucide-vue-next';
 
 import * as authApi from '@/api/auth';
 import { isValidEmail } from '@/utils/validators';
 import { messages } from '@/i18n/vi';
-import BaseIcon from '@/components/ui/BaseIcon.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 
@@ -38,9 +39,19 @@ async function onSubmit(): Promise<void> {
 }
 
 const BRAND_POINTS = [
-  { icon: 'sparkles', text: messages.auth.brandPoint1 },
-  { icon: 'target', text: messages.auth.brandPoint2 },
-  { icon: 'check-circle', text: messages.auth.brandPoint3 },
+  { icon: Sparkles, text: messages.auth.brandPoint1 },
+  { icon: Target, text: messages.auth.brandPoint2 },
+  { icon: CheckCircle2, text: messages.auth.brandPoint3 },
+] as const;
+
+/** Strip block-token trang trí (aria-hidden) — dấu vân tay Data Bench. */
+const BENCH_BLOCKS = [
+  { value: '7', state: 'done' },
+  { value: '3', state: 'swap' },
+  { value: '8', state: 'active' },
+  { value: '1', state: 'default' },
+  { value: '9', state: 'default' },
+  { value: '2', state: 'default' },
 ] as const;
 </script>
 
@@ -50,16 +61,29 @@ const BRAND_POINTS = [
       class="forgot__shell"
       :initial="{ opacity: 0, y: 12 }"
       :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.32, ease: 'easeOut' }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <!-- Brand panel: gradient Aurora + feature list (đồng bộ LoginView) -->
+      <!-- Brand panel: nền tối canvas-ink + block-token (KHÔNG gradient) -->
       <aside class="forgot__aside" aria-label="Giới thiệu DSA Visual">
         <div class="forgot__aside-inner">
           <span class="forgot__aside-badge">{{ messages.app.name }}</span>
           <h2 class="forgot__aside-title">{{ messages.app.tagline }}</h2>
+
+          <div class="forgot__aside-bench" aria-hidden="true">
+            <div
+              v-for="(b, idx) in BENCH_BLOCKS"
+              :key="b.value"
+              class="forgot__aside-block"
+              :class="`forgot__aside-block--${b.state}`"
+            >
+              <span class="forgot__aside-block-value">{{ b.value }}</span>
+              <span class="forgot__aside-block-index">{{ String(idx).padStart(2, '0') }}</span>
+            </div>
+          </div>
+
           <ul class="forgot__points">
-            <li v-for="point in BRAND_POINTS" :key="point.icon" class="forgot__point">
-              <BaseIcon :name="point.icon" :size="18" class="forgot__point-icon" />
+            <li v-for="point in BRAND_POINTS" :key="point.text" class="forgot__point">
+              <component :is="point.icon" :size="16" class="forgot__point-icon" aria-hidden="true" />
               <span>{{ point.text }}</span>
             </li>
           </ul>
@@ -68,40 +92,41 @@ const BRAND_POINTS = [
 
       <!-- Form gửi link khôi phục -->
       <div class="forgot__form-col">
-        <div class="forgot__card card">
-          <h1 class="forgot__title text-gradient-aurora">{{ messages.forgot.title }}</h1>
+        <div class="forgot__card">
+          <h1 class="forgot__title">{{ messages.forgot.title }}</h1>
 
           <div v-if="sent" class="forgot__sent" role="status">
             <span class="forgot__sent-icon" aria-hidden="true">
-              <BaseIcon name="mail" :size="26" />
+              <Mail :size="26" />
             </span>
             <p class="forgot__sent-title">{{ messages.forgot.sentTitle }}</p>
             <p class="forgot__sent-desc">{{ messages.forgot.sentDesc(email) }}</p>
-            <p class="forgot__sent-hint text-muted">{{ messages.forgot.sentHint }}</p>
+            <p class="forgot__sent-hint">{{ messages.forgot.sentHint }}</p>
             <RouterLink class="forgot__sent-link" :to="{ name: 'login' }">
               {{ messages.forgot.back }}
             </RouterLink>
           </div>
 
           <template v-else>
-            <p class="forgot__desc text-muted">{{ messages.forgot.desc }}</p>
+            <p class="forgot__desc">{{ messages.forgot.desc }}</p>
             <form novalidate @submit.prevent="onSubmit">
               <Input
                 v-model="email"
                 label="Email"
                 type="email"
-                icon="mail"
+                :icon="Mail"
                 :error="error"
                 :placeholder="messages.forgot.emailPlaceholder"
                 autocomplete="email"
                 required
               />
-              <Button type="submit" class="forgot__submit" :loading="submitting" block>
+              <Button type="submit" size="lg" class="forgot__submit" :loading="submitting" block>
                 {{ messages.forgot.submit }}
               </Button>
             </form>
             <RouterLink class="forgot__back" :to="{ name: 'login' }">
-              ← {{ messages.forgot.back }}
+              <ArrowLeft :size="16" aria-hidden="true" />
+              {{ messages.forgot.back }}
             </RouterLink>
           </template>
         </div>
@@ -119,63 +144,25 @@ const BRAND_POINTS = [
   padding: var(--space-lg);
 }
 
+/* Shell — elevation bằng surface + border (KHÔNG shadow, §6) */
 .forgot__shell {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   width: 100%;
   max-width: 920px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-xl);
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-card);
 }
 
-/* ── Brand panel ── */
+/* ── Brand panel — LUÔN tối (quyết định xuyên-nhóm 5) ── */
 .forgot__aside {
-  background-image: var(--gradient-aurora);
-  color: #fff;
+  background: var(--color-canvas-ink);
+  color: rgba(255, 255, 255, 0.92);
   padding: clamp(1.5rem, 4vw, 2.5rem);
   display: flex;
   align-items: center;
-  position: relative;
-  isolation: isolate;
-}
-
-/* GP-T9b (#8): dark mode gradient Aurora sáng → phủ lớp tối để chữ trắng ≥ 4.5:1. */
-.dark .forgot__aside {
-  background-image: linear-gradient(rgba(4, 47, 46, 0.62), rgba(4, 47, 46, 0.62)), var(--gradient-aurora);
-}
-
-.dark .forgot__aside::before,
-.dark .forgot__aside::after {
-  opacity: 0.12;
-}
-
-.forgot__aside::before,
-.forgot__aside::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(52px);
-  opacity: 0.45;
-  z-index: -1;
-}
-
-.forgot__aside::before {
-  width: 260px;
-  height: 260px;
-  background: rgba(255, 255, 255, 0.4);
-  top: -90px;
-  left: -70px;
-}
-
-.forgot__aside::after {
-  width: 220px;
-  height: 220px;
-  background: rgba(255, 255, 255, 0.3);
-  bottom: -80px;
-  right: -50px;
 }
 
 .forgot__aside-inner {
@@ -187,22 +174,62 @@ const BRAND_POINTS = [
 .forgot__aside-badge {
   display: inline-flex;
   width: fit-content;
-  padding: 4px 14px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(4px);
+  color: var(--color-index-muted);
 }
 
 .forgot__aside-title {
   font-size: var(--text-xl);
+  font-weight: 600;
   line-height: 1.35;
+  letter-spacing: -0.015em;
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Block-token strip — signature "dữ liệu được đánh số" */
+.forgot__aside-bench {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-block: var(--space-xs);
+}
+
+.forgot__aside-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 36px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+.forgot__aside-block--swap { background: var(--color-conflict); }
+.forgot__aside-block--done { background: var(--color-resolved); }
+.forgot__aside-block--active { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4); }
+
+.forgot__aside-block-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+}
+
+.forgot__aside-block-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-index-muted);
+  line-height: 1.4;
 }
 
 .forgot__points {
@@ -210,7 +237,7 @@ const BRAND_POINTS = [
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-top: var(--space-sm);
+  margin: 0;
 }
 
 .forgot__point {
@@ -218,13 +245,13 @@ const BRAND_POINTS = [
   align-items: flex-start;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .forgot__point-icon {
   margin-top: 2px;
   flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* ── Form ── */
@@ -241,19 +268,19 @@ const BRAND_POINTS = [
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  box-shadow: none;
-  border: none;
-  background: transparent;
-  padding: 0;
 }
 
 .forgot__title {
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   margin: 0;
 }
 
 .forgot__desc {
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
   margin-bottom: var(--space-sm);
 }
 
@@ -262,9 +289,13 @@ const BRAND_POINTS = [
 }
 
 .forgot__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-size: var(--text-sm);
-  font-weight: 600;
-  margin-top: var(--space-sm);
+  font-weight: 500;
+  padding-block: var(--space-sm);
+  width: fit-content;
 }
 
 /* ── State đã gửi ── */
@@ -282,7 +313,7 @@ const BRAND_POINTS = [
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   color: var(--color-success);
   background: color-mix(in srgb, var(--color-success) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
@@ -290,7 +321,7 @@ const BRAND_POINTS = [
 
 .forgot__sent-title {
   font-size: var(--text-lg);
-  font-weight: 700;
+  font-weight: 600;
   margin-top: var(--space-xs);
 }
 
@@ -300,11 +331,13 @@ const BRAND_POINTS = [
 
 .forgot__sent-hint {
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
 .forgot__sent-link {
-  font-weight: 600;
+  font-weight: 500;
   margin-top: var(--space-sm);
+  padding-block: var(--space-xs);
 }
 
 @media (max-width: 820px) {

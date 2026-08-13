@@ -1,13 +1,18 @@
 <script setup lang="ts">
-// HelpView — Màn 12: FAQ accordion + liên hệ (FR-7.2)
-// H-E2: hero Aurora soft + FAQ card (lucide chevron) + form shadcn (Input/Button).
-// GIỮ NGUYÊN logic FAQ/contact + aria-expanded/role.
+// HelpView — Màn 12: FAQ accordion + liên hệ (FR-7.2).
+// View-quality (nhóm A): bỏ hero aurora-soft + gradient icon/title + shadow → surface band
+// level-2; FAQ item bỏ .card legacy (shadow + all 250ms ease) → token card; trigger qua
+// buttonVariants ghost + aria-controls; chevron/FAQ transition easing chuẩn; submit size lg.
+// GIỮ NGUYÊN logic FAQ/contact + aria-expanded.
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { CheckCircle2, ChevronDown, LifeBuoy, Mail } from 'lucide-vue-next';
+import { Motion } from 'motion-v';
+import { CheckCircle2, ChevronDown, LifeBuoy, Mail, User } from 'lucide-vue-next';
 
+import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import { buttonVariants } from '@/components/ui/button';
 import { messages } from '@/i18n/vi';
 
 const openIndex = ref<number | null>(0);
@@ -63,55 +68,65 @@ function toggle(idx: number): void {
 
 <template>
   <main class="help container">
-    <!-- Hero — Aurora soft (palette 1 nhạt) -->
-    <header class="help__chrome">
+    <!-- Hero — surface band level-2 (bỏ gradient aurora + shadow, §1/§6) -->
+    <Motion
+      class="help__chrome"
+      :initial="{ opacity: 0, y: 12 }"
+      :animate="{ opacity: 1, y: 0 }"
+      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
+    >
       <nav class="help__breadcrumb" aria-label="Breadcrumb">
         <RouterLink :to="{ name: 'home' }">{{ messages.help.breadcrumbHome }}</RouterLink>
         <span aria-hidden="true">/</span>
-        <span>{{ messages.help.title }}</span>
+        <span aria-current="page">{{ messages.help.title }}</span>
       </nav>
       <div class="help__hero">
         <span class="help__icon" aria-hidden="true">
-          <LifeBuoy :size="22" />
+          <LifeBuoy :size="20" />
         </span>
         <div>
           <h1 class="help__title">{{ messages.help.title }}</h1>
           <p class="help__sub">{{ messages.help.sub }}</p>
         </div>
       </div>
-    </header>
+    </Motion>
 
     <div class="help__grid">
       <section class="help__faq" :aria-label="messages.help.faqAria">
         <div
           v-for="(faq, idx) in FAQS"
           :key="idx"
-          class="help__item card"
+          class="help__item"
         >
           <button
             type="button"
-            class="help__question"
+            :class="cn(
+              buttonVariants({ variant: 'ghost' }),
+              'help__question h-auto w-full justify-between whitespace-normal gap-3 rounded-md px-3 py-2 text-left',
+            )"
             :aria-expanded="openIndex === idx"
+            :aria-controls="`faq-answer-${idx}`"
             @click="toggle(idx)"
           >
+            <span class="help__q-index" aria-hidden="true">{{ String(idx + 1).padStart(2, '0') }}</span>
             <span class="help__question-text">{{ faq.q }}</span>
             <ChevronDown
-              :size="18"
+              :size="16"
               class="help__chevron"
               :class="{ 'help__chevron--open': openIndex === idx }"
               aria-hidden="true"
             />
           </button>
           <Transition name="faq">
-            <p v-if="openIndex === idx" class="help__answer">{{ faq.a }}</p>
+            <p v-if="openIndex === idx" :id="`faq-answer-${idx}`" class="help__answer">{{ faq.a }}</p>
           </Transition>
         </div>
       </section>
 
-      <section class="help__contact card">
+      <section class="help__contact">
         <header class="help__contact-head">
           <span class="help__contact-icon" aria-hidden="true">
-            <Mail :size="18" />
+            <Mail :size="16" />
           </span>
           <div>
             <h2 class="help__contact-title">{{ messages.help.contactTitle }}</h2>
@@ -120,7 +135,7 @@ function toggle(idx: number): void {
         </header>
 
         <div v-if="contactSent" class="help__sent" role="status">
-          <CheckCircle2 :size="26" class="help__sent-icon" aria-hidden="true" />
+          <CheckCircle2 :size="22" class="help__sent-icon" aria-hidden="true" />
           <div>
             <p class="help__sent-title">{{ messages.help.sentTitle }}</p>
             <p class="help__sent-desc">{{ messages.help.sentDesc }}</p>
@@ -132,7 +147,7 @@ function toggle(idx: number): void {
             v-model="contact.name"
             :label="messages.help.nameLabel"
             :placeholder="messages.help.namePlaceholder"
-            icon="user"
+            :icon="User"
             autocomplete="name"
             required
           />
@@ -141,12 +156,12 @@ function toggle(idx: number): void {
             type="email"
             :label="messages.help.emailLabel"
             :placeholder="messages.help.emailPlaceholder"
-            icon="mail"
+            :icon="Mail"
             autocomplete="email"
             required
           />
           <div class="help__field">
-            <label for="help-message" class="mb-1.5 block text-sm font-semibold">
+            <label for="help-message" class="help__field-label">
               {{ messages.help.messageLabel }}
               <span class="text-destructive" aria-hidden="true"> *</span>
             </label>
@@ -161,7 +176,7 @@ function toggle(idx: number): void {
             />
           </div>
           <p v-if="contactError" class="help__error" role="alert">{{ contactError }}</p>
-          <Button type="submit" class="help__submit">
+          <Button type="submit" size="lg" class="help__submit">
             {{ messages.help.submit }}
           </Button>
         </form>
@@ -179,29 +194,30 @@ function toggle(idx: number): void {
   max-width: 900px;
 }
 
-/* ── Hero — Aurora soft ── */
+/* ── Hero — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
 .help__chrome {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-color: var(--aurora-soft);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
 }
 
 .help__breadcrumb {
   display: flex;
+  align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
-.help__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+.help__breadcrumb a {
+  color: var(--color-primary);
+  font-weight: 600;
+  padding-block: var(--space-xs);
+}
 
 .help__hero {
   display: flex;
@@ -213,30 +229,29 @@ function toggle(idx: number): void {
 .help__icon {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: #fff;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
 .help__title {
-  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
 }
 
 .help__sub {
   font-size: var(--text-sm);
-  /* H-E2: foreground 92% — text-muted chỉ 4.26:1 trên aurora-soft light (sát fail AA) */
-  color: color-mix(in srgb, var(--color-foreground) 92%, transparent);
+  color: var(--color-text-secondary);
   max-width: 64ch;
-  margin-top: 2px;
+  margin-top: var(--space-xs);
 }
 
 .help__grid {
@@ -248,41 +263,39 @@ function toggle(idx: number): void {
 
 .help__faq { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.help__item { padding: var(--space-sm) var(--space-md); }
-
-.help__item:hover { border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); }
-
-.help__question {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-sm);
-  background: none;
-  border: none;
-  font-weight: 700;
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-  padding: var(--space-xs) 0;
-  color: var(--color-foreground);
+.help__item {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.help__question-text { line-height: 1.45; }
+.help__item:hover { border-color: var(--color-border-strong); }
+
+.help__q-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.help__question-text { line-height: 1.45; font-weight: 600; }
 
 .help__chevron {
   flex-shrink: 0;
-  transition: transform 200ms ease;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .help__chevron--open { transform: rotate(180deg); }
 
 .help__answer {
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  padding-bottom: var(--space-sm);
+  color: var(--color-text-secondary);
+  padding: 0 var(--space-sm) var(--space-sm);
   line-height: 1.7;
+  margin: 0;
 }
 
 .help__contact {
@@ -291,6 +304,10 @@ function toggle(idx: number): void {
   gap: var(--space-md);
   position: sticky;
   top: 80px;
+  padding: var(--space-lg);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
 .help__contact-head {
@@ -305,25 +322,39 @@ function toggle(idx: number): void {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background-image: var(--gradient-aurora);
-  color: #fff;
+  background: var(--color-muted);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.help__contact-title { font-size: var(--text-md); }
+.help__contact-title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-foreground);
+  margin: 0;
+}
 
-.help__contact-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+.help__contact-sub { font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: var(--space-xs); }
 
 .help__form { display: flex; flex-direction: column; gap: var(--space-md); }
 
-.help__field { display: flex; flex-direction: column; gap: 6px; }
+.help__field { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.help__field-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-foreground);
+}
 
 .help__textarea { resize: vertical; min-height: 120px; }
 
-.help__error { color: var(--color-destructive); font-size: var(--text-sm); }
+.help__error { color: var(--color-destructive); font-size: var(--text-sm); margin: 0; }
 
 .help__submit { align-self: flex-start; }
 
@@ -339,11 +370,24 @@ function toggle(idx: number): void {
 
 .help__sent-icon { color: var(--color-success); flex-shrink: 0; }
 
-.help__sent-title { color: var(--color-success); font-weight: 700; font-size: var(--text-sm); }
+.help__sent-title {
+  color: var(--color-success);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  margin: 0;
+}
 
-.help__sent-desc { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 2px; }
+.help__sent-desc { font-size: var(--text-xs); color: var(--color-text-secondary); margin-top: var(--space-xs); }
 
-.faq-enter-active, .faq-leave-active { transition: opacity 200ms ease, transform 200ms ease; }
+/* FAQ expand — enter/exit easing chuẩn DESIGN.md §7 (transform + opacity) */
+.faq-enter-active {
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.faq-leave-active {
+  transition: opacity 150ms cubic-bezier(0.7, 0, 0.84, 0), transform 150ms cubic-bezier(0.7, 0, 0.84, 0);
+}
+
 .faq-enter-from, .faq-leave-to { opacity: 0; transform: translateY(-4px); }
 
 @media (max-width: 800px) {
