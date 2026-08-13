@@ -35,6 +35,10 @@ export interface RegisterRequest {
   email: string;
   password: string;
   isTeacher: boolean;
+  /** Task L — thông tin giảng viên (gửi khi isTeacher=true) */
+  department?: string;
+  staffCode?: string;
+  teacherBio?: string;
 }
 
 export interface LoginResponse {

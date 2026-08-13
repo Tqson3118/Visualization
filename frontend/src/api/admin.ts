@@ -24,6 +24,10 @@ export interface AdminUserDto {
   role: AdminRole;
   isActive: boolean;
   createdAt: string;
+  /** Task L — thông tin đăng ký giảng viên (chỉ có với TEACHER_PENDING) */
+  department?: string;
+  staffCode?: string;
+  teacherBio?: string;
 }
 
 export interface AdminStatsDto {

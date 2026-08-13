@@ -33,6 +33,12 @@ const reviewTarget = ref<AdminUserDto | null>(null);
 const reviewAction = ref<'approve' | 'reject'>('approve');
 const rejectReason = ref('');
 
+// Task L — hiển thị thông tin đăng ký GV trong modal (chỉ khi có giá trị)
+const hasReviewInfo = computed(() => {
+  const u = reviewTarget.value;
+  return Boolean(u && (u.department || u.staffCode || u.teacherBio));
+});
+
 onMounted(load);
 
 async function load(): Promise<void> {
@@ -238,6 +244,21 @@ async function submitReview(): Promise<void> {
           <p class="text-muted">{{ reviewTarget?.email }}</p>
         </div>
       </div>
+      <div v-if="hasReviewInfo" class="admin-users__review-info">
+        <p class="admin-users__review-info-title">{{ messages.admin.users.reviewTeacherInfo }}</p>
+        <div v-if="reviewTarget?.department" class="admin-users__review-info-row">
+          <span class="admin-users__review-info-label">{{ messages.admin.users.department }}</span>
+          <span class="admin-users__review-info-value">{{ reviewTarget.department }}</span>
+        </div>
+        <div v-if="reviewTarget?.staffCode" class="admin-users__review-info-row">
+          <span class="admin-users__review-info-label">{{ messages.admin.users.staffCode }}</span>
+          <span class="admin-users__review-info-value">{{ reviewTarget.staffCode }}</span>
+        </div>
+        <div v-if="reviewTarget?.teacherBio" class="admin-users__review-info-row">
+          <span class="admin-users__review-info-label">{{ messages.admin.users.teacherBio }}</span>
+          <span class="admin-users__review-info-value">{{ reviewTarget.teacherBio }}</span>
+        </div>
+      </div>
       <Input
         v-if="reviewAction === 'reject'"
         v-model="rejectReason"
@@ -423,6 +444,44 @@ async function submitReview(): Promise<void> {
 
 .admin-users__review-text { display: flex; flex-direction: column; min-width: 0; }
 .admin-users__review-name { font-weight: 700; font-size: var(--text-sm); }
+
+/* ── Thông tin đăng ký GV trong modal duyệt (task L) ── */
+.admin-users__review-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+}
+
+.admin-users__review-info-title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.admin-users__review-info-row {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.admin-users__review-info-label {
+  flex-shrink: 0;
+  min-width: 7rem;
+  color: var(--color-text-muted);
+}
+
+.admin-users__review-info-value {
+  font-weight: 600;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 @media (max-width: 640px) {
   .admin-users__hero-badge { margin-left: 0; }
