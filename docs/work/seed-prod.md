@@ -52,3 +52,28 @@ Nguồn: `docker exec neww-sqlserver-1 /opt/mssql-tools18/bin/sqlcmd -S localhos
 ## Vấn đề ghi chú (NGOÀI PHẠM VI seed)
 
 - `GET /api/v1/progress/me` trả **500** — `ArgumentException` (duplicate key) ở tầng mapping/truy vấn progress; dữ liệu seed hợp lệ (counts chuẩn, không trùng khóa UNIQUE). **Đề xuất task riêng** (bug backend, không thuộc đợt seed) — không chặn merge đợt này.
+
+---
+
+## REVIEW ĐỘC LẬP (13/08 ~13:10) — VERDICT: ✅ APPROVE (có điều kiện — 1 lỗi Cao phải xử lý trước merge)
+
+### Verify lại thật (chạy độc lập)
+- Backend build: 0 lỗi. Test: 97/97 unit (gồm 9 test SeedDemoActivityTests mới) + 31/31 integration PASS.
+- Test seed 9 cái phủ đúng trọng tâm: counts, idempotent lần 2 = 0 thay đổi, Gems = earn − spend, XP/level theo quest claim, passed node ↔ submission full-score, bounds, xóa setting domain (cả trường hợp pre-existing), không duplicate unique key. ✅
+- Seed thật lên DB docker 2 lần (idempotent), counts khớp, API smoke 200, register @gmail.com → 201 không DOMAIN_NOT_ALLOWED. ✅
+- Code: partial class tách theo nhóm, guard theo key unique, deterministic (dùng chung kế hoạch), log "thêm/bỏ qua" — đúng pattern SeedRunner. PR #10 đã tạo base dev. ✅
+
+### 🔴 LỖI CAO (phải xử lý — không được coi "ngoài phạm vi")
+**GET /api/v1/progress/me trả 500** — root cause đã xác định: ProgressService.cs:218-223 LoadCountsAsync query UserProgress **KHÔNG lọc p.UserId == userId** → ToDictionary(p => p.LessonId) ném ArgumentException khi ≥2 user cùng học 1 lesson. Trước K: DB chỉ 1 dòng → không crash; sau K: 31 dòng → **mọi student gọi màn "Tiến độ của tôi" đều 500**. Seed K chính là cái làm bug bung ra → không thể đẩy sang M. 
+→ Xử lý: (a) fix 1 dòng trong ProgressService (thêm filter userId — thuộc đợt J backend audit đang chạy, cùng vùng service) hoặc (b) session K tự fix trước khi merge PR #10. Kèm test tái hiện: 2 user cùng lesson → /progress/me 200.
+
+### Ghi chú phụ (không chặn merge)
+- 3 user smoke mới do API smoke tạo (test-gmail-433791@gmail.com id2012 + 2 gv.smoke TeacherPending id2013/2014) — theo quyết định user "giữ nguyên user rác", OK; lưu ý 2 TeacherPending sẽ hiện trong tab chờ duyệt khi demo.
+- NU1903 SSH.NET (pre-existing) → backlog review M.
+- Sau merge K: data leaderboard/classes/achievements đầy đủ → H (UI review) có dữ liệu thật để chụp ảnh — tiện cho cả đợt M.
+
+### KẾT QUẢ XỬ LÝ (session K, 16:20) — ĐÃ FIX + VERIFY ✅
+- Fix: ProgressService.cs — LoadCountsAsync(userId, ct) + filter p.UserId == userId + call site GetMyOverviewAsync truyền userId (commit dd63d87).
+- Test tái hiện: ProgressServiceTests.cs (3 test — 2 user cùng lesson → Success; user không progress → Success; không inflate progress user khác).
+- Verify: full suite 100/100 unit + 31/31 integration PASS; API thật :5001 (code fix) /progress/me → 200 cho huynhthuy + nguyentrang (dữ liệu riêng biệt). Backend docker :5000 bản cũ vẫn 500 → sau merge PR #10 phải rebuild/restart backend.
+- PR #10 (feature/seed-prod → dev) giờ sẵn sàng merge sau khi pass CI review.
