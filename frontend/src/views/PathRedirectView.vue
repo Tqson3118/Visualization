@@ -1,8 +1,14 @@
 <script setup lang="ts">
 // PathRedirectView — /path: danh sách lộ trình (5 topic) — Màn 13 selector
 // Tải topics từ API; fallback cục bộ theo SEED_COURSES + engines/catalog khi API lỗi.
+// P1-B3: banner surface band level-2 + kicker mono (bỏ 🎯), card → RouterLink
+// (Enter/Space/focus native — bỏ role="button" tự chế), bỏ .card/.card--interactive
+// (shadow-md + hover lift — vi phạm §6) → card level-1 hover border-color,
+// index vòng tròn primary/800 → kicker mono "TOPIC 01/05", EmptyState icon book
+// (icon "map" không tồn tại trong SVG_PATHS → fallback x-circle), stagger enter.
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+
+import { Route } from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
 import type { Topic } from '@/api/lessons';
@@ -12,7 +18,6 @@ import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 
-const router = useRouter();
 const progressStore = useProgressStore();
 
 const topics = ref<Topic[]>([]);
@@ -54,56 +59,55 @@ function topicProgress(topicId: number): number {
   const topic = progressStore.overview?.topics.find((t) => t.id === topicId);
   return topic?.progressPct ?? 0;
 }
-
-function openTopic(id: number): void {
-  void router.push({ name: 'path-topic', params: { topicId: String(id) } });
-}
 </script>
 
 <template>
   <main class="path-redirect container">
-    <header class="path-redirect__header">
-      <h1 class="path-redirect__title">🎯 Lộ trình học</h1>
-      <p class="text-muted path-redirect__sub">
+    <!-- Banner surface band level-2 + kicker mono (DESIGN.md §1, không gradient/emoji) -->
+    <header class="path-redirect__chrome">
+      <p class="path-redirect__kicker">Learning Path · Chọn chủ đề</p>
+      <h1 class="path-redirect__title">
+        <Route :size="28" aria-hidden="true" class="path-redirect__title-icon" />
+        Lộ trình học
+      </h1>
+      <p class="path-redirect__sub">
         Chọn lộ trình theo chủ đề — hoàn thành node để mở khóa node kế tiếp.
       </p>
     </header>
 
-    <div v-if="loading" class="path-redirect__loading">
-      <Skeleton v-for="i in 5" :key="i" height="88px" />
+    <div v-if="loading" class="path-redirect__loading" aria-hidden="true">
+      <Skeleton v-for="i in 5" :key="i" height="150px" />
     </div>
 
     <EmptyState
       v-else-if="displayTopics.length === 0"
-      icon="map"
+      icon="book"
       title="Chưa có lộ trình"
-      description="Lộ trình đang được biên soạn — quay lại sau nhé."
+      description="Lộ trình đang được biên soạn — quay lại sau để bắt đầu học nhé."
     />
 
     <div v-else class="path-redirect__grid">
-      <article
+      <RouterLink
         v-for="(topic, idx) in displayTopics"
         :key="topic.id"
-        class="path-redirect__card card card--interactive"
-        role="button"
-        tabindex="0"
-        @click="openTopic(topic.id)"
-        @keydown.enter="openTopic(topic.id)"
+        :to="{ name: 'path-topic', params: { topicId: String(topic.id) } }"
+        class="path-redirect__card"
+        :style="{ '--card-i': Math.min(idx, 8) }"
       >
-        <div class="path-redirect__card-head">
-          <span class="path-redirect__card-index">{{ idx + 1 }}</span>
-          <h2 class="path-redirect__card-title">{{ topic.name }}</h2>
-        </div>
-        <p class="path-redirect__card-desc text-muted">{{ topic.description }}</p>
+        <span class="path-redirect__card-index" aria-hidden="true">
+          TOPIC {{ String(idx + 1).padStart(2, '0') }}/{{ String(displayTopics.length).padStart(2, '0') }}
+        </span>
+        <h2 class="path-redirect__card-title">{{ topic.name }}</h2>
+        <p class="path-redirect__card-desc">{{ topic.description }}</p>
         <ProgressBar
           :value="topicProgress(topic.id)"
           show-label
           :variant="topicProgress(topic.id) >= 100 ? 'success' : 'default'"
         />
-        <p v-if="apiFailed" class="path-redirect__note text-muted">
+        <p v-if="apiFailed" class="path-redirect__note">
           * Hiển thị dữ liệu mẫu cục bộ (backend chưa khả dụng).
         </p>
-      </article>
+      </RouterLink>
     </div>
   </main>
 </template>
@@ -116,8 +120,42 @@ function openTopic(id: number): void {
   gap: var(--space-lg);
 }
 
-.path-redirect__title { font-size: var(--text-2xl); }
-.path-redirect__sub { font-size: var(--text-sm); margin-top: 4px; }
+/* ── Banner surface band level-2 (DESIGN.md §1 + §6) — không gradient, không shadow ── */
+.path-redirect__chrome {
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.path-redirect__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.path-redirect__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.path-redirect__title-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
+
+.path-redirect__sub { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
+
+.path-redirect__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .path-redirect__grid {
   display: grid;
@@ -125,32 +163,53 @@ function openTopic(id: number): void {
   gap: var(--space-md);
 }
 
+/* ── Card topic = link level-1 (bỏ .card shadow-md + hover lift — §6) ── */
 .path-redirect__card {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  cursor: pointer;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Khoảnh khắc đầu tư: stagger enter (max 8 × 40ms) — easing chuẩn §7 */
+  animation: card-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--card-i, 0) * 40ms);
 }
 
-.path-redirect__card-head { display: flex; align-items: center; gap: var(--space-sm); }
+.path-redirect__card:hover { border-color: var(--color-border-strong); }
 
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-redirect__card { animation: none; }
+}
+
+/* Index mono (signature "index dưới block" — DESIGN-IDENTITY §1.5) */
 .path-redirect__card-index {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: var(--text-sm);
-  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
 }
 
-.path-redirect__card-title { font-size: var(--text-md); }
+.path-redirect__card-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
 
-.path-redirect__card-desc { font-size: var(--text-sm); flex: 1; }
+.path-redirect__card-desc { font-size: var(--text-sm); color: var(--color-text-secondary); flex: 1; margin: 0; }
 
-.path-redirect__note { font-size: var(--text-xs); }
+.path-redirect__note { font-size: var(--text-xs); color: var(--color-text-tertiary); margin: 0; }
 </style>

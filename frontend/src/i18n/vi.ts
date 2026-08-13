@@ -35,6 +35,13 @@ export const messages = {
     processing: 'Đang xử lý...',
   },
 
+  profile: {
+    savePassword: 'Đổi mật khẩu',
+    passwordChanged: 'Đã đổi mật khẩu.',
+    passwordTooShort: 'Mật khẩu mới phải từ 8 ký tự',
+    progressLoadError: 'Không tải được tiến độ — máy chủ không phản hồi.',
+  },
+
   home: {
     heroTitle: 'Trực quan hóa mọi giải thuật, từng bước một',
     heroSubtitle:
@@ -60,6 +67,13 @@ export const messages = {
     demoRun: 'Chạy thử',
     demoComplexity: 'Độ phức tạp',
     demoOpen: 'Mở mô phỏng',
+    // View-quality (nhóm A) — hero mini-sim chạy engine thật
+    heroKicker: 'Mô phỏng chạy thật từ engine',
+    demoBubble: 'Bubble Sort',
+    demoBinary: 'Binary Search',
+    demoBfs: 'BFS',
+    simStepOf: (cur: number, total: number) => `bước ${cur}/${total}`,
+    simLive: 'LIVE',
     statsTitle: 'DSA Visual bằng số',
     statsVisuals: 'mô phỏng trực quan',
     statsGroups: 'nhóm CTDL & Giải thuật',
@@ -563,15 +577,19 @@ export const messages = {
     claim: 'Nhận thưởng',
     inProgress: 'Đang chạy...',
     difficulty: ['DỄ', 'TB', 'KHÓ'] as const,
-    claimedToast: (gems: number, xp: number) => `+${gems} 💎, +${xp} XP`,
+    claimedToast: (gems: number, xp: number) => `Đã nhận +${gems} gems, +${xp} XP`,
     footer:
       'Quy tắc: 5 quest/ngày (2 DỄ + 2 TB + 1 KHÓ) · claim atomic chống double-spend · thưởng tim khi tim đầy tự đổi +5 gems.',
+  },
+
+  leaderboard: {
+    goClasses: 'Đi tới Lớp học',
+    retry: 'Thử lại',
   },
 
   premium: {
     title: 'Premium',
     subtitle: 'Mở khóa toàn bộ quyền lợi học tập — thanh toán qua QR chuyển khoản MB Bank (demo).',
-    badge: 'Nâng cấp Premium',
     choose: 'Chọn gói',
     perMonth: (value: string) => `≈ ${value}/tháng`,
     daysLabel: (days: number) => `${days} ngày học Premium`,
@@ -579,10 +597,19 @@ export const messages = {
     colBenefit: 'Quyền lợi',
     colFree: 'Free',
     colPremium: 'Premium',
+    // free/premium = null → icon X/Check (không có/có) — ngôn ngữ trạng thái thuật toán
+    compareRows: [
+      { label: 'Max tim', free: '10 tim', premium: '30 tim' },
+      { label: 'Hồi tim', free: '30 phút', premium: '10 phút' },
+      { label: 'Hint token', free: 'Giới hạn', premium: '30 req/ngày + debug/optimize' },
+      { label: 'Avatar + khung VIP', free: null, premium: null },
+      { label: 'CheatSheet PDF', free: null, premium: null },
+      { label: 'Benchmark nâng cao', free: 'Cơ bản', premium: 'Đầy đủ' },
+    ] as const,
     checkoutTitle: 'Xác nhận đăng ký',
     checkoutName: (name: string, price: string) => `${name} — ${price}`,
     checkoutBenefits: [
-      'Max tim 30 ❤ (hồi 10 phút)',
+      'Max tim 30 (hồi 10 phút)',
       'Hint token 30 req/ngày + debug/optimize',
       'CheatSheet PDF + khung VIP',
       'Benchmark nâng cao',
@@ -605,24 +632,34 @@ export const messages = {
     qrError: 'Không thể tạo mã QR — vui lòng thử lại.',
     qrAria: 'Mã QR chuyển khoản MB Bank',
     successTitle: 'Nâng cấp thành công!',
-    successDesc: 'Chào mừng bạn đến với Premium 🎉',
+    successDesc: 'Chào mừng bạn đến với Premium.',
+    successTokenIndex: 'đã kích hoạt',
     successGo: 'Vào học tiếp',
-    upgraded: '🎉 Nâng cấp Premium thành công!',
+    upgraded: 'Nâng cấp Premium thành công!',
   },
 
   subscription: {
     title: 'Quản lý gói Premium',
     subtitle: 'Theo dõi gói, quyền lợi còn lại và quản lý gia hạn.',
-    badge: 'Premium',
+    activeBadge: 'Đang hoạt động',
     emptyTitle: 'Bạn chưa có gói Premium',
     emptyDesc: 'Nâng cấp để mở khóa toàn bộ quyền lợi học tập.',
     emptyAction: 'Xem bảng giá',
+    errorTitle: 'Không tải được gói Premium',
+    errorDesc: 'Máy chủ không phản hồi — kiểm tra kết nối và thử lại.',
+    retry: 'Thử lại',
     expiresLabel: 'Ngày hết hạn',
     expiresNone: '—',
     renewLabel: 'Gia hạn tự động',
     renewOn: 'BẬT (mô phỏng)',
     renewOff: 'TẮT',
-    daysLeft: (days: number) => `Còn ${days} ngày`,
+    benefits: [
+      'Max tim 30 (hồi 10 phút)',
+      'Hint token 30 req/ngày + debug/optimize',
+      'Avatar upload + khung VIP',
+      'CheatSheet PDF',
+      'Benchmark nâng cao',
+    ] as const,
     benefitsTitle: 'Quyền lợi đang kích hoạt',
     renewBtn: 'Gia hạn / đổi gói',
     cancelBtn: 'Hủy gia hạn',
@@ -630,6 +667,12 @@ export const messages = {
     cancelNote: 'Bạn sẽ GIỮ gems, avatar, vật phẩm Shop đã mua — nhưng MẤT:',
     keepBtn: 'Giữ Premium',
     confirmCancel: 'Xác nhận hủy',
+    loses: [
+      'Tim 30 (về 10, clamp khi hết hạn)',
+      'Hồi tim 10 phút (về 30 phút)',
+      'Hint token 30 req/ngày',
+      'Khung VIP + CheatSheet PDF',
+    ] as const,
     cancelInfo:
       'Hủy gia hạn: endpoint /me/subscription/cancel sẽ được bổ sung ở backend. Gói vẫn dùng tới hết hạn.',
   },
@@ -676,8 +719,26 @@ export const messages = {
   cheatsheet: {
     breadcrumbParent: 'Khám phá',
     title: 'CheatSheet — Độ phức tạp Big-O',
-    sub: 'Bảng tra cứu nhanh · "▶ Xem mô phỏng" mở simulator (trừ 1 tim theo 20.4 — 3 demo công khai miễn phí).',
+    sub: 'Bảng tra cứu nhanh · "Xem mô phỏng" mở simulator (3 demo công khai miễn phí, mô phỏng khác trừ 1 tim theo 20.4).',
     badge: (count: number) => `${count} mục`,
+    stripLabel: (count: number) => `BIG-O 00–04 · CHEATSHEET ${count}`,
+    // ── CheatSheetTable (bảng Big-O) ──
+    all: 'Tất cả',
+    filterGroupAria: 'Lọc theo nhóm CTDL',
+    searchPlaceholder: 'Tìm theo tên hoặc key...',
+    searchAria: 'Tìm kiếm mô phỏng',
+    colAlgorithm: 'Giải thuật / CTDL',
+    colBest: 'Best',
+    colAverage: 'Average',
+    colWorst: 'Worst',
+    colSpace: 'Không gian',
+    colAction: 'Hành động',
+    emptyTitle: 'Không có mô phỏng phù hợp',
+    emptyDesc: 'Thử xóa bộ lọc hoặc đổi từ khóa tìm kiếm.',
+    clearFilters: 'Xóa bộ lọc',
+    simulate: 'Xem mô phỏng',
+    openSimulation: (title: string) => `Mở mô phỏng ${title}`,
+    source: (count: number) => `Nguồn dữ liệu: shared/simulation-catalog.json — ${count} mô phỏng.`,
   },
 
   help: {
