@@ -1,6 +1,10 @@
 <script setup lang="ts">
 // BenchmarkPanel — Màn 17: đo thật bằng runMeasure (engines) + bảng + biểu đồ SVG + kết luận
-// + lưu qua POST /benchmarks/run (API_REFERENCE §4.14). MIỄN PHÍ tim (20.4).
+// + lưu qua POST /benchmarks/run (API_REFERENCE §4.14). KHÔNG tốn tim (SDD 20.4).
+// P1-B3: chips raw → Button.vue (aria-pressed), bỏ ⚖/▶ → lucide Scale/Play,
+// bảng+chart+conclusion = vùng dữ liệu LUÔN tối canvas-ink (block-token + index mono),
+// palette ECharts đọc CSS var canvas palette (không hex rời), mobile bảng → card-stack,
+// empty state ✂ → hourglass + copy §9. Giữ nguyên logic/worker/contract BE/exportCsv.
 import { computed, ref } from 'vue';
 
 import VChart from 'vue-echarts';
@@ -8,6 +12,7 @@ import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import { LegacyGridContainLabel } from 'echarts/features';
 
 import { runBenchmark } from '@/api/benchmark';
 import {
@@ -20,13 +25,15 @@ import {
 } from '@/engines/benchmark/codeTemplates';
 import { runMeasureInWorker } from '@/engines/worker/compileWorker';
 import { useUiStore } from '@/stores/ui';
+import { Play, Scale } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
 // Đăng ký module ECharts dùng riêng (tree-shaking) — G-F2c: chart line DurationMs theo n
-use([CanvasRenderer, LineChart, GridComponent, LegendComponent, TooltipComponent]);
+// LegacyGridContainLabel: echarts 6 thay grid.containLabel (deprecated) — giữ label không bị cắt
+use([CanvasRenderer, LineChart, GridComponent, LegendComponent, TooltipComponent, LegacyGridContainLabel]);
 
 const props = defineProps<{
   /** Keys mặc định (từ route /benchmark/:k1/:k2) */
@@ -180,9 +187,9 @@ const conclusion = computed(() => {
 
 // ── Biểu đồ ECharts (vue-echarts 8.1 + echarts 6.1 — G-F2c) ──
 // Line chart: DurationMs theo n, overlay nhiều thuật toán; giữ bảng số liệu + kết luận.
-// Màu đọc từ CSS variables lúc dựng option → đổi theme không cần reload.
-
-const LINE_PALETTE = ['#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#06b6d4'];
+// P1-B3: chart = vùng dữ liệu LUÔN tối (canvas-ink) — màu đọc từ CSS var canvas palette
+// (data-core/resolved/conflict/warning/info — DESIGN-IDENTITY §1.2), không hex rời.
+// Fallback hex chỉ khi var() không đọc được (SSR) — pattern cssVar() của CodeRunnerView.
 
 /** Đọc CSS variable thành màu cụ thể (ECharts canvas không hiểu var()). */
 function cssVar(name: string, fallback: string): string {
@@ -199,13 +206,22 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+// Token canvas palette (DESIGN-IDENTITY §1.2) — fallback hex chỉ phòng SSR
+const LINE_PALETTE = ['--color-data-core', '--color-resolved', '--color-conflict', '--color-warning', '--color-info'];
+const LINE_PALETTE_FALLBACK = ['#4255FF', '#34D399', '#F87171', '#D97706', '#0891B2'];
+
+function paletteColor(idx: number): string {
+  const token = LINE_PALETTE[idx % LINE_PALETTE.length];
+  const fallback = LINE_PALETTE_FALLBACK[idx % LINE_PALETTE_FALLBACK.length];
+  return cssVar(token, fallback);
+}
+
 const chartOption = computed(() => {
-  // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
+  // Vùng dữ liệu LUÔN tối (quyết định xuyên-nhóm #5) — màu trục/legend theo index-muted
   void ui.theme;
-  const textColor = cssVar('--color-text-muted', '#5E7A77');
-  const axisColor = cssVar('--color-border', '#cbd5e1');
-  const cardColor = cssVar('--color-card', '#ffffff');
-  const foreground = cssVar('--color-foreground', '#134e4a');
+  const textColor = cssVar('--color-index-muted', '#6B7385');
+  const axisColor = cssVar('--color-index-muted', '#6B7385');
+  const tooltipBg = cssVar('--color-canvas-ink', '#0D1020');
 
   const series = selectedKeys.value.map((key, idx) => ({
     name: BENCHMARK_ALGORITHMS[key].title,
@@ -213,7 +229,7 @@ const chartOption = computed(() => {
     symbol: 'circle',
     symbolSize: 7,
     lineStyle: { width: 2.5 },
-    itemStyle: { color: LINE_PALETTE[idx % LINE_PALETTE.length] },
+    itemStyle: { color: paletteColor(idx) },
     data: rows.value.map((row) =>
       row.measures[key] ? [String(row.size), (row.measures[key] as BenchmarkMeasure).durationMs] : null,
     ),
@@ -221,14 +237,14 @@ const chartOption = computed(() => {
   }));
 
   return {
-    color: LINE_PALETTE,
+    color: LINE_PALETTE.map((token, idx) => paletteColor(idx)),
     animation: !prefersReducedMotion(),
     animationDuration: 400,
     tooltip: {
       trigger: 'axis' as const,
-      backgroundColor: cardColor,
+      backgroundColor: tooltipBg,
       borderColor: axisColor,
-      textStyle: { color: foreground, fontSize: 12 },
+      textStyle: { color: textColor, fontSize: 12 },
     },
     legend: {
       bottom: 0,
@@ -278,54 +294,58 @@ function exportCsv(): void {
 <template>
   <section class="benchmark">
     <header class="benchmark__header">
-      <h2 class="benchmark__title">⚖ Benchmark Lab</h2>
-      <Badge variant="success">Miễn phí tim (20.4)</Badge>
+      <h2 class="benchmark__title">
+        <Scale :size="20" aria-hidden="true" class="benchmark__title-icon" />
+        Benchmark Lab
+      </h2>
+      <Badge variant="success">Không tốn tim</Badge>
     </header>
 
-    <div class="benchmark__controls card">
+    <div class="benchmark__controls">
       <div class="benchmark__algo-select">
-        <p class="benchmark__label">Chọn giải thuật (2-5, cùng cấu trúc dữ liệu):</p>
+        <p class="benchmark__label">Chọn giải thuật (2–5, cùng cấu trúc dữ liệu):</p>
         <div class="benchmark__chips">
-          <button
+          <Button
             v-for="key in availableKeys"
             :key="key"
-            type="button"
-            class="benchmark__chip"
-            :class="{ 'benchmark__chip--on': selectedKeys.includes(key) }"
+            :variant="selectedKeys.includes(key) ? 'primary' : 'secondary'"
+            size="sm"
+            :aria-pressed="selectedKeys.includes(key)"
             @click="toggleKey(key)"
           >
             {{ BENCHMARK_ALGORITHMS[key].title }}
-          </button>
+          </Button>
         </div>
       </div>
 
       <div class="benchmark__runbar">
         <label class="benchmark__mode">
           Dữ liệu:
-          <select v-model="dataMode">
+          <select v-model="dataMode" name="data-mode" class="benchmark__select">
             <option value="random">Ngẫu nhiên</option>
             <option value="worst">Xấu nhất</option>
             <option value="best">Tốt nhất</option>
           </select>
         </label>
         <Button size="lg" :loading="running" :disabled="selectedKeys.length < 2" @click="run">
-          ▶ Chạy benchmark
+          <Play :size="16" aria-hidden="true" />
+          Chạy benchmark
         </Button>
         <Button variant="ghost" :disabled="rows.length === 0" @click="exportCsv">Xuất CSV</Button>
       </div>
       <p v-if="progress && running" class="benchmark__progress" role="status">{{ progress }}</p>
-      <p v-if="saved" class="benchmark__saved text-muted">Đã lưu kết quả lên server.</p>
+      <p v-if="saved" class="benchmark__saved">Đã lưu kết quả benchmark.</p>
     </div>
 
     <EmptyState
       v-if="rows.length === 0 && !running"
-      icon="scissors"
-      title="Chưa có số liệu"
-      description="Chọn 2+ giải thuật rồi bấm 'Chạy benchmark' — mỗi độ đo tối đa 5 giây, quá hạn ghi N/A."
+      icon="hourglass"
+      title="Chưa có số liệu đo"
+      description="Chọn 2+ giải thuật phía trên rồi bấm Chạy benchmark — mỗi độ đo tối đa 5 giây, quá hạn ghi N/A."
     />
 
     <div v-else class="benchmark__results">
-      <div class="benchmark__table-wrap card">
+      <div class="benchmark__table-wrap">
         <table class="benchmark__table">
           <thead>
             <tr>
@@ -338,22 +358,24 @@ function exportCsv(): void {
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.size">
-              <td class="benchmark__n">{{ row.size }}</td>
+              <td class="benchmark__n" data-label="n">{{ row.size }}</td>
               <template v-for="key in selectedKeys" :key="key">
-                <td class="benchmark__cell">
-                  <template v-if="row.measures[key]">
+                <td class="benchmark__cell" :data-label="`${BENCHMARK_ALGORITHMS[key].title} (ms)`">
+                  <span v-if="row.measures[key]" class="benchmark__block">
                     {{ row.measures[key]?.durationMs }}ms
-                  </template>
-                  <template v-else>N/A</template>
+                  </span>
+                  <span v-else class="benchmark__na">N/A</span>
                 </td>
-                <td class="benchmark__cell-sub">{{ row.measures[key]?.comparisons ?? '—' }}</td>
+                <td class="benchmark__cell-sub" :data-label="`${BENCHMARK_ALGORITHMS[key].title} (so sánh)`">
+                  {{ row.measures[key]?.comparisons ?? '—' }}
+                </td>
               </template>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="benchmark__chart card">
+      <div class="benchmark__chart">
         <h3 class="benchmark__chart-title">Thời gian thực tế (ms) theo n — overlay nhiều thuật toán</h3>
         <VChart
           v-if="rows.length > 0"
@@ -366,7 +388,7 @@ function exportCsv(): void {
         <p class="benchmark__chart-note">Hover để xem giá trị · dữ liệu N/A (quá 5s) hiển thị dạng khoảng trống</p>
       </div>
 
-      <div v-if="conclusion" class="benchmark__conclusion card">
+      <div v-if="conclusion" class="benchmark__conclusion">
         <h3 class="benchmark__chart-title">Kết luận</h3>
         <p class="benchmark__conclusion-text">{{ conclusion }}</p>
       </div>
@@ -382,86 +404,197 @@ function exportCsv(): void {
 .benchmark { display: flex; flex-direction: column; gap: var(--space-lg); }
 
 .benchmark__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; }
+
 .benchmark__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-mint);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+  margin: 0;
 }
 
-.benchmark__controls { display: flex; flex-direction: column; gap: var(--space-md); }
+.benchmark__title-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
 
-.benchmark__label { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-sm); }
+/* Controls — elevation level-1 (bỏ class .card có shadow-md — §6) */
+.benchmark__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.benchmark__label { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--space-sm); }
 
 .benchmark__chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
-.benchmark__chip {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  transition: var(--transition-fast);
-}
-
-.benchmark__chip:hover { border-color: var(--color-primary); color: var(--color-primary); transform: translateY(-1px); }
-
-.benchmark__chip--on {
-  background-image: var(--gradient-mint);
-  color: var(--color-on-primary);
-  border-color: transparent;
-  box-shadow: var(--shadow-sm);
-}
-
 .benchmark__runbar { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
 
-.benchmark__mode { font-size: var(--text-sm); display: inline-flex; align-items: center; gap: 6px; }
-.benchmark__mode select { padding: 4px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.benchmark__mode { font-size: var(--text-sm); display: inline-flex; align-items: center; gap: var(--space-sm); color: var(--color-text-secondary); }
 
-.benchmark__progress { font-size: var(--text-sm); color: var(--color-primary); }
-.benchmark__saved { font-size: var(--text-xs); }
+/* Select chuẩn §4.4: h-40px, padding ngang 16px (>=8px text-viền) */
+.benchmark__select {
+  height: 40px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
 
-.benchmark__results { display: flex; flex-direction: column; gap: var(--space-lg); }
+.benchmark__progress { font-size: var(--text-sm); font-family: var(--font-mono); color: var(--color-text-secondary); }
+.benchmark__saved { font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
-.benchmark__table-wrap { overflow-x: auto; }
+/* Khoảnh khắc đầu tư: results region enter (250ms, easing chuẩn §7) */
+.benchmark__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  animation: benchmark-enter 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes benchmark-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .benchmark__results { animation: none; }
+}
+
+/* ── Bảng = vùng dữ liệu LUÔN tối (canvas-ink) — block-token + index mono ── */
+.benchmark__table-wrap {
+  overflow-x: auto;
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
+  border-radius: var(--radius-md);
+}
 
 .benchmark__table { width: 100%; border-collapse: collapse; min-width: 520px; }
 
 .benchmark__table th {
-  padding: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
+  font-weight: 500;
   text-align: left;
-  border-bottom: 2px solid var(--color-border);
+  color: var(--color-index-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-index-muted) 30%, transparent);
   white-space: nowrap;
 }
 
-.benchmark__th-sub { color: var(--color-text-muted); font-weight: 400; }
+.benchmark__th-sub { color: color-mix(in srgb, var(--color-index-muted) 70%, transparent); font-weight: 400; }
 
-.benchmark__table td { padding: var(--space-sm); font-size: var(--text-sm); border-bottom: 1px solid var(--color-border); }
-
-.benchmark__n { font-weight: 800; font-family: var(--font-mono); }
-.benchmark__cell { font-family: var(--font-mono); }
-.benchmark__cell-sub { font-family: var(--font-mono); color: var(--color-text-muted); font-size: var(--text-xs); }
-
-.benchmark__chart { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.benchmark__chart-title { font-size: var(--text-md); }
-
-.benchmark__echarts {
-  width: 100%;
-  height: 320px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
+.benchmark__table td {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-index-muted) 22%, transparent);
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
 }
 
-.benchmark__chart-note { font-size: var(--text-xs); color: var(--color-text-muted); }
+/* n = index mono (signature "index dưới block") — thắng .benchmark__table td (specificity) */
+.benchmark__table td.benchmark__n { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-index-muted); }
 
-.benchmark__conclusion { border-color: var(--color-secondary); }
-.benchmark__conclusion-text { font-size: var(--text-sm); line-height: 1.7; }
+/* duration = block-token (data-core, ngôn ngữ canvas) */
+.benchmark__block {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-data-core) 14%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: color-mix(in srgb, white 90%, var(--color-index-muted));
+  white-space: nowrap;
+}
+
+.benchmark__na { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-index-muted); }
+
+.benchmark__cell-sub { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-index-muted); }
+
+/* ── Chart + kết luận = vùng dữ liệu tối (quyết định #5) ── */
+.benchmark__chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+}
+
+.benchmark__chart-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
+  margin: 0;
+}
+
+.benchmark__echarts { width: 100%; height: 320px; border-radius: var(--radius-md); }
+
+.benchmark__chart-note { font-size: var(--text-xs); color: var(--color-index-muted); margin: 0; }
+
+.benchmark__conclusion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+}
+
+.benchmark__conclusion-text {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
+  margin: 0;
+}
+
+.benchmark__skeleton { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* ── Mobile ≤640px: bảng → card-stack (standard §8 — cấm scroll ngang bảng chính) ── */
+@media (max-width: 640px) {
+  .benchmark__table-wrap { overflow: visible; background: transparent; border: none; }
+
+  .benchmark__table { min-width: 0; }
+
+  .benchmark__table thead { display: none; }
+
+  .benchmark__table, .benchmark__table tbody, .benchmark__table tr, .benchmark__table td { display: block; width: 100%; }
+
+  .benchmark__table tbody { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+  .benchmark__table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+    background: var(--color-canvas-ink);
+    border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .benchmark__table td { border-bottom: none; padding: 0; }
+
+  .benchmark__table td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-index-muted);
+    margin-bottom: var(--space-xs);
+  }
+
+  .benchmark__n { grid-column: 1 / -1; }
+}
 </style>

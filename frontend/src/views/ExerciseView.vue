@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // ExerciseView — Màn 06: bài tập trắc nghiệm (Bậc 1 / kiểm tra) tại /exercise/:id
 // Tái sử dụng QuizStage + nút chuyển chế độ luyện tập (FR-4.6) + liên kết lý thuyết.
-// G-F2b: header tiến độ (ProgressBar trong QuizStage) + confetti 'success' khi pass + toast kết quả.
+// Phase 1 view-quality: toolbar = surface band level-2 (thay class .card có shadow),
+// kicker mono (bỏ 700 + tracking dương), toast không emoji, nút toggle có aria-pressed.
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -37,7 +38,7 @@ onMounted(async () => {
 function onPassed(): void {
   // G-F2b: confetti khi pass (QuizStage cũng toast kết quả lúc nộp)
   fireConfetti('success');
-  ui.showToast('🎉 Hoàn thành bài tập!', 'success');
+  ui.showToast('Hoàn thành bài tập!', 'success');
 }
 
 function onFinished(): void {
@@ -67,17 +68,18 @@ function onFinished(): void {
     />
 
     <template v-else>
-      <header class="exercise__toolbar card">
+      <header class="exercise__toolbar">
         <div class="exercise__toolbar-info">
           <p class="exercise__toolbar-kicker">Bài tập trắc nghiệm</p>
           <h1 class="exercise__title">{{ exercise?.title ?? 'Bài tập' }}</h1>
-          <p v-if="exercise?.description" class="text-muted exercise__toolbar-desc">
+          <p v-if="exercise?.description" class="exercise__toolbar-desc">
             {{ exercise.description }}
           </p>
         </div>
         <Button
           size="sm"
           :variant="practiceMode ? 'primary' : 'secondary'"
+          :aria-pressed="practiceMode"
           @click="practiceMode = !practiceMode"
         >
           {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
@@ -105,10 +107,15 @@ function onFinished(): void {
 .exercise__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
 }
 
+.exercise__breadcrumb a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
+
+/* Toolbar — surface band level-2 (DESIGN.md §1), không shadow */
 .exercise__toolbar {
   display: flex;
   align-items: center;
@@ -116,20 +123,34 @@ function onFinished(): void {
   gap: var(--space-md);
   flex-wrap: wrap;
   padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
 }
 
-.exercise__toolbar-info { display: flex; flex-direction: column; gap: 4px; }
+.exercise__toolbar-info { display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .exercise__toolbar-kicker {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: var(--color-text-tertiary);
 }
 
-.exercise__title { font-size: var(--text-xl); }
-.exercise__toolbar-desc { font-size: var(--text-sm); }
+.exercise__title {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.exercise__toolbar-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
 
 .exercise__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 </style>

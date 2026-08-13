@@ -48,15 +48,15 @@
 | HelpView — `/help` | | | | | | | | | | | | | | |
 | CheatSheetView — `/cheatsheet` | | | | | | | | | | | | | | |
 | SimulationsView — `/simulations` | | | | | | | | | | | | | | |
-| PathRedirectView — `/path` (redirect từ `/learn`) | | | | | | | | | | | | | | |
-| PathView — `/path/:topicId` | | | | | | | | | | | | | | CAO |
-| LessonView — `/learn/:lessonId` | | | | | | | | | | | | | | CAO |
-| SimulatorView — `/simulator/:key` | | | | | | | | | | | | | | CAO |
-| ExerciseView — `/exercise/:id` | | | | | | | | | | | | | | |
+| PathRedirectView — `/path` (redirect từ `/learn`) | 8 | 5 | 11 | 12 | 13.5 | 8.5 | 7 | 10.5 | 5.5 | 5 | 86 | 8 | ĐẠT | |
+| PathView — `/path/:topicId` | 7.5 | 5 | 11.5 | 11.5 | 12 | 8.5 | 6.5 | 10.5 | 5 | 5.5 | 86 | 8.5 | ĐẠT | CAO |
+| LessonView — `/learn/:lessonId` | 7.5 | 5 | 11.5 | 12 | 14 | 8.5 | 7 | 10 | 5 | 6 | 87.5 | 8 | ĐẠT | CAO |
+| SimulatorView — `/simulator/:key` | 7 | 4.5 | 11.5 | 11.5 | 12.5 | 8.5 | 6.5 | 10.5 | 5.5 | 6 | 84.5 | 8.5 | ĐẠT | CAO |
+| ExerciseView — `/exercise/:id` | 8 | 4.5 | 11 | 12 | 15 | 8.5 | 6.5 | 10.5 | 5.5 | 5.5 | 86.5 | 7.5 | ĐẠT | |
 | LadderView — `/ladder/:nodeId` | | | | | | | | | | | | | | CAO |
-| LabView — `/ladder/:nodeId/lab` | | | | | | | | | | | | | | CAO |
-| CodeRunnerView — `/code/:key` | | | | | | | | | | | | | | CAO |
-| BenchmarkView — `/benchmark/:k1/:k2` | | | | | | | | | | | | | | CAO |
+| LabView — `/ladder/:nodeId/lab` | 7.5 | 4.5 | 11.5 | 12.5 | 13.5 | 8.5 | 7 | 10.5 | 5 | 5.5 | 86 | 8 | ĐẠT | CAO |
+| CodeRunnerView — `/code/:key` | 8 | 4.5 | 11 | 12.5 | 14.5 | 8.5 | 7 | 11 | 5.5 | 5.5 | 88.5 | 8.5 | ĐẠT | CAO |
+| BenchmarkView — `/benchmark/:k1/:k2` | 7.5 | 5 | 11 | 12.5 | 14.5 | 8.5 | 6.5 | 10.5 | 5.5 | 5.5 | 87.5 | 8 | ĐẠT | CAO |
 | ShopView — `/shop` | | | | | | | | | | | | | | |
 | QuestsView — `/quests` | | | | | | | | | | | | | | |
 | LeaderboardView — `/leaderboard` | | | | | | | | | | | | | | CAO |
