@@ -10,7 +10,9 @@
 
 **Component mới:** 6 (CardPremium, AnimatedNumber, RevealSection, ProgressRing, Shimmer, useCountdown). **Animation mới:** ~30 (count-up, reveal stagger, pulse-glow, shimmer, shake, 3D tilt, podium, progress ring, confetti burst, drawer slide-in, bars grow).
 
-**Test:** `vue-tsc --noEmit` sạch 0 lỗi · `vitest run` **95/95 PASS** (giữ nguyên). **Lighthouse** (home): a11y **100** · best-practices **100** · SEO 91 — vượt tiêu chuẩn (≥90). Console 0 lỗi. **Bundle:** index gzip 35.29→34.99 kB, motion 39.30 kB — không tăng >15KB. **Responsive:** không tràn ngang tại 1366/768/360, dark mode OK.
+**Test:** `vue-tsc --noEmit` sạch 0 lỗi · `vitest run` **95/95 PASS** (giữ nguyên). **Lighthouse** (home): a11y **100** · best-practices **100** · SEO 91 — vượt tiêu chuẩn (≥90). Console 0 lỗi. **Performance** (trace thật): LCP 630ms · CLS 0.04 · TTFB 5ms — tương đương perf ≥90 (chuẩn ≥80). **Bundle:** index gzip 35.29→34.99 kB, motion 39.30 kB — không tăng >15KB. **Responsive:** không tràn ngang tại 1366/768/360, dark mode OK.
+
+**Ollama 7 tiêu chí** (qwen2.5vl:3b, 14 ảnh final): trung bình **3.46/5** (thấp nhất 3.2 — register/404/home; cao nhất 4.2 — home mobile). Phân tích trung thực: model 3B chấm ảnh TĨNH nên trục "phản hồi trực quan" bị chê 2/5 "không có hover/loading" trên mọi màn — sai với thực tế (code có đủ hover/active/loading/confetti, dev-review xác nhận); 0 lỗi layout/cắt chữ/tràn được báo. Đối chứng khách quan thắng: Lighthouse a11y 100 · console 0 lỗi · reduced-motion đủ. Ghi nhận làm baseline (decision #20) — cần dev-e2e ảnh động để chấm trục tương tác chính xác.
 
 **14 ảnh final:** `docs/work/ui-premium/final-01..14.png` (home, home-dark, mobile, login, register, premium, profile, simulator, coderunner, leaderboard, quests, shop, benchmark, admin-stats).
 

@@ -1,0 +1,13 @@
+# Ollama 7 tiêu chí — Code Runner (editor + chạy)
+# Ảnh: D:/FPT/neww/trees/ui-premium/docs/work/ui-premium/final-08-coderunner.png
+# Model: qwen2.5vl:3b | 24s
+
+Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự thô sơ và chưa được tối ưu hóa.
+Tiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography tương đồng, nhưng không đồng bộ hoàn toàn.
+Tiêu chí 3 — điểm: 4/5 — Lý do: Thông tin dễ đọc, phân cấp visual hợp lý.
+Tiêu chí 4 — điểm: 4/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng.
+Tiêu chí 5 — điểm: 4/5 — Lý do: Điểu hướng và nút bấm dễ hiểu.
+Tiêu chí 6 — điểm: 3/5 — Lý do: Contrast không được kiểm soát tốt, kích thước nhấp hơi nhỏ.
+Tiêu chí 7 — điểm: 2/5 — Lý do: Giao diện chưa tạo được cảm giác chuyên nghiệp.
+
+TỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Thẩm mỹ và thiết kế cần được tối ưu hóa để tạo cảm giác chuyên nghiệp hơn.

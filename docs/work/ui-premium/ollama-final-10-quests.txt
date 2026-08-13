@@ -1,0 +1,13 @@
+# Ollama 7 tiêu chí — Thử thách (quest cards + progress)
+# Ảnh: D:/FPT/neww/trees/ui-premium/docs/work/ui-premium/final-10-quests.png
+# Model: qwen2.5vl:3b | 25s
+
+Tiêu chí 1 — điểm: 2/5 — Lý do: Giao diện có sự thô sơ và không đồng nhất trong thiết kế.
+Tiêu chí 2 — điểm: 3/5 — Lý do: Màu sắc và typography không đồng bộ, gây cảm giác rối mắt.
+Tiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.
+Tiêu chí 4 — điểm: 4/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng.
+Tiêu chí 5 — điểm: 4/5 — Lý do: Điểu hướng và nút bấm dễ hiểu.
+Tiêu chí 6 — điểm: 3/5 — Lý do: Contrast không đồng nhất, kích thước nhấp và a11y cần cải thiện.
+Tiêu chí 7 — điểm: 2/5 — Lý do: Giao diện chưa tạo được cảm giác chuyên nghiệp.
+
+TỔNG: điểm trung bình 3.4/5 — mục cần sửa: Thẩm mỹ (thiết kế đẹp, cao cấp, không thô sơ).

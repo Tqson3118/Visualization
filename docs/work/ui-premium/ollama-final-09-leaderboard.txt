@@ -1,0 +1,13 @@
+# Ollama 7 tiêu chí — Bảng xếp hạng (podium top 3 + rank rows)
+# Ảnh: D:/FPT/neww/trees/ui-premium/docs/work/ui-premium/final-09-leaderboard.png
+# Model: qwen2.5vl:3b | 33s
+
+Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có sự đồng bộ về màu sắc và thiết kế, nhưng không có nhiều chi tiết thẩm mỹ cao cấp.
+Tiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất cho màn hình.
+Tiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc, giúp người dùng nắm bắt thông tin một cách nhanh chóng.
+Tiêu chí 4 — điểm: 4/5 — Lý do: Hover và state loading có tín hiệu rõ ràng, giúp người dùng nhận biết trạng thái của các phần tử trên màn hình.
+Tiêu chí 5 — điểm: 3/5 — Lý do: Màn hình có điểu hướng dễ hiểu, nhưng không có nhiều nút bấm được sắp xếp hợp lý để tối ưu trải nghiệm người dùng.
+Tiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp đều được đảm bảo, giúp người dùng dễ dàng tiếp cận với các phần tử trên màn hình.
+Tiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp, nhưng không có nhiều yếu tố wow factor để tạo ấn tượng mạnh mẽ.
+
+TỔNG: điểm trung bình 3.6/5 — mục cần sửa: "luồng thao tác" (nếu trung bình >= 4/5 ghi "KHÔNG CẦN SỬA").

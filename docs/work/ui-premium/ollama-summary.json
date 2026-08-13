@@ -1,0 +1,71 @@
+[
+  {
+    "file": "final-01-home.png",
+    "ten": "Trang chủ (hero + stats count-up + demo cards + CTA band)"
+  },
+  {
+    "file": "final-02-login.png",
+    "ten": "Đăng nhập (aside canvas-ink + form)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự đồng bộ về màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 2/5 — Lý do: Không có phản hồi trực quan cho các nút bấm hoặc trạng thái loading.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm không quá rõ ràng, cần cải thiện.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp được thiết kế tốt, a11y cũng được tuân thủ.\nTiêu chí 7 — điểm: 3/5 — Lý do: Giao diện có cảm giác chuyên nghiệp, nhưng cần thêm tính năng wow factor để thu hút người dùng.\n\nTỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Nút bấm và trạng thái loading cần cải thiện phản hồi trực quan."
+  },
+  {
+    "file": "final-03-register.png",
+    "ten": "Đăng ký (aside + form vai trò)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự đồng bộ về màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 2/5 — Lý do: Giao diện không có các tín hiệu rõ ràng cho phản hồi trực quan.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điền thông tin và đăng ký có thể khó hiểu đối với người mới sử dụng.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp được thiết kế hợp lý, hỗ trợ người dùng dễ tiếp cận.\nTiêu chí 7 — điểm: 3/5 — Lý do: Giao diện có cảm giác chuyên nghiệp nhưng không có wow factor đặc biệt.\n\nTỔNG: điểm trung bình 3.2/5 — Mục cần sửa: Thêm các tín hiệu rõ ràng cho phản hồi trực quan để tăng tính tương tác và dễ hiểu hơn."
+  },
+  {
+    "file": "final-04-premium.png",
+    "ten": "Premium (pricing cards glow + bảng so sánh)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự đồng bộ về màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 2/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng nhưng không đủ để phản hồi trực quan.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm được thiết kế dễ hiểu, nhưng chưa đầy đủ để tạo cảm giác chuyên nghiệp.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp được kiểm soát tốt, a11y cũng được tuân thủ.\nTiêu chí 7 — điểm: 3/5 — Lý do: Giao diện có cảm giác chuyên nghiệp nhưng chưa đủ để tạo wow factor.\n\nTỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Thiết kế thẩm mỹ và phản hồi trực quan."
+  },
+  {
+    "file": "final-05-profile-fixed.png",
+    "ten": "Hồ sơ (ProgressRing avatar + stats + timeline block-token)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — lý do: Giao diện có sự đồng nhất trong màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất.\nTiêu chí 3 — điểm: 4/5 — lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 2/5 — lý do: Giao diện không có phản hồi trực quan rõ ràng khi hover hoặc state.\nTiêu chí 5 — điểm: 3/5 — lý do: Điểu hướng và nút bấm có thể dễ hiểu, nhưng cần thêm thông tin để điều hướng rõ ràng hơn.\nTiêu chí 6 — điểm: 4/5 — lý do: Contrast và kích thước nhấp được kiểm soát tốt, đảm bảo tính a11y.\nTiêu chí 7 — điểm: 3/5 — lý do: Giao diện có cảm giác chuyên nghiệp, nhưng cần thêm yếu tố wow factor để tăng sự hấp dẫn.\n\nTỔNG: điểm trung bình 3.4/5 — mục cần sửa: Thêm phản hồi trực quan và cải thiện cảm giác chuyên nghiệp."
+  },
+  {
+    "file": "final-06-simulator.png",
+    "ten": "Simulator (canvas tối + mã giả + điều khiển)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự đồng bộ về màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc, giúp người dùng nắm bắt nhanh chóng.\nTiêu chí 4 — điểm: 2/5 — Lý do: Giao diện có các tín hiệu phản hồi như hover và loading, nhưng không rõ ràng hoặc thiếu thời gian chờ.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm được thiết kế dễ hiểu, nhưng cần thêm thông tin chi tiết hơn để người dùng nắm bắt.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp được kiểm soát tốt, tạo cảm giác chuyên nghiệp.\nTiêu chí 7 — điểm: 3/5 — Lý do: Giao diện có cảm giác chuyên nghiệp, nhưng cần thêm tính năng tương tác để tăng wow factor.\n\nTỔNG: điểm trung bình 3.6/5 — Mục cần sửa: Thêm thông tin chi tiết về các nút bấm và điều hướng để người dùng nắm bắt dễ dàng hơn."
+  },
+  {
+    "file": "final-07-404.png",
+    "ten": "Trang 404 (block-token scatter)",
+    "response": "Tiêu chí 1 — điểm: 2/5 — Lý do: Màn hình có sự phân biệt màu sắc không đồng nhất, đặc biệt là giữa phần thông tin lỗi và phần trang chủ.\nTiêu chí 2 — điểm: 3/5 — Lý do: Màu sắc trên màn hình không đồng bộ với các yếu tố khác trong giao diện.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin lỗi được hiển thị rõ ràng và phân cấp hợp lý, giúp người dùng dễ dàng hiểu.\nTiêu chí 4 — điểm: 2/5 — Lý do: Không có phản hồi trực quan cho các hoạt động như hover hoặc loading.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm được thiết kế rõ ràng, nhưng không có sự đồng nhất trong kích thước nhấp.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast giữa các yếu tố trên màn hình tốt, giúp người dùng dễ nhìn thấy.\nTiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp, nhưng không có sự nổi bật đặc biệt nào.\n\nTỔNG: điểm trung bình 3.2/5 — mục cần sửa: Thẩm mỹ và nhất quán màu sắc."
+  },
+  {
+    "file": "final-08-coderunner.png",
+    "ten": "Code Runner (editor + chạy)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có sự thô sơ và chưa được tối ưu hóa.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography tương đồng, nhưng không đồng bộ hoàn toàn.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin dễ đọc, phân cấp visual hợp lý.\nTiêu chí 4 — điểm: 4/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng.\nTiêu chí 5 — điểm: 4/5 — Lý do: Điểu hướng và nút bấm dễ hiểu.\nTiêu chí 6 — điểm: 3/5 — Lý do: Contrast không được kiểm soát tốt, kích thước nhấp hơi nhỏ.\nTiêu chí 7 — điểm: 2/5 — Lý do: Giao diện chưa tạo được cảm giác chuyên nghiệp.\n\nTỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Thẩm mỹ và thiết kế cần được tối ưu hóa để tạo cảm giác chuyên nghiệp hơn."
+  },
+  {
+    "file": "final-09-leaderboard.png",
+    "ten": "Bảng xếp hạng (podium top 3 + rank rows)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có sự đồng bộ về màu sắc và thiết kế, nhưng không có nhiều chi tiết thẩm mỹ cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất cho màn hình.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc, giúp người dùng nắm bắt thông tin một cách nhanh chóng.\nTiêu chí 4 — điểm: 4/5 — Lý do: Hover và state loading có tín hiệu rõ ràng, giúp người dùng nhận biết trạng thái của các phần tử trên màn hình.\nTiêu chí 5 — điểm: 3/5 — Lý do: Màn hình có điểu hướng dễ hiểu, nhưng không có nhiều nút bấm được sắp xếp hợp lý để tối ưu trải nghiệm người dùng.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp đều được đảm bảo, giúp người dùng dễ dàng tiếp cận với các phần tử trên màn hình.\nTiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp, nhưng không có nhiều yếu tố wow factor để tạo ấn tượng mạnh mẽ.\n\nTỔNG: điểm trung bình 3.6/5 — mục cần sửa: \"luồng thao tác\" (nếu trung bình >= 4/5 ghi \"KHÔNG CẦN SỬA\")."
+  },
+  {
+    "file": "final-10-quests.png",
+    "ten": "Thử thách (quest cards + progress)",
+    "response": "Tiêu chí 1 — điểm: 2/5 — Lý do: Giao diện có sự thô sơ và không đồng nhất trong thiết kế.\nTiêu chí 2 — điểm: 3/5 — Lý do: Màu sắc và typography không đồng bộ, gây cảm giác rối mắt.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 4/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng.\nTiêu chí 5 — điểm: 4/5 — Lý do: Điểu hướng và nút bấm dễ hiểu.\nTiêu chí 6 — điểm: 3/5 — Lý do: Contrast không đồng nhất, kích thước nhấp và a11y cần cải thiện.\nTiêu chí 7 — điểm: 2/5 — Lý do: Giao diện chưa tạo được cảm giác chuyên nghiệp.\n\nTỔNG: điểm trung bình 3.4/5 — mục cần sửa: Thẩm mỹ (thiết kế đẹp, cao cấp, không thô sơ)."
+  },
+  {
+    "file": "final-11-shop.png",
+    "ten": "Cửa hàng (item cards + gems)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Giao diện có thiết kế đẹp, nhưng không cao cấp và không thô sơ.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography đồng bộ, nhưng khoảng cách giữa các phần không đồng nhất.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin dễ đọc, phân cấp visual hợp lý, nhưng cần thêm thông tin chi tiết hơn.\nTiêu chí 4 — điểm: 2/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng, nhưng không phản hồi trực quan đầy đủ.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm dễ hiểu, nhưng cần thêm thông tin chi tiết hơn về cách sử dụng.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast tốt, kích thước nhấp hợp lý, a11y được tuân thủ.\nTiêu chí 7 — điểm: 3/5 — Lý do: Giao diện cảm giác chuyên nghiệp, nhưng cần thêm tính năng và thông tin chi tiết hơn để tạo wow factor.\n\nTỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Thêm thông tin chi tiết về cách sử dụng và các tính năng khác."
+  },
+  {
+    "file": "final-12-benchmark.png",
+    "ten": "Benchmark (hero-stat + lựa chọn thuật toán)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có thiết kế đẹp, nhưng không cao cấp và không thô sơ.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography đồng bộ toàn màn hình, nhưng không quá sáng sủa.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin dễ đọc, phân cấp visual hợp lý, nhưng cần thêm thông tin chi tiết hơn.\nTiêu chí 4 — điểm: 2/5 — Lý do: Hover/state/loading có tín hiệu rõ ràng, nhưng không phản hồi trực quan đầy đủ.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm dễ hiểu, nhưng cần thêm thông tin chi tiết hơn.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast tốt, kích thước nhấp hợp lý, a11y được tuân thủ.\nTiêu chí 7 — điểm: 3/5 — Lý do: Cảm giác chuyên nghiệp, nhưng cần thêm tính năng bổ sung để làm nổi bật hơn.\n\nTỔNG: điểm trung bình 3.4/5 — Mục cần sửa: Thêm thông tin chi tiết và tính năng bổ sung để làm nổi bật hơn."
+  },
+  {
+    "file": "final-13-admin-stats.png",
+    "ten": "Admin thống kê (KPI + biểu đồ)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có sự đồng bộ về màu sắc và typography, nhưng thiết kế không quá cao cấp.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography được sử dụng đồng nhất, tạo cảm giác thống nhất cho màn hình.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc, giúp người dùng nắm bắt thông tin một cách nhanh chóng.\nTiêu chí 4 — điểm: 4/5 — Lý do: Hover và state loading có tín hiệu rõ ràng, giúp người dùng nhận biết trạng thái của các phần tử trên màn hình.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm được thiết kế dễ hiểu, nhưng không quá chuyên nghiệp.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast và kích thước nhấp được kiểm soát tốt, giúp người dùng dễ dàng tiếp cận với các phần tử trên màn hình.\nTiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp, nhưng không tạo được wow factor đáng kể.\n\nTỔNG: điểm trung bình 3.6/5 — mục cần sửa: Thiết kế thẩm mỹ và sự đồng bộ về màu sắc và typography có thể được cải thiện để tạo cảm giác cao cấp hơn."
+  },
+  {
+    "file": "final-14-home-mobile.png",
+    "ten": "Trang chủ mobile (360px)",
+    "response": "Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có độ phân giải thấp, ảnh hưởng đến thẩm mỹ.\nTiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography tương đồng với các trang khác, nhưng không có sự đồng bộ hoàn toàn.\nTiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.\nTiêu chí 4 — điểm: 2/5 — Lý do: Hover/state/loading chưa có tín hiệu rõ ràng.\nTiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm không quá phức tạp nhưng cần cải thiện sự rõ ràng.\nTiêu chí 6 — điểm: 4/5 — Lý do: Contrast tốt, kích thước nhấp hợp lý, a11y được đảm bảo.\nTiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp nhưng cần cải thiện sự wow factor.\n\nTỔNG: điểm trung bình 4.2/5 — mục cần sửa: Thẩm mỹ và phản hồi trực quan."
+  }
+]

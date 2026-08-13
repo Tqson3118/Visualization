@@ -1,0 +1,13 @@
+# Ollama 7 tiêu chí — Trang chủ (viewport, retry)
+# Ảnh: D:/FPT/neww/trees/ui-premium/docs/work/ui-premium/final-01-home-vp.png
+# Model: qwen2.5vl:3b
+
+Tiêu chí 1 - thẩm mỹ (thiết kế đẹp cao cấp): 3/5 - Giao diện có vẻ đơn giản và dễ nhìn, nhưng không có nhiều chi tiết làm tăng tính thẩm mỹ.
+Tiêu chí 2 - nhất quán (màu/typography/spacing đồng bộ): 4/5 - Màu sắc và font chữ được sử dụng đồng nhất, tạo cảm giác thống nhất cho trang web.
+Tiêu chí 3 - rõ ràng (phân cấp thông tin): 4/5 - Thông tin được phân cấp một cách rõ ràng, giúp người dùng dễ dàng tìm kiếm thông tin cần thiết.
+Tiêu chí 4 - phản hồi trực quan (hover/state/loading): 2/5 - Giao diện không có phản hồi trực quan cho các hành động như hover hoặc loading.
+Tiêu chí 5 - luồng thao tác (điều hướng dễ hiểu): 3/5 - Điều hướng trên trang web có thể hơi phức tạp, cần nhiều lần click để tìm ra mục đích.
+Tiêu chí 6 - tiếp cận (contrast, a11y): 4/5 - Contrast giữa màu nền và màu chữ được sử dụng tốt, giúp người dùng dễ đọc. Tuy nhiên, không có thông tin về tính năng a11y.
+Tiêu chí 7 - thỏa mãn (wow factor, chuyên nghiệp): 3/5 - Giao diện có vẻ chuyên nghiệp nhưng chưa tạo được wow factor đáng kể.
+
+TỔNG: điểm trung bình 3.2/5 — mục cần sửa: Phản hồi trực quan và luồng thao tác.

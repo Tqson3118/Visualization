@@ -30,3 +30,4 @@
 - 14/08 03:20 — Phase 1A-1D xong (4 agent song song): 28 view + 8 component + 1 composable. Verify sạch. Commit `eb49d92`.
 - 14/08 03:50 — Phase 2: Lighthouse 100/100, console 0 lỗi, bundle OK. 14 ảnh final `docs/work/ui-premium/final-*.png`.
 - 14/08 03:40 — dev-review CHANGES REQUESTED (1 MAJOR ProgressRing rotate hardcode). Đã fix: tâm xoay theo `size/2` + BlockToken color-mix. Verify vue-tsc + 95/95 + browser (size 100 đúng). Commit `4688e7c`. → dev-review APPROVE.
+- 14/08 04:10 — Phase 2 hoàn tất: Performance trace LCP 630ms/CLS 0.04/TTFB 5ms; Ollama 7 tiêu chí 14 ảnh = 3.46/5 trung bình (giới hạn ảnh tĩnh — decision #20); decision log 21 mục.

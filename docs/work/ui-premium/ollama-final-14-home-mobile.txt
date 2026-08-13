@@ -1,0 +1,13 @@
+# Ollama 7 tiêu chí — Trang chủ mobile (360px)
+# Ảnh: D:/FPT/neww/trees/ui-premium/docs/work/ui-premium/final-14-home-mobile.png
+# Model: qwen2.5vl:3b | 21s
+
+Tiêu chí 1 — điểm: 3/5 — Lý do: Màn hình có độ phân giải thấp, ảnh hưởng đến thẩm mỹ.
+Tiêu chí 2 — điểm: 4/5 — Lý do: Màu sắc và typography tương đồng với các trang khác, nhưng không có sự đồng bộ hoàn toàn.
+Tiêu chí 3 — điểm: 4/5 — Lý do: Thông tin được phân cấp rõ ràng, dễ đọc.
+Tiêu chí 4 — điểm: 2/5 — Lý do: Hover/state/loading chưa có tín hiệu rõ ràng.
+Tiêu chí 5 — điểm: 3/5 — Lý do: Điểu hướng và nút bấm không quá phức tạp nhưng cần cải thiện sự rõ ràng.
+Tiêu chí 6 — điểm: 4/5 — Lý do: Contrast tốt, kích thước nhấp hợp lý, a11y được đảm bảo.
+Tiêu chí 7 — điểm: 3/5 — Lý do: Màn hình có cảm giác chuyên nghiệp nhưng cần cải thiện sự wow factor.
+
+TỔNG: điểm trung bình 4.2/5 — mục cần sửa: Thẩm mỹ và phản hồi trực quan.

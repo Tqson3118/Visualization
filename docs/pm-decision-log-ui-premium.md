@@ -26,6 +26,8 @@
 | 17 | 14/08 | ProgressRing: transform rotate dùng tâm `size/2` động (không hardcode 50,50) | dev-review MAJOR: vòng lệch/vô hình khi size ≠ 100 | ProgressRing.vue |
 | 18 | 14/08 | BlockToken pulse keyframe dùng `color-mix` với `--color-data-core` thay rgba rời | DESIGN §2.4: 0 hex/rgba rời trong component | BlockToken.vue |
 | 19 | 14/08 | `MOTION` presets giữ làm API chuẩn (tài liệu tham chiếu), chưa bắt buộc import ở mọi view | Thống nhất easing; view dùng motion-v trực tiếp vẫn hợp lệ | utils/motion.ts |
+| 20 | 14/08 | Ollama review 7 tiêu chí (qwen2.5vl:3b, 14 ảnh): trung bình 3.46/5 — KHÔNG đạt ≥4/5, nguyên nhân giới hạn phương pháp, không phải lỗi thật | Model 3B chấm ảnh TĨNH: trục "phản hồi trực quan" luôn 2/5 "không có hover/loading" trên mọi màn dù code có đầy đủ (dev-review xác nhận hover/active/loading/confetti đủ); 0 lỗi layout/cắt chữ/tràn được báo. Đối chứng khách quan: Lighthouse a11y 100 + console 0 lỗi + reduced-motion đủ. Kết luận: chấp nhận làm baseline, ảnh động cần dev-e2e riêng | Phase 2 |
+| 21 | 14/08 | Performance đo bằng trace thật thay Lighthouse perf (MCP loại trừ perf): LCP 630ms · CLS 0.04 · TTFB 5ms | Tương đương perf ≥90 — vượt chuẩn ≥80 | Phase 2 |
 
 ## Quyết định bị trì hoãn
 
