@@ -33,7 +33,9 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-  void gamification.fetchHearts();
+  // H-D P2: nạp toàn bộ gamification (hearts/streak/premium) khi vào thẳng /shop —
+  // gems balance phụ thuộc GET gems (P1 contract, SETUP_TODO đợt I/J).
+  void gamification.fetchAll();
 });
 
 const canAfford = computed(() => (price: number) => gamification.gems >= price);
