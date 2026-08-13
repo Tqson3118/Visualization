@@ -35,6 +35,13 @@ export const messages = {
     processing: 'Đang xử lý...',
   },
 
+  profile: {
+    savePassword: 'Đổi mật khẩu',
+    passwordChanged: 'Đã đổi mật khẩu.',
+    passwordTooShort: 'Mật khẩu mới phải từ 8 ký tự',
+    progressLoadError: 'Không tải được tiến độ — máy chủ không phản hồi.',
+  },
+
   home: {
     heroTitle: 'Trực quan hóa mọi giải thuật, từng bước một',
     heroSubtitle:
@@ -60,6 +67,13 @@ export const messages = {
     demoRun: 'Chạy thử',
     demoComplexity: 'Độ phức tạp',
     demoOpen: 'Mở mô phỏng',
+    // View-quality (nhóm A) — hero mini-sim chạy engine thật
+    heroKicker: 'Mô phỏng chạy thật từ engine',
+    demoBubble: 'Bubble Sort',
+    demoBinary: 'Binary Search',
+    demoBfs: 'BFS',
+    simStepOf: (cur: number, total: number) => `bước ${cur}/${total}`,
+    simLive: 'LIVE',
     statsTitle: 'DSA Visual bằng số',
     statsVisuals: 'mô phỏng trực quan',
     statsGroups: 'nhóm CTDL & Giải thuật',
@@ -276,7 +290,9 @@ export const messages = {
       lock: 'Khóa',
       unlock: 'Mở khóa',
       emptyTitle: 'Không có người dùng phù hợp',
+      emptyTitleDesc: 'Thử xóa bộ lọc hoặc tìm từ khóa khác.',
       emptyPending: 'Không có tài khoản chờ duyệt',
+      emptyPendingDesc: 'Khi giảng viên đăng ký, hồ sơ chờ duyệt sẽ xuất hiện ở đây.',
       approveTitle: 'Duyệt giảng viên',
       rejectTitle: 'Từ chối giảng viên',
       rejectReasonLabel: 'Lý do từ chối (bắt buộc)',
@@ -284,6 +300,10 @@ export const messages = {
       cancel: 'Hủy',
       confirmApprove: 'Xác nhận duyệt',
       confirmReject: 'Xác nhận từ chối',
+      // View-quality: strip block-token banner + error state
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỜ DUYỆT`,
+      loadError: 'Không thể tải danh sách người dùng.',
+      retry: 'Thử lại',
       // Task L — thông tin đăng ký GV hiển thị trong modal duyệt
       reviewTeacherInfo: 'Thông tin giảng viên',
       department: 'Khoa/Bộ môn',
@@ -306,6 +326,8 @@ export const messages = {
       noteSimsSuffix: '(engines/catalog)',
       noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
       loadError: 'Không thể tải thống kê.',
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỈ SỐ THEO DÕI`,
+      retry: 'Thử lại',
     },
     settings: {
       title: 'Cấu hình hệ thống',
@@ -326,6 +348,7 @@ export const messages = {
       save: 'Lưu cấu hình',
       loadError: 'Không thể tải cấu hình (backend chưa khả dụng — hiển thị mặc định).',
       saved: 'Đã lưu cấu hình hệ thống.',
+      retry: 'Thử lại',
     },
     content: {
       title: 'Quản trị nội dung',
@@ -343,7 +366,7 @@ export const messages = {
       colTopic: 'Chủ đề',
       colStatus: 'Trạng thái',
       colSim: 'Mô phỏng',
-      colCreated: 'Ngày tạo',
+      colIndex: '#',
       colActions: 'Thao tác',
       edit: 'Sửa',
       delete: 'Xóa',
@@ -367,6 +390,10 @@ export const messages = {
       cancel: 'Hủy',
       save: 'Lưu',
       create: 'Tạo',
+      // View-quality: strip block-token banner + error state
+      stripLabel: (lessons: number, topics: number) =>
+        `${String(lessons).padStart(2, '0')} BÀI · ${String(topics).padStart(2, '0')} CHỦ ĐỀ`,
+      retry: 'Thử lại',
     },
     ladder: {
       title: 'Soạn Ladder (node)',
@@ -383,6 +410,7 @@ export const messages = {
       emptyTitle: 'Chưa có bài tập',
       emptyDesc: 'Tạo bài tập ở backend/admin API (POST /exercises) trước.',
       attachBtn: 'Gắn exercise vào node',
+      retry: 'Thử lại',
     },
   },
 
@@ -403,6 +431,9 @@ export const messages = {
     noDescription: 'Chưa có mô tả',
     members: (n: number) => `${n} thành viên`,
     inviteLabel: 'Mã mời',
+    // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
+    stripLabel: (total: number, members: number) =>
+      `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,
     // Modal tham gia lớp
     joinTitle: 'Tham gia lớp',
     joinCodeLabel: 'Mã mời (6 ký tự)',
@@ -485,12 +516,16 @@ export const messages = {
     reportKpiCompletion: 'Hoàn thành',
     reportKpiAvgScore: 'Điểm TB',
     reportKpiSubmissions: 'Bài nộp',
-    reportColStudent: 'Sinh viên',
-    reportColViewed: 'Đã xem',
-    reportColSims: 'Mô phỏng',
-    reportColExercises: 'Bài tập',
-    reportColBest: 'Điểm cao nhất',
+    reportKpiAssignments: 'Bài gán',
+    reportColContent: 'Nội dung',
+    reportColOnTime: 'Đúng hạn',
+    reportColLate: 'Trễ',
+    reportColNotSubmitted: 'Chưa nộp',
+    reportColBest: 'Điểm TB',
     reportColStatus: 'Trạng thái',
+    reportLaggingTitle: 'Học viên chậm tiến độ',
+    reportLaggingEmpty: 'Không có học viên nào chậm tiến độ',
+    reportLaggingMissing: (n: number) => `THIẾU ${String(n).padStart(2, '0')}`,
     reportEmptyTitle: 'Không có dữ liệu báo cáo',
     reportEmptyDesc: 'Lớp chưa có dữ liệu học tập — hãy gán lộ trình cho lớp trước.',
     reportBackDetail: 'Về chi tiết lớp',
@@ -542,15 +577,19 @@ export const messages = {
     claim: 'Nhận thưởng',
     inProgress: 'Đang chạy...',
     difficulty: ['DỄ', 'TB', 'KHÓ'] as const,
-    claimedToast: (gems: number, xp: number) => `+${gems} 💎, +${xp} XP`,
+    claimedToast: (gems: number, xp: number) => `Đã nhận +${gems} gems, +${xp} XP`,
     footer:
       'Quy tắc: 5 quest/ngày (2 DỄ + 2 TB + 1 KHÓ) · claim atomic chống double-spend · thưởng tim khi tim đầy tự đổi +5 gems.',
+  },
+
+  leaderboard: {
+    goClasses: 'Đi tới Lớp học',
+    retry: 'Thử lại',
   },
 
   premium: {
     title: 'Premium',
     subtitle: 'Mở khóa toàn bộ quyền lợi học tập — thanh toán qua QR chuyển khoản MB Bank (demo).',
-    badge: 'Nâng cấp Premium',
     choose: 'Chọn gói',
     perMonth: (value: string) => `≈ ${value}/tháng`,
     daysLabel: (days: number) => `${days} ngày học Premium`,
@@ -558,10 +597,19 @@ export const messages = {
     colBenefit: 'Quyền lợi',
     colFree: 'Free',
     colPremium: 'Premium',
+    // free/premium = null → icon X/Check (không có/có) — ngôn ngữ trạng thái thuật toán
+    compareRows: [
+      { label: 'Max tim', free: '10 tim', premium: '30 tim' },
+      { label: 'Hồi tim', free: '30 phút', premium: '10 phút' },
+      { label: 'Hint token', free: 'Giới hạn', premium: '30 req/ngày + debug/optimize' },
+      { label: 'Avatar + khung VIP', free: null, premium: null },
+      { label: 'CheatSheet PDF', free: null, premium: null },
+      { label: 'Benchmark nâng cao', free: 'Cơ bản', premium: 'Đầy đủ' },
+    ] as const,
     checkoutTitle: 'Xác nhận đăng ký',
     checkoutName: (name: string, price: string) => `${name} — ${price}`,
     checkoutBenefits: [
-      'Max tim 30 ❤ (hồi 10 phút)',
+      'Max tim 30 (hồi 10 phút)',
       'Hint token 30 req/ngày + debug/optimize',
       'CheatSheet PDF + khung VIP',
       'Benchmark nâng cao',
@@ -584,24 +632,34 @@ export const messages = {
     qrError: 'Không thể tạo mã QR — vui lòng thử lại.',
     qrAria: 'Mã QR chuyển khoản MB Bank',
     successTitle: 'Nâng cấp thành công!',
-    successDesc: 'Chào mừng bạn đến với Premium 🎉',
+    successDesc: 'Chào mừng bạn đến với Premium.',
+    successTokenIndex: 'đã kích hoạt',
     successGo: 'Vào học tiếp',
-    upgraded: '🎉 Nâng cấp Premium thành công!',
+    upgraded: 'Nâng cấp Premium thành công!',
   },
 
   subscription: {
     title: 'Quản lý gói Premium',
     subtitle: 'Theo dõi gói, quyền lợi còn lại và quản lý gia hạn.',
-    badge: 'Premium',
+    activeBadge: 'Đang hoạt động',
     emptyTitle: 'Bạn chưa có gói Premium',
     emptyDesc: 'Nâng cấp để mở khóa toàn bộ quyền lợi học tập.',
     emptyAction: 'Xem bảng giá',
+    errorTitle: 'Không tải được gói Premium',
+    errorDesc: 'Máy chủ không phản hồi — kiểm tra kết nối và thử lại.',
+    retry: 'Thử lại',
     expiresLabel: 'Ngày hết hạn',
     expiresNone: '—',
     renewLabel: 'Gia hạn tự động',
     renewOn: 'BẬT (mô phỏng)',
     renewOff: 'TẮT',
-    daysLeft: (days: number) => `Còn ${days} ngày`,
+    benefits: [
+      'Max tim 30 (hồi 10 phút)',
+      'Hint token 30 req/ngày + debug/optimize',
+      'Avatar upload + khung VIP',
+      'CheatSheet PDF',
+      'Benchmark nâng cao',
+    ] as const,
     benefitsTitle: 'Quyền lợi đang kích hoạt',
     renewBtn: 'Gia hạn / đổi gói',
     cancelBtn: 'Hủy gia hạn',
@@ -609,6 +667,12 @@ export const messages = {
     cancelNote: 'Bạn sẽ GIỮ gems, avatar, vật phẩm Shop đã mua — nhưng MẤT:',
     keepBtn: 'Giữ Premium',
     confirmCancel: 'Xác nhận hủy',
+    loses: [
+      'Tim 30 (về 10, clamp khi hết hạn)',
+      'Hồi tim 10 phút (về 30 phút)',
+      'Hint token 30 req/ngày',
+      'Khung VIP + CheatSheet PDF',
+    ] as const,
     cancelInfo:
       'Hủy gia hạn: endpoint /me/subscription/cancel sẽ được bổ sung ở backend. Gói vẫn dùng tới hết hạn.',
   },
@@ -655,8 +719,26 @@ export const messages = {
   cheatsheet: {
     breadcrumbParent: 'Khám phá',
     title: 'CheatSheet — Độ phức tạp Big-O',
-    sub: 'Bảng tra cứu nhanh · "▶ Xem mô phỏng" mở simulator (trừ 1 tim theo 20.4 — 3 demo công khai miễn phí).',
+    sub: 'Bảng tra cứu nhanh · "Xem mô phỏng" mở simulator (3 demo công khai miễn phí, mô phỏng khác trừ 1 tim theo 20.4).',
     badge: (count: number) => `${count} mục`,
+    stripLabel: (count: number) => `BIG-O 00–04 · CHEATSHEET ${count}`,
+    // ── CheatSheetTable (bảng Big-O) ──
+    all: 'Tất cả',
+    filterGroupAria: 'Lọc theo nhóm CTDL',
+    searchPlaceholder: 'Tìm theo tên hoặc key...',
+    searchAria: 'Tìm kiếm mô phỏng',
+    colAlgorithm: 'Giải thuật / CTDL',
+    colBest: 'Best',
+    colAverage: 'Average',
+    colWorst: 'Worst',
+    colSpace: 'Không gian',
+    colAction: 'Hành động',
+    emptyTitle: 'Không có mô phỏng phù hợp',
+    emptyDesc: 'Thử xóa bộ lọc hoặc đổi từ khóa tìm kiếm.',
+    clearFilters: 'Xóa bộ lọc',
+    simulate: 'Xem mô phỏng',
+    openSimulation: (title: string) => `Mở mô phỏng ${title}`,
+    source: (count: number) => `Nguồn dữ liệu: shared/simulation-catalog.json — ${count} mô phỏng.`,
   },
 
   help: {

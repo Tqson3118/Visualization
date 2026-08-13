@@ -46,7 +46,7 @@ const activeKey = computed({
           :key="tab.key"
           :value="tab.key"
           :disabled="tab.disabled"
-          class="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+          class="min-h-9 rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
         >
           {{ tab.label }}
           <Badge v-if="tab.badge !== undefined" variant="primary" class="ml-1">

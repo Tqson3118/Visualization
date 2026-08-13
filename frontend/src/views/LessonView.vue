@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // LessonView — Màn 04: chi tiết bài học (SDD Màn 04)
-// G-F2b: hero gradient Sunset mềm + breadcrumb + tab Nội dung/Lý thuyết/Quiz (Tabs shadcn)
-// + thẻ liên kết Card hover + nút "Đánh dấu đã học" + toast. GIỮ data + luồng hiện tại.
+// Phase 1 view-quality: banner = surface band level-2 (bỏ gradient sunset + text-shadow),
+// icon lucide (ArrowLeft thay "←"), nút "Học tiếp" = hành động thật (mở mô phỏng đầu tiên
+// của bài / chuyển tab Lý thuyết), weight 700 → 600, hover card chỉ đổi border (§6).
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { CheckCircle2, Play, Puzzle } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle2, Play, Puzzle } from 'lucide-vue-next';
 
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
@@ -32,6 +33,7 @@ const theoryMeta = computed(() => {
   const key = lesson.value?.simulations?.[0]?.simulationKey;
   return key ? getCatalogMeta(key) : undefined;
 });
+const theorySimKey = computed(() => lesson.value?.simulations?.[0]?.simulationKey ?? '');
 
 const TABS: TabItem[] = [
   { key: 'content', label: 'Nội dung' },
@@ -53,6 +55,15 @@ function openSimulation(key: string): void {
 
 function openExercise(id: number): void {
   void router.push({ name: 'exercise', params: { id: String(id) } });
+}
+
+/** "Học tiếp": bước thao tác thật — mô phỏng đầu tiên của bài, nếu chưa có thì sang Lý thuyết. */
+function onContinue(): void {
+  if (theorySimKey.value) {
+    openSimulation(theorySimKey.value);
+  } else {
+    activeTab.value = 'theory';
+  }
 }
 
 async function onMarkViewed(): Promise<void> {
@@ -86,7 +97,7 @@ async function onMarkViewed(): Promise<void> {
     />
 
     <template v-else>
-      <!-- Hero bài học — gradient Sunset mềm -->
+      <!-- Hero bài học — surface band level-2 (DESIGN.md §1), không gradient -->
       <header class="lesson-view__hero">
         <div class="lesson-view__hero-badges">
           <Badge variant="primary">Bài học</Badge>
@@ -99,13 +110,14 @@ async function onMarkViewed(): Promise<void> {
             <CheckCircle2 :size="16" aria-hidden="true" />
             {{ viewed ? 'Đã đánh dấu' : 'Đánh dấu đã học' }}
           </Button>
-          <Button
-            variant="secondary"
-            @click="ui.showToast('Bước sau: mở mô phỏng liên quan từ thẻ bên trên.', 'info')"
-          >
+          <Button v-if="!viewed" variant="secondary" @click="onContinue">
+            <Play :size="16" aria-hidden="true" />
             Học tiếp
           </Button>
-          <Button variant="ghost" @click="router.push({ name: 'path' })">← Về lộ trình</Button>
+          <Button variant="ghost" @click="router.push({ name: 'path' })">
+            <ArrowLeft :size="16" aria-hidden="true" />
+            Về lộ trình
+          </Button>
         </div>
       </header>
 
@@ -151,7 +163,7 @@ async function onMarkViewed(): Promise<void> {
             <Card
               v-for="ex in lesson.exercises"
               :key="ex.id"
-              class="lesson-view__quiz hover-lift"
+              class="lesson-view__quiz"
             >
               <div class="lesson-view__quiz-icon" aria-hidden="true">
                 <Puzzle :size="18" />
@@ -189,37 +201,23 @@ async function onMarkViewed(): Promise<void> {
 .lesson-view__breadcrumb {
   display: flex;
   gap: var(--space-sm);
-  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
 }
 
-/* ── Hero gradient Sunset mềm ── */
+.lesson-view__breadcrumb a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
+
+/* ── Hero surface band level-2 (DESIGN.md §1 + §6) ── */
 .lesson-view__hero {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   padding: var(--space-xl);
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-sunset);
-  color: #fff;
-  box-shadow: var(--shadow-lg);
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-}
-
-.lesson-view__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 55%);
-}
-
-/* GP-T9b (#12): dark mode gradient Sunset sáng (0.75-0.88) làm chữ trắng khó đọc
-   → phủ lớp tối để chữ trắng ≥ 4.5:1. */
-.dark .lesson-view__hero::after {
-  background: rgba(4, 47, 46, 0.62);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .lesson-view__hero-badges {
@@ -230,12 +228,13 @@ async function onMarkViewed(): Promise<void> {
 
 .lesson-view__hero-title {
   font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
 }
 
 .lesson-view__hero-desc {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
   margin: 0;
 }
@@ -256,7 +255,6 @@ async function onMarkViewed(): Promise<void> {
 /* ── Lý thuyết ── */
 .lesson-view__theory-card {
   margin-bottom: var(--space-md);
-  padding: var(--space-md);
 }
 
 .lesson-view__theory-meta {
@@ -269,33 +267,32 @@ async function onMarkViewed(): Promise<void> {
 .lesson-view__theory-meta dt {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .lesson-view__theory-meta dd {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: 700;
-  margin-top: 2px;
+  font-weight: 600;
+  margin-top: var(--space-xs);
 }
 
 .lesson-view__theory {
   font-size: var(--text-base);
   line-height: 1.75;
-  background: var(--color-surface);
+  background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
-  box-shadow: var(--shadow-sm);
 }
 
-.lesson-view__theory :deep(h2) { font-size: var(--text-lg); margin-block: var(--space-md) var(--space-sm); }
-.lesson-view__theory :deep(h3) { font-size: var(--text-md); margin-block: var(--space-md) var(--space-sm); }
+.lesson-view__theory :deep(h2) { font-size: var(--text-lg); font-weight: 600; margin-block: var(--space-md) var(--space-sm); }
+.lesson-view__theory :deep(h3) { font-size: var(--text-md); font-weight: 600; margin-block: var(--space-md) var(--space-sm); }
 .lesson-view__theory :deep(p) { margin-bottom: var(--space-sm); }
 .lesson-view__theory :deep(pre) { background: var(--color-muted); padding: var(--space-md); border-radius: var(--radius-md); overflow-x: auto; }
 .lesson-view__theory :deep(code) { font-family: var(--font-mono); font-size: var(--text-sm); }
 .lesson-view__theory :deep(table) { border-collapse: collapse; width: 100%; margin-block: var(--space-md); }
-.lesson-view__theory :deep(th), .lesson-view__theory :deep(td) { border: 1px solid var(--color-border); padding: 6px 10px; text-align: left; }
+.lesson-view__theory :deep(th), .lesson-view__theory :deep(td) { border: 1px solid var(--color-border); padding: var(--space-sm) var(--space-sm); text-align: left; }
 
 /* ── Quiz ── */
 .lesson-view__quiz-list {
@@ -309,20 +306,27 @@ async function onMarkViewed(): Promise<void> {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.lesson-view__quiz:hover { border-color: var(--color-border-strong); }
 
 .lesson-view__quiz-icon {
   flex-shrink: 0;
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.lesson-view__quiz-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.lesson-view__quiz-title { font-weight: 700; font-size: var(--text-sm); }
+.lesson-view__quiz-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.lesson-view__quiz-title { font-weight: 600; font-size: var(--text-sm); margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-view__quiz { transition: none; }
+}
 </style>

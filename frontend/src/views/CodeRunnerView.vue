@@ -2,12 +2,14 @@
 // CodeRunnerView — Màn 16: Code Runner (Module I) tại /code/:key
 // Editor (textarea — Monaco sẽ bật khi cài gói monaco-editor) + chạy sandbox +
 // canvas 2 chiều từ generator thật + panel test ẩn sau nộp + lịch sử nộp.
-// G-F2c: layout 2 cột (editor trái / output phải) + toolbar shadcn + số dòng +
-// JetBrains Mono + EmptyState/error style. GIỮ textarea aria-label + text "Thành công · Xms" (e2e).
+// P1-B2: chrome surface band level-2 (bỏ gradient/shadow), editor LUÔN tối
+// (canvas-ink — quyết định #5), bỏ ghi chú dev Monaco → caption phím tắt mono,
+// lucide icons thay ký tự ◀▶▶, EmptyState component chung.
+// GIỮ textarea aria-label + text "Thành công · Xms" (e2e).
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { Code2, History, Terminal } from 'lucide-vue-next';
+import { Code2, History, Play, StepBack, StepForward, Terminal } from 'lucide-vue-next';
 
 import { useCodeRunnerStore } from '@/stores/codeRunner';
 import { useSimulationStore } from '@/stores/simulation';
@@ -18,6 +20,7 @@ import StatsBar from '@/components/simulator/StatsBar.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -79,7 +82,7 @@ async function toggleHistory(): Promise<void> {
 
 <template>
   <main class="code-runner container">
-    <!-- Chrome header — Cyber Mint nhẹ -->
+    <!-- Chrome header — surface band level-2 + kicker mono (DESIGN.md §1, không gradient) -->
     <header class="code-runner__chrome">
       <div class="code-runner__header">
         <div>
@@ -88,13 +91,14 @@ async function toggleHistory(): Promise<void> {
             <span aria-hidden="true">/</span>
             <span>{{ meta?.title ?? key }}</span>
           </nav>
-          <h1 class="code-runner__title">💻 {{ meta?.title ?? key }} — Code Challenge</h1>
+          <p class="code-runner__kicker">CODE CHALLENGE · {{ key }}</p>
+          <h1 class="code-runner__title">{{ meta?.title ?? key }}</h1>
           <p class="code-runner__sub">
             Nộp bài: output đúng là đạt. Dùng hàm có sẵn (VD sort()) → vẫn đạt nhưng KHÔNG xem được mô phỏng bước.
           </p>
         </div>
         <Button variant="ghost" size="sm" @click="toggleHistory">
-          <History :size="15" aria-hidden="true" />
+          <History :size="16" aria-hidden="true" />
           {{ historyOpen ? 'Ẩn lịch sử' : 'Lịch sử nộp' }}
         </Button>
       </div>
@@ -104,13 +108,14 @@ async function toggleHistory(): Promise<void> {
       <Skeleton height="280px" />
     </div>
 
-    <div v-else-if="!meta" class="code-runner__empty card">
-      <p class="code-runner__empty-title">Mô phỏng không tồn tại</p>
-      <p class="text-muted">Key '{{ key }}' không có trong danh mục 44 mô phỏng.</p>
-      <Button variant="secondary" size="sm" @click="router.push({ name: 'simulations' })">
-        Về danh mục
-      </Button>
-    </div>
+    <EmptyState
+      v-else-if="!meta"
+      icon="database"
+      title="Không tìm thấy bài thử thách"
+      :description="`Key '${key}' chưa có trong danh mục mô phỏng — kiểm tra lại đường dẫn hoặc quay về danh mục.`"
+      action-label="Về danh mục"
+      @action="router.push({ name: 'simulations' })"
+    />
 
     <template v-else>
       <div class="code-runner__layout">
@@ -118,7 +123,7 @@ async function toggleHistory(): Promise<void> {
         <section class="code-runner__panel code-runner__editor-panel" aria-label="Trình soạn mã">
           <header class="code-runner__panel-header">
             <span class="code-runner__panel-title">
-              <Code2 :size="15" aria-hidden="true" />
+              <Code2 :size="16" aria-hidden="true" />
               Editor
             </span>
             <Badge variant="muted">{{ key }}</Badge>
@@ -140,10 +145,13 @@ async function toggleHistory(): Promise<void> {
           </div>
 
           <p class="code-runner__note">
-            * Monaco editor sẽ được bật khi cài gói <code>monaco-editor</code> (SDD Màn 16 — @monaco-editor/loader đã có).
+            <kbd>Ctrl+Enter</kbd> chạy code · <kbd>Ctrl+Z</kbd> hoàn tác · <kbd>Ctrl+Shift+Z</kbd> làm lại
           </p>
           <div class="code-runner__actions">
-            <Button size="sm" :loading="codeStore.isRunning" @click="onRun">▶ Chạy (Ctrl+Enter)</Button>
+            <Button size="sm" :loading="codeStore.isRunning" @click="onRun">
+              <Play :size="16" aria-hidden="true" />
+              Chạy (Ctrl+Enter)
+            </Button>
             <Button variant="ghost" size="sm" @click="codeStore.restoreTemplate()">Khôi phục code mẫu</Button>
           </div>
         </section>
@@ -152,7 +160,7 @@ async function toggleHistory(): Promise<void> {
         <section class="code-runner__panel code-runner__output-panel" aria-label="Kết quả chạy">
           <header class="code-runner__panel-header">
             <span class="code-runner__panel-title">
-              <Terminal :size="15" aria-hidden="true" />
+              <Terminal :size="16" aria-hidden="true" />
               Output
             </span>
             <Badge
@@ -200,8 +208,24 @@ async function toggleHistory(): Promise<void> {
               :total-steps="simStore.steps.length"
             />
             <div class="code-runner__sim-controls">
-              <Button variant="ghost" size="sm" :disabled="simStore.isFirst" @click="simStore.stepBack()">◀</Button>
-              <Button variant="ghost" size="sm" :disabled="simStore.isLast" @click="simStore.stepForward()">▶</Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Bước lùi"
+                :disabled="simStore.isFirst"
+                @click="simStore.stepBack()"
+              >
+                <StepBack :size="16" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Bước tới"
+                :disabled="simStore.isLast"
+                @click="simStore.stepForward()"
+              >
+                <StepForward :size="16" aria-hidden="true" />
+              </Button>
               <span class="code-runner__step-info">
                 Bước {{ simStore.currentIndex + 1 }}/{{ simStore.steps.length }}
               </span>
@@ -211,15 +235,15 @@ async function toggleHistory(): Promise<void> {
       </div>
 
       <!-- Lịch sử nộp -->
-      <section v-if="historyOpen" class="code-runner__history card">
+      <section v-if="historyOpen" class="code-runner__history">
         <h2 class="code-runner__history-title">Lịch sử nộp</h2>
-        <p v-if="codeStore.submissions.length === 0" class="text-muted">
+        <p v-if="codeStore.submissions.length === 0" class="code-runner__history-empty">
           Chưa có bài nộp — nộp từ Bậc 3 (Ladder) sẽ hiển thị ở đây.
         </p>
         <ul v-else class="code-runner__history-list">
           <li v-for="sub in codeStore.submissions" :key="sub.id">
             <Badge :variant="sub.status === 'passed' ? 'success' : 'danger'">{{ sub.status }}</Badge>
-            <span class="text-muted">{{ sub.createdAt }}</span>
+            <span class="code-runner__history-date">{{ sub.createdAt }}</span>
           </li>
         </ul>
       </section>
@@ -235,32 +259,21 @@ async function toggleHistory(): Promise<void> {
   gap: var(--space-lg);
 }
 
-/* ── Chrome header — Cyber Mint nhẹ ── */
+/* ── Chrome header — surface band level-2 (DESIGN.md §1 + §6, không gradient/shadow) ── */
 .code-runner__chrome {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-mint);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
   padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.code-runner__chrome::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 62%, transparent);
 }
 
 .code-runner__breadcrumb {
   display: flex;
   gap: var(--space-sm);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  margin-bottom: 4px;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-xs);
 }
 
 .code-runner__breadcrumb a { color: var(--color-primary); font-weight: 600; }
@@ -273,28 +286,27 @@ async function toggleHistory(): Promise<void> {
   flex-wrap: wrap;
 }
 
-.code-runner__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-mint);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.code-runner__kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
-.code-runner__sub { font-size: var(--text-xs); margin-top: 4px; max-width: 48rem; color: var(--color-text-muted); }
+.code-runner__title {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+  margin-top: var(--space-xs);
+}
+
+.code-runner__sub { font-size: var(--text-sm); margin-top: var(--space-xs); max-width: 48rem; color: var(--color-text-secondary); }
 
 .code-runner__loading { display: flex; flex-direction: column; gap: var(--space-md); }
-
-.code-runner__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-2xl);
-  text-align: center;
-}
-
-.code-runner__empty-title { font-size: var(--text-lg); font-weight: 700; }
 
 .code-runner__layout {
   display: grid;
@@ -303,7 +315,7 @@ async function toggleHistory(): Promise<void> {
   align-items: start;
 }
 
-/* ── Panel chung ── */
+/* ── Panel chung — elevation level-1, KHÔNG shadow (§6) ── */
 .code-runner__panel {
   display: flex;
   flex-direction: column;
@@ -312,7 +324,6 @@ async function toggleHistory(): Promise<void> {
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   padding: var(--space-md);
-  box-shadow: var(--shadow-sm);
 }
 
 .code-runner__panel-header {
@@ -327,31 +338,28 @@ async function toggleHistory(): Promise<void> {
 .code-runner__panel-title {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-sm);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.code-runner__panel-title svg { color: var(--color-primary); }
-
-/* ── Editor: gutter số dòng + textarea ──
-   GP-T9b (#27): nền editor theo theme (light = sáng, dark = tối) thay vì
-   hardcode #0f172a → đồng bộ tương phản với trang. */
+/* ── Editor: vùng dữ liệu LUÔN tối (canvas-ink) bất kể theme (quyết định #5) ── */
 .code-runner__editor-wrap {
   display: flex;
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--color-surface);
+  background: var(--color-canvas-ink);
 }
 
 .code-runner__gutter {
-  width: 42px;
+  width: 48px;
   flex-shrink: 0;
   overflow: hidden;
-  padding: 12px 8px 12px 0;
-  background: var(--color-muted);
-  border-right: 1px solid var(--color-border);
+  padding: var(--space-md) var(--space-sm) var(--space-md) 0;
+  background: color-mix(in srgb, var(--color-canvas-ink) 60%, var(--color-index-muted) 8%);
+  border-right: 1px solid color-mix(in srgb, var(--color-index-muted) 35%, transparent);
   text-align: right;
   user-select: none;
 }
@@ -359,22 +367,22 @@ async function toggleHistory(): Promise<void> {
 .code-runner__gutter-line {
   display: block;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
-  color: var(--color-text-muted);
+  color: var(--color-index-muted);
 }
 
 .code-runner__textarea {
   width: 100%;
   min-height: 320px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   border: none;
   outline: none;
   background: transparent;
-  color: var(--color-foreground);
-  padding: 12px 14px;
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
+  padding: var(--space-md);
   resize: vertical;
   tab-size: 2;
   caret-color: var(--color-primary);
@@ -384,8 +392,15 @@ async function toggleHistory(): Promise<void> {
 
 .code-runner__textarea::selection { background: color-mix(in srgb, var(--color-primary) 32%, transparent); }
 
-.code-runner__note { font-size: var(--text-xs); color: var(--color-text-muted); }
-.code-runner__note code { font-family: var(--font-mono); }
+.code-runner__note { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+.code-runner__note kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-xs);
+  background: var(--color-muted);
+}
 
 .code-runner__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
@@ -399,7 +414,7 @@ async function toggleHistory(): Promise<void> {
 .code-runner__status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-sm);
   font-size: var(--text-sm);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
@@ -419,18 +434,20 @@ async function toggleHistory(): Promise<void> {
 }
 
 .code-runner__status--idle {
-  color: var(--color-text-muted);
+  color: var(--color-text-tertiary);
   background: var(--color-muted);
   border: 1px dashed var(--color-border);
 }
 
+/* Output = dữ liệu → nền tối canvas-ink (quyết định #5) */
 .code-runner__output-box {
-  background: var(--color-muted);
-  border: 1px solid var(--color-border);
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  color: color-mix(in srgb, white 85%, var(--color-index-muted));
   overflow-x: auto;
   min-height: 56px;
   margin: 0;
@@ -450,9 +467,21 @@ async function toggleHistory(): Promise<void> {
   gap: var(--space-sm);
 }
 
-.code-runner__step-info { font-size: var(--text-xs); color: var(--color-text-muted); font-family: var(--font-mono); }
+.code-runner__step-info { font-size: var(--text-xs); color: var(--color-text-tertiary); font-family: var(--font-mono); }
 
-.code-runner__history-title { font-size: var(--text-md); margin-bottom: var(--space-sm); }
+.code-runner__history {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.code-runner__history-title { font-size: var(--text-md); font-weight: 600; letter-spacing: -0.015em; }
+
+.code-runner__history-empty { font-size: var(--text-sm); color: var(--color-text-tertiary); }
 
 .code-runner__history-list {
   list-style: none;
@@ -467,6 +496,8 @@ async function toggleHistory(): Promise<void> {
   gap: var(--space-sm);
   font-size: var(--text-sm);
 }
+
+.code-runner__history-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 @media (max-width: 1000px) {
   .code-runner__layout { grid-template-columns: 1fr; }

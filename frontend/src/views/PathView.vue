@@ -1,19 +1,25 @@
 <script setup lang="ts">
-// PathView — Màn 13: bản đồ node Duolingo-style (/path/:topicId)
+// PathView — Màn 13: bản đồ node kiểu graph node-edge (/path/:topicId)
+// Phase 1 view-quality: banner surface band level-2 (bỏ gradient aurora + emoji),
+// map = VueFlow node-edge THẬT (lazy defineAsyncComponent — entry bundle không đổi),
+// node = block-token (canvas-ink + index mono + trạng thái resolved/conflict) — DESIGN-IDENTITY §1.5.
 // Dữ liệu: API /learning-path/{id}; fallback cục bộ (catalog + localStorage) khi backend chưa có.
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Heart, Route } from 'lucide-vue-next';
 
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import * as gamificationApi from '@/api/gamification';
 import type { LearningPathNodeDto } from '@/api/gamification';
 import { CATALOG } from '@/engines/catalog';
-import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+
+// Lazy-load graph (vue-flow) — CSS của @vue-flow/core nằm trong chunk PathGraph, không phình entry.
+const PathGraph = defineAsyncComponent(() => import('@/components/path/PathGraph.vue'));
 
 const route = useRoute();
 const router = useRouter();
@@ -106,6 +112,8 @@ const progressPct = computed(() => {
   return Math.round((nodes.value.filter((n) => n.status === 'passed').length / nodes.value.length) * 100);
 });
 
+const passedCount = computed(() => nodes.value.filter((n) => n.status === 'passed').length);
+
 const finalTestUnlocked = computed(() => nodes.value.length > 0 && nodes.value.every((n) => n.status === 'passed'));
 
 watch(topicId, () => void load(), { immediate: true });
@@ -149,25 +157,30 @@ function markLocalPassed(nodeId: number): void {
   }
 }
 
-const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Math.min(3, count)) : ''));
+function openFinalTest(): void {
+  if (!finalTestUnlocked.value) return;
+  void router.push({ name: 'final-test', params: { topicId: String(topicId.value) } });
+}
 </script>
 
 <template>
   <main class="path-view container">
-    <header class="path-view__header">
-      <div class="path-view__hero">
-        <div class="path-view__hero-main">
-          <p class="path-view__hero-kicker">Learning Path</p>
-          <h1 class="path-view__title">🎯 {{ topicMeta.name }}</h1>
-          <p class="text-muted path-view__sub">{{ topicMeta.description }}</p>
-        </div>
-        <div class="path-view__progress">
-          <p class="path-view__progress-label">Tiến độ tổng</p>
-          <ProgressBar :value="progressPct" show-label :variant="progressPct >= 100 ? 'success' : 'default'" />
-          <p class="path-view__progress-count text-muted">
-            {{ nodes.filter((n) => n.status === 'passed').length }}/{{ nodes.length }} node đã qua
-          </p>
-        </div>
+    <header class="path-view__hero">
+      <div class="path-view__hero-main">
+        <p class="path-view__hero-kicker">Learning Path · <span class="font-mono">TOPIC {{ String(topicId).padStart(2, '0') }}</span></p>
+        <h1 class="path-view__title">
+          <Route :size="28" aria-hidden="true" class="path-view__title-icon" />
+          {{ topicMeta.name }}
+        </h1>
+        <p class="path-view__sub">{{ topicMeta.description }}</p>
+      </div>
+      <div class="path-view__progress">
+        <p class="path-view__progress-label">Tiến độ tổng</p>
+        <ProgressBar :value="progressPct" show-label :variant="progressPct >= 100 ? 'success' : 'default'" />
+        <p class="path-view__progress-count">
+          <span class="path-view__progress-num">{{ String(passedCount).padStart(2, '0') }}/{{ String(nodes.length).padStart(2, '0') }}</span>
+          node đã qua
+        </p>
       </div>
     </header>
 
@@ -185,66 +198,28 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
     />
 
     <template v-else>
-      <!-- Bản đồ node dạng đường mòn -->
-      <div class="path-view__map">
-        <template v-for="(node, idx) in nodes" :key="node.id">
-          <div class="path-view__connector" :class="{ 'path-view__connector--done': node.status === 'passed' }" />
-          <button
-            type="button"
-            class="path-view__node"
-            :class="{
-              'path-view__node--active': node.status === 'active',
-              'path-view__node--passed': node.status === 'passed',
-              'path-view__node--locked': node.status === 'locked',
-              'hover-lift': node.status !== 'locked',
-            }"
-            :disabled="node.status === 'locked'"
-            :aria-label="node.title"
-            @click="popoverNode = node"
-          >
-            <span class="path-view__node-icon" aria-hidden="true">
-              {{ node.status === 'locked' ? '🔒' : node.status === 'passed' ? starLabel(node.stars) || '⭐' : '▶' }}
-            </span>
-            <span class="path-view__node-label">{{ idx + 1 }}. {{ node.title }}</span>
-            <Badge
-              class="path-view__node-badge"
-              :variant="node.status === 'passed' ? 'success' : node.status === 'active' ? 'primary' : 'muted'"
-            >
-              {{ node.status === 'passed' ? 'Đã qua' : node.status === 'active' ? 'Đang học' : 'Khóa' }}
-            </Badge>
-          </button>
-        </template>
+      <!-- Bản đồ node dạng graph node-edge (VueFlow lazy) -->
+      <PathGraph
+        :nodes="nodes"
+        :entering-id="enteringId"
+        :final-test-unlocked="finalTestUnlocked"
+        @select-node="popoverNode = $event"
+        @select-final="openFinalTest"
+      />
 
-        <!-- Final test -->
-        <div class="path-view__connector" :class="{ 'path-view__connector--done': finalTestUnlocked }" />
-        <button
-          type="button"
-          class="path-view__node path-view__node--final"
-          :class="{ 'path-view__node--locked': !finalTestUnlocked, 'hover-lift': finalTestUnlocked }"
-          :disabled="!finalTestUnlocked"
-          :title="finalTestUnlocked ? 'Mở kiểm tra cuối lộ trình' : 'Hoàn thành toàn bộ node để mở'"
-          @click="router.push({ name: 'final-test', params: { topicId: String(topicId) } })"
-        >
-          <span class="path-view__node-icon" aria-hidden="true">🏁</span>
-          <span class="path-view__node-label">Kiểm tra cuối lộ trình</span>
-          <Badge :variant="finalTestUnlocked ? 'success' : 'muted'" class="path-view__node-badge">
-            {{ finalTestUnlocked ? 'Mở được' : 'Khóa' }}
-          </Badge>
-        </button>
-      </div>
-
-      <p v-if="apiFailed" class="path-view__note text-muted">
+      <p v-if="apiFailed" class="path-view__note">
         * Backend chưa khả dụng — hiển thị lộ trình mẫu, tiến độ lưu trên thiết bị này.
       </p>
 
       <!-- Popover node -->
       <Teleport to="body">
         <Transition name="pop-fade">
-          <div v-if="popoverNode" class="path-view__popover card">
+          <div v-if="popoverNode" class="path-view__popover">
             <h3 class="path-view__popover-title">{{ popoverNode.title }}</h3>
-            <p class="path-view__popover-desc text-muted">{{ popoverNode.description }}</p>
+            <p class="path-view__popover-desc">{{ popoverNode.description }}</p>
             <p class="path-view__popover-cost">
-              {{ popoverNode.status === 'passed' ? 'Miễn phí (đã pass)' : '❤ 1 — trừ 1 tim khi vào node' }}
+              <Heart :size="14" aria-hidden="true" />
+              {{ popoverNode.status === 'passed' ? 'Miễn phí (đã qua)' : '1 tim — trừ khi vào node' }}
             </p>
             <div class="path-view__popover-actions">
               <Button
@@ -280,11 +255,8 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
 
 .path-view__header { display: flex; }
 
-/* ── Hero gradient nhẹ (G-F2b) ── */
+/* ── Banner surface band level-2 (DESIGN.md §1 + §6) — không gradient, không shadow ── */
 .path-view__hero {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -292,107 +264,83 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
   align-items: flex-start;
   flex-wrap: wrap;
   padding: var(--space-xl);
-  border-radius: var(--radius-xl);
-  background-color: var(--aurora-soft);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
 }
 
-.path-view__hero::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  z-index: -1;
-  background-image: var(--gradient-aurora);
-}
-
-.path-view__hero-main { display: flex; flex-direction: column; gap: 4px; }
+.path-view__hero-main { display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .path-view__hero-kicker {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: var(--color-text-tertiary);
 }
 
-.path-view__title { font-size: var(--text-2xl); }
-.path-view__sub { font-size: var(--text-sm); }
+.path-view__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.path-view__title-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
+
+.path-view__sub {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
 
 .path-view__progress {
   width: min(300px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-sm);
   padding: var(--space-md);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-card);
   border: 1px solid var(--color-border);
 }
 
 .path-view__progress-label {
   font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
-.path-view__progress-count { font-size: var(--text-xs); }
-
-.path-view__map {
+.path-view__progress-count {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-xs);
-  padding-block: var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
-.path-view__connector {
-  width: 3px;
-  height: 28px;
-  background: var(--color-border);
+.path-view__progress-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-foreground);
 }
 
-.path-view__connector--done { background: var(--color-success); }
-
-.path-view__node {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-border);
-  background: var(--color-surface);
-  cursor: pointer;
-  max-width: 100%;
+.path-view__note {
+  font-size: var(--text-xs);
+  text-align: center;
+  color: var(--color-text-muted);
+  margin: 0;
 }
-
-.path-view__node--active {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  box-shadow: var(--shadow-md);
-}
-
-.path-view__node--passed { border-color: var(--color-success); }
-
-.path-view__node--locked { opacity: 0.55; cursor: not-allowed; }
-
-.path-view__node-icon { font-size: var(--text-md); flex-shrink: 0; }
-
-.path-view__node-label { font-weight: 700; font-size: var(--text-sm); }
-
-.path-view__node-badge { flex-shrink: 0; }
-
-.path-view__node--final { border-style: dashed; }
-
-.path-view__note { font-size: var(--text-xs); text-align: center; }
 
 .path-view__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
+/* ── Popover node (bottom sheet nhẹ — dropdown exception, shadow hợp lệ §6) ── */
 .path-view__popover {
   position: fixed;
   left: 50%;
@@ -403,15 +351,49 @@ const starLabel = computed(() => (count: number) => (count > 0 ? '⭐'.repeat(Ma
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
   box-shadow: var(--shadow-xl);
 }
 
-.path-view__popover-title { font-size: var(--text-md); }
-.path-view__popover-desc { font-size: var(--text-sm); }
-.path-view__popover-cost { font-size: var(--text-xs); color: var(--color-warning); font-weight: 700; }
+.path-view__popover-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.path-view__popover-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.path-view__popover-cost {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+  font-weight: 600;
+  margin: 0;
+}
 
 .path-view__popover-actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
 
-.pop-fade-enter-active, .pop-fade-leave-active { transition: opacity 200ms ease, transform 200ms ease; }
+/* Easing chuẩn DESIGN.md §7: enter cubic-bezier(0.16,1,0.3,1) / exit (0.7,0,0.84,0), 200-250ms */
+.pop-fade-enter-active {
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pop-fade-leave-active {
+  transition: opacity 150ms cubic-bezier(0.7, 0, 0.84, 0), transform 150ms cubic-bezier(0.7, 0, 0.84, 0);
+}
+
 .pop-fade-enter-from, .pop-fade-leave-to { opacity: 0; transform: translate(-50%, 8px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-fade-enter-active, .pop-fade-leave-active { transition: none; }
+}
 </style>

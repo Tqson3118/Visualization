@@ -2,6 +2,9 @@
 // SimulatorView — Màn 05: 3 vùng (mã giả 3/12 · canvas 6/12 · giải thích 3/12)
 // + ControlBar + InputModal + Legend + Stats + CallStack + Tự thực hành + Mini quiz + phím tắt.
 // Dùng generator THẬT từ engines/registry (task 3). Demo công khai không token (FR-7.6).
+// Phase 1 view-quality: chrome = surface band level-2 (bỏ gradient-mint + blob + text-gradient),
+// nút icon/toggle qua Button.vue (lucide), khung canvas = nền canvas-ink (motif tối lan tỏa §6).
+// KHÔNG đụng CanvasArea/engine — vùng dữ liệu giữ NGUYÊN.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -22,7 +25,7 @@ import { useUiStore } from '@/stores/ui';
 import * as favoritesApi from '@/api/favorites';
 import { getCatalogMeta } from '@/engines/catalog';
 import { messages } from '@/i18n/vi';
-import { Share2, Star } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 
 const route = useRoute();
@@ -173,7 +176,7 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
 <template>
   <main class="simulator container">
-    <!-- Chrome header — Cyber Mint (palette 3, G-F2a): chrome UI, không đè canvas -->
+    <!-- Chrome header — surface band level-2 (DESIGN.md §1): không gradient, không blob -->
     <header class="simulator__chrome">
       <div class="simulator__header">
         <div class="simulator__title-block">
@@ -185,24 +188,26 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
           <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
           <p class="simulator__subtitle">
             <template v-if="generator">
-              {{ generator.dataStructure }} · Độ phức tạp TB {{ generator.complexity.average }}
+              {{ generator.dataStructure }} · Độ phức tạp TB
+              <span class="simulator__complexity">{{ generator.complexity.average }}</span>
             </template>
             <template v-else>{{ messages.simulator.subtitle }}</template>
           </p>
         </div>
         <div class="simulator__actions">
-          <button
-            type="button"
-            class="simulator__icon-btn"
-            :class="{ 'simulator__icon-btn--on': favorite }"
+          <Button
+            variant="ghost"
+            size="icon"
+            :class="{ 'simulator__fav-on': favorite }"
             :aria-label="favorite ? 'Bỏ yêu thích' : 'Yêu thích'"
+            :aria-pressed="favorite"
             @click="toggleFavorite"
           >
-            <Star :size="18" aria-hidden="true" :fill="favorite ? 'currentColor' : 'none'" />
-          </button>
-          <button type="button" class="simulator__icon-btn" aria-label="Chia sẻ" @click="shareLink">
-            <Share2 :size="18" aria-hidden="true" />
-          </button>
+            <Star :size="16" aria-hidden="true" :fill="favorite ? 'currentColor' : 'none'" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Chia sẻ" @click="shareLink">
+            <Share2 :size="16" aria-hidden="true" />
+          </Button>
           <Button size="sm" variant="secondary" @click="configOpen = true">
             {{ messages.simulator.inputConfig }}
           </Button>
@@ -215,18 +220,18 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
     <DemoBanner v-if="isDemo" :sim-key="key" />
 
-    <div v-if="loading" class="simulator__loading" role="status">
+    <div v-if="loading" class="simulator__loading simulator__panel" role="status">
       <p>{{ messages.common.loading }} Đang dựng mô phỏng...</p>
     </div>
 
-    <div v-else-if="loadError" class="simulator__error card" role="alert">
+    <div v-else-if="loadError" class="simulator__error simulator__panel" role="alert">
       <p>{{ loadError }}</p>
       <Button size="sm" variant="secondary" @click="router.push({ name: 'simulations' })">
         Về danh mục
       </Button>
     </div>
 
-    <div v-else-if="notFound" class="simulator__empty card" role="status">
+    <div v-else-if="notFound" class="simulator__empty simulator__panel" role="status">
       <p>{{ messages.simulator.notFound }} ({{ key }})</p>
       <Button size="sm" variant="secondary" @click="router.push({ name: 'simulations' })">
         Về danh mục
@@ -313,18 +318,22 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
             :kind="undefined"
             :frame-key="currentIndex"
           />
-          <div v-if="currentStep && currentStep.annotations.length > 0" class="simulator__annotations card">
+          <div v-if="currentStep && currentStep.annotations.length > 0" class="simulator__annotations simulator__panel">
             <p v-for="(note, idx) in currentStep.annotations" :key="idx" class="simulator__annotation">
               · {{ note }}
             </p>
           </div>
           <div class="simulator__panel-actions">
-            <button type="button" class="simulator__toggle" @click="showCallStack = !showCallStack">
-              Call stack {{ showCallStack ? '▾' : '▸' }}
-            </button>
-            <button type="button" class="simulator__toggle" @click="showLegend = !showLegend">
-              Legend {{ showLegend ? '▾' : '▸' }}
-            </button>
+            <Button variant="ghost" size="sm" @click="showCallStack = !showCallStack">
+              <ChevronDown v-if="showCallStack" :size="16" aria-hidden="true" />
+              <ChevronRight v-else :size="16" aria-hidden="true" />
+              Call stack
+            </Button>
+            <Button variant="ghost" size="sm" @click="showLegend = !showLegend">
+              <ChevronDown v-if="showLegend" :size="16" aria-hidden="true" />
+              <ChevronRight v-else :size="16" aria-hidden="true" />
+              Legend
+            </Button>
           </div>
           <CallStackPanel v-if="showCallStack" :variables="currentVariables" />
         </div>
@@ -346,7 +355,7 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
       "
     />
 
-    <footer class="simulator__footer text-muted">
+    <footer class="simulator__footer">
       Phím tắt: Space = Phát/Dừng · ←/→ = Bước · Home/End = Về đầu/cuối · [ / ] = Tốc độ
     </footer>
   </main>
@@ -360,40 +369,12 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   padding-block: var(--space-md) var(--space-2xl);
 }
 
-/* ── Chrome header — Cyber Mint (G-F2a palette 3: mint → teal) ──
-   Dùng làm chrome UI; phần vẽ (canvas) nằm riêng phía dưới — không bị đè. */
+/* ── Chrome header — surface band level-2 (DESIGN.md §1 + §6) ── */
 .simulator__chrome {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-mint);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
   padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-/* Overlay giữ độ tương phản text cho cả light (trắng) & dark (gần đen) */
-.simulator__chrome::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 62%, transparent);
-}
-
-/* Đốm sáng trang trí (không chặn tương tác) */
-.simulator__chrome::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  filter: blur(56px);
 }
 
 .simulator__header {
@@ -407,51 +388,39 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 .simulator__breadcrumb {
   display: flex;
   gap: var(--space-sm);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-xs);
 }
 
-.simulator__breadcrumb a { color: var(--color-primary); font-weight: 600; }
+.simulator__breadcrumb a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 
 .simulator__title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--color-foreground);
-  background-image: var(--gradient-mint);
-  -webkit-background-clip: text;
-  background-clip: text;
+  margin: 0;
 }
 
 .simulator__subtitle {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  margin-top: 4px;
+  margin-top: var(--space-xs);
   max-width: 56ch;
 }
 
-.simulator__actions { display: flex; gap: var(--space-md); flex-wrap: wrap; align-items: center; }
-
-.simulator__icon-btn {
-  width: 36px;
-  height: 36px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-background) 70%, transparent);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition-fast);
+.simulator__complexity {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-foreground);
 }
 
-.simulator__icon-btn:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-}
+.simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
 
-.simulator__icon-btn--on { color: var(--color-warning); border-color: var(--color-warning); }
+.simulator__fav-on { color: var(--color-warning); }
 
 .simulator__grid {
   display: grid;
@@ -462,76 +431,69 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
 
 .simulator__center { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-/* Badge breakpoint hit (GP-T4) — báo trạng thái đã dừng tại breakpoint */
+/* Badge breakpoint hit — trạng thái dừng tại breakpoint (mono, không shadow) */
 .simulator__bp-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   align-self: flex-start;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-on-primary);
-  background: color-mix(in srgb, var(--color-destructive) 82%, black 8%);
-  padding: 4px 12px;
+  background: var(--color-destructive);
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
 }
 
 .simulator__bp-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #fff 55%, transparent);
+  background: var(--color-destructive-foreground);
 }
 
-/* Khung vẽ — NGUYÊN CanvasArea bên trong, chỉ thêm backdrop/padding/border bên ngoài */
+/* Khung vẽ — NGUYÊN CanvasArea bên trong; khung ngoài = nền canvas-ink (motif tối §6) */
 .simulator__canvas-wrap {
   position: relative;
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-background) 55%, var(--color-muted));
+  background: var(--color-canvas-ink);
   padding: var(--space-sm);
-  box-shadow: var(--shadow-sm);
 }
 
 .simulator__canvas-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px 2px;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--color-index-muted);
 }
 
 .simulator__canvas-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-image: var(--gradient-mint);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  background: var(--color-data-core);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-data-core) 22%, transparent);
 }
 
 .simulator__right { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.simulator__annotations { padding: var(--space-sm) var(--space-md); }
-
-.simulator__annotation { font-size: var(--text-xs); color: var(--color-text-muted); }
-
-.simulator__panel-actions { display: flex; gap: var(--space-sm); }
-
-.simulator__toggle {
-  background: none;
-  border: none;
-  color: var(--color-primary);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
+.simulator__panel {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
 }
 
-.simulator__toggle:hover { background: var(--color-surface-hover); }
+.simulator__annotations { padding: var(--space-sm) var(--space-md); }
+
+.simulator__annotation { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
+
+.simulator__panel-actions { display: flex; gap: var(--space-sm); }
 
 .simulator__loading,
 .simulator__empty,
@@ -546,7 +508,12 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
   text-align: center;
 }
 
-.simulator__footer { font-size: var(--text-xs); text-align: center; }
+.simulator__footer {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
 
 @media (max-width: 1024px) {
   .simulator__grid { grid-template-columns: 1fr; }

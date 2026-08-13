@@ -124,8 +124,7 @@ function onSpeedChange(event: Event): void {
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-background) 72%, var(--color-muted));
-  box-shadow: var(--shadow-sm);
+  background: var(--color-card);
 }
 
 .control-bar__row {
@@ -142,37 +141,33 @@ function onSpeedChange(event: Event): void {
   align-items: center;
 }
 
-.control-bar__play {
-  box-shadow: var(--shadow-sm);
-}
-
 .control-bar__indicator {
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-on-primary);
-  font-weight: 700;
-  padding: 4px 12px;
-  background-image: var(--gradient-mint);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-primary);
   border-radius: var(--radius-full);
   white-space: nowrap;
-  letter-spacing: 0.01em;
 }
 
 .control-bar__speed {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-left: auto;
 }
 
 .control-bar__speed select {
-  padding: 4px 10px;
+  padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-foreground);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
 }
 </style>

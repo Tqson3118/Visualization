@@ -39,25 +39,31 @@ export interface ClassAssignmentDto {
   status: 'open' | 'closed';
 }
 
-export interface ClassReportRowDto {
-  studentId: number;
-  displayName: string;
-  email: string;
-  viewed: boolean;
-  simulationsRun: number;
-  exercisesCompleted: number;
-  bestScore: number | null;
-  status: 'completed' | 'late' | 'not_started';
+/** Thống kê 1 bài gán trong báo cáo lớp — khớp backend ClassReportAssignmentDto. */
+export interface ClassReportAssignmentDto {
+  assignmentId: number;
+  title: string;
+  dueAt: string | null;
+  onTime: number;
+  late: number;
+  notSubmitted: number;
+  avgScore: number;
 }
 
+/** Học viên chậm tiến độ (thiếu ≥ 2 bài gán) — khớp backend LaggingLearnerDto. */
+export interface LaggingLearnerDto {
+  userId: number;
+  displayName: string;
+  missingCount: number;
+}
+
+/** Báo cáo lớp — khớp backend ClassReportDto (GET /classes/{id}/report). */
 export interface ClassReportDto {
   classId: number;
   className: string;
   totalMembers: number;
-  completionPct: number;
-  avgScore: number | null;
-  submissions: number;
-  rows: ClassReportRowDto[];
+  assignments: ClassReportAssignmentDto[];
+  laggingLearners: LaggingLearnerDto[];
 }
 
 // ── Benchmark (API_REFERENCE §4.14 — POST /benchmarks/run) ──

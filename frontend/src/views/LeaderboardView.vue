@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // LeaderboardView — Màn 24: 3 tab (Tuần/Level/Lớp) + vị trí của mình + phân trang.
-// G-F2d: hero gradient Aurora + trophy, Tabs shadcn, bar chart top 10 (VChartLazy),
-// reorder hoạt hình khi đổi tab (TransitionGroup FLIP — tương đương motion-v
-// AutoAnimate; global.css đã cắt transition khi prefers-reduced-motion),
-// top 3 highlight gradient, dòng "Bạn" ghim cuối bảng, phân trang Button.
+// View-quality C (DESIGN.md §1/§6): hero = surface band level-2 (không gradient/blob),
+// rank = block-token tối canvas-ink + index mono header, chart top-10 = vùng dữ liệu LUÔN tối,
+// reorder TransitionGroup easing chuẩn enter/exit, EmptyState chung + copy §9 + nút retry/CTA.
 import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { ChevronLeft, ChevronRight, Flame, Trophy } from 'lucide-vue-next';
 
 import type { LeaderboardEntryDto } from '@/api/gamification';
@@ -19,12 +19,14 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
+import { messages } from '@/i18n/vi';
 
 const board = useLeaderboardStore();
 const gamification = useGamificationStore();
 const classStore = useClassStore();
 const auth = useAuthStore();
 const ui = useUiStore();
+const router = useRouter();
 
 const tabs: Array<{ key: 'week' | 'level' | 'class'; label: string }> = [
   { key: 'week', label: 'Tuần' },
@@ -71,7 +73,14 @@ function goToPage(next: number): void {
   void board.fetchBoard(undefined, classId, next);
 }
 
-const medal = computed(() => (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : ''));
+function retryBoard(): void {
+  const classId = board.tab === 'class' ? (board.lastClassId ?? undefined) : undefined;
+  void board.fetchBoard(undefined, classId, 1);
+}
+
+function goClasses(): void {
+  void router.push({ name: 'classes' });
+}
 
 const myUserId = computed(() => auth.user?.id ?? null);
 const isMe = (row: LeaderboardEntryDto): boolean => row.userId === myUserId.value;
@@ -93,35 +102,35 @@ function cssVar(name: string, fallback: string): string {
 
 const truncateName = (name: string): string => (name.length > 16 ? `${name.slice(0, 16)}…` : name);
 
-/** Bar chart top 10 — màu rank: vàng/bạc/đồng cho top 3, teal cho còn lại. */
+/** Bar chart top 10 — nền LUÔN tối (canvas-ink, vùng dữ liệu); màu rank: warning/index-muted/accent, còn lại data-core. */
 const boardChartOption = computed(() => {
   // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
   void ui.theme;
-  const textColor = cssVar('--color-text-muted', '#5E7A77');
-  const axisColor = cssVar('--color-border', '#cbd5e1');
-  const foreground = cssVar('--color-foreground', '#134e4a');
-  const cardColor = cssVar('--color-card', '#ffffff');
-  const primary = cssVar('--color-primary', '#0d9488');
+  const indexMuted = cssVar('--color-index-muted', '#6B7385');
+  const dataCore = cssVar('--color-data-core', '#4255FF');
+  const ink = cssVar('--color-canvas-ink', '#0D1020');
+  const warning = cssVar('--color-warning', '#D97706');
+  const accent = cssVar('--color-accent', '#D97706');
 
   const names = chartRows.value.map((row) => truncateName(row.displayName));
   const values = chartRows.value.map((row) => row.value);
-  // Màu theo rank: vàng/bạc/đồng cho top 3, teal cho còn lại.
+  // Màu theo rank: warning/index-muted/accent cho top 3, data-core cho còn lại.
   // KHÔNG để top-level `color` (array đổi độ dài → vue-echarts bỏ vào replaceMerge
-  // → echarts 6 lỗi "'color' is not valid component main type" → đặt trong data item.
+  // → echarts 6 lỗi "'color' is not valid component main type" → đặt trong data item).
   const items = chartRows.value.map((row, i) => ({
     value: values[i],
     itemStyle: {
-      color: row.rank === 1 ? '#f59e0b' : row.rank === 2 ? '#94a3b8' : row.rank === 3 ? '#d97706' : primary,
-      borderRadius: [0, 7, 7, 0],
+      color: row.rank === 1 ? warning : row.rank === 2 ? indexMuted : row.rank === 3 ? accent : dataCore,
+      borderRadius: [0, 8, 8, 0],
     },
   }));
 
   return {
     tooltip: {
       trigger: 'axis' as const,
-      backgroundColor: cardColor,
-      borderColor: axisColor,
-      textStyle: { color: foreground, fontSize: 12 },
+      backgroundColor: ink,
+      borderColor: indexMuted,
+      textStyle: { color: indexMuted, fontSize: 12 },
       formatter: (params: Array<{ name: string; value: number }>) => {
         const item = params[0];
         return item ? `${item.name}<br/>${valueLabel.value}: <b>${item.value.toLocaleString('vi-VN')}</b>` : '';
@@ -130,15 +139,15 @@ const boardChartOption = computed(() => {
     grid: { left: 8, right: 32, top: 8, bottom: 8, containLabel: true },
     xAxis: {
       type: 'value' as const,
-      axisLabel: { color: textColor, fontSize: 11 },
-      splitLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: indexMuted, fontSize: 11 },
+      splitLine: { lineStyle: { color: indexMuted, opacity: 0.3 } },
     },
     yAxis: {
       type: 'category' as const,
       inverse: true,
       data: names,
-      axisLabel: { color: textColor, fontSize: 11, width: 120, overflow: 'truncate' },
-      axisLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: indexMuted, fontSize: 11, width: 120, overflow: 'truncate' },
+      axisLine: { lineStyle: { color: indexMuted } },
     },
     series: [
       {
@@ -148,7 +157,7 @@ const boardChartOption = computed(() => {
         label: {
           show: true,
           position: 'right' as const,
-          color: textColor,
+          color: indexMuted,
           fontSize: 11,
           formatter: (p: { value: number }) => p.value.toLocaleString('vi-VN'),
         },
@@ -162,17 +171,20 @@ const boardChartOption = computed(() => {
 
 <template>
   <main class="leaderboard container">
-    <!-- Hero gradient Aurora (palette 1 — gamification) -->
+    <!-- Hero — surface band level-2 + strip mono dữ liệu (không gradient, không blob) -->
     <header class="leaderboard__hero">
       <div class="leaderboard__hero-body">
-        <span class="leaderboard__hero-icon" aria-hidden="true"><Trophy :size="24" /></span>
+        <span class="leaderboard__hero-icon" aria-hidden="true"><Trophy :size="20" /></span>
         <div class="leaderboard__hero-title-wrap">
           <h1 class="leaderboard__title">Bảng xếp hạng</h1>
           <p class="leaderboard__sub">
             Tuần reset thứ Hai 00:00 (UTC+7) · chứng minh kỹ năng của bạn trên toàn trường
           </p>
         </div>
-        <Badge variant="primary" class="leaderboard__hero-badge">🏆 Top learners</Badge>
+        <span class="leaderboard__hero-strip" aria-hidden="true">
+          <span class="leaderboard__strip-block" />
+          TOP {{ board.rows.length > 0 ? board.rows.length : '—' }} · {{ valueLabel }}
+        </span>
       </div>
     </header>
 
@@ -189,6 +201,8 @@ const boardChartOption = computed(() => {
       icon="user"
       title="Bạn chưa tham gia lớp học nào"
       description="Nhập mã mời từ giảng viên tại trang Lớp học để xem bảng xếp hạng của lớp."
+      :action-label="messages.leaderboard.goClasses"
+      @action="goClasses"
     />
 
     <EmptyState
@@ -203,16 +217,25 @@ const boardChartOption = computed(() => {
       icon="alert-circle"
       title="Không tải được bảng xếp hạng"
       :description="board.error ?? ''"
+      :action-label="messages.leaderboard.retry"
+      @action="retryBoard"
     />
 
     <section v-else class="leaderboard__board card" :class="{ 'leaderboard__board--busy': board.loading }">
-      <!-- Bar chart top 10 (vue-echarts lazy — G-F2d) -->
+      <!-- Bar chart top 10 (vue-echarts lazy) — vùng dữ liệu LUÔN tối canvas-ink -->
       <div v-if="chartRows.length > 1" class="leaderboard__chart">
-        <h2 class="leaderboard__chart-title">Tổng quan Top {{ chartRows.length }}</h2>
+        <h2 class="leaderboard__chart-title">TỔNG QUAN TOP {{ chartRows.length }}</h2>
         <VChartLazy :option="boardChartOption" height="248px" />
       </div>
 
       <div class="leaderboard__table-wrap">
+        <!-- Index mono header (signature "dữ liệu luôn được đánh số") -->
+        <div class="leaderboard__list-head" aria-hidden="true">
+          <span>RANK</span>
+          <span class="leaderboard__list-head-user">USER</span>
+          <span>VALUE</span>
+        </div>
+
         <!-- TransitionGroup: FLIP move khi đổi tab (key ổn định = userId) -->
         <TransitionGroup name="board-row" tag="ol" class="leaderboard__list">
           <li
@@ -227,8 +250,9 @@ const boardChartOption = computed(() => {
             }"
           >
             <span class="board-row__rank">
-              <span v-if="medal(row.rank)" class="board-row__medal" aria-hidden="true">{{ medal(row.rank) }}</span>
-              <span class="board-row__rank-num" :class="{ 'board-row__rank-num--top': row.rank <= 3 }">{{ row.rank }}</span>
+              <span class="board-row__rank-chip" :class="{ 'board-row__rank-chip--top': row.rank <= 3 }">
+                {{ row.rank }}
+              </span>
             </span>
 
             <span class="board-row__avatar">
@@ -264,7 +288,7 @@ const boardChartOption = computed(() => {
         >
           <span class="board-row__pinned-label">Vị trí của bạn</span>
           <span class="board-row__rank">
-            <span class="board-row__rank-num">{{ board.myRank.rank }}</span>
+            <span class="board-row__rank-chip">{{ board.myRank.rank }}</span>
           </span>
           <span class="board-row__avatar">
             <span class="board-row__avatar-fallback">{{ initial(board.myRank.displayName) }}</span>
@@ -320,37 +344,20 @@ const boardChartOption = computed(() => {
   max-width: 860px;
 }
 
-/* ── Hero gradient Aurora (palette 1 — teal → cyan → violet) ── */
+/* Card dùng class global .card (global.css có shadow-md) — §6 cấm shadow card → override */
+.leaderboard .card {
+  box-shadow: none;
+}
+
+/* ── Hero — surface band level-2 (DESIGN.md §6) ── */
 .leaderboard__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
   padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.leaderboard__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.leaderboard__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
 }
 
 .leaderboard__hero-body {
@@ -364,28 +371,48 @@ const boardChartOption = computed(() => {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-md);
 }
 
-.leaderboard__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.leaderboard__hero-title-wrap { display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .leaderboard__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
 }
 
 .leaderboard__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
 
-.leaderboard__hero-badge { margin-left: auto; }
+/* Strip mono dữ liệu — block-token nhỏ bên phải hero */
+.leaderboard__hero-strip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 25%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+
+.leaderboard__strip-block {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
 
 .leaderboard__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
@@ -394,17 +421,19 @@ const boardChartOption = computed(() => {
 /* Mờ nhẹ + chặn click khi đang đổi tab (giữ bảng cũ → reorder animation vẫn thấy) */
 .leaderboard__board--busy { opacity: 0.55; pointer-events: none; }
 
+/* Chart = vùng dữ liệu → LUÔN tối canvas-ink bất kể theme */
 .leaderboard__chart {
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 20%, transparent);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-canvas-ink);
   padding: var(--space-md);
 }
 
 .leaderboard__chart-title {
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--color-text-muted);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
   margin-bottom: var(--space-xs);
 }
 
@@ -415,13 +444,28 @@ const boardChartOption = computed(() => {
   min-width: 0;
 }
 
+/* Index mono header (signature "dữ liệu luôn được đánh số") */
+.leaderboard__list-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xs) var(--space-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.leaderboard__list-head > span:first-child { width: 44px; flex-shrink: 0; }
+.leaderboard__list-head-user { flex: 1; }
+.leaderboard__list-head > span:last-child { margin-left: auto; }
+
 .leaderboard__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
-/* ── Reorder FLIP (tương đương AutoAnimate) ── */
-.board-row-move { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
-.board-row-enter-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+/* ── Reorder FLIP — easing chuẩn DESIGN.md §7 (enter 0.16,1,0.3,1 / exit 0.7,0,0.84,0) ── */
+.board-row-move { transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1); }
+.board-row-enter-active { transition: opacity 250ms cubic-bezier(0.16, 1, 0.3, 1), transform 250ms cubic-bezier(0.16, 1, 0.3, 1); }
 .board-row-enter-from { opacity: 0; transform: translateY(-8px); }
-.board-row-leave-active { transition: opacity 0.2s ease; }
+.board-row-leave-active { transition: opacity 200ms cubic-bezier(0.7, 0, 0.84, 0); }
 .board-row-leave-to { opacity: 0; }
 
 .board-row {
@@ -429,92 +473,92 @@ const boardChartOption = computed(() => {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: 0.75rem var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   font-size: var(--text-sm);
   border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;
-  transition: background-color 180ms ease;
+  transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Top 3 — highlight gradient (overlay mờ giữ text đọc được) */
-.board-row--top-1::before,
-.board-row--top-2::before,
-.board-row--top-3::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
+/* Top 3 — phân cấp bằng border màu (không gradient overlay, không shadow) */
 .board-row--top-1 { border-left-color: var(--color-warning); }
-.board-row--top-1::before { background-image: var(--gradient-sunset); opacity: 0.18; }
-
 .board-row--top-2 { border-left-color: color-mix(in srgb, var(--color-secondary) 60%, var(--color-border)); }
-.board-row--top-2::before { background-image: var(--gradient-aurora); opacity: 0.1; }
-
-.board-row--top-3 { border-left-color: color-mix(in srgb, var(--color-accent) 60%, var(--color-border)); }
-.board-row--top-3::before { background-image: var(--gradient-mint); opacity: 0.12; }
-
-.board-row > * { position: relative; z-index: 1; }
+.board-row--top-3 { border-left-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border)); }
 
 .board-row--me { background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); }
 
-.board-row__rank { display: flex; align-items: center; gap: 4px; width: 76px; flex-shrink: 0; font-family: var(--font-mono); }
-.board-row__medal { font-size: var(--text-base); }
-.board-row__rank-num { font-weight: 800; }
-.board-row__rank-num--top { color: var(--color-warning); }
+/* Rank = block-token tối (vùng dữ liệu) + index mono */
+.board-row__rank { display: flex; align-items: center; width: 44px; flex-shrink: 0; }
+
+.board-row__rank-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 25%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-index-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.board-row__rank-chip--top {
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+}
 
 .board-row__avatar { display: inline-flex; flex-shrink: 0; }
 .board-row__avatar-fallback {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--color-muted);
   color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 600;
   font-size: var(--text-xs);
 }
-.board-row__avatar-img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.board-row__avatar-img { width: 34px; height: 34px; border-radius: var(--radius-full); object-fit: cover; }
 
 .board-row__user { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; flex: 1; }
 .board-row__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .board-row__me-badge {
-  font-size: 10px;
-  font-weight: 700;
-  background-image: var(--gradient-aurora);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--color-primary);
   color: var(--color-on-primary);
-  padding: 1px 8px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
 
 .board-row__meta { display: flex; align-items: center; gap: var(--space-xs); width: 96px; flex-shrink: 0; }
-.board-row__streak { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); font-weight: 600; color: var(--color-warning); white-space: nowrap; }
+.board-row__streak { display: inline-flex; align-items: center; gap: var(--space-xs); font-size: var(--text-xs); font-weight: 600; color: var(--color-warning); white-space: nowrap; }
 
-.board-row__value { font-weight: 700; text-align: right; white-space: nowrap; margin-left: auto; }
+.board-row__value { font-family: var(--font-mono); font-weight: 600; text-align: right; white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
 .board-row__value-label { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); }
 
-/* Dòng ghim "Bạn" cuối bảng */
+/* Dòng ghim "Bạn" cuối bảng — không shadow (chỉ border + tint) */
 .board-row--pinned {
   margin-top: var(--space-xs);
   border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
-  box-shadow: var(--shadow-sm);
 }
 .board-row__pinned-label {
   position: absolute;
   top: -9px;
   left: var(--space-md);
   padding: 0 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--color-primary);
   background: var(--color-card);
   border-radius: var(--radius-sm);
@@ -531,7 +575,7 @@ const boardChartOption = computed(() => {
   border-top: 1px solid var(--color-border);
 }
 
-.leaderboard__pager-info { font-size: var(--text-sm); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.leaderboard__pager-info { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 640px) {
   .leaderboard__chart { display: none; } /* bar chart chỉ hiển thị ≥ md — tránh chật/overflow */

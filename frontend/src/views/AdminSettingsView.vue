@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // AdminSettingsView — Màn N-5: cấu hình hệ thống (GET/PUT /settings)
-// H-B: hero Aurora soft + form chia section (Chung / Chính sách mật khẩu /
-// Sandbox & Upload) + checkbox styled + error alert; logic/API giữ nguyên.
+// View-quality 14/08 (Nhóm D): banner surface band level-2; section title
+// không dùng accent (chỉ interactive); error alert semantic + nút Thử lại;
+// panel form không shadow (DESIGN §6).
 import { onMounted, reactive, ref } from 'vue';
-import { AlertTriangle, Cpu, Globe, KeyRound, Save, Settings, ShieldCheck } from 'lucide-vue-next';
+import { AlertTriangle, Cpu, Globe, KeyRound, RefreshCw, Save, Settings, ShieldCheck } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
 import type { SystemSettingsDto } from '@/api/types';
@@ -31,7 +32,9 @@ const form = reactive<SystemSettingsDto>({
 
 const domainsText = ref('');
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  loading.value = true;
+  error.value = '';
   try {
     const settings = await adminApi.fetchSettings();
     Object.assign(form, settings);
@@ -41,7 +44,9 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(load);
 
 async function save(): Promise<void> {
   saving.value = true;
@@ -63,17 +68,18 @@ async function save(): Promise<void> {
 
 <template>
   <main class="admin-settings container">
-    <!-- Hero gradient Aurora soft -->
+    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="admin-settings__hero">
-      <div class="admin-settings__hero-body">
-        <span class="admin-settings__hero-icon" aria-hidden="true"><Settings :size="24" /></span>
-        <div class="admin-settings__hero-title-wrap">
+      <div class="admin-settings__hero-inner">
+        <div class="admin-settings__hero-main">
+          <div class="admin-settings__hero-badges">
+            <Badge variant="primary">
+              <ShieldCheck :size="12" /> {{ messages.admin.badge }}
+            </Badge>
+          </div>
           <h1 class="admin-settings__title">{{ messages.admin.settings.title }}</h1>
           <p class="admin-settings__sub">{{ messages.admin.settings.subtitle }}</p>
         </div>
-        <Badge variant="primary" class="admin-settings__hero-badge">
-          <ShieldCheck :size="12" /> {{ messages.admin.badge }}
-        </Badge>
       </div>
     </header>
 
@@ -83,10 +89,13 @@ async function save(): Promise<void> {
       <Skeleton v-for="i in 5" :key="i" height="72px" />
     </div>
 
-    <form v-else class="admin-settings__form card" novalidate @submit.prevent="save">
+    <form v-else class="admin-settings__form" novalidate @submit.prevent="save">
       <div v-if="error" class="admin-settings__error" role="alert">
         <AlertTriangle :size="16" aria-hidden="true" />
-        <span>{{ error }}</span>
+        <span class="admin-settings__error-text">{{ error }}</span>
+        <Button size="sm" variant="secondary" type="button" @click="load">
+          <RefreshCw :size="14" /> {{ messages.admin.settings.retry }}
+        </Button>
       </div>
 
       <!-- Chung -->
@@ -144,7 +153,7 @@ async function save(): Promise<void> {
 
       <div class="admin-settings__actions">
         <Button type="submit" :loading="saving" class="admin-settings__save">
-          <Save :size="15" /> {{ messages.admin.settings.save }}
+          <Save :size="16" /> {{ messages.admin.settings.save }}
         </Button>
       </div>
     </form>
@@ -160,96 +169,90 @@ async function save(): Promise<void> {
   max-width: 760px;
 }
 
-/* ── Hero gradient Aurora soft ── */
+/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .admin-settings__hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
-  border-radius: var(--radius-xl);
-  background-image: var(--gradient-aurora);
-  padding: var(--space-lg) var(--space-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.admin-settings__hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-background) 58%, transparent);
-}
-
-.admin-settings__hero::before {
-  content: '';
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  top: -120px;
-  right: -60px;
-  z-index: -1;
-  background: color-mix(in srgb, var(--color-secondary) 30%, transparent);
-  filter: blur(64px);
-}
-
-.admin-settings__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
-
-.admin-settings__hero-icon {
-  width: 48px;
-  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--card-raised);
   border-radius: var(--radius-lg);
-  background-image: var(--gradient-aurora);
-  color: var(--color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--shadow-md);
+  padding: var(--space-xl);
 }
 
-.admin-settings__hero-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.admin-settings__hero-inner {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.admin-settings__hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.admin-settings__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 .admin-settings__title {
-  font-size: var(--text-2xl);
-  background-image: var(--gradient-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--foreground);
 }
 
-.admin-settings__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
-
-.admin-settings__hero-badge { margin-left: auto; }
+.admin-settings__sub {
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+  margin: 0;
+}
 
 .admin-settings__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-/* ── Form ── */
-.admin-settings__form { display: flex; flex-direction: column; gap: var(--space-xl); }
+/* ── Form (panel không shadow — DESIGN §6) ── */
+.admin-settings__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-xl);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-settings__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  color: var(--destructive);
+  font-size: var(--text-sm);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.admin-settings__error-text { flex: 1; min-width: 200px; }
 
 .admin-settings__section { display: flex; flex-direction: column; gap: var(--space-md); }
 
-.admin-settings__section + .admin-settings__section { border-top: 1px solid var(--color-border); padding-top: var(--space-xl); }
+.admin-settings__section + .admin-settings__section { border-top: 1px solid var(--border); padding-top: var(--space-xl); }
 
 .admin-settings__section-title {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: var(--text-md);
-  color: var(--color-primary);
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
 }
 
-.admin-settings__error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  color: var(--color-destructive);
-  font-size: var(--text-sm);
-  background: color-mix(in srgb, var(--color-destructive) 8%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-destructive) 35%, var(--color-border));
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-}
+.admin-settings__section-title :deep(svg) { color: var(--foreground-secondary); }
 
 .admin-settings__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
 
@@ -267,14 +270,15 @@ async function save(): Promise<void> {
 .admin-settings__checkbox {
   width: 16px;
   height: 16px;
-  accent-color: var(--color-primary);
+  accent-color: var(--primary);
   cursor: pointer;
 }
 
-.admin-settings__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--color-border); padding-top: var(--space-lg); }
+.admin-settings__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: var(--space-lg); }
 
 @media (max-width: 640px) {
-  .admin-settings__hero-badge { margin-left: 0; }
+  .admin-settings__hero { padding: var(--space-lg); }
+  .admin-settings__form { padding: var(--space-lg); }
   .admin-settings__row { grid-template-columns: 1fr; }
 }
 </style>
