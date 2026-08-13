@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | SRS (Software Requirements Specification) |
-| Phiên bản | 1.4 |
+| Phiên bản | 1.5 |
 | Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -25,6 +25,7 @@
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu theo khuôn 17.13/6: mở rộng TOÀN BỘ 75 FR lên đủ 7 thuộc tính (Mô tả/Luồng hoạt động/Ngoại lệ/AC/Ràng buộc/Nguồn/Ghi chú — FR-9.3 dùng mục "3. Nơi chấm — QUYẾT ĐỊNH CHỐT" thay cho Ngoại lệ, số hiệu đẩy xuống); mở rộng TOÀN BỘ 32 UC lên đủ 10 mục (Tóm tắt → Nguồn FR); bảng NFR-8..36 bổ sung cột "Giá trị mục tiêu" + "Cách đo/kiểm tra" |
 | 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): NFR-5 nới giới hạn bundle theo thực tế build — Tổng JS gốc tải lần đầu ≤ 1.5MB + engine chunk ≤ 500KB gốc (trước: tổng ≤ 500KB, vượt thực tế engine 476KB + stack UI/UX mới); ghi số liệu thật tại SDD §3.9 / TEST_PLAN TEST-PERF-007 |
 | 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §3.10B FR-10.7 + §5.33 UC-32 — bỏ câu cũ "KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = backlog)" → checkout hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386, BIN 970422) + nội dung CK tự động `DSV{userId}T{months}` + kích hoạt tự động sau xác nhận (đếm ngược 60s) — KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán, tăng tính thực tế demo); §1.3.2 mục 3 làm rõ; NFR-5 đo lại bundle sau khi thêm `qrcode` (JS gốc tải lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng) |
+| 1.5 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §2.5 mục 4 — bỏ ràng buộc "chỉ email trường"; FR-1.1 + UC-02 + FR-6.2 — làm rõ bỏ chặn domain mặc định (setting `allowed.email.domains` không còn được seed + tự xóa setting cũ khi seed → mọi email hợp lệ đăng ký được; giữ mã `DOMAIN_NOT_ALLOWED` chỉ kích hoạt nếu Admin bật lại qua cấu hình) |
 
 ---
 
@@ -168,7 +169,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 1. Dữ liệu đầu vào mô phỏng giới hạn: mảng ≤ 100 phần tử, đồ thị ≤ 50 đỉnh/200 cạnh, cây ≤ 31 khóa, bảng băm ≤ 31 kích thước — đủ mục đích sư phạm.
 2. Người học truy cập trình duyệt hiện đại (Chrome/Edge/Firefox 2 phiên bản gần nhất; Safari ưu tiên không chặn), độ phân giải ≥ 1024px.
 3. Không có yêu cầu offline; cần mạng để dùng hệ thống (trừ nháp cục bộ ghi chú/bài nộp — đồng bộ lại khi có mạng).
-4. Tài khoản tạo sẵn bởi admin hoặc tự đăng ký bằng email nội bộ (kiểm tra domain trường — cấu hình được).
+4. Tài khoản tạo sẵn bởi admin hoặc tự đăng ký bằng mọi email hợp lệ (bỏ chặn domain — quyết định 13/08/2026: setting `allowed.email.domains` không còn được seed, setting cũ bị tự xóa khi seed → kể cả `@gmail.com` đăng ký được).
 5. Số người dùng đồng thời giai đoạn thí điểm ≤ 200.
 6. Nội dung bài học do giảng viên nhập dạng văn bản + hình ảnh (URL hoặc upload ≤ 5MB/ảnh).
 7. Code mẫu trong StepExecutor là mã thật chạy được (TypeScript thuần); code người học chỉ sửa tham số/hoàn thiện hàm theo signature cố định — KHÔNG nhận code tự do.
@@ -310,8 +311,8 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 
 ### FR-1.1 | Đăng ký tài khoản | Cao
 **1. Mô tả**: Đăng ký bằng email + mật khẩu. Vai trò mặc định `Student`; kích hoạt ngay (mặc định) hoặc theo chính sách duyệt (cấu hình). Chọn "Tôi là giảng viên" → vai trò `TeacherPending`, chờ Admin duyệt (FR-1.8).
-**2. Luồng hoạt động**: (1) nhập họ tên, email, mật khẩu, xác nhận mật khẩu; (2) tích/không tích "Tôi là giảng viên"; (3) kiểm tra trùng email + domain (nếu bật); (4) tạo tài khoản, hash mật khẩu; (5) thông báo thành công, tự động đăng nhập.
-**3. Ngoại lệ**: Email trùng → 400 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` kèm details từng quy tắc; email sai định dạng → 400 `INVALID_EMAIL`; domain không cho phép → 400 `DOMAIN_NOT_ALLOWED`.
+**2. Luồng hoạt động**: (1) nhập họ tên, email, mật khẩu, xác nhận mật khẩu; (2) tích/không tích "Tôi là giảng viên"; (3) kiểm tra trùng email + chính sách mật khẩu (bỏ chặn domain — quyết định 13/08/2026, mọi email hợp lệ đăng ký được); (4) tạo tài khoản, hash mật khẩu; (5) thông báo thành công, tự động đăng nhập.
+**3. Ngoại lệ**: Email trùng → 400 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` kèm details từng quy tắc; email sai định dạng → 400 `INVALID_EMAIL`. (`DOMAIN_NOT_ALLOWED` giữ mã cho tương thích — chỉ xảy ra nếu Admin chủ động bật lại setting `allowed.email.domains` qua cấu hình FR-6.2; mặc định KHÔNG chặn.)
 **4. AC**: AC-1.1.1 tạo được tài khoản mới; AC-1.1.2 mật khẩu lưu là hash (bcrypt cost 12 / PBKDF2 100.000 vòng) — không plaintext; AC-1.1.3 tài khoản mới đăng nhập ngay; AC-1.1.4 email được chuẩn hóa lowercase; AC-1.1.5 đăng ký giảng viên → role `TeacherPending`, không có quyền Teacher.
 **5. Ràng buộc**: chính sách mật khẩu (8-64 ký tự, chữ hoa + số + ký tự đặc biệt — cấu hình `password.policy.*`); NFR-12 rate limit.
 **6. Nguồn**: FR-1.1 (prompt), UC-02.
@@ -771,7 +772,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 **2. Luồng hoạt động**: (1) Admin mở trang cấu hình hệ thống; (2) chỉnh danh sách đơn vị giáo dục (domain email hợp lệ), tên hệ thống, chính sách mật khẩu, giới hạn upload; (3) lưu → ghi DB + cập nhật cache (không cần khởi động lại); (4) thay đổi áp dụng ngay cho request kế tiếp.
 **3. Ngoại lệ**: Đầu vào không hợp lệ (domain sai định dạng, giới hạn upload ngoài khoảng cho phép, chính sách mật khẩu trống) → từ chối kèm thông báo, giữ nguyên giá trị cũ.
 **4. AC**: AC-6.2.1 thay đổi áp dụng ngay không cần khởi động lại (DB + cache).
-**5. Ràng buộc**: Chỉ Admin được truy cập (RBAC); lưu DB + cache — cache vô hiệu hóa khi có thay đổi; danh sách domain là nguồn kiểm tra đăng ký email (FR-1.1).
+**5. Ràng buộc**: Chỉ Admin được truy cập (RBAC); lưu DB + cache — cache vô hiệu hóa khi có thay đổi; danh sách domain là nguồn kiểm tra đăng ký email (FR-1.1) — ⚠ mặc định KHÔNG bật (quyết định 13/08/2026: setting `allowed.email.domains` không còn được seed + tự xóa khi seed → mọi email đăng ký được); chỉ có hiệu lực nếu Admin chủ động nhập danh sách domain.
 **6. Nguồn**: FR-6.2 (prompt), UC-13.
 
 ## 3.9 Module G — Trang phụ trợ và thông báo
@@ -1177,11 +1178,11 @@ sequenceDiagram
 ## 5.3 UC-02 | Tạo tài khoản | Nguồn: FR-1.1, FR-1.8
 **(1) Tóm tắt**: Khách đăng ký tài khoản bằng email + mật khẩu; vai trò mặc định Student; nếu chọn "Tôi là giảng viên" → TeacherPending chờ Admin duyệt (FR-1.8).
 **(2) Tác nhân**: Khách (chính); Hệ thống (phụ); Admin (phụ — duyệt Teacher).
-**(3) Tiền điều kiện**: Chưa có tài khoản với email đăng ký; domain email thuộc danh sách cho phép (nếu bật chính sách — FR-6.2).
+**(3) Tiền điều kiện**: Chưa có tài khoản với email đăng ký; email hợp lệ về định dạng (bỏ chặn domain — quyết định 13/08/2026, mọi email đăng ký được).
 **(4) Hậu điều kiện**: Tài khoản Student active (hoặc TeacherPending) với mật khẩu đã hash (không plaintext); tự động đăng nhập thành công.
-**(5) Luồng chính**: (1) vào trang đăng ký; (2) nhập họ tên, email, mật khẩu, xác nhận mật khẩu, đồng ý chính sách; (3) chọn/không chọn "Tôi là giảng viên"; (4) hệ thống kiểm tra trùng email + domain + chính sách mật khẩu; (5) tạo tài khoản, mã hóa mật khẩu; (6) tự động đăng nhập → trang chủ theo vai trò.
+**(5) Luồng chính**: (1) vào trang đăng ký; (2) nhập họ tên, email, mật khẩu, xác nhận mật khẩu, đồng ý chính sách; (3) chọn/không chọn "Tôi là giảng viên"; (4) hệ thống kiểm tra trùng email + chính sách mật khẩu (không kiểm tra domain — đã bỏ chặn); (5) tạo tài khoản, mã hóa mật khẩu; (6) tự động đăng nhập → trang chủ theo vai trò.
 **(6) Luồng thay thế**: 3a. chọn "Tôi là giảng viên" → tạo tài khoản TeacherPending (IsActive=false), hiện thông báo "Chờ quản trị viên duyệt"; được duyệt (FR-1.8) mới có quyền Teacher; bị từ chối → role=0 (Student), vẫn dùng hệ thống như sinh viên (v2.8).
-**(7) Ngoại lệ**: email trùng → 409 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` (details từng quy tắc); email sai định dạng/domain → 400 `INVALID_EMAIL` / `DOMAIN_NOT_ALLOWED`.
+**(7) Ngoại lệ**: email trùng → 409 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` (details từng quy tắc); email sai định dạng → 400 `INVALID_EMAIL` (`DOMAIN_NOT_ALLOWED` chỉ xảy ra nếu Admin bật lại setting — xem FR-1.1).
 **(8) Ràng buộc nghiệp vụ**: chính sách mật khẩu theo cấu hình (NFR-8); giới hạn tần suất (NFR-12); email chuẩn hóa lowercase trước khi lưu.
 **(9) Tiêu chí chấp nhận**: FR-1.1, FR-1.8 PASS — tạo được tài khoản mới; hash không plaintext; đăng nhập ngay được; tài khoản Teacher chưa duyệt không truy cập chức năng Teacher.
 **(10) Nguồn FR**: FR-1.1, FR-1.8.

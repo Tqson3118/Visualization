@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | SDD (Software Design Document) |
-| Phiên bản | 1.5 |
+| Phiên bản | 1.6 |
 | Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
@@ -21,6 +21,7 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 364 dòng, thiếu Phần 8 EDV/31 bảng/32 màn) |
 | 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
 | 1.5 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): Màn 25/26 — checkout 2 bước mới (chọn gói → QR VietQR EMVCo + nội dung CK `DSV{userId}T{months}` + nút "Tôi đã chuyển khoản" sau đếm ngược 60s; `qrcode` npm MIT); §7.3.28 PremiumSubscriptions.OrderRef = `DSV{userId}T{months}`; API `POST /premium/upgrade` trả `contentRef`; §3.9 cập nhật bundle thật 13/08 (qrcode vào chunk lazy PremiumView, JS lần đầu ≈ 852KB không đổi) |
+| 1.6 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §7.5 — setting `allowed.email.domains` KHÔNG còn được seed (bỏ chặn domain — mọi email đăng ký được); nếu DB còn setting cũ, bước SeedCleanupSettingsAsync tự xóa; bổ sung mô tả SeedDemoActivity (seed dữ liệu hoạt động người dùng demo — idempotent) |
 
 ---
 
@@ -1651,7 +1652,10 @@ Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job do
 | LearningPaths/Node | 5 path × (node bài học + node luyện tập tổng hợp + final test) |
 | DailyQuests | 8 quest templates (19.3A) |
 | ShopItems | 8 item (19.3) |
-| Settings | `site.name`, `allowed.email.domains`, `password.policy.minLength=8`, `upload.maxSizeMb=5`, `simulation.maxArraySize=100`, `simulation.maxGraphVertices=50`, `auth.maxLoginAttempts=5`, `auth.lockoutMinutes=15`, `simulation.defaultSpeed=1` |
+| Settings | `site.name`, `password.policy.minLength=8`, `upload.maxSizeMb=5`, `simulation.maxArraySize=100`, `simulation.maxGraphVertices=50`, `auth.maxLoginAttempts=5`, `auth.lockoutMinutes=15`, `simulation.defaultSpeed=1` |
+| SeedDemoActivity | seed dữ liệu hoạt động người dùng demo (chạy SAU SeedSettingsAsync — idempotent): 8 student `@university.edu.vn`, 10 achievements + UserAchievements, UserProgress/UserNodeProgress, ExerciseSubmissions, UserQuests/GemTransactions/UserInventory/Favorites/ContentFeedback, 2 lớp học + ClassMembers/ClassAssignments, misc (CodeSubmissions/BugReports/LessonNotes — chỉ khi bảng trống) |
+
+> ⚠ **Bỏ chặn domain đăng ký (quyết định user 13/08/2026)**: setting `allowed.email.domains` **KHÔNG còn được seed** (mọi email hợp lệ đều đăng ký được — kể cả `@gmail.com`). Nếu DB còn setting cũ từ đợt trước, bước `SeedCleanupSettingsAsync` (bước đầu của SeedDemoActivity) **tự xóa** nó khỏi bảng `Settings`. Mã kiểm tra trong AuthService chỉ chạy khi setting không rỗng (AuthService.cs:59-70) nên sau khi seed không còn chặn; nếu Admin chủ động thêm lại setting qua trang cấu hình (FR-6.2) thì chặn trở lại.
 
 > Quy tắc: mọi code seed chạy qua StepExecutor + golden data; seeder **idempotent** (kiểm tra tồn tại trước khi chèn — 10.5); 10 bài còn lại + test ẩn → backlog GĐ2.
 

@@ -90,6 +90,53 @@ public class AuthServiceTests
         Assert.Equal(ErrorCodes.DOMAIN_NOT_ALLOWED, result.ErrorCode);
     }
 
+    // ── SEED-5: sau khi seed (xóa setting allowed.email.domains) mọi email đăng ký được ──
+
+    [Fact]
+    public async Task Register_Gmail_WithoutDomainSetting_Succeeds()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Gmail_WithoutDomainSetting_Succeeds));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Gmail_WithoutDomainSetting_Succeeds));
+
+        var result = await service.RegisterAsync(ValidRegister("student@gmail.com"), null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.NotEqual(ErrorCodes.DOMAIN_NOT_ALLOWED, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Register_UniversityEduVn_WithoutDomainSetting_Succeeds()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_UniversityEduVn_WithoutDomainSetting_Succeeds));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_UniversityEduVn_WithoutDomainSetting_Succeeds));
+
+        var result = await service.RegisterAsync(ValidRegister("student@university.edu.vn"), null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Register_Gmail_WithEmptyDomainSetting_Succeeds()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Gmail_WithEmptyDomainSetting_Succeeds));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Gmail_WithEmptyDomainSetting_Succeeds));
+
+        // Setting tồn tại nhưng Value rỗng → AuthService bỏ qua check (IsNullOrWhiteSpace)
+        db.Settings.Add(new Setting
+        {
+            Key = "allowed.email.domains",
+            Value = "",
+            UpdatedAt = _clock.UtcNow,
+            UpdatedBy = 1
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.RegisterAsync(ValidRegister("student@gmail.com"), null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.NotEqual(ErrorCodes.DOMAIN_NOT_ALLOWED, result.ErrorCode);
+    }
+
     [Fact]
     public async Task Login_Success_ReturnsTokenAndUser()
     {
