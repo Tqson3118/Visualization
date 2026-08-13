@@ -1,0 +1,40 @@
+1. **Bố cục Trang**:
+   - **Tiêu đề và Form**: Trang có tiêu đề "Lộ trình học" ở đầu trang.
+   - **Nút và Thông báo**: Có nút "G" (giải thích) và thông báo lỗi "Dã có lỗi xảy ra, vui lòng thử lại".
+   - **Màu sắc**: Màu chủ đạo là xanh nhạt, với các phần tử màu trắng và xám.
+
+2. **Lỗi Hiển Thị**:
+   - **Cắt Chữ và chồng Lấn**: Có một số đoạn văn bản bị cắt ở giữa hoặc bị chồng lên nhau.
+   - **Contrast kém**: Một số phần văn bản có thể khó đọc do không đủ contrast với nền màu.
+   - **Chữ Nhỏ Khó Đọc**: Một số tiêu đề nhỏ và nội dung có thể khó đọc do kích thước chữ quá nhỏ.
+
+3. **Tiêu Chí đánh Giá**:
+   - **UI-1 Thẩm mỹ (màu sắc hài hòa, không chói/mờ, không nhàm)**: 2/5
+     - Nhận xét: Màu xanh nhạt có thể gây mỏi mắt nếu nhìn lâu.
+     - Gợi ý: Sử dụng màu xanh lá cây thay vì xanh nhạt để tăng cường sự tương phản và giảm thiểu mệt mỏi thị giác.
+
+   - **UI-2 Nhất quán (spacing/bo góc/typography/màu đồng bộ)**: 3/5
+     - Nhận xét: Các phần tử không được sắp xếp một cách nhất quán, có khoảng cách khác nhau.
+     - Gợi ý: Điều chỉnh khoảng cách giữa các phần tử để tạo sự đồng nhất.
+
+   - **UI-3 Rõ ràng (hierarchy tiêu đề/body/nút, không chồng lấn, không cắt chữ)**: 2/5
+     - Nhận xét: Một số tiêu đề và nội dung bị chồng lên nhau hoặc cắt ở giữa.
+     - Gợi ý: Sử dụng các lớp CSS để tạo khoảng cách rõ ràng giữa các phần tử.
+
+   - **UI-4 Phản hồi trực quan (hover/focus/loading/empty state, thông báo lỗi rõ)**: 2/5
+     - Nhận xét: Không có phản hồi trực quan như hover effect hoặc loading indicator.
+     - Gợi ý: Thêm các hiệu ứng hover để tăng cường trải nghiệm người dùng.
+
+   - **UX-5 Luồng thao tác (thao tác chính dễ tìm, ít bước, không bế tắc)**: 3/5
+     - Nhận xét: Các nút và thông báo có thể khó tìm thấy nếu không quan sát kỹ.
+     - Gợi ý: Thêm các icon hoặc biểu tượng nhỏ để giúp người dùng tìm kiếm nhanh hơn.
+
+   - **UX-6 Khả năng tiếp cận (contrast text, kích thước chạm, label rõ, focus ring)**: 3/5
+     - Nhận xét: Một số văn bản có thể khó đọc do không đủ contrast với nền.
+     - Gợi ý: Sử dụng màu chữ sáng hơn để tăng cường khả năng đọc.
+
+   - **UX-7 Độ thỏa mãn (cảm giác muốn dùng tiếp, điểm wow)**: 2/5
+     - Nhận xét: Trang có thể gây cảm giác mệt mỏi do bố cục và thiết kế.
+     - Gợi ý: Thêm các yếu tố sáng tạo như hình ảnh hoặc video để tăng sự tương tác.
+
+Tóm lại, trang cần cải thiện về việc sắp xếp và thiết kế để tạo ra một trải nghiệm người dùng tốt hơn.
