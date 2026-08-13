@@ -127,9 +127,48 @@ export class CanvasPainter {
     }
   }
 
-  /** Hình tròn (đỉnh / nút cây). */
-  circle(x: number, y: number, r: number, fill?: string, stroke?: string, lineWidth = 2): void {
+  /**
+   * Bar dữ liệu kiểu cũ V3 (renderArrayBar — nguồn source/VisualizationDSA3):
+   * gradient dọc (đậm → nhạt) + glow tùy chọn cho trạng thái nổi bật.
+   * Fallback màu phẳng khi ctx không có createLinearGradient (môi trường test/jsdom).
+   */
+  gradientBar(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radius: number,
+    fill: string,
+    glow = false,
+  ): void {
     const ctx = this.ctx;
+    if (!ctx || w <= 0 || h <= 0) return;
+    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.rect(x, y, w, h);
+    }
+    if (glow) {
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = fill;
+    }
+    if (typeof ctx.createLinearGradient === 'function') {
+      const grad = ctx.createLinearGradient(x, y, x, y + Math.max(1, h));
+      grad.addColorStop(0, hexToRgba(fill, 0.9));
+      grad.addColorStop(1, hexToRgba(fill, 0.18));
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = fill;
+    }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+  }
+
+  /** Hình tròn (đỉnh / nút cây). */
+  circle(x: number, y: number, r: number, fill?: string, stroke?: string, lineWidth = 2): void {    const ctx = this.ctx;
     if (!ctx) return;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -145,8 +184,7 @@ export class CanvasPainter {
   }
 
   /** Vẽ text — căn giữa mặc định; màu mặc định theo theme (--color-text-primary). */
-  text(text: string, x: number, y: number, style: TextStyle = {}): void {
-    const ctx = this.ctx;
+  text(text: string, x: number, y: number, style: TextStyle = {}): void {    const ctx = this.ctx;
     if (!ctx) return;
     ctx.font = `${style.weight ?? 'normal'} ${style.size ?? 13}px sans-serif`;
     ctx.fillStyle = style.color ?? CANVAS_COLORS.text;
