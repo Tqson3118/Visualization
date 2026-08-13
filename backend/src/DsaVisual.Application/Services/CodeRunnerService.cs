@@ -86,32 +86,54 @@ public sealed class CodeRunnerService(
             return Result<PagedResponse<TraceEventDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem lần chạy này");
         }
 
-        var events = ParseTrace(run.TraceJson);
-        var total = events.Count;
-        var items = events
-            .Skip((safePage - 1) * safeSize).Take(safeSize)
-            .ToList();
+        // perf#10: KHÔNG deserialize toàn bộ trace (có thể hàng nghìn event) rồi Skip/Take trong memory —
+        // parse JsonDocument streaming: duyệt 1 lần, chỉ materialize đúng 1 trang (skip..skip+take),
+        // total = số phần tử đếm được khi duyệt (contract phân trang giữ nguyên).
+        var (total, pageItems) = ParseTracePage(run.TraceJson, (safePage - 1) * safeSize, safeSize);
 
         return Result<PagedResponse<TraceEventDto>>.Ok(
-            PagedResponse<TraceEventDto>.Create(items, safePage, safeSize, total, Pagination.TotalPages(total, safeSize)));
+            PagedResponse<TraceEventDto>.Create(pageItems, safePage, safeSize, total, Pagination.TotalPages(total, safeSize)));
     }
 
     // ── Private ───────────────────────────────────────────────
 
-    private static List<TraceEventDto> ParseTrace(string? traceJson)
+    /// <summary>
+    /// perf#10: đếm + lấy 1 trang trace từ TraceJson bằng JsonDocument — chỉ deserialize đúng
+    /// <paramref name="take"/> phần tử của trang (trước đây deserialize CẢ mảng rồi Skip/Take).
+    /// JSON hỏng / không phải array → (0, []) như hành vi cũ (ParseTrace bắt JsonException → []).
+    /// </summary>
+    private static (int Total, List<TraceEventDto> Page) ParseTracePage(string? traceJson, int skip, int take)
     {
         if (string.IsNullOrWhiteSpace(traceJson))
         {
-            return [];
+            return (0, []);
         }
 
         try
         {
-            return JsonSerializer.Deserialize<List<TraceEventDto>>(traceJson) ?? [];
+            using var doc = JsonDocument.Parse(traceJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return (0, []);
+            }
+
+            var total = 0;
+            var page = new List<TraceEventDto>(Math.Min(take, 100));
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (total >= skip && page.Count < take)
+                {
+                    page.Add(element.Deserialize<TraceEventDto>() ?? new TraceEventDto { Index = total });
+                }
+
+                total++;
+            }
+
+            return (total, page);
         }
         catch (JsonException)
         {
-            return [];
+            return (0, []);
         }
     }
 

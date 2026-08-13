@@ -10,4 +10,5 @@ public sealed class NodeSession
     public DateTime ExpiresAt { get; set; }
     public int? Stage { get; set; }
     public int? StepIndex { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

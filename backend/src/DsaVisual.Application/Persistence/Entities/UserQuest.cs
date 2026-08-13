@@ -9,4 +9,5 @@ public sealed class UserQuest
     public DateTime QuestDate { get; set; }                          // date
     public int Progress { get; set; }
     public bool Claimed { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

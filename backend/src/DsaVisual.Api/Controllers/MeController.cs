@@ -3,6 +3,9 @@ using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +16,10 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/me")]
 [Authorize]
-public class MeController(AppDbContext db) : ApiControllerBase
+public class MeController(
+    AppDbContext db,
+    IHtmlSanitizer htmlSanitizer,
+    IValidator<NoteUpsertRequest> noteValidator) : ApiControllerBase
 {
     private readonly AppDbContext _db = db;
 
@@ -41,6 +47,13 @@ public class MeController(AppDbContext db) : ApiControllerBase
     [HttpPut("notes/{lessonId:int}")]
     public async Task<ActionResult<NoteDto>> UpsertNote([FromRoute] int lessonId, [FromBody] NoteUpsertRequest request, CancellationToken ct)
     {
+        // Finding security#12: giới hạn độ dài ContentHtml (50 KB — chống DB DoS).
+        var invalid = await ValidateRequestAsync(noteValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var lessonExists = await _db.Lessons.AsNoTracking()
             .AnyAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
         if (!lessonExists)
@@ -48,16 +61,21 @@ public class MeController(AppDbContext db) : ApiControllerBase
             return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
         }
 
+        // Finding security#7: sanitize ContentHtml TRƯỚC khi lưu (cùng IHtmlSanitizer/whitelist
+        // với LessonService) — chống stored XSS (Persistence/Entities/LessonNote.cs ghi "// sanitize"
+        // nhưng trước đây lưu RAW).
+        var sanitized = htmlSanitizer.Sanitize(request.ContentHtml);
+
         var now = DateTime.UtcNow;
         var note = await _db.LessonNotes.FirstOrDefaultAsync(n => n.UserId == CurrentUserId() && n.LessonId == lessonId, ct);
         if (note is null)
         {
-            note = new LessonNote { UserId = CurrentUserId(), LessonId = lessonId, ContentHtml = request.ContentHtml, UpdatedAt = now };
+            note = new LessonNote { UserId = CurrentUserId(), LessonId = lessonId, ContentHtml = sanitized, UpdatedAt = now };
             _db.LessonNotes.Add(note);
         }
         else
         {
-            note.ContentHtml = request.ContentHtml;
+            note.ContentHtml = sanitized;
             note.UpdatedAt = now;
         }
 

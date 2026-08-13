@@ -25,4 +25,5 @@ public sealed class User
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }                         // xóa mềm (D-5)
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3 — AddRowVersionConcurrency)
 }

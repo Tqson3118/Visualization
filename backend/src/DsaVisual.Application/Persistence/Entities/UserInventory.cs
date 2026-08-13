@@ -10,4 +10,5 @@ public sealed class UserInventory
     public bool IsEquipped { get; set; }                             // v2.9: equip cùng loại set 0 các dòng khác (SDD §7.3.27)
     public DateTime PurchasedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

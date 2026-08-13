@@ -25,28 +25,27 @@ public class AdminController(AppDbContext db, IDateTimeProvider clock) : ApiCont
         // "Hôm nay" theo UTC+7 (ngày địa phương) — khớp cách GamificationService ghi LastActivityDate.
         var today = _clock.UtcNow.AddHours(7).Date;
 
-        var stats = new StatsDto
-        {
-            TotalUsers = await _db.Users.AsNoTracking().CountAsync(u => u.DeletedAt == null, ct),
-            TotalStudents = await _db.Users.AsNoTracking().CountAsync(u => u.Role == UserRole.Student && u.DeletedAt == null, ct),
-            TotalTeachers = await _db.Users.AsNoTracking().CountAsync(u => u.Role == UserRole.Teacher && u.DeletedAt == null, ct),
-            TotalAdmins = await _db.Users.AsNoTracking().CountAsync(u => u.Role == UserRole.Admin && u.DeletedAt == null, ct),
-            TotalTopics = await _db.Topics.AsNoTracking().CountAsync(t => t.DeletedAt == null, ct),
-            TotalLessons = await _db.Lessons.AsNoTracking().CountAsync(l => l.DeletedAt == null, ct),
-            TotalExercises = await _db.Exercises.AsNoTracking().CountAsync(e => e.DeletedAt == null, ct),
-            TotalSubmissions = await _db.ExerciseSubmissions.AsNoTracking().CountAsync(ct),
-            TotalCodeSubmissions = await _db.CodeSubmissions.AsNoTracking().CountAsync(ct),
-            TotalClasses = await _db.Classes.AsNoTracking().CountAsync(c => c.DeletedAt == null, ct),
-            TotalFavorites = await _db.Favorites.AsNoTracking().CountAsync(ct),
-            // Số simulation: key mô phỏng duy nhất được gắn vào bài học (LessonSimulations.UNIQUE(LessonId, SimulationKey))
-            TotalSimulations = await _db.LessonSimulations.AsNoTracking()
-                .Select(ls => ls.SimulationKey)
-                .Distinct()
-                .CountAsync(ct),
-            // Người dùng có hoạt động hôm nay: LastActivityDate >= ngày hôm nay (UTC+7, không xóa mềm)
-            ActiveUsersToday = await _db.Users.AsNoTracking()
-                .CountAsync(u => u.DeletedAt == null && u.LastActivityDate != null && u.LastActivityDate >= today, ct)
-        };
+        // perf#9: trước đây 13 × CountAsync = 13 round-trip tuần tự cho 1 endpoint → gộp thành
+        // MỘT query (13 scalar subquery trong 1 SELECT — 1 round-trip). Cột alias khớp tên property
+        // StatsDto (EF SqlQueryInterpolated map theo tên, case-insensitive). Role int theo enum
+        // UserRole (0=Student, 1=Teacher, 3=Admin — Enums.cs); TeacherPending (2) đếm vào TotalUsers.
+        // Tên bảng/cột khớp ToTable model (UserConfiguration/TopicConfiguration/... — schema do migration tạo).
+        var stats = await _db.Database.SqlQuery<StatsDto>($"""
+            SELECT
+                (SELECT COUNT(*) FROM Users WHERE DeletedAt IS NULL) AS TotalUsers,
+                (SELECT COUNT(*) FROM Users WHERE Role = 0 AND DeletedAt IS NULL) AS TotalStudents,
+                (SELECT COUNT(*) FROM Users WHERE Role = 1 AND DeletedAt IS NULL) AS TotalTeachers,
+                (SELECT COUNT(*) FROM Users WHERE Role = 3 AND DeletedAt IS NULL) AS TotalAdmins,
+                (SELECT COUNT(*) FROM Topics WHERE DeletedAt IS NULL) AS TotalTopics,
+                (SELECT COUNT(*) FROM Lessons WHERE DeletedAt IS NULL) AS TotalLessons,
+                (SELECT COUNT(*) FROM Exercises WHERE DeletedAt IS NULL) AS TotalExercises,
+                (SELECT COUNT(*) FROM ExerciseSubmissions) AS TotalSubmissions,
+                (SELECT COUNT(*) FROM CodeSubmissions) AS TotalCodeSubmissions,
+                (SELECT COUNT(*) FROM Classes WHERE DeletedAt IS NULL) AS TotalClasses,
+                (SELECT COUNT(*) FROM Favorites) AS TotalFavorites,
+                (SELECT COUNT(DISTINCT SimulationKey) FROM LessonSimulations) AS TotalSimulations,
+                (SELECT COUNT(*) FROM Users WHERE DeletedAt IS NULL AND LastActivityDate IS NOT NULL AND LastActivityDate >= {today}) AS ActiveUsersToday
+            """).FirstAsync(ct);
 
         return Ok(stats);
     }

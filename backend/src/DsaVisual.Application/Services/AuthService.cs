@@ -5,6 +5,7 @@ using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -14,9 +15,9 @@ namespace DsaVisual.Application.Services;
 /// <summary>
 /// AuthService thật theo SDD §5.4 / API_REFERENCE.md §4.1.
 /// - Hash mật khẩu: PBKDF2-SHA256 100.000 vòng + salt 16 byte (SDD §5.6/§7.3.1 — tự triển khai, không phụ thuộc ASP.NET Identity).
-/// - Khóa tạm: LoginAttemptTracker (5 lần/15 phút — single-instance).
+/// - Khóa tạm: LoginAttemptTracker (5 lần/15 phút — single-instance; OTP verify dùng key riêng "otp:{userId}").
 /// - Refresh: rotate-invalidate (SDD §7.3.5), replay token đã rotate → thu hồi cả chuỗi phiên.
-/// - Email: SMTP thiếu → KHÔNG block luồng, ghi log dev link đặt lại mật khẩu (SDD §5.6).
+/// - Email: SMTP thiếu → KHÔNG block luồng; KHÔNG log reset token / mã OTP (finding security#5).
 /// </summary>
 public sealed class AuthService(
     AppDbContext db,
@@ -25,7 +26,8 @@ public sealed class AuthService(
     IConfiguration config,
     ISettingService settings,
     LoginAttemptTracker loginAttempts,
-    ILogger<AuthService> logger) : IAuthService
+    ILogger<AuthService> logger,
+    Func<string>? otpGenerator = null) : IAuthService
 {
     private const string SettingAllowedDomains = "allowed.email.domains";
     private const string SettingMinPasswordLength = "password.policy.minLength";
@@ -34,6 +36,10 @@ public sealed class AuthService(
     private const string OtpPurposeEnable2Fa = "enable_2fa";
     private const int OtpLifetimeMinutes = 5;
     private const int OtpExpiresInSeconds = OtpLifetimeMinutes * 60;
+
+    /// <summary>Hash giả cho PBKDF2 dummy khi user không tồn tại — chống timing oracle (finding security#15).</summary>
+    private static readonly string DummyPasswordHash =
+        PasswordHasher.Hash("timing-oracle-" + Guid.NewGuid().ToString("N"));
 
     // ── Đăng ký ──────────────────────────────────────────────
 
@@ -91,14 +97,34 @@ public sealed class AuthService(
             CreatedAt = now
         };
 
+        // Finding #19 (THAP): user + refresh token trong 1 transaction — tránh "user tồn tại nhưng không có phiên"
+        // khi SaveChanges của IssueTokensAsync fail sau khi user đã commit.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         db.Users.Add(user);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueEmailViolation(ex))
+        {
+            // Finding #2 (CAO): race 2 register cùng email song song → cả 2 pass check AnyAsync ở trên,
+            // 1 request vấp unique index IX_Users_Email → trả EMAIL_EXISTS (409) thay vì để DbUpdateException lan ra 500.
+            return Result<RefreshResponse>.Fail(ErrorCodes.EMAIL_EXISTS, "Email đã được sử dụng", new()
+            {
+                ["email"] = ["Email đã được sử dụng"]
+            });
+        }
 
         logger.LogInformation("User {UserId} registered with role {Role}", user.Id, user.Role);
         var result = await IssueTokensAsync(user, ipAddress, ct);
-        return result.IsSuccess
-            ? Result<RefreshResponse>.Ok(result.Value!)
-            : result;
+        if (!result.IsSuccess)
+        {
+            await tx.RollbackAsync(ct);
+            return result;
+        }
+
+        await tx.CommitAsync(ct);
+        return result;
     }
 
     // ── Đăng nhập ─────────────────────────────────────────────
@@ -111,6 +137,9 @@ public sealed class AuthService(
 
         if (user is null)
         {
+            // Finding #15 (THAP): user không tồn tại → vẫn chạy PBKDF2 với hash giả để thời gian
+            // phản hồi ~constant với user tồn tại (không lộ email qua timing oracle).
+            PasswordHasher.Verify(request.Password, DummyPasswordHash);
             return Result<RefreshResponse>.Fail(ErrorCodes.INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng");
         }
 
@@ -182,10 +211,19 @@ public sealed class AuthService(
             return Result<RefreshResponse>.Fail(ErrorCodes.REFRESH_INVALID, "Tài khoản không tồn tại hoặc bị khóa");
         }
 
-        // Rotate: thu hồi token cũ, tạo token mới có PreviousTokenHash = token cũ
+        // Rotate: thu hồi token cũ bằng UPDATE ĐIỀU KIỆN atomic (finding #3 — TOCTOU):
+        // 2 refresh song song cùng token → chỉ 1 request thắng (rows=1); request kia rows=0 → replay → thu hồi chuỗi.
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var oldToken = await db.RefreshTokens.FirstAsync(t => t.Id == token.Id, ct);
-        oldToken.RevokedAt = clock.UtcNow;
+        var revoked = await TryRevokeRefreshTokenAsync(token.Id, clock.UtcNow, ct);
+        if (revoked == 0)
+        {
+            // Token đã bị rotate/revoke bởi request khác chạy đúng lúc (hoặc replay) → thu hồi cả chuỗi phiên (SDD §7.3.5)
+            logger.LogWarning("Refresh token race/replay detected for user {UserId} from {Ip}", token.UserId, ipAddress);
+            await RevokeAllTokensAsync(token.UserId, ct);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Result<RefreshResponse>.Fail(ErrorCodes.REFRESH_INVALID, "Phiên đăng nhập không hợp lệ");
+        }
 
         var newRefresh = tokens.CreateRefreshToken();
         db.RefreshTokens.Add(new RefreshToken
@@ -263,7 +301,15 @@ public sealed class AuthService(
         }
 
         user.UpdatedAt = clock.UtcNow;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result<UserSummary>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
         return Result<UserSummary>.Ok(ToUserSummary(user, maskEmail: false));
     }
 
@@ -305,7 +351,15 @@ public sealed class AuthService(
 
         // Thu hồi toàn bộ refresh token (phiên khác) — API_REFERENCE.md §4.1
         await RevokeAllTokensAsync(userId, ct);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
 
         logger.LogInformation("User {UserId} changed password", userId);
         return Result.Ok();
@@ -322,11 +376,24 @@ public sealed class AuthService(
         // Trả thông báo chung — không lộ email tồn tại hay không (API_REFERENCE.md §4.1)
         if (user is null)
         {
-            logger.LogInformation("Forgot-password requested for unknown email {Email}", email);
+            // Finding #15: không log email unknown (tránh email enumeration qua log)
+            logger.LogDebug("Forgot-password requested for unknown account");
             return Result.Ok();
         }
 
         var rawToken = tokens.CreateRefreshToken();   // 64 byte base64url — đủ mạnh cho token 1 lần
+
+        // Finding #10 (TRUNG): token mới PHẢI vô hiệu hóa token cũ chưa dùng của cùng user
+        // (pattern giống Send2FaCodeAsync) — trong cùng transaction với insert.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var stale = await db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.Used)
+            .ToListAsync(ct);
+        foreach (var old in stale)
+        {
+            old.Used = true;
+        }
+
         db.PasswordResetTokens.Add(new PasswordResetToken
         {
             UserId = user.Id,
@@ -336,8 +403,9 @@ public sealed class AuthService(
             CreatedAt = clock.UtcNow
         });
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
-        // SMTP thiếu → KHÔNG block luồng; ghi log dev link (SDD §5.6)
+        // SMTP thiếu → KHÔNG block luồng; KHÔNG log reset token (finding security#5)
         await SendResetPasswordEmailAsync(user, rawToken, ct);
         return Result.Ok();
     }
@@ -364,18 +432,38 @@ public sealed class AuthService(
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var reset = await db.PasswordResetTokens.FirstAsync(t => t.Id == token.Id, ct);
-        reset.Used = true;
 
-        var user = await db.Users.FirstAsync(u => u.Id == reset.UserId, ct);
+        // Finding #8 (TRUNG): token dùng ĐÚNG 1 lần — consume bằng UPDATE điều kiện atomic:
+        // 2 reset song song cùng token → 1 request rows=1 (thắng), request kia rows=0 → RESET_TOKEN_INVALID
+        // (KHÔNG rơi vào nhánh 409 CONFLICT của DbUpdateConcurrencyException như trước).
+        var consumed = await TryConsumeResetTokenAsync(token.Id, clock.UtcNow, ct);
+        if (consumed == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return Result.Fail(ErrorCodes.RESET_TOKEN_INVALID, "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn", new()
+            {
+                ["token"] = ["Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn"]
+            });
+        }
+
+        var user = await db.Users.FirstAsync(u => u.Id == token.UserId, ct);
         user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
         user.UpdatedAt = clock.UtcNow;
 
-        await RevokeAllTokensAsync(reset.UserId, ct);
-        await db.SaveChangesAsync(ct);
+        await RevokeAllTokensAsync(token.UserId, ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → rollback, 409 CONFLICT
+            await tx.RollbackAsync(ct);
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
         await tx.CommitAsync(ct);
 
-        logger.LogInformation("Password reset for user {UserId}", reset.UserId);
+        logger.LogInformation("Password reset for user {UserId}", token.UserId);
         return Result.Ok();
     }
 
@@ -400,7 +488,15 @@ public sealed class AuthService(
             {
                 user.TwoFactorEnabled = false;
                 user.UpdatedAt = clock.UtcNow;
-                await db.SaveChangesAsync(ct);
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+                    return Result<Toggle2FaResponse>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+                }
                 logger.LogInformation("User {UserId} disabled 2FA", user.Id);
             }
 
@@ -418,7 +514,7 @@ public sealed class AuthService(
 
     /// <summary>
     /// Sinh mã OTP 6 số (hiệu lực 5 phút, dùng 1 lần), lưu SHA256 hash vào OtpCodes, gửi qua email.
-    /// SMTP chưa cấu hình → KHÔNG block luồng, ghi mã trong log dev (pattern SDD §5.6 như forgot-password).
+    /// SMTP chưa cấu hình → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5).
     /// </summary>
     public async Task<Result<Send2FaResponse>> Send2FaCodeAsync(int userId, CancellationToken ct)
     {
@@ -433,7 +529,8 @@ public sealed class AuthService(
             return Result<Send2FaResponse>.Fail(ErrorCodes.TWO_FA_ALREADY_ENABLED, "Xác thực hai lớp đã được bật");
         }
 
-        var code = GenerateOtpCode();
+        // otpGenerator là seam cho test (ghi nhận mã) — production dùng GenerateOtpCode crypto-random
+        var code = otpGenerator?.Invoke() ?? GenerateOtpCode();
         var now = clock.UtcNow;
 
         // Chỉ mã mới nhất có hiệu lực — vô hiệu hóa mã cũ chưa dùng cùng purpose
@@ -455,6 +552,10 @@ public sealed class AuthService(
             CreatedAt = now
         });
         await db.SaveChangesAsync(ct);
+
+        // Finding #16: gửi OTP mới thành công → reset counter thử sai "otp:{userId}" để user
+        // không bị ACCOUNT_LOCKED 15 phút vì đã sai 5 lần với mã cũ (không có đường hồi phục).
+        loginAttempts.Reset("otp:" + user.Id);
 
         await Send2FaCodeEmailAsync(user, code, ct);
         return Result<Send2FaResponse>.Ok(new Send2FaResponse(
@@ -484,6 +585,15 @@ public sealed class AuthService(
             return Result<Toggle2FaResponse>.Fail(ErrorCodes.TWO_FA_ALREADY_ENABLED, "Xác thực hai lớp đã được bật");
         }
 
+        // Finding #16 (THAP): giới hạn số lần thử sai OTP — 5 lần / 15 phút (LoginAttemptTracker,
+        // key riêng "otp:{userId}" — không trộn counter với login). Khóa trước khi verify như LoginAsync.
+        var otpKey = "otp:" + user.Id;
+        if (loginAttempts.IsLocked(otpKey))
+        {
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.ACCOUNT_LOCKED,
+                "Tài khoản đã bị khóa tạm thời do nhập mã xác thực sai nhiều lần. Vui lòng thử lại sau 15 phút");
+        }
+
         var hash = HashOtpCode(code);
         var otp = await db.OtpCodes.AsNoTracking()
             .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeEnable2Fa && o.CodeHash == hash)
@@ -492,6 +602,8 @@ public sealed class AuthService(
 
         if (otp is null)
         {
+            loginAttempts.RecordFailure(otpKey);
+            logger.LogWarning("Failed 2FA verify (wrong code) for user {UserId}", user.Id);
             return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_INVALID, "Mã xác thực không đúng");
         }
 
@@ -507,13 +619,31 @@ public sealed class AuthService(
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var used = await db.OtpCodes.FirstAsync(o => o.Id == otp.Id, ct);
-        used.Used = true;
+
+        // Finding #9 (TRUNG): OTP dùng ĐÚNG 1 lần — consume bằng UPDATE điều kiện atomic:
+        // 2 verify song song cùng OTP → 1 request rows=1 (thắng), request kia rows=0 → OTP_USED (KHÔNG 409).
+        var consumed = await TryConsumeOtpAsync(otp.Id, clock.UtcNow, ct);
+        if (consumed == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.OTP_USED, "Mã xác thực đã được sử dụng");
+        }
+
         user.TwoFactorEnabled = true;
         user.UpdatedAt = clock.UtcNow;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → rollback, 409 CONFLICT
+            await tx.RollbackAsync(ct);
+            return Result<Toggle2FaResponse>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
         await tx.CommitAsync(ct);
 
+        loginAttempts.Reset(otpKey);
         logger.LogInformation("User {UserId} enabled 2FA (email {Email})", user.Id, user.Email);
         return Result<Toggle2FaResponse>.Ok(new Toggle2FaResponse(true, "Đã bật xác thực hai lớp"));
     }
@@ -567,8 +697,8 @@ public sealed class AuthService(
 
         if (string.IsNullOrWhiteSpace(smtpHost))
         {
-            // SMTP chưa cấu hình → ghi log dev, KHÔNG block luồng (SDD §5.6)
-            logger.LogWarning("SMTP chưa cấu hình — link đặt lại mật khẩu (dev): {ResetLink}", resetLink);
+            // SMTP chưa cấu hình → KHÔNG block luồng; KHÔNG log reset token/link (finding security#5)
+            logger.LogWarning("SMTP chưa cấu hình — không gửi được email đặt lại mật khẩu cho user {UserId}", user.Id);
             return;
         }
 
@@ -583,8 +713,8 @@ public sealed class AuthService(
         }
         catch (Exception ex)
         {
-            // Email lỗi KHÔNG block luồng quên mật khẩu (quyết định chốt SDD §5.6)
-            logger.LogError(ex, "Gửi email đặt lại mật khẩu thất bại cho user {UserId}; link dev: {ResetLink}", user.Id, resetLink);
+            // Email lỗi KHÔNG block luồng quên mật khẩu (quyết định chốt SDD §5.6); KHÔNG log reset token (finding security#5)
+            logger.LogError(ex, "Gửi email đặt lại mật khẩu thất bại cho user {UserId}", user.Id);
         }
     }
 
@@ -594,8 +724,8 @@ public sealed class AuthService(
 
         if (string.IsNullOrWhiteSpace(smtpHost))
         {
-            // SMTP chưa cấu hình → ghi mã trong log dev, KHÔNG block luồng (pattern SDD §5.6)
-            logger.LogWarning("SMTP chưa cấu hình — mã 2FA (dev) cho user {UserId}: {Code}", user.Id, code);
+            // SMTP chưa cấu hình → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5)
+            logger.LogWarning("SMTP chưa cấu hình — không gửi được mã 2FA cho user {UserId}", user.Id);
             return;
         }
 
@@ -615,8 +745,8 @@ public sealed class AuthService(
         }
         catch (Exception ex)
         {
-            // Email lỗi KHÔNG block luồng (SDD §5.6); ghi mã dev để smoke/debug
-            logger.LogError(ex, "Gửi email mã 2FA thất bại cho user {UserId}; mã dev: {Code}", user.Id, code);
+            // Email lỗi KHÔNG block luồng (SDD §5.6); KHÔNG log mã OTP (finding security#5)
+            logger.LogError(ex, "Gửi email mã 2FA thất bại cho user {UserId}", user.Id);
         }
     }
 
@@ -625,6 +755,97 @@ public sealed class AuthService(
 
     private static string HashOtpCode(string code) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
+
+    /// <summary>
+    /// True khi DbUpdateException là unique violation trên IX_Users_Email (SQL Server 2601/2627) —
+    /// finding #2: race register cùng email → trả EMAIL_EXISTS thay vì 500.
+    /// </summary>
+    private static bool IsUniqueEmailViolation(DbUpdateException ex)
+    {
+        for (var current = (Exception?)ex; current is not null; current = current.InnerException)
+        {
+            if (current is SqlException { Number: 2601 or 2627 }
+                || current.Message.Contains("IX_Users_Email", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Thu hồi refresh token bằng UPDATE ĐIỀU KIỆN atomic (finding #3 — TOCTOU):
+    /// <c>UPDATE RefreshTokens SET RevokedAt = @now WHERE Id = @id AND RevokedAt IS NULL</c>.
+    /// Trả rows affected — 0 nghĩa là token đã bị request khác rotate/revoke → replay.
+    /// InMemory (unit test) không hỗ trợ ExecuteUpdate → fallback đọc tracked với cùng điều kiện.
+    /// </summary>
+    private async Task<int> TryRevokeRefreshTokenAsync(int id, DateTime now, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.RefreshTokens
+                .Where(t => t.Id == id && t.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
+        }
+
+        var tracked = await db.RefreshTokens.FirstOrDefaultAsync(t => t.Id == id && t.RevokedAt == null, ct);
+        if (tracked is null)
+        {
+            return 0;
+        }
+
+        tracked.RevokedAt = now;
+        return 1;
+    }
+
+    /// <summary>
+    /// Consume PasswordResetToken bằng UPDATE ĐIỀU KIỆN atomic (finding #8 — token dùng đúng 1 lần):
+    /// <c>UPDATE PasswordResetTokens SET Used = 1 WHERE Id = @id AND Used = 0 AND ExpiresAt &gt; @now</c>.
+    /// Trả rows affected — 0 → RESET_TOKEN_INVALID (loser của race, KHÔNG phải 409).
+    /// </summary>
+    private async Task<int> TryConsumeResetTokenAsync(int id, DateTime now, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.PasswordResetTokens
+                .Where(t => t.Id == id && !t.Used && t.ExpiresAt > now)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.Used, true), ct);
+        }
+
+        var tracked = await db.PasswordResetTokens.FirstOrDefaultAsync(t => t.Id == id && !t.Used && t.ExpiresAt > now, ct);
+        if (tracked is null)
+        {
+            return 0;
+        }
+
+        tracked.Used = true;
+        return 1;
+    }
+
+    /// <summary>
+    /// Consume OtpCode bằng UPDATE ĐIỀU KIỆN atomic (finding #9 — OTP dùng đúng 1 lần):
+    /// <c>UPDATE OtpCodes SET Used = 1 WHERE Id = @id AND Used = 0 AND ExpiresAt &gt; @now</c>.
+    /// Trả rows affected — 0 → OTP_USED (loser của race, KHÔNG phải 409).
+    /// </summary>
+    private async Task<int> TryConsumeOtpAsync(int id, DateTime now, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.OtpCodes
+                .Where(o => o.Id == id && !o.Used && o.ExpiresAt > now)
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.Used, true), ct);
+        }
+
+        var tracked = await db.OtpCodes.FirstOrDefaultAsync(o => o.Id == id && !o.Used && o.ExpiresAt > now, ct);
+        if (tracked is null)
+        {
+            return 0;
+        }
+
+        tracked.Used = true;
+        return 1;
+    }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 

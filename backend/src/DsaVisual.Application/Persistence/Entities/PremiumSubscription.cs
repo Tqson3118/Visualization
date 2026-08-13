@@ -11,4 +11,5 @@ public sealed class PremiumSubscription
     public int Status { get; set; }
     public string? OrderRef { get; set; }
     public DateTime CreatedAt { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

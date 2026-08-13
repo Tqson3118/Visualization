@@ -23,16 +23,23 @@ public sealed class FavoriteService(
             .OrderByDescending(f => f.CreatedAt)
             .ToListAsync(ct);
 
-        var items = new List<FavoriteDto>();
+        // perf#17: catalog là dictionary in-memory — lấy 1 lần rồi lookup thay vì GetByKeyAsync
+        // từng lượt trong foreach (KHÔNG phải N+1 DB nhưng bỏ overhead lặp + result allocation).
+        var catalogResult = await catalog.GetListAsync(ct);
+        var catalogByKey = catalogResult.IsSuccess
+            ? catalogResult.Value!.ToDictionary(s => s.Key, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, SimulationMetaDto>(StringComparer.OrdinalIgnoreCase);
+
+        var items = new List<FavoriteDto>(favorites.Count);
         foreach (var favorite in favorites)
         {
-            var meta = await catalog.GetByKeyAsync(favorite.SimulationKey, ct);
+            catalogByKey.TryGetValue(favorite.SimulationKey, out var meta);
             items.Add(new FavoriteDto
             {
                 Id = favorite.Id,
                 SimulationKey = favorite.SimulationKey,
-                Title = meta.IsSuccess ? meta.Value!.Title : null,
-                DataStructure = meta.IsSuccess ? meta.Value!.DataStructure : null,
+                Title = meta?.Title,
+                DataStructure = meta?.DataStructure,
                 Input = favorite.InputJson,
                 CreatedAt = favorite.CreatedAt
             });

@@ -1,6 +1,8 @@
 using Asp.Versioning;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +12,9 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/exercises")]
 [Authorize]
-public class ExercisesController(IExerciseService service) : ApiControllerBase
+public class ExercisesController(
+    IExerciseService service,
+    IValidator<CodeSubmitRequest> codeSubmitValidator) : ApiControllerBase
 {
     private readonly IExerciseService _service = service;
 
@@ -97,9 +101,11 @@ public class ExercisesController(IExerciseService service) : ApiControllerBase
 
     [HttpGet("{id:int}/submissions/me")]
     public async Task<ActionResult<PagedResponse<SubmissionSummaryDto>>> GetMySubmissions(
-        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default,
+        // perf#6: cursor keyset — lastSubmittedAt + lastId = phần tử cuối trang trước (tùy chọn; không truyền → offset cũ)
+        [FromQuery] DateTime? lastSubmittedAt = null, [FromQuery] int? lastId = null)
     {
-        var result = await _service.GetMySubmissionsAsync(CurrentUserId(), id, page, pageSize, ct);
+        var result = await _service.GetMySubmissionsAsync(CurrentUserId(), id, page, pageSize, ct, lastSubmittedAt, lastId);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();
@@ -111,9 +117,10 @@ public class ExercisesController(IExerciseService service) : ApiControllerBase
     [HttpGet("{id:int}/submissions")]
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<PagedResponse<SubmissionSummaryDto>>> GetSubmissions(
-        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default,
+        [FromQuery] DateTime? lastSubmittedAt = null, [FromQuery] int? lastId = null)
     {
-        var result = await _service.GetSubmissionsAsync(CurrentUserId(), CurrentRole(), id, page, pageSize, ct);
+        var result = await _service.GetSubmissionsAsync(CurrentUserId(), CurrentRole(), id, page, pageSize, ct, lastSubmittedAt, lastId);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();
@@ -126,6 +133,13 @@ public class ExercisesController(IExerciseService service) : ApiControllerBase
     [Authorize(Roles = "STUDENT,TEACHER")]
     public async Task<ActionResult<CodeSubmitResultDto>> SubmitCode([FromRoute] int id, [FromBody] CodeSubmitRequest request, CancellationToken ct)
     {
+        // Finding security#12: giới hạn độ dài Code (chống DB DoS) + số liệu không âm.
+        var invalid = await ValidateRequestAsync(codeSubmitValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.SubmitCodeAsync(CurrentUserId(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -133,9 +147,11 @@ public class ExercisesController(IExerciseService service) : ApiControllerBase
     [HttpGet("{id:int}/code-submissions")]
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<PagedResponse<CodeSubmissionSummaryDto>>> GetCodeSubmissions(
-        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default,
+        // perf#7: cursor keyset — tùy chọn, fallback offset khi không truyền
+        [FromQuery] DateTime? lastSubmittedAt = null, [FromQuery] int? lastId = null)
     {
-        var result = await _service.GetCodeSubmissionsAsync(CurrentUserId(), CurrentRole(), id, page, pageSize, ct);
+        var result = await _service.GetCodeSubmissionsAsync(CurrentUserId(), CurrentRole(), id, page, pageSize, ct, lastSubmittedAt, lastId);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();
@@ -146,9 +162,10 @@ public class ExercisesController(IExerciseService service) : ApiControllerBase
 
     [HttpGet("{id:int}/code-submissions/me")]
     public async Task<ActionResult<PagedResponse<CodeSubmissionSummaryDto>>> GetMyCodeSubmissions(
-        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromRoute] int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default,
+        [FromQuery] DateTime? lastSubmittedAt = null, [FromQuery] int? lastId = null)
     {
-        var result = await _service.GetMyCodeSubmissionsAsync(CurrentUserId(), id, page, pageSize, ct);
+        var result = await _service.GetMyCodeSubmissionsAsync(CurrentUserId(), id, page, pageSize, ct, lastSubmittedAt, lastId);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();

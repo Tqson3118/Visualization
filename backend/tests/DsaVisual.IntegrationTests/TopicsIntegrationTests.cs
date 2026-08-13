@@ -143,9 +143,9 @@ public sealed class TopicsIntegrationTests : IntegrationTestBase, IClassFixture<
         // Act
         var response = await client.PostAsJsonAsync(BaseUrl, new TopicUpsertRequest { Name = $"Trái phép {Guid.NewGuid():N}" });
 
-        // Assert — 403 từ [Authorize(Roles="TEACHER,ADMIN")] (ForbidResult — body rỗng, không có envelope error)
+        // Assert — 403 từ [Authorize(Roles="TEACHER,ADMIN")] (exc#4b: envelope { error } §2.1 — KHÔNG body rỗng)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+        Assert.Equal("FORBIDDEN", await GetErrorCodeAsync(response));
     }
 
     [Fact(DisplayName = "TEST-API-003: GET /topics/{id} không tồn tại → 404 NOT_FOUND")]

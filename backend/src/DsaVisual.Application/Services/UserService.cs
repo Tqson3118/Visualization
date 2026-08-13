@@ -90,7 +90,15 @@ public sealed class UserService(
 
         user.IsActive = isActive;
         user.UpdatedAt = clock.UtcNow;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
 
         logger.LogInformation("User {TargetId} status -> {IsActive} by {ActorId}", id, isActive, actorId);
         return Result.Ok();
@@ -117,7 +125,15 @@ public sealed class UserService(
 
         user.Role = newRole;
         user.UpdatedAt = clock.UtcNow;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
 
         logger.LogInformation("User {TargetId} role -> {Role} by {ActorId}", id, newRole, actorId);
         return Result.Ok();
@@ -140,7 +156,15 @@ public sealed class UserService(
         user.Role = request.Approve ? UserRole.Teacher : UserRole.Student;
         user.IsActive = true;
         user.UpdatedAt = clock.UtcNow;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
 
         logger.LogInformation("Teacher approval for {TargetId}: {Approve} (reason: {Reason}) by {ActorId}",
             id, request.Approve, request.Reason, actorId);
@@ -175,7 +199,15 @@ public sealed class UserService(
             token.RevokedAt = clock.UtcNow;
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
         logger.LogInformation("Password reset for {TargetId} by {ActorId}", id, actorId);
         return Result.Ok();
     }
@@ -219,7 +251,15 @@ public sealed class UserService(
             classRoom.Status = ClassStatus.Closed;
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → 409 CONFLICT
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
         logger.LogInformation("User {TargetId} anonymized/deleted by {ActorId}", id, actorId);
         return Result.Ok();
     }

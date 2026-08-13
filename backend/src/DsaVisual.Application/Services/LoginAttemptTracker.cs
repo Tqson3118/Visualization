@@ -11,17 +11,27 @@ namespace DsaVisual.Application.Services;
 /// </summary>
 public sealed class LoginAttemptTracker(IDateTimeProvider clock, IConfiguration config)
 {
-    private readonly ConcurrentDictionary<int, List<DateTime>> _failed = new();
+    private readonly ConcurrentDictionary<string, List<DateTime>> _failed = new();
     private readonly object _lock = new();
 
     private int MaxAttempts => config.GetValue("DSA:Auth:MaxLoginAttempts", 5);
     private TimeSpan LockoutWindow => TimeSpan.FromMinutes(config.GetValue("DSA:Auth:LockoutMinutes", 15));
 
-    public bool IsLocked(int userId)
+    // ── Login (finding security#3: key "login:{userId}") ──
+
+    public bool IsLocked(int userId) => IsLocked("login:" + userId);
+
+    public void RecordFailure(int userId) => RecordFailure("login:" + userId);
+
+    public void Reset(int userId) => Reset("login:" + userId);
+
+    // ── Key-based (finding security#16: OTP verify dùng key "otp:{userId}" — counter riêng, không trộn với login) ──
+
+    public bool IsLocked(string key)
     {
         lock (_lock)
         {
-            if (!_failed.TryGetValue(userId, out var attempts))
+            if (!_failed.TryGetValue(key, out var attempts))
             {
                 return false;
             }
@@ -31,21 +41,21 @@ public sealed class LoginAttemptTracker(IDateTimeProvider clock, IConfiguration 
         }
     }
 
-    public void RecordFailure(int userId)
+    public void RecordFailure(string key)
     {
         lock (_lock)
         {
-            var attempts = _failed.GetOrAdd(userId, static _ => []);
+            var attempts = _failed.GetOrAdd(key, static _ => []);
             Prune(attempts);
             attempts.Add(clock.UtcNow);
         }
     }
 
-    public void Reset(int userId)
+    public void Reset(string key)
     {
         lock (_lock)
         {
-            _failed.TryRemove(userId, out _);
+            _failed.TryRemove(key, out _);
         }
     }
 

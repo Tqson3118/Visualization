@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
@@ -12,11 +11,13 @@ namespace DsaVisual.UnitTests;
 /// <summary>
 /// Test 2FA email (GP-T2 — FR-1.11): gửi mã OTP (hash SHA256, hết hạn 5 phút, dùng 1 lần),
 /// verify đúng/sai/hết hạn/đã dùng, bật/tắt 2FA.
-/// Mã OTP lấy từ log dev (SMTP không cấu hình trong test → service ghi mã vào log — pattern SDD §5.6).
+/// Mã OTP lấy từ RecordingOtpGenerator (test seam) — finding security#5 cấm log mã OTP trong production.
 /// </summary>
 public class TwoFactorAuthTests
 {
     private readonly TestServices.FixedClock _clock = new();
+
+    private TestServices.RecordingOtpGenerator _otp = null!;
 
     private sealed class CapturingLogger<T> : ILogger<T>
     {
@@ -32,17 +33,6 @@ public class TwoFactorAuthTests
 
     private static string HashOtp(string code) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
-
-    private static string ExtractOtpCode(CapturingLogger<AuthService> logger)
-    {
-        // Lấy log MỚI NHẤT chứa mã — mỗi lần gửi sinh 1 dòng log riêng
-        var match = logger.Messages
-            .Select(m => Regex.Match(m, @"mã 2FA \(dev\) cho user \d+: (\d{6})"))
-            .LastOrDefault(m => m.Success);
-        Assert.NotNull(match);
-        Assert.True(match!.Success, "Không tìm thấy mã OTP trong log dev");
-        return match.Groups[1].Value;
-    }
 
     private static async Task<int> RegisterUserAsync(AuthService service, string dbName)
     {
@@ -61,9 +51,12 @@ public class TwoFactorAuthTests
     {
         var db = TestServices.CreateInMemoryDb(testName);
         var logger = new CapturingLogger<AuthService>();
-        var service = TestServices.CreateAuthService(db, _clock, testName, logger);
+        _otp = new TestServices.RecordingOtpGenerator();
+        var service = TestServices.CreateAuthService(db, _clock, testName, logger, otpGenerator: _otp.Generate);
         return (service, logger, db);
     }
+
+    private string ExtractOtpCode() => _otp.Last;
 
     [Fact]
     public async Task Send2FaCode_StoresHashedCodeAndReturnsExpiry()
@@ -92,7 +85,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Send2FaCode_WhenAlreadyEnabled_ReturnsAlreadyEnabled));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
         var verified = await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = code }, CancellationToken.None);
         Assert.True(verified.IsSuccess);
 
@@ -109,9 +102,9 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Send2FaCode_Twice_OnlyLatestCodeWorks));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var firstCode = ExtractOtpCode(logger);
+        var firstCode = ExtractOtpCode();
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var secondCode = ExtractOtpCode(logger);
+        var secondCode = ExtractOtpCode();
         Assert.NotEqual(firstCode, secondCode);
 
         // Mã cũ đã bị vô hiệu hóa (Used) khi gửi mã mới → không dùng lại được
@@ -130,7 +123,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Verify2Fa_CorrectCode_EnablesTwoFactorAndMarksUsed));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
 
         var result = await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = code }, CancellationToken.None);
 
@@ -150,7 +143,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Verify2Fa_WrongCode_ReturnsOtpInvalid));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        _ = ExtractOtpCode(logger);
+        _ = ExtractOtpCode();
 
         var result = await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = "000000" }, CancellationToken.None);
 
@@ -166,7 +159,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Verify2Fa_ExpiredCode_ReturnsOtpExpired));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
 
         _clock.UtcNow = _clock.UtcNow.AddMinutes(6);   // quá 5 phút hiệu lực
 
@@ -184,7 +177,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Verify2Fa_UsedCode_ReturnsOtpUsed));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
 
         var first = await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = code }, CancellationToken.None);
         Assert.True(first.IsSuccess);
@@ -219,7 +212,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Toggle2Fa_Disable_DisablesTwoFactor));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
         await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = code }, CancellationToken.None);
         Assert.True(db.Users.Single(u => u.Id == userId).TwoFactorEnabled);
 
@@ -261,7 +254,7 @@ public class TwoFactorAuthTests
         var userId = await RegisterUserAsync(service, nameof(Toggle2Fa_EnableWhenAlreadyEnabled_ReturnsAlreadyEnabled));
 
         await service.Send2FaCodeAsync(userId, CancellationToken.None);
-        var code = ExtractOtpCode(logger);
+        var code = ExtractOtpCode();
         await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = code }, CancellationToken.None);
 
         var result = await service.Toggle2FaAsync(userId, new Toggle2FaRequest { Enabled = true }, CancellationToken.None);

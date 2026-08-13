@@ -13,6 +13,7 @@ public sealed class UserProgressConfiguration : IEntityTypeConfiguration<UserPro
 
         builder.Property(p => p.UpdatedAt).HasColumnType("datetime2");
         builder.Property(p => p.CompletedAt).HasColumnType("datetime2");
+        builder.Property(p => p.RowVersion).IsRowVersion();   // concurrency token (finding #3)
 
         builder.HasIndex(p => new { p.UserId, p.LessonId }).IsUnique();
         builder.HasIndex(p => p.LessonId);
@@ -38,6 +39,7 @@ public sealed class UserNodeProgressConfiguration : IEntityTypeConfiguration<Use
         builder.Property(p => p.UpdatedAt).HasColumnType("datetime2");
         builder.Property(p => p.UnlockedAt).HasColumnType("datetime2");
         builder.Property(p => p.PassedAt).HasColumnType("datetime2");
+        builder.Property(p => p.RowVersion).IsRowVersion();   // concurrency token (finding #3)
 
         builder.HasIndex(p => new { p.UserId, p.NodeId }).IsUnique();
         builder.HasIndex(p => p.NodeId);

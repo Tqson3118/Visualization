@@ -1,8 +1,14 @@
 using Asp.Versioning;
+using DsaVisual.Api.Dtos;
+using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
+using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DsaVisual.Api.Controllers;
 
@@ -12,9 +18,17 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1")]
 [Authorize]
-public class GamificationController(IGamificationService service) : ApiControllerBase
+public class GamificationController(
+    IGamificationService service,
+    AppDbContext db,
+    IConfiguration config,
+    IValidator<ShopBuyRequest> shopBuyValidator,
+    IValidator<PremiumUpgradeRequest> premiumUpgradeValidator,
+    IValidator<PremiumMockPayRequest> premiumMockPayValidator,
+    IValidator<BenchmarkRequest> benchmarkValidator) : ApiControllerBase
 {
     private readonly IGamificationService _service = service;
+    private readonly AppDbContext _db = db;
 
     // ── Hearts ──
     [HttpGet("me/hearts")]
@@ -73,9 +87,29 @@ public class GamificationController(IGamificationService service) : ApiControlle
     [HttpGet("leaderboard")]
     public async Task<ActionResult<PagedResponse<LeaderboardEntryDto>>> GetLeaderboard(
         [FromQuery] string tab = "week", [FromQuery] int? classId = null,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default,
+        // perf#4 (keyset): cursor phân trang — lastXp + lastId của phần tử CUỐI trang trước.
+        // Không truyền → fallback offset (contract page/size cũ giữ nguyên, test bảo vệ không đổi).
+        [FromQuery] int? lastXp = null, [FromQuery] int? lastId = null)
     {
-        var result = await _service.GetLeaderboardAsync(tab, classId, page, pageSize, ct);
+        // Finding security#9: tab class chỉ cho phép member của lớp HOẶC TEACHER/ADMIN (owner) —
+        // user ngoài lớp không được xem DisplayName + XP của học viên lớp khác (enumerate classId).
+        if (tab.Equals("class", StringComparison.OrdinalIgnoreCase) && classId is > 0)
+        {
+            var isTeacherOrAdmin = CurrentRole() is "TEACHER" or "ADMIN";
+            if (!isTeacherOrAdmin)
+            {
+                var isMember = await _db.ClassMembers.AsNoTracking()
+                    .AnyAsync(m => m.ClassId == classId.Value && m.UserId == CurrentUserId(), ct);
+                if (!isMember)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, ErrorResponseDto.Create(
+                        ErrorCodes.FORBIDDEN, "Bạn không phải thành viên lớp này — không xem được bảng xếp hạng của lớp"));
+                }
+            }
+        }
+
+        var result = await _service.GetLeaderboardAsync(tab, classId, page, pageSize, ct, lastXp, lastId);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();
@@ -95,6 +129,12 @@ public class GamificationController(IGamificationService service) : ApiControlle
     [HttpPost("shop/buy")]
     public async Task<ActionResult<ShopBuyResultDto>> Buy([FromBody] ShopBuyRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(shopBuyValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.BuyItemAsync(CurrentUserId(), request.ItemId, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -124,6 +164,12 @@ public class GamificationController(IGamificationService service) : ApiControlle
     [HttpPost("premium/upgrade")]
     public async Task<ActionResult<PremiumUpgradeResultDto>> UpgradePremium([FromBody] PremiumUpgradeRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(premiumUpgradeValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.UpgradePremiumAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -131,6 +177,23 @@ public class GamificationController(IGamificationService service) : ApiControlle
     [HttpPost("premium/mock-pay")]
     public async Task<ActionResult<PremiumStatusDto>> MockPay([FromBody] PremiumMockPayRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(premiumMockPayValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
+        // Finding security#10 + Review E: mock-pay là "thanh toán mô phỏng" — nếu deploy thật mà quên tắt,
+        // bất kỳ user nào cũng tự kích hoạt Premium miễn phí. Gate fail-closed theo config
+        // DSA:Premium:EnableMockPay — DEFAULT FALSE (trước đây default true → thiếu config = lỗ hổng).
+        // Dev/Staging bật tường minh qua appsettings.Development.json; Production appsettings.Production.json
+        // = false → chỉ ops chủ động set true (biến env DSA__Premium__EnableMockPay) mới mở.
+        if (!config.GetValue("DSA:Premium:EnableMockPay", false))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ErrorResponseDto.Create(
+                ErrorCodes.FORBIDDEN, "Thanh toán mô phỏng đã bị tắt — liên hệ quản trị viên"));
+        }
+
         var result = await _service.MockPayAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -146,6 +209,12 @@ public class GamificationController(IGamificationService service) : ApiControlle
     [HttpPost("benchmarks/run")]
     public async Task<ActionResult<BenchmarkRunResponse>> RunBenchmark([FromBody] BenchmarkRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(benchmarkValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.RunBenchmarkAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }

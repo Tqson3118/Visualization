@@ -4,6 +4,7 @@ using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,9 @@ public sealed class GamificationService(
         {
             return Result<HeartsStatusDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
         }
+
+        // BUG-1 (lazy downgrade): premium hết hạn → clamp HeartsMax/Hearts về Free NGAY khi đọc (FR-10.7 AC-10.7.2/3)
+        await EnsureHeartsMaxSyncAsync(user, ct);
 
         // F5-Major: truy vấn quá hạn → ghi regen tim xuống DB trước khi trả (elapsed ≥ 1 chu kỳ)
         await PersistHeartRegenAsync(userId, ct);
@@ -153,14 +157,18 @@ public sealed class GamificationService(
                 });
                 await db.SaveChangesAsync(ct);
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (IsUniqueViolationForNodeSession(ex))
             {
+                // exc#3: CHỈ nuốt unique violation của NodeSessions (session còn hiệu lực → resume);
+                // lỗi DB khác (mất kết nối, schema thay đổi, trigger/constraint khác) rethrow →
+                // ErrorHandlingMiddleware log đúng 1 lần tại boundary + trả 503/409 đúng ngữ nghĩa.
                 insertFailed = true;
             }
 
             if (insertFailed)
             {
                 // Unique violation → session còn hiệu lực đã tồn tại → resume, KHÔNG trừ tim (v2.5)
+                logger.LogDebug("EnterNode unique violation on NodeSessions (UserId={UserId}, NodeId={NodeId}) — resume existing session", userId, nodeId);
                 await tx.RollbackAsync(ct);
                 var existing = await db.NodeSessions.AsNoTracking()
                     .FirstAsync(s => s.UserId == userId && s.NodeId == nodeId, ct);
@@ -178,7 +186,10 @@ public sealed class GamificationService(
             {
                 // F5-Major: ghi regen tim xuống DB TRƯỚC khi trừ — tránh UI hiện đầy nhưng
                 // DB vẫn 0 → HEARTS_EMPTY (UPDATE điều kiện Hearts > 0 sẽ fail dù đã qua chu kỳ regen)
-                await PersistHeartRegenAsync(userId, ct);
+                // perf#22: đọc Users MỘT lần rồi truyền entity qua (trước đây PersistHeartRegenAsync
+                // tự đọc lại → 2 lần đọc Users + có thể 2 UPDATE regen trong cùng 1 request).
+                var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+                await PersistHeartRegenAsync(user, ct);
 
                 var affected = await db.Database.ExecuteSqlInterpolatedAsync(
                     $"UPDATE Users SET Hearts = Hearts - 1 WHERE Id = {userId} AND Hearts > 0", ct);
@@ -193,6 +204,20 @@ public sealed class GamificationService(
             // Mở khóa node (UserNodeProgress upsert) + eager streak (FR-10.4)
             await EnsureNodeUnlockedAsync(userId, nodeId, now, ct);
             await UpdateStreakEagerAsync(userId, ct);
+
+            // Persist thay đổi tracked (mở khóa node + streak) CÙNG transaction. Latent bug: trước đây
+            // không có SaveChanges sau EnsureNodeUnlockedAsync/UpdateStreakEagerAsync nên unlock node +
+            // streak không bao giờ được lưu (lộ ra qua finding #6 — sync quest đọc UserNodeProgress từ DB).
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Finding #3: dòng Users/UserNodeProgress đổi (RowVersion) giữa lúc đọc và ghi → 409
+                await tx.RollbackAsync(ct);
+                return Result<NodeEnterResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+            }
         }
 
         await tx.CommitAsync(ct);
@@ -285,27 +310,155 @@ public sealed class GamificationService(
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Finding #5: 2 GET /me/quests song song đầu ngày → INSERT trùng UNIQUE(UserId,QuestDate,QuestId)
+            // của request kia → quest đã tồn tại → bỏ qua, tiếp tục đọc (GET KHÔNG trả 500).
+        }
 
-        var all = await db.UserQuests.AsNoTracking()
+        var all = (await db.UserQuests.AsNoTracking()
             .Where(q => q.UserId == userId && q.QuestDate == today)
             .Join(db.DailyQuests.AsNoTracking(), uq => uq.QuestId, dq => dq.Id,
                 (uq, dq) => new { uq, dq })
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Select(x => new QuestRow(x.uq, x.dq))
+            .ToList();
+
+        // Finding #6 (FR-10.3): Progress quest TỰ cập nhật theo sự kiện học tập — lưới an toàn khi đọc
+        // (chỉ tăng, không giảm) cho các activity map được từ trạng thái thật trong DB.
+        await SyncQuestProgressAsync(userId, today, all, ct);
 
         var questDtos = all.Select(x => new QuestDto
         {
-            Id = x.uq.Id,
-            QuestId = x.dq.Id,
-            Title = x.dq.Title,
-            Type = x.dq.Type,
-            Progress = x.uq.Progress,
-            Target = GetTarget(x.dq.ConditionJson),
-            Claimed = x.uq.Claimed,
-            Reward = GetReward(x.dq.RewardJson)
+            Id = x.Uq.Id,
+            QuestId = x.Dq.Id,
+            Title = x.Dq.Title,
+            Type = x.Dq.Type,
+            Progress = x.Uq.Progress,
+            Target = GetTarget(x.Dq.ConditionJson),
+            Claimed = x.Uq.Claimed,
+            Reward = GetReward(x.Dq.RewardJson)
         }).ToList();
 
         return Result<List<QuestDto>>.Ok(questDtos);
+    }
+
+    /// <summary>Bản ghi quest hôm nay + template (dùng cho sync Progress — finding #6).</summary>
+    private sealed record QuestRow(UserQuest Uq, DailyQuest Dq);
+
+    /// <summary>
+    /// Finding #6 (FR-10.3 — "tiến độ TỰ cập nhật theo sự kiện học tập"): sync Progress từ trạng thái THẬT
+    /// khi đọc quest — chỉ TĂNG (UPDATE ... WHERE Progress &lt; actual), không bao giờ giảm. Event hooks
+    /// (QuestProgressWriter.IncrementAsync từ SubmitAsync/SubmitCodeAsync/MarkViewedAsync) tăng +1 ngay khi
+    /// xảy ra; bước này đảm bảo kể cả khi event bị bỏ sót, Progress vẫn đúng khi user mở /me/quests.
+    /// Map ConditionJson key "activity" (xem SeedData.Quests — 8 template FR-10.3A):
+    ///   pass_node      → UserNodeProgress Status=2 (PassedAt trong ngày)
+    ///   pass_quiz      → ExerciseSubmissions hôm nay của exercise type MCQ
+    ///   pass_lab       → ExerciseSubmissions hôm nay của exercise type SimulationLab
+    ///   code_run       → CodeSubmissions hôm nay
+    ///   lesson_viewed  → UserProgress.Viewed (UpdatedAt trong ngày — cũng được set khi nộp bài)
+    ///   streak         → KHÔNG sync: StreakDays là giá trị tích lũy, không phải sự kiện trong ngày
+    /// </summary>
+    private async Task SyncQuestProgressAsync(int userId, DateTime today, List<QuestRow> quests, CancellationToken ct)
+    {
+        var byActivity = new Dictionary<string, List<QuestRow>>(StringComparer.Ordinal);
+        foreach (var row in quests)
+        {
+            var activity = GetQuestActivity(row.Dq.ConditionJson);
+            if (activity is null)
+            {
+                continue;
+            }
+
+            if (!byActivity.TryGetValue(activity, out var list))
+            {
+                byActivity[activity] = list = [];
+            }
+
+            list.Add(row);
+        }
+
+        if (byActivity.Count == 0)
+        {
+            return;
+        }
+
+        var dayStartUtc = today.AddHours(-7);      // 00:00 UTC+7 = 17:00 UTC hôm trước (PassedAt/SubmittedAt/UpdatedAt lưu UTC)
+        var dayEndUtc = dayStartUtc.AddDays(1);
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        if (byActivity.ContainsKey("pass_node"))
+        {
+            counts["pass_node"] = await db.UserNodeProgress.AsNoTracking()
+                .CountAsync(p => p.UserId == userId && p.Status == 2 && p.PassedAt >= dayStartUtc && p.PassedAt < dayEndUtc, ct);
+        }
+
+        if (byActivity.ContainsKey("pass_quiz") || byActivity.ContainsKey("pass_lab"))
+        {
+            var submissions = db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.SubmittedAt >= dayStartUtc && s.SubmittedAt < dayEndUtc)
+                .Join(db.Exercises.AsNoTracking(), s => s.ExerciseId, e => e.Id, (s, e) => e.Type);
+            if (byActivity.ContainsKey("pass_quiz"))
+            {
+                counts["pass_quiz"] = await submissions.CountAsync(t => t == ExerciseType.Mcq, ct);
+            }
+
+            if (byActivity.ContainsKey("pass_lab"))
+            {
+                counts["pass_lab"] = await submissions.CountAsync(t => t == ExerciseType.SimulationLab, ct);
+            }
+        }
+
+        if (byActivity.ContainsKey("code_run"))
+        {
+            counts["code_run"] = await db.CodeSubmissions.AsNoTracking()
+                .CountAsync(s => s.UserId == userId && s.SubmittedAt >= dayStartUtc && s.SubmittedAt < dayEndUtc, ct);
+        }
+
+        if (byActivity.ContainsKey("lesson_viewed"))
+        {
+            counts["lesson_viewed"] = await db.UserProgress.AsNoTracking()
+                .CountAsync(p => p.UserId == userId && p.Viewed && p.UpdatedAt >= dayStartUtc && p.UpdatedAt < dayEndUtc, ct);
+        }
+
+        foreach (var (activity, rows) in byActivity)
+        {
+            if (!counts.TryGetValue(activity, out var actual) || actual <= 0)
+            {
+                continue;
+            }
+
+            foreach (var row in rows)
+            {
+                if (row.Uq.Progress >= actual)
+                {
+                    continue;
+                }
+
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE UserQuests SET Progress = {actual} WHERE Id = {row.Uq.Id} AND Progress < {actual}", ct);
+                row.Uq.Progress = actual;   // DTO đọc đúng giá trị vừa sync
+            }
+        }
+    }
+
+    private static string? GetQuestActivity(string conditionJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(conditionJson);
+            return doc.RootElement.TryGetProperty("activity", out var activity) && activity.ValueKind == JsonValueKind.String
+                ? activity.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public async Task<Result<QuestClaimResultDto>> ClaimQuestAsync(int userId, int questId, CancellationToken ct)
@@ -394,7 +547,8 @@ public sealed class GamificationService(
     // ── Leaderboard ───────────────────────────────────────────
 
     public async Task<Result<PagedResponse<LeaderboardEntryDto>>> GetLeaderboardAsync(
-        string tab, int? classId, int page, int pageSize, CancellationToken ct)
+        string tab, int? classId, int page, int pageSize, CancellationToken ct = default,
+        int? lastXp = null, int? lastId = null)
     {
         var (safePage, safeSize) = Pagination.Normalize(page, pageSize);
 
@@ -419,11 +573,10 @@ public sealed class GamificationService(
                             "Thiếu classId cho tab lớp", new() { ["classId"] = ["Thiếu classId cho tab lớp"] });
                     }
 
-                    var memberIds = await db.ClassMembers.AsNoTracking()
-                        .Where(m => m.ClassId == classId)
-                        .Select(m => m.UserId)
-                        .ToListAsync(ct);
-                    query = query.Where(u => memberIds.Contains(u.Id));
+                    // perf#11: EXISTS subquery thay vì tải toàn bộ memberIds về app rồi IN-list
+                    // (1 round-trip; lớp đông không tạo IN-list lớn) — index (ClassId, UserId) có sẵn.
+                    query = query.Where(u => db.ClassMembers.AsNoTracking()
+                        .Any(m => m.ClassId == classId && m.UserId == u.Id));
                     break;
                 }
             default:   // level
@@ -431,9 +584,24 @@ public sealed class GamificationService(
         }
 
         var total = await query.CountAsync(ct);
-        var rows = await query
-            .OrderByDescending(u => u.Xp).ThenBy(u => u.Id)
-            .Skip((safePage - 1) * safeSize).Take(safeSize)
+
+        // perf#4: keyset/cursor — (Xp < @lastXp) OR (Xp = @lastXp AND Id < @lastId) ORDER BY Xp DESC, Id DESC.
+        // lastXp/lastId = phần tử CUỐI trang trước (client truyền kèm page). Không có cursor → fallback
+        // offset (contract page/size cũ giữ nguyên — test bảo vệ không đổi). ThenByDescending(Id) làm
+        // tie-break Xp trùng DETERMINISTIC (khớp keyset; trước đây ThenBy(Id) — thứ tự tie không chốt).
+        var ordered = query.OrderByDescending(u => u.Xp).ThenByDescending(u => u.Id);
+        IQueryable<User> paged;
+        if (lastXp is not null && lastId is not null)
+        {
+            paged = ordered.Where(u => u.Xp < lastXp.Value || (u.Xp == lastXp.Value && u.Id < lastId.Value));
+        }
+        else
+        {
+            paged = ordered.Skip((safePage - 1) * safeSize);
+        }
+
+        var rows = await paged
+            .Take(safeSize)
             .Select(u => new { u.Id, u.DisplayName, u.Xp })
             .ToListAsync(ct);
 
@@ -490,17 +658,6 @@ public sealed class GamificationService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Kiểm tra maxStack (FR-10.2)
-        var inventory = await db.UserInventory
-            .FirstOrDefaultAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
-        var currentQty = inventory?.Quantity ?? 0;
-        if (currentQty >= item.MaxStack)
-        {
-            await tx.RollbackAsync(ct);
-            return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
-                "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
-        }
-
         // Trừ gems atomic — UPDATE điều kiện chống double-spend (FR-10.2)
         var affected = await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE Users SET Gems = Gems - {item.PriceGems} WHERE Id = {userId} AND Gems >= {item.PriceGems}", ct);
@@ -510,9 +667,26 @@ public sealed class GamificationService(
             return Result<ShopBuyResultDto>.Fail(ErrorCodes.INSUFFICIENT_GEMS, "Không đủ gems để mua vật phẩm này");
         }
 
-        if (inventory is null)
+        // Finding #4: inventory tăng bằng 1 UPDATE atomic DUY NHẤT (Quantity + 1 WHERE Quantity < MaxStack) —
+        // 2 mua song song không thể cùng đọc qty=4 < 5 rồi ghi 5 (lost-update) / vượt stack / trừ gems 2 lần.
+        var invAffected = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE UserInventory SET Quantity = Quantity + 1 WHERE UserId = {userId} AND ItemId = {itemId} AND Quantity < {item.MaxStack}", ct);
+
+        if (invAffected == 0)
         {
-            db.UserInventory.Add(new UserInventory
+            var exists = await db.UserInventory.AsNoTracking()
+                .AnyAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
+            if (exists)
+            {
+                // ROWCOUNT=0 mà đã có dòng → đạt giới hạn MaxStack → hoàn gems (rollback)
+                await tx.RollbackAsync(ct);
+                return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+            }
+
+            // Lần mua đầu — INSERT. Race 2 request mua lần đầu song song → 1 bên vi phạm
+            // UNIQUE(UserId,ItemId) → bắt DbUpdateException → retry UPDATE atomic (chống double-INSERT).
+            var inventory = new UserInventory
             {
                 UserId = userId,
                 ItemId = itemId,
@@ -520,11 +694,24 @@ public sealed class GamificationService(
                 IsEquipped = false,
                 PurchasedAt = clock.UtcNow,
                 ExpiresAt = item.DurationHours is { } hours ? clock.UtcNow.AddHours(hours) : null
-            });
-        }
-        else
-        {
-            inventory.Quantity += 1;
+            };
+            db.UserInventory.Add(inventory);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                db.Entry(inventory).State = EntityState.Detached;   // dòng đã tồn tại (INSERT trùng) → không INSERT lại
+                var retried = await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE UserInventory SET Quantity = Quantity + 1 WHERE UserId = {userId} AND ItemId = {itemId} AND Quantity < {item.MaxStack}", ct);
+                if (retried == 0)
+                {
+                    await tx.RollbackAsync(ct);
+                    return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                        "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+                }
+            }
         }
 
         // Log giao dịch CÙNG transaction (append-only, SDD §7.3.27)
@@ -542,7 +729,10 @@ public sealed class GamificationService(
         await tx.CommitAsync(ct);
 
         var gemsLeft = await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Gems).FirstAsync(ct);
-        var newQty = currentQty + 1;
+        var newQty = await db.UserInventory.AsNoTracking()
+            .Where(i => i.UserId == userId && i.ItemId == itemId)
+            .Select(i => i.Quantity)
+            .FirstAsync(ct);
         logger.LogInformation("User {UserId} bought item {ItemId} ({ItemKey})", userId, itemId, item.ItemKey);
 
         return Result<ShopBuyResultDto>.Ok(new ShopBuyResultDto
@@ -622,7 +812,17 @@ public sealed class GamificationService(
             ownedRow.IsEquipped = ownedRow.ItemId == request.ItemId;
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: equip song song trên cùng dòng UserInventory → RowVersion đổi → 409 CONFLICT
+            // (thay vì last-write-wins mất cập nhật IsEquipped).
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
         logger.LogInformation("User {UserId} equipped item {ItemId}", userId, request.ItemId);
         return Result.Ok();
     }
@@ -687,7 +887,7 @@ public sealed class GamificationService(
 
     public async Task<Result<PremiumStatusDto>> MockPayAsync(int userId, PremiumMockPayRequest request, CancellationToken ct)
     {
-        var subscription = await db.PremiumSubscriptions
+        var subscription = await db.PremiumSubscriptions.AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.OrderId && s.UserId == userId, ct);
         if (subscription is null)
         {
@@ -707,8 +907,30 @@ public sealed class GamificationService(
         var baseTime = user.PremiumUntil > clock.UtcNow ? user.PremiumUntil.Value : clock.UtcNow;
         var expiresAt = baseTime.AddMonths(months.Value);
 
-        subscription.Status = 0;                 // active
-        subscription.ExpiresAt = expiresAt;
+        // Finding #7: kích hoạt bằng UPDATE ĐIỀU KIỆN (WHERE Status = 2) — mock-pay 2 lần cùng order:
+        // lần 2 ROWCOUNT=0 → KHÔNG gia hạn chồng (idempotent), không ghi đè subscription/user.
+        var activated = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE PremiumSubscriptions SET Status = 0, ExpiresAt = {expiresAt} WHERE Id = {request.OrderId} AND UserId = {userId} AND Status = 2", ct);
+        if (activated == 0)
+        {
+            await tx.RollbackAsync(ct);
+            var current = await db.PremiumSubscriptions.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == request.OrderId && s.UserId == userId, ct);
+            // Idempotent: order đã active → trả trạng thái hiện tại (200), KHÔNG gia hạn thêm
+            if (current?.Status == 0 && current.ExpiresAt is { } currentExpiresAt && currentExpiresAt > clock.UtcNow)
+            {
+                return Result<PremiumStatusDto>.Ok(new PremiumStatusDto
+                {
+                    PlanId = current.PlanId,
+                    StartedAt = current.StartedAt,
+                    ExpiresAt = currentExpiresAt,
+                    Status = "active"
+                });
+            }
+
+            return Result<PremiumStatusDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Đơn hàng đã được kích hoạt");
+        }
+
         user.PremiumUntil = expiresAt;
         user.HeartsMax = 30;                     // Premium 30 tim (FR-10.7)
 
@@ -722,7 +944,17 @@ public sealed class GamificationService(
             CreatedAt = clock.UtcNow
         });
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng Users đổi (RowVersion) giữa lúc đọc và ghi → rollback, 409 CONFLICT
+            await tx.RollbackAsync(ct);
+            return Result<PremiumStatusDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
         await tx.CommitAsync(ct);
 
         logger.LogInformation("Premium activated for user {UserId} until {ExpiresAt}", userId, expiresAt);
@@ -791,11 +1023,17 @@ public sealed class GamificationService(
         });
         await db.SaveChangesAsync(ct);
 
+        // perf#18: catalog là dictionary in-memory — gọi GetListAsync 1 lần rồi lookup thay vì
+        // GetByKeyAsync từng lượt trong foreach (không phải N+1 DB nhưng bỏ overhead vòng lặp).
+        var catalogResult = await catalog.GetListAsync(ct);
+        var catalogByKey = catalogResult.IsSuccess
+            ? catalogResult.Value!.ToDictionary(s => s.Key, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, SimulationMetaDto>(StringComparer.OrdinalIgnoreCase);
+
         var fitted = new Dictionary<string, string>();
         foreach (var key in request.Keys)
         {
-            var meta = await catalog.GetByKeyAsync(key, ct);
-            fitted[key] = meta.IsSuccess ? meta.Value!.Complexity.Average : "O(n log n)";
+            fitted[key] = catalogByKey.TryGetValue(key, out var meta) ? meta.Complexity.Average : "O(n log n)";
         }
 
         var conclusion = BuildConclusion(request.Results);
@@ -835,22 +1073,54 @@ public sealed class GamificationService(
     }
 
     /// <summary>
-    /// Cấu hình tim: Premium 10 phút/tim (max 30), Free 30 phút/tim (max HeartsMax) — FR-10.1, SDD §8.4A.
+    /// Cấu hình tim: Premium 10 phút/tim (max 30), Free 30 phút/tim (max HeartsMax, lưới an toàn clamp ≤ 10) — FR-10.1, SDD §8.4A.
+    /// BUG-1: khi hết hạn premium, Math.Min(user.HeartsMax, 10) chặn quyền lợi 30 tim "đọng" trong DB (downgrade lazy đã
+    /// đồng bộ xuống DB tại EnsureHeartsMaxSyncAsync — đây là lớp an toàn cho mọi caller dùng user stale).
     /// </summary>
     private static (int MaxHearts, int RegenSeconds) HeartConfig(User user, DateTime now)
     {
         var isPremium = user.PremiumUntil > now;
-        return (isPremium ? 30 : user.HeartsMax, isPremium ? 600 : 1800);
+        return (isPremium ? 30 : Math.Min(user.HeartsMax, 10), isPremium ? 600 : 1800);
+    }
+
+    /// <summary>
+    /// BUG-1 (lazy downgrade — quyết định ghi decision log): premium đã hết hạn mà HeartsMax vẫn 30 trong DB
+    /// (không có job downgrade) → đồng bộ xuống DB bằng 1 UPDATE atomic (chỉ chạy khi cần), rồi clamp giá trị
+    /// cached để mọi logic tiếp theo dùng đúng. Idempotent: WHERE PremiumUntil <= now AND HeartsMax > 10.
+    /// </summary>
+    private async Task EnsureHeartsMaxSyncAsync(User user, CancellationToken ct)
+    {
+        var now = clock.UtcNow;
+        if (user.PremiumUntil > now || user.HeartsMax <= 10)
+        {
+            return;
+        }
+
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Users SET HeartsMax = 10, Hearts = CASE WHEN Hearts > 10 THEN 10 ELSE Hearts END WHERE Id = {user.Id} AND PremiumUntil <= {now} AND HeartsMax > 10", ct);
+        user.HeartsMax = 10;
+        user.Hearts = Math.Min(user.Hearts, 10);
     }
 
     /// <summary>
     /// Ghi regen tim xuống DB (F5-Major): elapsed ≥ 1 chu kỳ regen → UPDATE Hearts + LastHeartAt.
     /// Dùng raw SQL (không qua EF tracking) để khớp chuỗi UPDATE atomic trừ tim.
     /// Tim đã đầy → không cập nhật (tránh dời LastHeartAt làm sai NextHeartInSeconds).
+    /// Finding #2: UPDATE có điều kiện (delta + CASE clamp max + WHERE LastHeartAt <= giá trị ĐÃ ĐỌC) —
+    /// không ghi đè Hearts từ read stale khi có request khác vừa trừ/regen (lost-update → "trả lại tim").
     /// </summary>
     private async Task PersistHeartRegenAsync(int userId, CancellationToken ct)
     {
         var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+        await PersistHeartRegenAsync(user, ct);
+    }
+
+    /// <summary>perf#22: bản entity-reuse — caller đã đọc user rồi (VD EnterNodeAsync) → khỏi đọc lại.</summary>
+    private async Task PersistHeartRegenAsync(User user, CancellationToken ct)
+    {
+        // BUG-1: đồng bộ downgrade trước khi tính regen (HeartsMax 30 → 10 + clamp Hearts)
+        await EnsureHeartsMaxSyncAsync(user, ct);
+
         var now = clock.UtcNow;
         var (maxHearts, regenSeconds) = HeartConfig(user, now);
 
@@ -863,9 +1133,10 @@ public sealed class GamificationService(
             return;
         }
 
-        var hearts = Math.Min(maxHearts, user.Hearts + regenCount);
+        // Delta tính từ giá trị đã đọc, clamp để không bao giờ vượt max (Hearts + regenCount ≤ maxHearts)
+        regenCount = Math.Min(regenCount, maxHearts - user.Hearts);
         await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE Users SET Hearts = {hearts}, LastHeartAt = {now} WHERE Id = {userId}", ct);
+            $"UPDATE Users SET Hearts = CASE WHEN Hearts < {maxHearts} THEN Hearts + {regenCount} ELSE Hearts END, LastHeartAt = {now} WHERE Id = {user.Id} AND Hearts < {maxHearts} AND LastHeartAt <= {lastHeartAt}", ct);
     }
 
     private async Task<int> GetCurrentHeartsAsync(int userId, CancellationToken ct)
@@ -875,6 +1146,32 @@ public sealed class GamificationService(
         var user = await db.Users.AsNoTracking()
             .FirstAsync(u => u.Id == userId, ct);
         return ComputeHearts(user).Hearts;
+    }
+
+    /// <summary>
+    /// exc#3: true khi DbUpdateException là unique violation ĐÚNG của NodeSessions (resume hợp lệ):
+    /// SQL Server — SqlException 2601/2627 có message chứa "NodeSessions" (constraint IX_NodeSessions_UserId_NodeId);
+    /// SQLite (unit test) — message "UNIQUE constraint failed: NodeSessions...". Vi phạm constraint khác
+    /// (trigger RAISE(ABORT), FK, check...) → false → rethrow, KHÔNG nuốt lỗi DB thật.
+    /// </summary>
+    private static bool IsUniqueViolationForNodeSession(DbUpdateException ex)
+    {
+        for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is SqlException { Number: 2601 or 2627 }
+                && inner.Message.Contains("NodeSessions", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (inner.Message.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
+                && inner.Message.Contains("NodeSessions", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<bool> IsPreviousNodePassedAsync(int userId, LearningPathNode node, CancellationToken ct)

@@ -3,6 +3,9 @@ using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +19,10 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/feedback")]
 [Authorize]
-public class FeedbackController(AppDbContext db) : ApiControllerBase
+public class FeedbackController(
+    AppDbContext db,
+    IValidator<FeedbackRequest> feedbackValidator,
+    IHtmlSanitizer htmlSanitizer) : ApiControllerBase
 {
     private readonly AppDbContext _db = db;
 
@@ -30,23 +36,33 @@ public class FeedbackController(AppDbContext db) : ApiControllerBase
             return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
         }
 
-        var rows = await _db.ContentFeedback.AsNoTracking()
+        // perf#21: đẩy aggregate xuống SQL (COUNT + AVG trong GROUP BY) — trước đây tải TOÀN BỘ
+        // ContentFeedback của lesson về memory rồi Average/Count (lesson đông feedback = tốn RAM/network).
+        // Math.Round tính trong memory (1 dòng kết quả — không cần dịch xuống SQL).
+        var aggregate = await _db.ContentFeedback.AsNoTracking()
             .Where(f => f.LessonId == lessonId)
-            .ToListAsync(ct);
+            .GroupBy(f => f.LessonId)
+            .Select(g => new { Count = g.Count(), Avg = g.Average(f => f.Rating) })
+            .FirstOrDefaultAsync(ct);
+
+        var count = aggregate?.Count ?? 0;
         return Ok(new FeedbackSummaryDto
         {
             LessonId = lessonId,
-            AvgRating = rows.Count > 0 ? Math.Round(rows.Average(f => f.Rating), 1) : 0,
-            Count = rows.Count
+            AvgRating = count > 0 ? Math.Round(aggregate!.Avg, 1) : 0,
+            Count = count
         });
     }
 
     [HttpPost]
     public async Task<ActionResult> Submit([FromBody] FeedbackRequest request, CancellationToken ct)
     {
-        if (request.Rating is < 1 or > 5)
+        // Finding security#12: FeedbackRequestValidator (đăng ký từ trước nhưng controller không dùng —
+        // validator "chết"); wire vào đây để thay check tay rải rác.
+        var invalid = await ValidateRequestAsync(feedbackValidator, request, ct);
+        if (invalid is not null)
         {
-            return BadRequest(new { error = new { code = "VALIDATION_FAILED", message = "Đánh giá phải từ 1 đến 5 sao", field = "rating", details = Array.Empty<string>() } });
+            return invalid;
         }
 
         var lessonExists = await _db.Lessons.AsNoTracking()
@@ -64,6 +80,9 @@ public class FeedbackController(AppDbContext db) : ApiControllerBase
             return StatusCode(403, new { error = new { code = "FORBIDDEN", message = "Bạn cần học bài này trước khi đánh giá", field = (string?)null, details = Array.Empty<string>() } });
         }
 
+        // Finding security#8: sanitize Comment trước khi lưu (chống stored XSS).
+        var comment = string.IsNullOrWhiteSpace(request.Comment) ? null : htmlSanitizer.Sanitize(request.Comment);
+
         var now = DateTime.UtcNow;
         var feedback = await _db.ContentFeedback
             .FirstOrDefaultAsync(f => f.UserId == CurrentUserId() && f.LessonId == request.LessonId, ct);
@@ -74,7 +93,7 @@ public class FeedbackController(AppDbContext db) : ApiControllerBase
                 UserId = CurrentUserId(),
                 LessonId = request.LessonId,
                 Rating = request.Rating,
-                Comment = request.Comment,
+                Comment = comment,
                 CreatedAt = now
             };
             _db.ContentFeedback.Add(feedback);
@@ -82,7 +101,7 @@ public class FeedbackController(AppDbContext db) : ApiControllerBase
         else
         {
             feedback.Rating = request.Rating;
-            feedback.Comment = request.Comment;
+            feedback.Comment = comment;
             feedback.UpdatedAt = now;
         }
 
@@ -95,23 +114,30 @@ public class FeedbackController(AppDbContext db) : ApiControllerBase
 [ApiVersion("1.0")]
 [Route("api/v1/bug-reports")]
 [Authorize]
-public class BugReportsController(AppDbContext db) : ApiControllerBase
+public class BugReportsController(
+    AppDbContext db,
+    IValidator<BugReportRequest> validator,
+    IHtmlSanitizer htmlSanitizer) : ApiControllerBase
 {
     private readonly AppDbContext _db = db;
 
     [HttpPost]
     public async Task<ActionResult<BugReportDto>> Create([FromBody] BugReportRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Description) || request.Description.Length > 2000)
+        // Finding security#12: validator thay check tay (Description bắt buộc, ≤ 2000).
+        var invalid = await ValidateRequestAsync(validator, request, ct);
+        if (invalid is not null)
         {
-            return BadRequest(new { error = new { code = "VALIDATION_FAILED", message = "Mô tả bắt buộc, tối đa 2000 ký tự", field = "description", details = Array.Empty<string>() } });
+            return invalid;
         }
 
+        // Finding security#8: sanitize Description + Context trước khi lưu — bug report hiển thị
+        // cho Admin (GetList/UpdateStatus trả về) → chống stored XSS vào màn hình admin.
         var report = new BugReport
         {
             UserId = CurrentUserId(),
-            Description = request.Description.Trim(),
-            ContextJson = request.Context,
+            Description = htmlSanitizer.Sanitize(request.Description.Trim()),
+            ContextJson = string.IsNullOrWhiteSpace(request.Context) ? null : htmlSanitizer.Sanitize(request.Context),
             Status = BugReportStatus.New,
             CreatedAt = DateTime.UtcNow
         };

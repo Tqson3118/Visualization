@@ -3,8 +3,6 @@ using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace DsaVisual.Api.Controllers;
 
@@ -16,7 +14,7 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/lessons")]
 [Authorize]
-public class LessonsController(ILessonService service) : ControllerBase
+public class LessonsController(ILessonService service) : ApiControllerBase
 {
     private readonly ILessonService _service = service;
 
@@ -85,8 +83,4 @@ public class LessonsController(ILessonService service) : ControllerBase
         var result = await _service.AddFeedbackAsync(CurrentUserId(), CurrentRole(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
-
-    private int CurrentUserId() => int.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value);
-
-    private string CurrentRole() => User.FindFirst(ClaimTypes.Role)!.Value;
 }

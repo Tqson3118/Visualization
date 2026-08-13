@@ -107,6 +107,12 @@ public sealed class ExerciseService(
             return Result<ExerciseDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
+        // findings-security #11: ownership lesson — chỉ chủ bài học (hoặc ADMIN) tạo bài tập trong bài học
+        if (lesson.CreatedBy != userId && !await IsAdminUserAsync(userId, ct))
+        {
+            return Result<ExerciseDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền tạo bài tập trong bài học này");
+        }
+
         if (request.NodeId is { } nodeId)
         {
             var node = await db.LearningPathNodes.AsNoTracking()
@@ -165,6 +171,12 @@ public sealed class ExerciseService(
         if (lesson is null)
         {
             return Result<ExerciseDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        // findings-security #11: không cho đổi LessonId sang bài học không sở hữu (trừ ADMIN)
+        if (!CanManageLesson(userId, role, lesson))
+        {
+            return Result<ExerciseDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền tạo bài tập trong bài học này");
         }
 
         exercise.LessonId = request.LessonId;
@@ -233,7 +245,7 @@ public sealed class ExerciseService(
             return Result<SubmitResultDto>.Fail(ErrorCodes.EXERCISE_CLOSED, "Bài tập không còn nhận bài nộp");
         }
 
-        using var submissionLock = locks.TryAcquire(userId, id);
+        using var submissionLock = locks.TryAcquire(userId, id, SubmissionLockWait);
         if (submissionLock is null)
         {
             return Result<SubmitResultDto>.Fail(ErrorCodes.SUBMISSION_IN_PROGRESS, "Đang có bài nộp đồng thời");
@@ -299,6 +311,7 @@ public sealed class ExerciseService(
         }
 
         var now = clock.UtcNow;
+        var maxScore = exercise.Questions.Sum(q => q.Points);
         var score = 0;
         var results = new List<QuestionResultDto>();
 
@@ -324,11 +337,40 @@ public sealed class ExerciseService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
+        // Fix Đợt D (review Major #1): idempotency key OPTIONAL — pre-check CHỈ khi ClientRequestId != null
+        // (retry cùng key → trả submission cũ, idempotent). ClientRequestId == null → MỌI lần nộp là lần mới
+        // (re-attempt cải thiện điểm hợp lệ FR-4.4/FR-9.5); double-submit single-instance do
+        // SubmissionLockRegistry chống (multi-instance không key: ghi chú NFR-12).
+        if (!string.IsNullOrWhiteSpace(request.ClientRequestId))
+        {
+            var idempotent = await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == id
+                    && s.ClassAssignmentId == request.ClassAssignmentId
+                    && s.ClientRequestId == request.ClientRequestId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (idempotent is not null)
+            {
+                logger.LogInformation("Idempotent submit (clientRequestId {ClientRequestId}, user {UserId}, exercise {ExerciseId}) — returning submission {SubmissionId}",
+                    request.ClientRequestId, userId, id, idempotent.Id);
+                return Result<SubmitResultDto>.Ok(new SubmitResultDto
+                {
+                    Score = idempotent.Score,
+                    MaxScore = maxScore,
+                    Passed = idempotent.Score == maxScore,
+                    Results = DeserializeResults(idempotent.ResultJson, results),
+                    SubmissionId = idempotent.Id,
+                    SubmittedAt = idempotent.SubmittedAt
+                });
+            }
+        }
+
         var submission = new ExerciseSubmission
         {
             UserId = userId,
             ExerciseId = id,
             ClassAssignmentId = request.ClassAssignmentId,
+            ClientRequestId = request.ClientRequestId,
             Score = score,
             AnswersJson = JsonSerializer.Serialize(request.Answers),
             ResultJson = resultJson,
@@ -337,29 +379,87 @@ public sealed class ExerciseService(
         };
         db.ExerciseSubmissions.Add(submission);
 
+        ExerciseSubmission stored;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            stored = submission;
+        }
+        catch (DbUpdateException ex) when (request.ClientRequestId is not null && IsUniqueViolation(ex))
+        {
+            // Chỉ có thể unique violation khi có ClientRequestId (index filtered IS NOT NULL — không có key
+            // thì không unique → mọi lỗi khác lan ra như bình thường). Multi-instance race CÙNG key:
+            // instance khác vừa commit — rollback + dùng bản ghi đó (idempotent).
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            var winner = await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == id
+                    && s.ClassAssignmentId == request.ClassAssignmentId
+                    && s.ClientRequestId == request.ClientRequestId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (winner is null)
+            {
+                return Result<SubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+            }
+
+            logger.LogWarning("Unique violation on idempotent submit (clientRequestId {ClientRequestId}, user {UserId}, exercise {ExerciseId}) — reusing submission {SubmissionId}",
+                request.ClientRequestId, userId, id, winner.Id);
+            return await MergeDuplicateProgressAndReturnAsync(userId, exercise, score, now, winner, resultJson, results, ct);
+        }
+
         // Upsert UserProgress (BestScore = max) — SDD §7.3.4
         await UpsertUserProgressAsync(userId, exercise.LessonId, score, now, ct);
 
         // Cập nhật UserNodeProgress trong CÙNG transaction (SDD §7.3.30 — v2.9)
+        var nodeJustPassed = false;
         if (exercise.NodeId is { } nodeId2)
         {
+            // Finding #6: chỉ tính quest pass_node khi node VỪA chuyển sang passed (Status 1→2) —
+            // nộp lại bài của node đã pass không tăng thêm (anti double-count)
+            nodeJustPassed = !await db.UserNodeProgress.AsNoTracking()
+                .AnyAsync(p => p.UserId == userId && p.NodeId == nodeId2 && p.Status == 2, ct);
             await UpsertNodeProgressAsync(userId, nodeId2, score, exercise.Questions.Sum(q => q.Points), now, ct);
         }
 
-        await db.SaveChangesAsync(ct);
+        // findings-biz #7: race RowVersion (hoặc unique) trên UserProgress/UserNodeProgress —
+        // reload dữ liệu mới + merge (Status pass giữ 2, Stars/NodeScore lấy max) rồi lưu lại,
+        // KHÔNG rollback submission (pass không được mất vì lỗi concurrency)
+        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, score, maxScore, now, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return Result<SubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        // Finding #6 (FR-10.3): tăng Progress quest CÙNG transaction với hành động học (raw SQL trong ambient tx)
+        var passed = score == maxScore;
+        if (exercise.Type == ExerciseType.Mcq)
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_quiz", ct);
+        }
+        else if (exercise.Type == ExerciseType.SimulationLab)
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_lab", ct);
+        }
+
+        if (passed && nodeJustPassed && exercise.NodeId is { })
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+        }
+
         await tx.CommitAsync(ct);
 
         logger.LogInformation("Submission {SubmissionId} for exercise {ExerciseId} by user {UserId} score {Score}",
-            submission.Id, id, userId, score);
+            stored.Id, id, userId, stored.Score);
 
         return Result<SubmitResultDto>.Ok(new SubmitResultDto
         {
-            Score = score,
-            MaxScore = exercise.Questions.Sum(q => q.Points),
-            Passed = score == exercise.Questions.Sum(q => q.Points),
-            Results = results,
-            SubmissionId = submission.Id,
-            SubmittedAt = now
+            Score = stored.Score,
+            MaxScore = maxScore,
+            Passed = stored.Score == maxScore,
+            Results = DeserializeResults(stored.ResultJson, results),
+            SubmissionId = stored.Id,
+            SubmittedAt = stored.SubmittedAt
         });
     }
 
@@ -387,6 +487,12 @@ public sealed class ExerciseService(
         if (lesson is null)
         {
             return Result<ImportCsvResultDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        // findings-security #11: ownership lesson — chỉ chủ bài học (hoặc ADMIN) import vào bài học
+        if (lesson.CreatedBy != userId && !await IsAdminUserAsync(userId, ct))
+        {
+            return Result<ImportCsvResultDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền tạo bài tập trong bài học này");
         }
 
         var result = new ImportCsvResultDto();
@@ -469,7 +575,8 @@ public sealed class ExerciseService(
     // ── Lịch sử bài nộp ───────────────────────────────────────
 
     public async Task<Result<PagedResponse<SubmissionSummaryDto>>> GetSubmissionsAsync(
-        int userId, string role, int id, int page, int pageSize, CancellationToken ct)
+        int userId, string role, int id, int page, int pageSize, CancellationToken ct = default,
+        DateTime? lastSubmittedAt = null, int? lastId = null)
     {
         var exercise = await db.Exercises.AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == id && e.DeletedAt == null, ct);
@@ -483,13 +590,15 @@ public sealed class ExerciseService(
             return Result<PagedResponse<SubmissionSummaryDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài nộp của bài tập này");
         }
 
-        return await QuerySubmissionsAsync(id, page, pageSize, includeUser: true, ct: ct);
+        return await QuerySubmissionsAsync(id, page, pageSize, includeUser: true, ct: ct, lastSubmittedAt: lastSubmittedAt, lastId: lastId);
     }
 
     public async Task<Result<PagedResponse<SubmissionSummaryDto>>> GetMySubmissionsAsync(
-        int userId, int id, int page, int pageSize, CancellationToken ct)
+        int userId, int id, int page, int pageSize, CancellationToken ct = default,
+        DateTime? lastSubmittedAt = null, int? lastId = null)
     {
-        return await QuerySubmissionsAsync(id, page, pageSize, includeUser: false, userId: userId, ct);
+        return await QuerySubmissionsAsync(id, page, pageSize, includeUser: false, userId: userId, ct,
+            lastSubmittedAt: lastSubmittedAt, lastId: lastId);
     }
 
     // ── Nộp code (FR-9.3, ADR-012 — chấm client) ──────────────
@@ -515,51 +624,174 @@ public sealed class ExerciseService(
             return Result<CodeSubmitResultDto>.Fail(ErrorCodes.EXERCISE_CLOSED, "Bài tập không còn nhận bài nộp");
         }
 
-        // Chống nộp trùng per (user, exercise) — SUBMISSION_IN_PROGRESS (F5-Minor — đồng bộ với SubmitAsync)
-        using var submissionLock = locks.TryAcquire(userId, id);
+        // Chống nộp trùng per (user, exercise) — SUBMISSION_IN_PROGRESS (F5-Minor — đồng bộ với SubmitAsync).
+        // Chờ có giới hạn: nếu request trước đang chạy, chờ nó commit rồi vào nhánh idempotent (merge)
+        // thay vì trả 422 ngay — cần cho race PASS+FAIL song song (findings-biz #7).
+        using var submissionLock = locks.TryAcquire(userId, id, SubmissionLockWait);
         if (submissionLock is null)
         {
             return Result<CodeSubmitResultDto>.Fail(ErrorCodes.SUBMISSION_IN_PROGRESS, "Đang có bài nộp đồng thời");
         }
 
+        // findings-biz #6: nộp qua luồng lớp — validate assignment/membership/class Open (đồng bộ SubmitAsync)
+        if (request.ClassAssignmentId is { } assignmentId)
+        {
+            var assignment = await db.ClassAssignments.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == assignmentId, ct);
+            if (assignment is null || assignment.ExerciseId != id)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Bài gán không hợp lệ", new() { ["classAssignmentId"] = ["Bài gán không hợp lệ"] });
+            }
+
+            var classRoom = await db.Classes.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == assignment.ClassId && c.DeletedAt == null, ct);
+            var isMember = await db.ClassMembers.AsNoTracking()
+                .AnyAsync(m => m.ClassId == assignment.ClassId && m.UserId == userId, ct);
+            if (classRoom is null || !isMember)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không thuộc lớp được gán bài tập này");
+            }
+
+            if (classRoom.Status != ClassStatus.Open)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lớp đã đóng, không nhận bài nộp");
+            }
+        }
+
+        // findings-biz #6: ladder — bài code thuộc node phải pass node trước (đồng bộ SubmitAsync)
+        if (exercise.NodeId is { } ladderNodeId && !await IsPreviousNodePassedAsync(userId, ladderNodeId, ct))
+        {
+            return Result<CodeSubmitResultDto>.Fail(ErrorCodes.LADDER_LOCKED, "Chưa pass bậc trước — không mở bậc sau");
+        }
+
         var now = clock.UtcNow;
+        // findings-security #1: clamp Score vào [0, MaxScore] — không tin điểm client mù;
+        // nếu bài không có MaxScore → clamp theo Total client khai
+        var maxScore = exercise.MaxScore > 0 ? exercise.MaxScore : Math.Max(request.Total, 0);
+        var score = Math.Clamp(request.Score, 0, maxScore);
         var resultJson = JsonSerializer.Serialize(request.Results);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        // Fix Đợt D (review Major #1): idempotency key OPTIONAL — pre-check CHỈ khi ClientRequestId != null
+        // (retry cùng key → trả submission cũ, idempotent). ClientRequestId == null → MỌI lần nộp là lần mới
+        // (lịch sử + so sánh 2 lần nộp hợp lệ FR-9.5); double-submit single-instance do SubmissionLockRegistry
+        // chống (multi-instance không key: ghi chú NFR-12).
+        if (!string.IsNullOrWhiteSpace(request.ClientRequestId))
+        {
+            var idempotent = await db.CodeSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == id && s.ClientRequestId == request.ClientRequestId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (idempotent is not null)
+            {
+                logger.LogInformation("Idempotent code submit (clientRequestId {ClientRequestId}, user {UserId}, exercise {ExerciseId}) — returning submission {SubmissionId}",
+                    request.ClientRequestId, userId, id, idempotent.Id);
+                return Result<CodeSubmitResultDto>.Ok(new CodeSubmitResultDto
+                {
+                    Score = idempotent.Score,
+                    Passed = idempotent.PassedTests,
+                    Total = idempotent.TotalTests,
+                    Results = DeserializeCodeResults(idempotent.ResultJson, request.Results),
+                    SubmissionId = idempotent.Id,
+                    SubmittedAt = idempotent.SubmittedAt
+                });
+            }
+        }
 
         var submission = new CodeSubmission
         {
             UserId = userId,
             ExerciseId = id,
+            ClientRequestId = request.ClientRequestId,
             Code = request.Code,
-            Score = request.Score,
+            Score = score,
             PassedTests = request.Passed,
             TotalTests = request.Total,
             ResultJson = resultJson,
+            IsClientDeclared = true,
             SubmittedAt = now
         };
         db.CodeSubmissions.Add(submission);
 
-        await UpsertUserProgressAsync(userId, exercise.LessonId, request.Score, now, ct);
-        await db.SaveChangesAsync(ct);
+        CodeSubmission stored;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            stored = submission;
+        }
+        catch (DbUpdateException ex) when (request.ClientRequestId is not null && IsUniqueViolation(ex))
+        {
+            // Chỉ có thể unique violation khi có ClientRequestId (index filtered IS NOT NULL — không có key
+            // thì không unique → mọi lỗi khác lan ra như bình thường). Multi-instance race CÙNG key:
+            // instance khác vừa commit — rollback + dùng bản ghi đó (idempotent).
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            var winner = await db.CodeSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == id && s.ClientRequestId == request.ClientRequestId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (winner is null)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+            }
+
+            logger.LogWarning("Unique violation on idempotent code submit (clientRequestId {ClientRequestId}, user {UserId}, exercise {ExerciseId}) — reusing submission {SubmissionId}",
+                request.ClientRequestId, userId, id, winner.Id);
+            return await MergeCodeDuplicateProgressAndReturnAsync(userId, exercise, score, maxScore, now, winner, resultJson, request, ct);
+        }
+
+        // findings-biz #5: đồng bộ UserProgress + UserNodeProgress (exercise có NodeId) trong CÙNG transaction
+        var nodeJustPassed = false;
+        if (exercise.NodeId is { } nodeId)
+        {
+            nodeJustPassed = !await db.UserNodeProgress.AsNoTracking()
+                .AnyAsync(p => p.UserId == userId && p.NodeId == nodeId && p.Status == 2, ct);
+        }
+
+        await UpsertUserProgressAsync(userId, exercise.LessonId, score, now, ct);
+        if (exercise.NodeId is { } nid)
+        {
+            await UpsertNodeProgressAsync(userId, nid, score, maxScore, now, ct);
+        }
+
+        // findings-biz #7: retry khi race RowVersion/unique trên progress — pass không được mất
+        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, score, maxScore, now, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return Result<CodeSubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        // Finding #6 (FR-10.3): chạy code thành công → tăng quest code_run (cùng transaction)
+        await QuestProgressWriter.IncrementAsync(db, userId, "code_run", ct);
+
+        // findings-biz #5: node VỪA pass nhờ code-submit → quest pass_node (anti double-count)
+        var passed = score >= maxScore;
+        if (passed && nodeJustPassed && exercise.NodeId is { })
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+        }
+
         await tx.CommitAsync(ct);
 
         logger.LogInformation("Code submission {SubmissionId} for exercise {ExerciseId} by user {UserId}",
-            submission.Id, id, userId);
+            stored.Id, id, userId);
 
         return Result<CodeSubmitResultDto>.Ok(new CodeSubmitResultDto
         {
-            Score = request.Score,
-            Passed = request.Passed,
-            Total = request.Total,
-            Results = request.Results,
-            SubmissionId = submission.Id,
-            SubmittedAt = now
+            Score = stored.Score,
+            Passed = stored.PassedTests,
+            Total = stored.TotalTests,
+            Results = DeserializeCodeResults(stored.ResultJson, request.Results),
+            SubmissionId = stored.Id,
+            SubmittedAt = stored.SubmittedAt
         });
     }
 
     public async Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetCodeSubmissionsAsync(
-        int userId, string role, int id, int page, int pageSize, CancellationToken ct)
+        int userId, string role, int id, int page, int pageSize, CancellationToken ct = default,
+        DateTime? lastSubmittedAt = null, int? lastId = null)
     {
         var exercise = await db.Exercises.AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == id && e.DeletedAt == null, ct);
@@ -573,13 +805,15 @@ public sealed class ExerciseService(
             return Result<PagedResponse<CodeSubmissionSummaryDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài nộp của bài tập này");
         }
 
-        return await QueryCodeSubmissionsAsync(id, page, pageSize, includeUser: true, ct: ct);
+        return await QueryCodeSubmissionsAsync(id, page, pageSize, includeUser: true, ct: ct, lastSubmittedAt: lastSubmittedAt, lastId: lastId);
     }
 
     public async Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetMyCodeSubmissionsAsync(
-        int userId, int id, int page, int pageSize, CancellationToken ct)
+        int userId, int id, int page, int pageSize, CancellationToken ct = default,
+        DateTime? lastSubmittedAt = null, int? lastId = null)
     {
-        return await QueryCodeSubmissionsAsync(id, page, pageSize, includeUser: false, userId: userId, ct);
+        return await QueryCodeSubmissionsAsync(id, page, pageSize, includeUser: false, userId: userId, ct,
+            lastSubmittedAt: lastSubmittedAt, lastId: lastId);
     }
 
     // ── Private ───────────────────────────────────────────────
@@ -705,6 +939,267 @@ public sealed class ExerciseService(
             .AnyAsync(p => p.UserId == userId && p.NodeId == previous.Id && p.Status == 2, ct);   // 2 = Passed
     }
 
+    // ── findings-biz #1/#7 + findings-security #1/#11 — helpers ──
+
+    private const int MaxSaveAttempts = 3;
+
+    /// <summary>
+    /// Chờ tối đa cho lock nộp bài của request trước commit (rồi đi vào nhánh idempotent/merge).
+    /// Ngắn đủ để race test không trễ, dài đủ để request trước (~100-300ms) kịp commit.
+    /// </summary>
+    private static readonly TimeSpan SubmissionLockWait = TimeSpan.FromSeconds(2);
+
+    /// <summary>Phát hiện unique constraint violation (SQL Server: 2601 = duplicate key, 2627 = unique index).</summary>
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        for (var current = ex.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<bool> IsAdminUserAsync(int userId, CancellationToken ct) =>
+        await db.Users.AsNoTracking().AnyAsync(u => u.Id == userId && u.Role == UserRole.Admin, ct);
+
+    private static bool CanManageLesson(int userId, string role, Lesson lesson) =>
+        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) || lesson.CreatedBy == userId;
+
+    /// <summary>
+    /// findings-biz #7: SaveChanges upsert progress với retry — DbUpdateConcurrencyException (RowVersion đổi
+    /// giữa đọc/ghi) hoặc unique violation (2 request cùng Add UserProgress/UserNodeProgress) → reload dữ liệu
+    /// mới + merge lại (Status=2 giữ pass; BestScore/Stars/NodeScore lấy max) rồi lưu lại. Không rollback
+    /// submission đã insert — pass không được mất vì lỗi concurrency.
+    /// </summary>
+    private async Task<bool> SaveProgressWithRetryAsync(
+        int userId, int lessonId, int? nodeId, int score, int nodeMaxScore, DateTime now, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                return true;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (attempt >= MaxSaveAttempts)
+                {
+                    return false;
+                }
+
+                await ReloadAndReapplyProgressAsync(userId, lessonId, nodeId, score, nodeMaxScore, now, ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                if (attempt >= MaxSaveAttempts)
+                {
+                    return false;
+                }
+
+                await ReloadAndReapplyProgressAsync(userId, lessonId, nodeId, score, nodeMaxScore, now, ct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reload các entity progress bị đụng độ (Added → detach rồi đọc lại từ store; Modified → ReloadAsync)
+    /// rồi chạy lại upsert merge với dữ liệu MỚI.
+    /// </summary>
+    private async Task ReloadAndReapplyProgressAsync(
+        int userId, int lessonId, int? nodeId, int score, int nodeMaxScore, DateTime now, CancellationToken ct)
+    {
+        foreach (var entry in db.ChangeTracker.Entries<UserProgress>().Where(e => e.State == EntityState.Added).ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        foreach (var entry in db.ChangeTracker.Entries<UserNodeProgress>().Where(e => e.State == EntityState.Added).ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        foreach (var entry in db.ChangeTracker.Entries<UserProgress>().Where(e => e.State == EntityState.Modified).ToList())
+        {
+            await entry.ReloadAsync(ct);
+        }
+
+        foreach (var entry in db.ChangeTracker.Entries<UserNodeProgress>().Where(e => e.State == EntityState.Modified).ToList())
+        {
+            await entry.ReloadAsync(ct);
+        }
+
+        await UpsertUserProgressAsync(userId, lessonId, score, now, ct);
+        if (nodeId is { } nid)
+        {
+            await UpsertNodeProgressAsync(userId, nid, score, nodeMaxScore, now, ct);
+        }
+    }
+
+    /// <summary>
+    /// Multi-instance race CÙNG idempotency key: request khác vừa commit submission trước (unique violation).
+    /// Merge progress với điểm THỰC CUỐI = max(winner.Score, score hiện tại) (pass/điểm cao hơn thắng);
+    /// quest pass_node chỉ tăng khi CHÍNH request này làm node pass (winner chưa pass — anti double-count);
+    /// response build từ dữ liệu MERGED (Major #2: request thua race nhận đúng kết quả cuối — score cao nhất,
+    /// passed đúng — KHÔNG trả "không đạt" dù node đã pass).
+    /// </summary>
+    private async Task<Result<SubmitResultDto>> MergeDuplicateProgressAndReturnAsync(
+        int userId, Exercise exercise, int score, DateTime now, ExerciseSubmission winner,
+        string resultJson, List<QuestionResultDto> results, CancellationToken ct)
+    {
+        var maxScore = exercise.Questions.Sum(q => q.Points);
+        var mergedScore = Math.Max(winner.Score, score);   // điểm thực cuối sau merge (max — upsert cũng max)
+        var mergedPassed = mergedScore == maxScore;
+
+        // Quest pass_node: nodeJustPassed đọc TRƯỚC khi merge (sau merge Status đã = 2 nên không phát hiện được
+        // "vừa pass"). Chỉ tăng khi request này mang điểm CAO HƠN winner (mergedScore > winner.Score ⟹ winner
+        // không pass ⟹ winner không tăng quest) → không double-count; winner pass (mergedScore == winner.Score)
+        // → winner tự tăng trong luồng của nó. pass_quiz/pass_lab do winner tăng (mọi submission — R3 Đợt A).
+        var nodeJustPassed = false;
+        if (exercise.NodeId is { } nodeId && mergedPassed)
+        {
+            nodeJustPassed = !await db.UserNodeProgress.AsNoTracking()
+                .AnyAsync(p => p.UserId == userId && p.NodeId == nodeId && p.Status == 2, ct);
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await UpsertUserProgressAsync(userId, exercise.LessonId, mergedScore, now, ct);
+        if (exercise.NodeId is { } nodeId2)
+        {
+            await UpsertNodeProgressAsync(userId, nodeId2, mergedScore, maxScore, now, ct);
+        }
+
+        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, mergedScore, maxScore, now, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return Result<SubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        if (mergedPassed && nodeJustPassed && exercise.NodeId is { })
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+        }
+
+        await tx.CommitAsync(ct);
+
+        // Major #2: reload trạng thái cuối (submission winner + điểm merged) → response phản ánh kết quả
+        // THỰC CUỐI. Results lấy theo submission có điểm cao nhất để response tự nhất quán.
+        var final = await db.ExerciseSubmissions.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == winner.Id, ct) ?? winner;
+        var finalScore = Math.Max(final.Score, mergedScore);
+        var bestResults = finalScore == score
+            ? DeserializeResults(resultJson, results)
+            : DeserializeResults(final.ResultJson, []);
+
+        return Result<SubmitResultDto>.Ok(new SubmitResultDto
+        {
+            Score = finalScore,
+            MaxScore = maxScore,
+            Passed = finalScore == maxScore,
+            Results = bestResults,
+            SubmissionId = final.Id,
+            SubmittedAt = final.SubmittedAt
+        });
+    }
+
+    /// <summary>
+    /// Multi-instance race CÙNG idempotency key cho code-submit: merge progress với điểm THỰC CUỐI
+    /// (max — pass/điểm cao hơn thắng), quest pass_node chỉ tăng khi chính request này làm node pass
+    /// (winner chưa pass — anti double-count; code_run do winner tăng trong luồng của nó), response build
+    /// từ dữ liệu MERGED (Major #2: request thua race nhận đúng kết quả cuối, không trả "không đạt").
+    /// </summary>
+    private async Task<Result<CodeSubmitResultDto>> MergeCodeDuplicateProgressAndReturnAsync(
+        int userId, Exercise exercise, int score, int maxScore, DateTime now, CodeSubmission winner,
+        string resultJson, CodeSubmitRequest request, CancellationToken ct)
+    {
+        var mergedScore = Math.Max(winner.Score, score);   // điểm thực cuối sau merge (max)
+        var mergedPassed = mergedScore >= maxScore;
+
+        var nodeJustPassed = false;
+        if (exercise.NodeId is { } nodeId && mergedPassed)
+        {
+            nodeJustPassed = !await db.UserNodeProgress.AsNoTracking()
+                .AnyAsync(p => p.UserId == userId && p.NodeId == nodeId && p.Status == 2, ct);
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await UpsertUserProgressAsync(userId, exercise.LessonId, mergedScore, now, ct);
+        if (exercise.NodeId is { } nodeId2)
+        {
+            await UpsertNodeProgressAsync(userId, nodeId2, mergedScore, maxScore, now, ct);
+        }
+
+        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, mergedScore, maxScore, now, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return Result<CodeSubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        // Quest pass_node: chỉ khi request này mang điểm CAO HƠN winner (winner chưa pass → chưa tăng quest);
+        // code_run do winner tăng (mọi code submit) → không tăng lại (không double-count).
+        if (mergedPassed && nodeJustPassed && exercise.NodeId is { })
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+        }
+
+        await tx.CommitAsync(ct);
+
+        // Major #2: reload trạng thái cuối + response từ dữ liệu merged (score cao nhất, passed đúng).
+        var final = await db.CodeSubmissions.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == winner.Id, ct) ?? winner;
+        var finalScore = Math.Max(final.Score, mergedScore);
+        if (finalScore == score)
+        {
+            return Result<CodeSubmitResultDto>.Ok(new CodeSubmitResultDto
+            {
+                Score = score,
+                Passed = request.Passed,
+                Total = request.Total,
+                Results = DeserializeCodeResults(resultJson, request.Results),
+                SubmissionId = final.Id,
+                SubmittedAt = final.SubmittedAt
+            });
+        }
+
+        return Result<CodeSubmitResultDto>.Ok(new CodeSubmitResultDto
+        {
+            Score = final.Score,
+            Passed = final.PassedTests,
+            Total = final.TotalTests,
+            Results = DeserializeCodeResults(final.ResultJson, []),
+            SubmissionId = final.Id,
+            SubmittedAt = final.SubmittedAt
+        });
+    }
+
+    private static List<QuestionResultDto> DeserializeResults(string resultJson, List<QuestionResultDto> fallback)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<List<QuestionResultDto>>(resultJson) ?? fallback;
+        }
+        catch (JsonException)
+        {
+            return fallback;
+        }
+    }
+
+    private static List<CodeTestCaseResultDto> DeserializeCodeResults(string resultJson, List<CodeTestCaseResultDto> fallback)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<List<CodeTestCaseResultDto>>(resultJson) ?? fallback;
+        }
+        catch (JsonException)
+        {
+            return fallback;
+        }
+    }
+
     private async Task UpsertUserProgressAsync(int userId, int lessonId, int score, DateTime now, CancellationToken ct)
     {
         var progress = await db.UserProgress
@@ -777,7 +1272,8 @@ public sealed class ExerciseService(
     }
 
     private async Task<Result<PagedResponse<SubmissionSummaryDto>>> QuerySubmissionsAsync(
-        int exerciseId, int page, int pageSize, bool includeUser, int? userId = null, CancellationToken ct = default)
+        int exerciseId, int page, int pageSize, bool includeUser, int? userId = null,
+        CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null)
     {
         var (safePage, safeSize) = Pagination.Normalize(page, pageSize);
 
@@ -788,9 +1284,25 @@ public sealed class ExerciseService(
         }
 
         var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderByDescending(s => s.SubmittedAt)
-            .Skip((safePage - 1) * safeSize).Take(safeSize)
+
+        // perf#6: keyset/cursor — (SubmittedAt < @last) OR (SubmittedAt = @last AND Id < @lastId)
+        // ORDER BY SubmittedAt DESC, Id DESC (append-only, trang sâu không OFFSET lại toàn bộ).
+        // Client truyền lastSubmittedAt+lastId = phần tử cuối trang trước; không có → fallback offset
+        // (contract page/size cũ giữ nguyên). ThenByDescending(Id) chốt tie SubmittedAt deterministic.
+        var ordered = query.OrderByDescending(s => s.SubmittedAt).ThenByDescending(s => s.Id);
+        IQueryable<ExerciseSubmission> paged;
+        if (lastSubmittedAt is not null && lastId is not null)
+        {
+            paged = ordered.Where(s => s.SubmittedAt < lastSubmittedAt.Value
+                || (s.SubmittedAt == lastSubmittedAt.Value && s.Id < lastId.Value));
+        }
+        else
+        {
+            paged = ordered.Skip((safePage - 1) * safeSize);
+        }
+
+        var items = await paged
+            .Take(safeSize)
             .Select(s => new SubmissionSummaryDto
             {
                 Id = s.Id,
@@ -819,7 +1331,8 @@ public sealed class ExerciseService(
     }
 
     private async Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> QueryCodeSubmissionsAsync(
-        int exerciseId, int page, int pageSize, bool includeUser, int? userId = null, CancellationToken ct = default)
+        int exerciseId, int page, int pageSize, bool includeUser, int? userId = null,
+        CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null)
     {
         var (safePage, safeSize) = Pagination.Normalize(page, pageSize);
 
@@ -830,9 +1343,22 @@ public sealed class ExerciseService(
         }
 
         var total = await query.CountAsync(ct);
-        var items = await query
-            .OrderByDescending(s => s.SubmittedAt)
-            .Skip((safePage - 1) * safeSize).Take(safeSize)
+
+        // perf#7: keyset/cursor như #6 (append-only) — fallback offset khi không có cursor.
+        var ordered = query.OrderByDescending(s => s.SubmittedAt).ThenByDescending(s => s.Id);
+        IQueryable<CodeSubmission> paged;
+        if (lastSubmittedAt is not null && lastId is not null)
+        {
+            paged = ordered.Where(s => s.SubmittedAt < lastSubmittedAt.Value
+                || (s.SubmittedAt == lastSubmittedAt.Value && s.Id < lastId.Value));
+        }
+        else
+        {
+            paged = ordered.Skip((safePage - 1) * safeSize);
+        }
+
+        var items = await paged
+            .Take(safeSize)
             .Select(s => new CodeSubmissionSummaryDto
             {
                 Id = s.Id,

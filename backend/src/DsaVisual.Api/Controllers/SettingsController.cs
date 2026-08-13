@@ -1,6 +1,8 @@
 using Asp.Versioning;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +16,7 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/settings")]
 [Authorize(Roles = "ADMIN")]
-public class SettingsController(ISettingService service) : ApiControllerBase
+public class SettingsController(ISettingService service, IValidator<SystemSettingsDto> validator) : ApiControllerBase
 {
     private readonly ISettingService _service = service;
 
@@ -28,6 +30,13 @@ public class SettingsController(ISettingService service) : ApiControllerBase
     [HttpPut]
     public async Task<ActionResult<SystemSettingsDto>> Update([FromBody] SystemSettingsDto request, CancellationToken ct)
     {
+        // Finding security#12: validate range trước khi upsert (minLength/upload/sandbox…).
+        var invalid = await ValidateRequestAsync(validator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.UpdateAsync(CurrentUserId(), request, ct);
         if (!result.IsSuccess)
         {
