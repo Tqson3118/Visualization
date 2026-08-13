@@ -1,0 +1,12 @@
+﻿Id|Email|Xp|Gems|StreakDays|LastDate|PremiumUntil|HeartsMax
+--|-----|--|----|----------|--------|------------|---------
+2092|showcase@demo.local|2790|389|30|2026-08-14|2027-07-15 04:40:00.0000000|30
+PlanId|StartedAt|ExpiresAt|Status|OrderRef
+------|---------|---------|------|--------
+12m|2026-07-15 04:40:00.0000000|2027-07-15 04:40:00.0000000|0|DSV2092T12
+Q|N
+-|-
+BadNodes_corrected|0
+Q|N
+-|-
+BadNodes_original_wrong_join|91

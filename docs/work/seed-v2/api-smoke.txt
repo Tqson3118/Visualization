@@ -1,0 +1,610 @@
+﻿# API smoke — 2026-08-14 04:45-04:55 UTC+7 — app chạy --urls http://localhost:5299 (--no-build, sau seed run 1+2)
+# Ghi chú: route thật /api/v1/gamification/me/streak là /api/v1/me/streak; premium/status là /api/v1/premium/status (GamificationController [Route("api/v1")]).
+== LOGIN showcase ==
+{
+    "accessToken":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMDkyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiU1RVREVOVCIsImlhdCI6MTc4NjY1NzY2NiwianRpIjoiMDUwNjNiZDAyOGQ2NDg0MjhhYzBlZWE5NmNiYWQ5ZjEiLCJuYmYiOjE3ODY2NTc2NjYsImV4cCI6MTc4NjY2MTI2NiwiaXNzIjoiRHNhVmlzdWFsLkFwaSIsImF1ZCI6IkRzYVZpc3VhbC5Gcm9udGVuZCJ9.feYATI_elwLj6iz6ekbAsxAeIoTgQEVtJgA1fRIGzrE",
+    "expiresIn":  3600,
+    "user":  {
+                 "id":  2092,
+                 "displayName":  "Sinh viên tiêu biểu",
+                 "email":  "showcase@demo.local",
+                 "role":  "STUDENT",
+                 "avatarUrl":  null,
+                 "createdAt":  "2026-07-15T04:40:00"
+             }
+}
+== GET /api/v1/auth/me ==
+{
+    "id":  2092,
+    "displayName":  "Sinh viên tiêu biểu",
+    "email":  "showcase@demo.local",
+    "role":  "STUDENT",
+    "avatarUrl":  null,
+    "createdAt":  "2026-07-15T04:40:00"
+}
+== GET /api/v1/leaderboard?tab=level (top5) ==
+{
+    "items":  [
+                  {
+                      "rank":  1,
+                      "userId":  2092,
+                      "displayName":  "Sinh viên tiêu biểu",
+                      "xp":  2790,
+                      "level":  6,
+                      "value":  2790
+                  },
+                  {
+                      "rank":  2,
+                      "userId":  2011,
+                      "displayName":  "Huỳnh Thúy",
+                      "xp":  2440,
+                      "level":  5,
+                      "value":  2440
+                  },
+                  {
+                      "rank":  3,
+                      "userId":  2027,
+                      "displayName":  "Phạm Thu Hà",
+                      "xp":  1405,
+                      "level":  4,
+                      "value":  1405
+                  },
+                  {
+                      "rank":  4,
+                      "userId":  2035,
+                      "displayName":  "Ngô Minh Hiếu",
+                      "xp":  1355,
+                      "level":  4,
+                      "value":  1355
+                  },
+                  {
+                      "rank":  5,
+                      "userId":  2026,
+                      "displayName":  "Lê Quang Vinh",
+                      "xp":  1265,
+                      "level":  4,
+                      "value":  1265
+                  }
+              ],
+    "page":  1,
+    "pageSize":  5,
+    "total":  94,
+    "totalPages":  19
+}
+== GET /api/v1/leaderboard?tab=week (top5) ==
+{
+    "items":  [
+                  {
+                      "rank":  1,
+                      "userId":  2092,
+                      "displayName":  "Sinh viên tiêu biểu",
+                      "xp":  2790,
+                      "level":  6,
+                      "value":  2790
+                  },
+                  {
+                      "rank":  2,
+                      "userId":  2011,
+                      "displayName":  "Huỳnh Thúy",
+                      "xp":  2440,
+                      "level":  5,
+                      "value":  2440
+                  },
+                  {
+                      "rank":  3,
+                      "userId":  2027,
+                      "displayName":  "Phạm Thu Hà",
+                      "xp":  1405,
+                      "level":  4,
+                      "value":  1405
+                  },
+                  {
+                      "rank":  4,
+                      "userId":  2035,
+                      "displayName":  "Ngô Minh Hiếu",
+                      "xp":  1355,
+                      "level":  4,
+                      "value":  1355
+                  },
+                  {
+                      "rank":  5,
+                      "userId":  2026,
+                      "displayName":  "Lê Quang Vinh",
+                      "xp":  1265,
+                      "level":  4,
+                      "value":  1265
+                  }
+              ],
+    "page":  1,
+    "pageSize":  5,
+    "total":  68,
+    "totalPages":  14
+}
+== GET /api/v1/me/streak ==
+{
+    "streakDays":  30,
+    "streakFreeze":  0
+}
+== GET /api/v1/premium/status ==
+{
+    "planId":  "12m",
+    "startedAt":  "2026-07-15T04:40:00",
+    "expiresAt":  "2027-07-15T04:40:00",
+    "status":  "active"
+}
+== GET /api/v1/me/inventory ==
+[
+    {
+        "id":  66,
+        "itemId":  5,
+        "itemKey":  "avatar-ai-bot",
+        "name":  "AI Companion",
+        "quantity":  1,
+        "type":  0,
+        "isEquipped":  false,
+        "expiresAt":  null
+    },
+    {
+        "id":  67,
+        "itemId":  1,
+        "itemKey":  "avatar-cyber-hacker",
+        "name":  "Cyber Hacker",
+        "quantity":  1,
+        "type":  0,
+        "isEquipped":  false,
+        "expiresAt":  null
+    }
+]
+== GET /api/v1/classes/1/report ==
+{
+    "classId":  1,
+    "className":  "SD21361 — Cấu trúc dữ liệu HK1 2026",
+    "totalMembers":  23,
+    "assignments":  [
+                        {
+                            "assignmentId":  1,
+                            "title":  "Quiz: Bubble Sort",
+                            "dueAt":  "2026-07-24T13:12:00",
+                            "onTime":  3,
+                            "late":  2,
+                            "notSubmitted":  18,
+                            "avgScore":  4.8
+                        },
+                        {
+                            "assignmentId":  2,
+                            "title":  "Quiz: Binary Search",
+                            "dueAt":  "2026-07-31T13:12:00",
+                            "onTime":  3,
+                            "late":  2,
+                            "notSubmitted":  18,
+                            "avgScore":  5.8
+                        },
+                        {
+                            "assignmentId":  14,
+                            "title":  "Lab: Binary Search",
+                            "dueAt":  "2026-08-13T04:40:00",
+                            "onTime":  5,
+                            "late":  2,
+                            "notSubmitted":  16,
+                            "avgScore":  1.6
+                        },
+                        {
+                            "assignmentId":  15,
+                            "title":  "Code: Binary Search",
+                            "dueAt":  "2026-08-16T04:40:00",
+                            "onTime":  6,
+                            "late":  0,
+                            "notSubmitted":  17,
+                            "avgScore":  0
+                        },
+                        {
+                            "assignmentId":  3,
+                            "title":  "Lab: Bubble Sort",
+                            "dueAt":  "2026-08-18T13:12:00",
+                            "onTime":  5,
+                            "late":  0,
+                            "notSubmitted":  18,
+                            "avgScore":  6.6
+                        },
+                        {
+                            "assignmentId":  16,
+                            "title":  "Quiz: Stack",
+                            "dueAt":  "2026-08-20T04:40:00",
+                            "onTime":  7,
+                            "late":  0,
+                            "notSubmitted":  16,
+                            "avgScore":  3.4
+                        },
+                        {
+                            "assignmentId":  4,
+                            "title":  "Stack",
+                            "dueAt":  "2026-08-25T13:12:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  23,
+                            "avgScore":  0
+                        },
+                        {
+                            "assignmentId":  17,
+                            "title":  "Linked List",
+                            "dueAt":  "2026-08-26T04:40:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  23,
+                            "avgScore":  0
+                        }
+                    ],
+    "laggingLearners":  [
+                            {
+                                "userId":  3,
+                                "displayName":  "Sinh viên mẫu",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2009,
+                                "displayName":  "Nguyễn Trang",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2076,
+                                "displayName":  "Bùi Minh Quân",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2077,
+                                "displayName":  "Dương Văn Đông",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2078,
+                                "displayName":  "Phan Đức Thiện",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2079,
+                                "displayName":  "Trịnh Văn Bình",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2080,
+                                "displayName":  "Đỗ Quang Vinh",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2081,
+                                "displayName":  "Lý Văn Khánh",
+                                "missingCount":  8
+                            },
+                            {
+                                "userId":  2073,
+                                "displayName":  "Nguyễn Xuân Phong",
+                                "missingCount":  7
+                            },
+                            {
+                                "userId":  2074,
+                                "displayName":  "Vũ Văn Thắng",
+                                "missingCount":  7
+                            }
+                        ]
+}
+== GET /api/v1/classes/2/report ==
+{
+    "classId":  2,
+    "className":  "SD21361NC — Giải thuật nâng cao HK1 2026",
+    "totalMembers":  18,
+    "assignments":  [
+                        {
+                            "assignmentId":  5,
+                            "title":  "Code: Bubble Sort",
+                            "dueAt":  "2026-08-04T13:12:00",
+                            "onTime":  3,
+                            "late":  1,
+                            "notSubmitted":  14,
+                            "avgScore":  62.5
+                        },
+                        {
+                            "assignmentId":  6,
+                            "title":  "Quiz: Stack",
+                            "dueAt":  "2026-08-09T13:12:00",
+                            "onTime":  3,
+                            "late":  1,
+                            "notSubmitted":  14,
+                            "avgScore":  7.2
+                        },
+                        {
+                            "assignmentId":  18,
+                            "title":  "Quiz: BST",
+                            "dueAt":  "2026-08-11T04:40:00",
+                            "onTime":  7,
+                            "late":  2,
+                            "notSubmitted":  9,
+                            "avgScore":  1.2
+                        },
+                        {
+                            "assignmentId":  19,
+                            "title":  "Lab: Stack",
+                            "dueAt":  "2026-08-15T04:40:00",
+                            "onTime":  9,
+                            "late":  0,
+                            "notSubmitted":  9,
+                            "avgScore":  0.9
+                        },
+                        {
+                            "assignmentId":  7,
+                            "title":  "Binary Search",
+                            "dueAt":  "2026-08-21T13:12:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  18,
+                            "avgScore":  0
+                        },
+                        {
+                            "assignmentId":  20,
+                            "title":  "AVL",
+                            "dueAt":  "2026-08-24T04:40:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  18,
+                            "avgScore":  0
+                        }
+                    ],
+    "laggingLearners":  [
+                            {
+                                "userId":  3,
+                                "displayName":  "Sinh viên mẫu",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2042,
+                                "displayName":  "Phan Văn Hùng",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2043,
+                                "displayName":  "Vũ Hoàng Nam",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2044,
+                                "displayName":  "Trịnh Thị Mai",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2033,
+                                "displayName":  "Dương Quang Huy",
+                                "missingCount":  5
+                            },
+                            {
+                                "userId":  2041,
+                                "displayName":  "Hoàng Thị Lan",
+                                "missingCount":  5
+                            },
+                            {
+                                "userId":  2004,
+                                "displayName":  "Nguyễn Minh Anh",
+                                "missingCount":  4
+                            },
+                            {
+                                "userId":  2005,
+                                "displayName":  "Trần Quốc Bảo",
+                                "missingCount":  4
+                            },
+                            {
+                                "userId":  2006,
+                                "displayName":  "Lê Thị Kim Ngân",
+                                "missingCount":  4
+                            },
+                            {
+                                "userId":  2007,
+                                "displayName":  "Phạm Hoàng Long",
+                                "missingCount":  4
+                            }
+                        ]
+}
+== GET /api/v1/classes/4/report ==
+{
+    "classId":  4,
+    "className":  "AI1702 — Thuật toán Đồ thị",
+    "totalMembers":  24,
+    "assignments":  [
+                        {
+                            "assignmentId":  8,
+                            "title":  "Quiz: BFS",
+                            "dueAt":  "2026-08-09T04:40:00",
+                            "onTime":  7,
+                            "late":  4,
+                            "notSubmitted":  13,
+                            "avgScore":  2.1
+                        },
+                        {
+                            "assignmentId":  9,
+                            "title":  "Lab: BFS",
+                            "dueAt":  "2026-08-12T04:40:00",
+                            "onTime":  7,
+                            "late":  3,
+                            "notSubmitted":  14,
+                            "avgScore":  2.1
+                        },
+                        {
+                            "assignmentId":  10,
+                            "title":  "Code: BFS",
+                            "dueAt":  "2026-08-17T04:40:00",
+                            "onTime":  10,
+                            "late":  0,
+                            "notSubmitted":  14,
+                            "avgScore":  7.3
+                        },
+                        {
+                            "assignmentId":  11,
+                            "title":  "BFS",
+                            "dueAt":  "2026-08-19T04:40:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  24,
+                            "avgScore":  0
+                        },
+                        {
+                            "assignmentId":  12,
+                            "title":  "Hash Table",
+                            "dueAt":  "2026-08-23T04:40:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  24,
+                            "avgScore":  0
+                        },
+                        {
+                            "assignmentId":  13,
+                            "title":  "BST",
+                            "dueAt":  "2026-08-29T04:40:00",
+                            "onTime":  0,
+                            "late":  0,
+                            "notSubmitted":  24,
+                            "avgScore":  0
+                        }
+                    ],
+    "laggingLearners":  [
+                            {
+                                "userId":  2044,
+                                "displayName":  "Trịnh Thị Mai",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2045,
+                                "displayName":  "Đỗ Nguyên Khang",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2046,
+                                "displayName":  "Bùi Hồng Nhung",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2047,
+                                "displayName":  "Dương Thu Trang",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2048,
+                                "displayName":  "Lý Quốc Bảo",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2071,
+                                "displayName":  "Phạm Đình Quang",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2072,
+                                "displayName":  "Hoàng Văn Tài",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2073,
+                                "displayName":  "Nguyễn Xuân Phong",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2082,
+                                "displayName":  "Nguyễn Gia Bảo",
+                                "missingCount":  6
+                            },
+                            {
+                                "userId":  2083,
+                                "displayName":  "Trần Khánh Linh",
+                                "missingCount":  6
+                            }
+                        ]
+}
+== GET /api/v1/admin/bug-reports (admin@system.local) ==
+[
+    {
+        "id":  5,
+        "userId":  2038,
+        "description":  "Video bài học Bubble Sort không phát — tải trang /learn/bubble-sort thì khung video chỉ hiện màu đen, bấm Play không có phản hồi; các bài khác xem được bình thường.",
+        "context":  "{\"url\":\"/learn/bubble-sort\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "New",
+        "createdAt":  "2026-08-13T03:29:00",
+        "resolvedAt":  null
+    },
+    {
+        "id":  4,
+        "userId":  2024,
+        "description":  "Gửi phản hồi nội dung không được — bấm nút Gửi ở trang phản hồi thì báo lỗi 500, thử lại 2 lần vẫn vậy; phản hồi không lưu vào danh sách của tôi.",
+        "context":  "{\"url\":\"/api/feedback/submit\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "New",
+        "createdAt":  "2026-08-12T02:18:00",
+        "resolvedAt":  null
+    },
+    {
+        "id":  6,
+        "userId":  2042,
+        "description":  "Mô phỏng Binary Search bị treo ở lượt chạy thứ 2 — chọn mảng 20 phần tử, bấm Chạy thì thanh tiến trình dừng ở 40% và không tiếp tục; phải tải lại trang.",
+        "context":  "{\"url\":\"/simulation/binary-search\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "Processing",
+        "createdAt":  "2026-08-09T23:56:00",
+        "resolvedAt":  null
+    },
+    {
+        "id":  1,
+        "userId":  2004,
+        "description":  "Không hiện điểm khi nộp bài quiz — sau khi nộp bài trắc nghiệm Bubble Sort, màn hình chỉ báo đã nộp mà không hiện điểm số; tải lại trang vẫn không thấy.",
+        "context":  "{\"url\":\"/practice/quiz/bubble-sort\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "New",
+        "createdAt":  "2026-08-08T07:17:17.3636719",
+        "resolvedAt":  null
+    },
+    {
+        "id":  7,
+        "userId":  2069,
+        "description":  "Không claim được nhiệm vụ hằng ngày — hoàn thành quest nhưng bấm Nhận thưởng không cộng gem, chỉ báo đã xử lý khi tải lại trang.",
+        "context":  "{\"url\":\"/api/quests/daily\",\"browser\":\"Edge 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "Processing",
+        "createdAt":  "2026-08-07T22:34:00",
+        "resolvedAt":  null
+    },
+    {
+        "id":  8,
+        "userId":  2038,
+        "description":  "Tiến độ bài học Hash Table không lưu — xem xong 3 node nhưng quay lại vẫn báo 0%; sau bản cập nhật đã vào được, nay thấy thông báo khắc phục xong.",
+        "context":  "{\"url\":\"/learn/hash-table\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "Resolved",
+        "createdAt":  "2026-08-05T04:01:00",
+        "resolvedAt":  "2026-08-08T04:01:00"
+    },
+    {
+        "id":  9,
+        "userId":  2042,
+        "description":  "Hiển thị sai đáp án khi nộp quiz Stack — câu trắc nghiệm chọn đúng nhưng báo sai điểm; đội ngũ đã xác nhận lỗi và sửa, điểm được cập nhật lại.",
+        "context":  "{\"url\":\"/practice/quiz/stack\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "Resolved",
+        "createdAt":  "2026-08-02T01:28:00",
+        "resolvedAt":  "2026-08-06T01:28:00"
+    },
+    {
+        "id":  2,
+        "userId":  2005,
+        "description":  "Nút chạy mô phỏng bị chậm khi chọn sort lớn — chọn mảng 50 phần tử ở mô phỏng Bubble Sort thì nút Chạy phản hồi sau vài giây, đôi khi bị treo.",
+        "context":  "{\"url\":\"/simulation/bubble-sort\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "New",
+        "createdAt":  "2026-08-01T10:00:17.3636719",
+        "resolvedAt":  null
+    },
+    {
+        "id":  10,
+        "userId":  2024,
+        "description":  "Giao diện bài AVL bị lệch trên điện thoại — node bị chồng lên nhau khi xoay cây ở khung nhỏ; đã xác nhận khắc phục ở phiên bản mới và đóng báo cáo.",
+        "context":  "{\"url\":\"/learn/avl-tree\",\"browser\":\"Chrome 126.0\",\"platform\":\"Android 14\"}",
+        "status":  "Closed",
+        "createdAt":  "2026-07-29T21:55:00",
+        "resolvedAt":  "2026-08-03T21:55:00"
+    },
+    {
+        "id":  3,
+        "userId":  2006,
+        "description":  "Không vào được bài Lab: Hash Table trên điện thoại — bấm nút Bắt đầu lab thì chỉ thấy màn hình trắng (Chrome Android).",
+        "context":  "{\"url\":\"/lesson/hash-table\",\"browser\":\"Chrome 126.0\",\"platform\":\"Windows 11\"}",
+        "status":  "New",
+        "createdAt":  "2026-07-24T10:32:17.3636719",
+        "resolvedAt":  null
+    }
+]
