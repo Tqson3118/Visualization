@@ -58,6 +58,9 @@ public static class SeedRunner
         await SeedShopItemsAsync(db, logger, ct);
         await SeedSettingsAsync(db, adminId, now, logger, ct);
 
+        // Seed hoạt động người dùng demo (SDD §7.5): 8 student @university.edu.vn + achievements/progress/submissions + quest/gems/inventory/favorites/feedback + 2 lớp học (chỉ khi bảng trống).
+        await SeedDemoActivity.SeedAsync(db, clock, logger, ct);
+
         logger.LogInformation(
             "Seed hoàn tất: Users={Users}, Topics={Topics}, Lessons={Lessons}, Exercises={Exercises}, Questions={Questions}, LearningPaths={Paths}, DailyQuests={Quests}, ShopItems={Items}, Settings={Settings}",
             await db.Users.CountAsync(ct), await db.Topics.CountAsync(ct), await db.Lessons.CountAsync(ct),

@@ -23,6 +23,7 @@
 | 1.3 | 13/08/2026 | Mai Tiểu Bảo | GP-T2 (2FA email — FR-1.11): (1) §4.12 bổ sung `POST /auth/2fa/send` + `POST /auth/2fa/verify`, làm rõ PUT /auth/2fa (tắt trực tiếp; bật qua mã OTP); (2) §2.2 bổ sung 5 error code 2FA `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` (400) — [v2.13] |
 | 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §4.14 bổ sung chi tiết `POST /premium/upgrade` — `{planId}` `1m|3m|12m`; OrderRef đơn hàng = `DSV{userId}T{months}` (VD DSV1002T3 — trùng nội dung CK trên QR) + response trả `contentRef` (nội dung CK hiển thị trên QR); thêm ví dụ response; §8 thêm dòng thay đổi |
 | 1.5 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §3.1 `RegisterRequest` +3 field `department/staffCode/teacherBio` (bắt buộc khi `isTeacher=true`; `teacherBio` ≤ 500); §2.2 làm rõ lỗi đăng ký GV thiếu thông tin → `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (KHÔNG thêm ErrorCode mới); §4.1 cập nhật body + ví dụ `POST /auth/register` (thêm 400 VALIDATION_FAILED); §4.8 `AdminUserDto` +3 field nullable (department/staffCode/teacherBio) + cập nhật ví dụ `GET /users` |
+| 1.6 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §2.2 `DOMAIN_NOT_ALLOWED` + ví dụ §4.1 + §6 mục 1 — làm rõ bỏ chặn domain mặc định (setting `allowed.email.domains` không còn được seed + tự xóa khi seed → mọi email hợp lệ đăng ký được; mã giữ lại, chỉ kích hoạt nếu Admin bật lại setting qua cấu hình) |
 
 ---
 
@@ -109,7 +110,7 @@
 | LESSON_HAS_EXERCISES | 409 | Không xóa được bài học còn bài tập đang hoạt động | null |
 | DUPLICATE_SIMULATION | 409 | Gắn trùng mô phỏng vào bài học | simulationKey |
 | WEAK_PASSWORD | 400 | Mật khẩu yếu (details liệt kê từng quy tắc) | password |
-| DOMAIN_NOT_ALLOWED | 400 | Domain email không được phép đăng ký | email |
+| DOMAIN_NOT_ALLOWED | 400 | Domain email không được phép đăng ký — ⚠ KHÔNG kích hoạt mặc định (quyết định 13/08/2026: bỏ chặn domain — setting `allowed.email.domains` không còn được seed + tự xóa khi seed; chỉ xảy ra nếu Admin chủ động bật lại setting qua cấu hình) | email |
 | INVALID_EMAIL | 400 | Định dạng email sai | email |
 | OLD_PASSWORD_WRONG | 400 | Mật khẩu cũ sai khi đổi | currentPassword |
 | PASSWORD_SAME | 400 | Mật khẩu mới trùng mật khẩu cũ | newPassword |
@@ -303,7 +304,7 @@
   "details": { "department": ["Vui lòng nhập khoa/bộ môn"], "staffCode": ["Vui lòng nhập mã giảng viên"] } } }
 // Response 409
 { "error": { "code": "EMAIL_EXISTS", "message": "Email đã được sử dụng", "field": "email", "details": [] } }
-// Response 400 (domain không cho phép)
+// Response 400 (domain không cho phép) — ⚠ không còn xảy ra khi seed chuẩn (bỏ chặn domain 13/08/2026); chỉ khi Admin bật lại setting allowed.email.domains
 { "error": { "code": "DOMAIN_NOT_ALLOWED", "message": "Email không thuộc domain được phép đăng ký", "field": "email", "details": [] } }
 ```
 
@@ -748,7 +749,7 @@
 
 # 6. ĐẶC TẢ BỔ SUNG
 
-1. **Đăng ký**: xác thực email domain nếu bật (`DOMAIN_NOT_ALLOWED`), policy mật khẩu (`WEAK_PASSWORD` kèm details).
+1. **Đăng ký**: mọi email hợp lệ đều đăng ký được — bỏ chặn domain mặc định (`DOMAIN_NOT_ALLOWED` chỉ khi Admin bật lại setting `allowed.email.domains` — quyết định 13/08/2026); policy mật khẩu (`WEAK_PASSWORD` kèm details).
 2. **Nộp bài**: chống nộp trùng (idempotency key `Idempotency-Key` tùy chọn) + khóa đồng thời (422 `SUBMISSION_IN_PROGRESS`).
 3. **CSV báo cáo**: `text/csv; charset=utf-8` kèm BOM; tên file `report_lessons_15_20260809.csv`.
 4. **Throttling**: trả `Retry-After` khi 429; frontend "Quá nhiều yêu cầu, thử lại sau N giây".
