@@ -9,5 +9,8 @@ public sealed class AdminUserDto
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public string? AvatarUrl { get; set; }
+    public string? Department { get; set; }
+    public string? StaffCode { get; set; }
+    public string? TeacherBio { get; set; }
     public DateTime CreatedAt { get; set; }
 }

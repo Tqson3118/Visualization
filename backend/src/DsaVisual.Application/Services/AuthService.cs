@@ -77,6 +77,55 @@ public sealed class AuthService(
                 "Mật khẩu yếu", new() { ["password"] = policyErrors.ToArray() });
         }
 
+        // Thông tin giảng viên (form đăng ký GV — task L): bắt buộc khi IsTeacher=true, ngược lại không lưu
+        var department = request.Department?.Trim();
+        var staffCode = request.StaffCode?.Trim();
+        var teacherBio = request.TeacherBio?.Trim();
+        if (request.IsTeacher)
+        {
+            var teacherErrors = new Dictionary<string, string[]>();
+            if (string.IsNullOrEmpty(department))
+            {
+                teacherErrors["department"] = ["Vui lòng nhập khoa/bộ môn"];
+            }
+            else if (department.Length > 100)
+            {
+                teacherErrors["department"] = ["Khoa/bộ môn không được vượt quá 100 ký tự"];
+            }
+
+            if (string.IsNullOrEmpty(staffCode))
+            {
+                teacherErrors["staffCode"] = ["Vui lòng nhập mã giảng viên"];
+            }
+            else if (staffCode.Length > 50)
+            {
+                teacherErrors["staffCode"] = ["Mã giảng viên không được vượt quá 50 ký tự"];
+            }
+
+            if (teacherBio?.Length > 500)
+            {
+                teacherErrors["teacherBio"] = ["Giới thiệu không được vượt quá 500 ký tự"];
+            }
+
+            if (teacherErrors.Count > 0)
+            {
+                return Result<RefreshResponse>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Vui lòng điền đầy đủ thông tin giảng viên", teacherErrors);
+            }
+
+            // Bio rỗng sau trim → lưu null, không lưu "" (tránh chuỗi rỗng trong DB)
+            if (teacherBio?.Length == 0)
+            {
+                teacherBio = null;
+            }
+        }
+        else
+        {
+            department = null;
+            staffCode = null;
+            teacherBio = null;
+        }
+
         var now = clock.UtcNow;
         var user = new User
         {
@@ -88,7 +137,10 @@ public sealed class AuthService(
             Hearts = 10,
             HeartsMax = 10,
             LastHeartAt = now,
-            CreatedAt = now
+            CreatedAt = now,
+            Department = department,
+            StaffCode = staffCode,
+            TeacherBio = teacherBio
         };
 
         db.Users.Add(user);

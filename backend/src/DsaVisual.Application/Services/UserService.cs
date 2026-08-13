@@ -52,6 +52,9 @@ public sealed class UserService(
                 Role = RoleNames.ToApi(u.Role),
                 IsActive = u.IsActive,
                 AvatarUrl = u.AvatarUrl,
+                Department = u.Department,
+                StaffCode = u.StaffCode,
+                TeacherBio = u.TeacherBio,
                 CreatedAt = u.CreatedAt
             })
             .ToListAsync(ct);
@@ -241,6 +244,9 @@ public sealed class UserService(
         Role = RoleNames.ToApi(user.Role),
         IsActive = user.IsActive,
         AvatarUrl = user.AvatarUrl,
+        Department = user.Department,
+        StaffCode = user.StaffCode,
+        TeacherBio = user.TeacherBio,
         CreatedAt = user.CreatedAt
     };
 }
