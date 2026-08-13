@@ -48,18 +48,32 @@ public static class SeedRunner
     {
         var now = clock.UtcNow;
 
+        // Atomicity (audit bề mặt #3): bọc TOÀN BỘ seed trong 1 transaction — crash giữa chừng
+        // không để lại dữ liệu lửng (rollback toàn bộ). InMemory (unit test) không hỗ trợ
+        // transaction → bỏ qua, giữ hành vi cũ.
+        await using var tx = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(ct)
+            : null;
+
         var adminId = await SeedUsersAsync(db, now, logger, ct);
         var topics = await SeedTopicsAsync(db, adminId, now, logger, ct);
         var lessons = await SeedLessonsAsync(db, topics, adminId, now, logger, ct);
         await SeedLessonSimulationsAsync(db, lessons, logger, ct);
-        await SeedExercisesAsync(db, lessons, adminId, now, logger, ct);
+        // H-FINAL1: seed LearningPaths/Nodes TRƯỚC exercises → exercise lesson được gán NodeId/Stage
+        // (Ladder filter GET /exercises?nodeId&stage — Exercise.NodeId/Stage, SDD §7.3.9).
         await SeedLearningPathsAsync(db, topics, lessons, adminId, now, logger, ct);
+        await SeedExercisesAsync(db, lessons, adminId, now, logger, ct);
         await SeedQuestsAsync(db, logger, ct);
         await SeedShopItemsAsync(db, logger, ct);
         await SeedSettingsAsync(db, adminId, now, logger, ct);
 
         // Seed hoạt động người dùng demo (SDD §7.5): 8 student @university.edu.vn + achievements/progress/submissions + quest/gems/inventory/favorites/feedback + 2 lớp học (chỉ khi bảng trống).
         await SeedDemoActivity.SeedAsync(db, clock, logger, ct);
+
+        if (tx is not null)
+        {
+            await tx.CommitAsync(ct);
+        }
 
         logger.LogInformation(
             "Seed hoàn tất: Users={Users}, Topics={Topics}, Lessons={Lessons}, Exercises={Exercises}, Questions={Questions}, LearningPaths={Paths}, DailyQuests={Quests}, ShopItems={Items}, Settings={Settings}",
@@ -242,6 +256,10 @@ public static class SeedRunner
     }
 
     // ── 5. Exercises / Questions ────────────────────────────────
+    // Stage exercise trên Ladder (Exercise.Stage — 1=QUIZ, 2=LAB, 3=CODE, SDD §7.3.9).
+    private const int StageQuiz = 1;
+    private const int StageLab = 2;
+    private const int StageCode = 3;
 
     private static async Task SeedExercisesAsync(
         AppDbContext db, Dictionary<string, Lesson> lessons, int adminId, DateTime now, ILogger logger, CancellationToken ct)
@@ -250,21 +268,46 @@ public static class SeedRunner
         {
             var lesson = lessons[seed.Title];
 
-            await SeedMcqExerciseAsync(db, lesson, seed, adminId, now, logger, ct);
-            await SeedLabExerciseAsync(db, lesson, seed, adminId, now, logger, ct);
-            await SeedCodeExerciseAsync(db, lesson, seed, adminId, now, logger, ct);
+            // H-FINAL1: node "Học: {lesson}" của learning path — mọi exercise lesson gắn NodeId + Stage
+            // để GET /exercises?nodeId&stage (Ladder) trả đúng item (trước đây NodeId=null → stage rỗng).
+            var node = await db.LearningPathNodes.FirstOrDefaultAsync(n => n.LessonId == lesson.Id, ct);
+            if (node is null)
+            {
+                logger.LogWarning(
+                    "Seed: Exercises bỏ qua {Title} — chưa có LearningPathNode gắn LessonId={LessonId} (path chưa seed?)",
+                    lesson.Title, lesson.Id);
+                continue;
+            }
+
+            await SeedMcqExerciseAsync(db, lesson, node, seed, adminId, now, logger, ct);
+            await SeedLabExerciseAsync(db, lesson, node, seed, adminId, now, logger, ct);
+            await SeedCodeExerciseAsync(db, lesson, node, seed, adminId, now, logger, ct);
         }
     }
 
     private static async Task SeedMcqExerciseAsync(
-        AppDbContext db, Lesson lesson, SeedData.SeedLesson seed, int adminId, DateTime now, ILogger logger, CancellationToken ct)
+        AppDbContext db, Lesson lesson, LearningPathNode node, SeedData.SeedLesson seed,
+        int adminId, DateTime now, ILogger logger, CancellationToken ct)
     {
         const string titlePrefix = "Quiz: ";
         var title = titlePrefix + lesson.Title;
-        var exists = await db.Exercises.AnyAsync(e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
-        if (exists)
+        var existing = await db.Exercises.FirstOrDefaultAsync(
+            e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
+        if (existing is not null)
         {
-            logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            // H-FINAL1 backfill: DB cũ seed trước fix có NodeId=null → gán lại (idempotent, không nhân đôi)
+            if (existing.NodeId != node.Id || existing.Stage != StageQuiz)
+            {
+                existing.NodeId = node.Id;
+                existing.Stage = StageQuiz;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Seed: Exercises backfill NodeId/Stage {Title} (Node={NodeId}, Stage={Stage})", title, existing.NodeId, existing.Stage);
+            }
+            else
+            {
+                logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            }
+
             return;
         }
 
@@ -273,6 +316,8 @@ public static class SeedRunner
         var exercise = new Exercise
         {
             LessonId = lesson.Id,
+            NodeId = node.Id,
+            Stage = StageQuiz,
             Title = title,
             Description = $"Trắc nghiệm kiến thức {lesson.Title} — {questions.Count} câu, giải thích tiếng Việt sau khi nộp.",
             Type = ExerciseType.Mcq,
@@ -284,18 +329,32 @@ public static class SeedRunner
         };
         db.Exercises.Add(exercise);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, {Count} câu hỏi)", title, exercise.Id, questions.Count);
+        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, {Count} câu hỏi, Node={NodeId}, Stage={Stage})", title, exercise.Id, questions.Count, exercise.NodeId, exercise.Stage);
     }
 
     private static async Task SeedLabExerciseAsync(
-        AppDbContext db, Lesson lesson, SeedData.SeedLesson seed, int adminId, DateTime now, ILogger logger, CancellationToken ct)
+        AppDbContext db, Lesson lesson, LearningPathNode node, SeedData.SeedLesson seed,
+        int adminId, DateTime now, ILogger logger, CancellationToken ct)
     {
         const string titlePrefix = "Lab: ";
         var title = titlePrefix + lesson.Title;
-        var exists = await db.Exercises.AnyAsync(e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
-        if (exists)
+        var existing = await db.Exercises.FirstOrDefaultAsync(
+            e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
+        if (existing is not null)
         {
-            logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            // H-FINAL1 backfill: DB cũ seed trước fix có NodeId=null → gán lại (idempotent, không nhân đôi)
+            if (existing.NodeId != node.Id || existing.Stage != StageLab)
+            {
+                existing.NodeId = node.Id;
+                existing.Stage = StageLab;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Seed: Exercises backfill NodeId/Stage {Title} (Node={NodeId}, Stage={Stage})", title, existing.NodeId, existing.Stage);
+            }
+            else
+            {
+                logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            }
+
             return;
         }
 
@@ -304,6 +363,8 @@ public static class SeedRunner
         var exercise = new Exercise
         {
             LessonId = lesson.Id,
+            NodeId = node.Id,
+            Stage = StageLab,
             Title = title,
             Description = $"Mô phỏng {simulationKey} từng bước trên canvas — đạt trạng thái cuối chuẩn trong tối đa {maxSteps} bước (chấm theo trạng thái cuối, SDD §4.16/API_REFERENCE §4.16).",
             Type = ExerciseType.SimulationLab,
@@ -315,18 +376,32 @@ public static class SeedRunner
         };
         db.Exercises.Add(exercise);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, key={Key})", title, exercise.Id, simulationKey);
+        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, key={Key}, Node={NodeId}, Stage={Stage})", title, exercise.Id, simulationKey, exercise.NodeId, exercise.Stage);
     }
 
     private static async Task SeedCodeExerciseAsync(
-        AppDbContext db, Lesson lesson, SeedData.SeedLesson seed, int adminId, DateTime now, ILogger logger, CancellationToken ct)
+        AppDbContext db, Lesson lesson, LearningPathNode node, SeedData.SeedLesson seed,
+        int adminId, DateTime now, ILogger logger, CancellationToken ct)
     {
         const string titlePrefix = "Code: ";
         var title = titlePrefix + lesson.Title;
-        var exists = await db.Exercises.AnyAsync(e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
-        if (exists)
+        var existing = await db.Exercises.FirstOrDefaultAsync(
+            e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
+        if (existing is not null)
         {
-            logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            // H-FINAL1 backfill: DB cũ seed trước fix có NodeId=null → gán lại (idempotent, không nhân đôi)
+            if (existing.NodeId != node.Id || existing.Stage != StageCode)
+            {
+                existing.NodeId = node.Id;
+                existing.Stage = StageCode;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Seed: Exercises backfill NodeId/Stage {Title} (Node={NodeId}, Stage={Stage})", title, existing.NodeId, existing.Stage);
+            }
+            else
+            {
+                logger.LogInformation("Seed: Exercises bỏ qua (đã tồn tại) {Title}", title);
+            }
+
             return;
         }
 
@@ -334,6 +409,8 @@ public static class SeedRunner
         var exercise = new Exercise
         {
             LessonId = lesson.Id,
+            NodeId = node.Id,
+            Stage = StageCode,
             Title = title,
             Description = $"Thử thách lập trình {lesson.Title} — {testCases.Count} test ẩn, pass ≥ 70% để đạt bậc (sandbox client chấm, ADR-012).",
             Type = ExerciseType.Code,
@@ -345,7 +422,7 @@ public static class SeedRunner
         };
         db.Exercises.Add(exercise);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, {Count} test ẩn)", title, exercise.Id, testCases.Count);
+        logger.LogInformation("Seed: Exercises thêm {Title} (Id={Id}, {Count} test ẩn, Node={NodeId}, Stage={Stage})", title, exercise.Id, testCases.Count, exercise.NodeId, exercise.Stage);
     }
 
     // ── 6. LearningPaths / Nodes + final test ───────────────────
@@ -481,7 +558,7 @@ public static class SeedRunner
                 {
                     LessonId = lastLessonId,      // FK NOT NULL — gắn bài học cuối path
                     NodeId = finalNode.Id,
-                    Stage = 1,                        // 1 = QUIZ
+                    Stage = StageQuiz,                 // 1 = QUIZ
                     Title = finalTestTitle,
                     Description = $"Kiểm tra cuối lộ trình {spec.PathTitle} — {questions.Count} câu trộn từ các bài học trong path.",
                     Type = ExerciseType.Mcq,
