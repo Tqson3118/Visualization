@@ -14,7 +14,7 @@ namespace DsaVisual.Application.Persistence.Seed;
 /// - 9 user (8 student @university.edu.vn + student@demo.local), mỗi user có 1-13 ngày quest;
 ///   quest hôm nay (DaysAgo=0) đủ 3-5 dòng, quest các ngày trước bổ sung để XP đạt level mong muốn
 ///   (level = 1 + floor(sqrt(Xp/100)) — không lưu level trong DB):
-///   L1: S1 65, S3 40, S6 85 · L2: S2 360, S5 365 · L3: S4 445, S7 610, S9 795 · L4: S8 2160.
+///   L1: S1 65, S3 40, S6 85 · L2: S2 360, S5 365 · L3: S4 445, S7 610, S9 795 · L5: S8 2160.
 /// - User.Xp = tổng reward quest Claimed=1 (tính lại từ DB khi thêm quest mới — không cộng đúp);
 ///   User.Gems = tổng earn (quest claim) − tổng spend (mua shop) — tính lại từ DB rows.
 /// - GemTransactions append-only (không có unique key) → guard: user chưa có giao dịch
@@ -186,7 +186,7 @@ public static partial class SeedDemoActivity
             ],
             Feedback: new("Stack", 4, 9, 27)),
 
-        // ── L4: 900+ XP — user chăm nhất, có frame trang bị ──
+        // ── L5: 1600–2499 XP (2160) — user chăm nhất, có frame trang bị ──
         ["huynhthuy@university.edu.vn"] = new(
             StreakDays: 15,
             Days:

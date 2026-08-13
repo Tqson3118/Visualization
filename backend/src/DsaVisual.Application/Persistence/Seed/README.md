@@ -1,7 +1,7 @@
 # Seed — Dữ liệu khởi tạo (SDD §7.5)
 
 Seeder **THẬT** chạy qua `AppDbContext` (EF Core 10) — file `SeedRunner.cs` (idempotent: kiểm tra tồn tại trước khi chèn — SDD §7.5/§10.5).
-Dữ liệu khai báo tại `SeedData.cs` (5 Topics, 8 Lessons, 3 Users, 8 Quests, 8 ShopItems, 9 Settings) + `SeedData.Students` (8 student demo `@university.edu.vn`).
+Dữ liệu khai báo tại `SeedData.cs` (5 Topics, 8 Lessons, 3 Users, 8 Quests, 8 ShopItems, 8 Settings) + `SeedData.Students` (8 student demo `@university.edu.vn`).
 
 SAU `SeedSettingsAsync`, `SeedRunner` gọi **`SeedDemoActivity.SeedAsync`** (file `SeedDemoActivity.cs` skeleton + partial `Students/Progress/Activity/Misc/Class`) — **seed dữ liệu hoạt động người dùng demo (SDD §7.5)**: 8 student `@university.edu.vn`, achievements, progress, submissions, quest/gems/inventory/favorites/feedback, 2 lớp học, code submissions/bug reports/lesson notes (chỉ khi bảng trống).
 
@@ -47,7 +47,7 @@ Seed idempotent — chạy lại lần 2 an toàn, mọi bước ghi log `Seed: 
 | LearningPaths/Node | **5 path** × (node bài học + "Luyện tập tổng hợp" + "Kiểm tra cuối lộ trình") = **18 node** | SDD §7.3.25 |
 | DailyQuests | 8 quest templates (ConditionJson/RewardJson theo SDD §7.3.26) | `SeedData.cs` |
 | ShopItems | 8 item (ItemKey UNIQUE) | `SeedData.cs` ← frontend shop_items.json |
-| Settings | 9 setting (Key UNIQUE) | `SeedData.cs` |
+| Settings | 8 setting (Key UNIQUE) | `SeedData.cs` |
 | ExerciseSubmissions | 9 user activity (8 student `@university.edu.vn` + `student@demo.local`) — bài nộp MCQ/LAB/CODE | `SeedDemoActivity.Progress.cs` |
 
 ### SeedDemoActivity — dữ liệu hoạt động người dùng demo (gọi SAU SeedSettingsAsync)
