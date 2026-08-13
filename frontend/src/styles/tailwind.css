@@ -71,6 +71,28 @@
   --input: oklch(0.9 0.025 186);
   --ring: oklch(0.52 0.12 185);
 
+  /* ── DESIGN.md §2.2 — text 4 tầng + border tiers + surface raised ── */
+  --foreground-secondary: oklch(0.45 0.03 190);
+  --foreground-tertiary: var(--muted-foreground); /* alias tier 3 = muted-foreground (giữ cho shadcn gốc) */
+  --foreground-quaternary: oklch(0.6 0.02 190);
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --card-raised: oklch(0.99 0.006 190);
+
+  /* ── Semantic §2.2 — quy đổi OKLCH từ tokens.css legacy (cả 2 theme) ── */
+  --success: oklch(0.648 0.151 157.062); /* #0FA968 */
+  --warning: oklch(0.666 0.157 58.318);  /* #D97706 */
+  --info: oklch(0.609 0.111 221.723);    /* #0891B2 */
+
+  /* ── Canvas palette §2.1 — nguồn canvasTheme.ts, LUÔN tối bất kể theme ── */
+  --canvas-ink: #0D1020;
+  --data-core: #4255FF;
+  --resolved: #34D399;
+  --conflict: #F87171;
+  --index-muted: #6B7385;
+
   --radius: 0.625rem; /* 10px → md = 8px khớp tokens --radius-md */
 
   --chart-1: oklch(0.646 0.222 41.116);
@@ -109,6 +131,21 @@
   --input: oklch(0.4 0.05 190);
   --ring: oklch(0.72 0.12 185);
 
+  /* ── DESIGN.md §2.2 — dark: text 4 tầng + border tiers + surface raised ── */
+  --foreground-secondary: oklch(0.85 0.02 190);
+  --foreground-tertiary: var(--muted-foreground);
+  --foreground-quaternary: oklch(0.65 0.02 190);
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --card-raised: oklch(0.245 0.03 190);
+
+  /* ── Semantic dark (tokens.css legacy) ── */
+  --success: oklch(0.773 0.153 163.223); /* #34D399 = resolved */
+  --warning: oklch(0.837 0.164 84.429);  /* #FBBF24 */
+  --info: oklch(0.797 0.134 211.53);     /* #22D3EE */
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -146,16 +183,38 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* DESIGN.md §2.2 — text 4 tầng + border tiers + surface raised */
+  --color-card-raised: var(--card-raised);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-foreground-quaternary: var(--foreground-quaternary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  /* DESIGN.md §2.2 — semantic (error dùng --color-destructive có sẵn) */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* DESIGN.md §2.1 — canvas palette (block-token tái dùng ngoài engine) */
+  --color-canvas-ink: var(--canvas-ink);
+  --color-data-core: var(--data-core);
+  --color-resolved: var(--resolved);
+  --color-conflict: var(--conflict);
+  --color-index-muted: var(--index-muted);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Radius scale §5: 4/8/12/16 (bỏ calc — DESIGN.md §2.4) */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
   --font-heading: var(--font-sans);
 
   /* ── Gradient palettes G-F2a (xem palettes.css) ──
