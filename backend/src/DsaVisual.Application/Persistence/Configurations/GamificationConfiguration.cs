@@ -30,6 +30,7 @@ public sealed class UserQuestConfiguration : IEntityTypeConfiguration<UserQuest>
         builder.Property(q => q.QuestDate).HasColumnType("datetime2");
         builder.Property(q => q.Progress).HasDefaultValue(0);
         builder.Property(q => q.Claimed).HasDefaultValue(false);
+        builder.Property(q => q.RowVersion).IsRowVersion();   // concurrency token (finding #3)
 
         builder.HasIndex(q => new { q.UserId, q.QuestDate, q.QuestId }).IsUnique();
 
@@ -70,6 +71,7 @@ public sealed class UserInventoryConfiguration : IEntityTypeConfiguration<UserIn
         builder.Property(i => i.IsEquipped).HasDefaultValue(false);   // v2.9 (SDD §7.3.27)
         builder.Property(i => i.PurchasedAt).HasColumnType("datetime2");
         builder.Property(i => i.ExpiresAt).HasColumnType("datetime2");
+        builder.Property(i => i.RowVersion).IsRowVersion();           // concurrency token (finding #3)
 
         builder.HasIndex(i => new { i.UserId, i.ItemId }).IsUnique();
 
@@ -115,6 +117,7 @@ public sealed class PremiumSubscriptionConfiguration : IEntityTypeConfiguration<
         builder.Property(s => s.ExpiresAt).HasColumnType("datetime2");
         builder.Property(s => s.Status).HasDefaultValue(0);
         builder.Property(s => s.CreatedAt).HasColumnType("datetime2");
+        builder.Property(s => s.RowVersion).IsRowVersion();   // concurrency token (finding #3)
 
         builder.HasIndex(s => new { s.UserId, s.Status });
         builder.HasIndex(s => new { s.Status, s.ExpiresAt });

@@ -120,19 +120,31 @@ public sealed class ClassService(
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
 
+        // findings-perf #1 (N+1): gom 2 batch query title (lessonIds/exerciseIds → ToDictionary) trước vòng lặp
+        var lessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
+        var exerciseIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
+        var lessonTitles = lessonIds.Count > 0
+            ? await db.Lessons.AsNoTracking()
+                .Where(l => lessonIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+            : new Dictionary<int, string>();
+        var exerciseTitles = exerciseIds.Count > 0
+            ? await db.Exercises.AsNoTracking()
+                .Where(e => exerciseIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+            : new Dictionary<int, string>();
+
         var assignmentDtos = new List<ClassAssignmentDto>();
         foreach (var assignment in assignments)
         {
             string? title = null;
             if (assignment.LessonId is { } lessonId)
             {
-                title = await db.Lessons.AsNoTracking()
-                    .Where(l => l.Id == lessonId).Select(l => l.Title).FirstOrDefaultAsync(ct);
+                title = lessonTitles.GetValueOrDefault(lessonId);
             }
             else if (assignment.ExerciseId is { } exerciseId)
             {
-                title = await db.Exercises.AsNoTracking()
-                    .Where(e => e.Id == exerciseId).Select(e => e.Title).FirstOrDefaultAsync(ct);
+                title = exerciseTitles.GetValueOrDefault(exerciseId);
             }
 
             assignmentDtos.Add(new ClassAssignmentDto
@@ -441,25 +453,51 @@ public sealed class ClassService(
             .ToListAsync(ct);
 
         var assignmentIds = assignments.Select(a => a.Id).ToList();
-        var submissions = assignmentIds.Count > 0
+
+        // findings-biz #15 + perf #8: chỉ đếm submissions của member HIỆN TẠI (member đã kick không tính)
+        // và chỉ projection cột cần (không kéo AnswersJson/ResultJson)
+        var submissions = assignmentIds.Count > 0 && memberIds.Count > 0
             ? await db.ExerciseSubmissions.AsNoTracking()
-                .Where(s => s.ClassAssignmentId != null && assignmentIds.Contains(s.ClassAssignmentId.Value))
+                .Where(s => s.ClassAssignmentId != null
+                    && assignmentIds.Contains(s.ClassAssignmentId.Value)
+                    && memberIds.Contains(s.UserId))
+                .Select(s => new SubmissionCountRow { UserId = s.UserId, ClassAssignmentId = s.ClassAssignmentId!.Value, SubmittedAt = s.SubmittedAt, Score = s.Score })
                 .ToListAsync(ct)
             : [];
+
+        // findings-perf #2 (N+1): batch title trước vòng lặp
+        var lessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
+        var exerciseIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
+        var lessonTitles = lessonIds.Count > 0
+            ? await db.Lessons.AsNoTracking()
+                .Where(l => lessonIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+            : new Dictionary<int, string>();
+        var exerciseTitles = exerciseIds.Count > 0
+            ? await db.Exercises.AsNoTracking()
+                .Where(e => exerciseIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+            : new Dictionary<int, string>();
 
         var reportAssignments = new List<ClassReportAssignmentDto>();
         foreach (var assignment in assignments)
         {
-            var assignmentSubmissions = submissions.Where(s => s.ClassAssignmentId == assignment.Id).ToList();
-            var onTime = assignmentSubmissions.Count(s => s.SubmittedAt <= (assignment.DueAt ?? DateTime.MaxValue));
-            var late = assignmentSubmissions.Count - onTime;
-            var notSubmitted = totalMembers - assignmentSubmissions.Select(s => s.UserId).Distinct().Count();
-            var avg = assignmentSubmissions.Count > 0 ? assignmentSubmissions.Average(s => (double)s.Score) : 0;
+            // findings-biz #15 (c): count distinct (User, Assignment) — nộp trùng cùng user không đếm 2 lần;
+            // lấy bài nộp SỚM NHẤT của từng user để xếp OnTime/Late
+            var firstByUser = submissions
+                .Where(s => s.ClassAssignmentId == assignment.Id)
+                .GroupBy(s => s.UserId)
+                .Select(g => g.OrderBy(s => s.SubmittedAt).First())
+                .ToList();
+            var onTime = firstByUser.Count(s => s.SubmittedAt <= (assignment.DueAt ?? DateTime.MaxValue));
+            var late = firstByUser.Count - onTime;
+            var notSubmitted = totalMembers - firstByUser.Count;
+            var avg = firstByUser.Count > 0 ? firstByUser.Average(s => (double)s.Score) : 0;
 
             var title = assignment.LessonId is { } lessonId
-                ? await db.Lessons.AsNoTracking().Where(l => l.Id == lessonId).Select(l => l.Title).FirstOrDefaultAsync(ct)
+                ? lessonTitles.GetValueOrDefault(lessonId)
                 : assignment.ExerciseId is { } exerciseId
-                    ? await db.Exercises.AsNoTracking().Where(e => e.Id == exerciseId).Select(e => e.Title).FirstOrDefaultAsync(ct)
+                    ? exerciseTitles.GetValueOrDefault(exerciseId)
                     : null;
 
             reportAssignments.Add(new ClassReportAssignmentDto
@@ -474,7 +512,7 @@ public sealed class ClassService(
             });
         }
 
-        // Học viên chậm tiến độ: thiếu ≥ 2 bài gán (FR-8.4)
+        // Học viên chậm tiến độ: thiếu ≥ 2 bài gán (FR-8.4) — submissions đã lọc theo memberIds hiện tại
         var submittedByUser = submissions.GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.Count());
         var lagging = memberIds
             .Select(memberId => new
@@ -596,4 +634,13 @@ public sealed class ClassService(
         value.Contains(',') || value.Contains('"')
             ? $"\"{value.Replace("\"", "\"\"")}\""
             : value;
+
+    /// <summary>Projection gọn cho report (perf #8 — không kéo AnswersJson/ResultJson).</summary>
+    private sealed class SubmissionCountRow
+    {
+        public int UserId { get; init; }
+        public int ClassAssignmentId { get; init; }
+        public DateTime SubmittedAt { get; init; }
+        public int Score { get; init; }
+    }
 }

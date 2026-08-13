@@ -10,6 +10,8 @@ namespace DsaVisual.Application.Services;
 /// <summary>
 /// SettingService thật theo SDD §7.3.12 / API_REFERENCE.md §4.10 (Admin).
 /// Cache singleton trong bộ nhớ (SettingsCache); PUT → upsert DB + invalidate cache ngay.
+/// GIỚI HẠN (finding biz#17b): cache in-process per-instance — chỉ hỗ trợ single-instance
+/// (như SubmissionLockRegistry); multi-instance cần invalidate qua signal (Redis pub/sub / DB stamp).
 /// GET/PUT /settings trao đổi SystemSettingsDto (object — shape FE), map từ bảng Settings key-value.
 /// </summary>
 public sealed class SettingService(
@@ -88,8 +90,14 @@ public sealed class SettingService(
                     UpdatedBy = userId
                 });
             }
+        }
 
-            // Invalidate/upsert cache ngay (SDD §5.3.7)
+        await db.SaveChangesAsync(ct);
+
+        // Upsert cache SAU khi DB ghi thành công (finding biz#18) — trước đây upsert TRƯỚC SaveChanges:
+        // nếu SaveChanges fail (khóa/network) → cache ≠ DB cho tới khi restart. Giờ cache chỉ phản ánh DB đã commit.
+        foreach (var (key, value) in updates)
+        {
             cache.Upsert(new Setting
             {
                 Key = key,
@@ -99,7 +107,6 @@ public sealed class SettingService(
             });
         }
 
-        await db.SaveChangesAsync(ct);
         logger.LogInformation("Settings updated by user {UserId}: {Keys}", userId,
             string.Join(',', updates.Keys));
         return Result.Ok();
@@ -123,14 +130,9 @@ public sealed class SettingService(
     private static int ParseInt(string? raw, int fallback) =>
         int.TryParse(raw, out var value) ? value : fallback;
 
-    private async Task EnsureLoadedAsync(CancellationToken ct)
-    {
-        if (cache.Count > 0)
-        {
-            return;
-        }
+    private Task EnsureLoadedAsync(CancellationToken ct) =>
+        cache.LoadOnceAsync(LoadSettingsFromDb, ct);
 
-        var settings = await db.Settings.AsNoTracking().ToListAsync(ct);
-        cache.SetAll(settings);
-    }
+    private async Task<IReadOnlyList<Setting>> LoadSettingsFromDb(CancellationToken ct) =>
+        await db.Settings.AsNoTracking().ToListAsync(ct);
 }

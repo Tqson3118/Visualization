@@ -16,7 +16,7 @@ public interface IGamificationService
     Task<Result<List<QuestDto>>> GetQuestsAsync(int userId, CancellationToken ct);
     Task<Result<QuestClaimResultDto>> ClaimQuestAsync(int userId, int questId, CancellationToken ct);
     Task<Result<StreakDto>> GetStreakAsync(int userId, CancellationToken ct);
-    Task<Result<PagedResponse<LeaderboardEntryDto>>> GetLeaderboardAsync(string tab, int? classId, int page, int pageSize, CancellationToken ct);
+    Task<Result<PagedResponse<LeaderboardEntryDto>>> GetLeaderboardAsync(string tab, int? classId, int page, int pageSize, CancellationToken ct = default, int? lastXp = null, int? lastId = null);
     Task<Result<List<ShopItemDto>>> GetShopItemsAsync(int userId, CancellationToken ct);
     Task<Result<ShopBuyResultDto>> BuyItemAsync(int userId, int itemId, CancellationToken ct);
     Task<Result<List<InventoryItemDto>>> GetInventoryAsync(int userId, CancellationToken ct);

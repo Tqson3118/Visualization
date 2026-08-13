@@ -1,6 +1,8 @@
 using Asp.Versioning;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +12,10 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/classes")]
 [Authorize]
-public class ClassesController(IClassService service) : ApiControllerBase
+public class ClassesController(
+    IClassService service,
+    IValidator<JoinClassRequest> joinValidator,
+    IValidator<AddMemberRequest> addMemberValidator) : ApiControllerBase
 {
     private readonly IClassService _service = service;
 
@@ -57,6 +62,12 @@ public class ClassesController(IClassService service) : ApiControllerBase
     [HttpPost("{id:int}/join")]
     public async Task<ActionResult<ClassDetailDto>> Join([FromRoute] int id, [FromBody] JoinClassRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(joinValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.JoinAsync(CurrentUserId(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -65,6 +76,12 @@ public class ClassesController(IClassService service) : ApiControllerBase
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<ClassDetailDto>> AddMember([FromRoute] int id, [FromBody] AddMemberRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(addMemberValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.AddMemberAsync(CurrentUserId(), CurrentRole(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }

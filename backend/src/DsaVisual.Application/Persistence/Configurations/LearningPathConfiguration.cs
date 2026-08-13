@@ -16,6 +16,9 @@ public sealed class LearningPathConfiguration : IEntityTypeConfiguration<Learnin
         builder.Property(p => p.SortOrder).HasDefaultValue(0);
         builder.Property(p => p.IsActive).HasDefaultValue(true);
 
+        // UNIQUE Title — chốt khoá seed LearningPaths (SDD §7.3.25, audit bề mặt #2).
+        builder.HasIndex(p => p.Title).IsUnique();
+
         builder.HasOne<Topic>()
             .WithMany()
             .HasForeignKey(p => p.TopicId)
@@ -37,6 +40,9 @@ public sealed class LearningPathNodeConfiguration : IEntityTypeConfiguration<Lea
         builder.Property(n => n.Title).HasMaxLength(200).IsRequired();
 
         builder.HasIndex(n => new { n.PathId, n.SortOrder }).IsUnique();
+
+        // UNIQUE (PathId, Title) — chốt khoá seed LearningPathNodes (SDD §7.3.25, audit bề mặt #2).
+        builder.HasIndex(n => new { n.PathId, n.Title }).IsUnique();
 
         builder.HasOne<LearningPath>()
             .WithMany()
@@ -63,6 +69,7 @@ public sealed class NodeSessionConfiguration : IEntityTypeConfiguration<NodeSess
 
         builder.Property(s => s.StartedAt).HasColumnType("datetime2");
         builder.Property(s => s.ExpiresAt).HasColumnType("datetime2");
+        builder.Property(s => s.RowVersion).IsRowVersion();   // concurrency token (finding #3)
 
         // UNIQUE (UserId, NodeId) — chống double-spend trừ tim (SDD §7.3.29, FR-10.1)
         builder.HasIndex(s => new { s.UserId, s.NodeId }).IsUnique();

@@ -168,9 +168,9 @@ public sealed class LessonsIntegrationTests : IntegrationTestBase, IClassFixture
         // Act
         var response = await client.PostAsJsonAsync(BaseUrl, request);
 
-        // Assert — 403 từ [Authorize(Roles="TEACHER,ADMIN")] (ForbidResult — body rỗng, không có envelope error)
+        // Assert — 403 từ [Authorize(Roles="TEACHER,ADMIN")] (exc#4b: envelope { error } §2.1 — KHÔNG body rỗng)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+        Assert.Equal("FORBIDDEN", await GetErrorCodeAsync(response));
     }
 
     [Fact(DisplayName = "TEST-B-030: content chứa <script> → sanitize, KHÔNG còn script")]

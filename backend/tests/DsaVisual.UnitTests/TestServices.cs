@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Services;
@@ -66,19 +67,60 @@ internal static class TestServices
     public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName) =>
         CreateAuthService(db, clock, dbName, NullLogger<AuthService>.Instance);
 
-    public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName, ILogger<AuthService> logger)
+    public static AuthService CreateAuthService(AppDbContext db, FixedClock clock, string dbName, ILogger<AuthService> logger,
+        ITokenService? tokenService = null, Func<string>? otpGenerator = null)
     {
         var config = CreateConfig();
         var cache = new SettingsCache();
         var settings = new SettingService(db, cache, clock, NullLogger<SettingService>.Instance);
         return new AuthService(
             db,
-            new TokenService(config),
+            tokenService ?? new TokenService(config),
             clock,
             config,
             settings,
             new LoginAttemptTracker(clock, config),
-            logger);
+            logger,
+            otpGenerator);
+    }
+
+    /// <summary>
+    /// Ghi nhận refresh token thô sinh ra (test seam — finding security#5 cấm log token nên test
+    /// không lấy token từ log nữa; bọc ITokenService thật, chỉ record CreateRefreshToken).
+    /// </summary>
+    public sealed class RecordingTokenService(ITokenService inner) : ITokenService
+    {
+        public List<string> CreatedRefreshTokens { get; } = [];
+
+        public (string Token, DateTime ExpiresAt) CreateAccessToken(int userId, string role) =>
+            inner.CreateAccessToken(userId, role);
+
+        public string CreateRefreshToken()
+        {
+            var token = inner.CreateRefreshToken();
+            CreatedRefreshTokens.Add(token);
+            return token;
+        }
+
+        public string HashToken(string token) => inner.HashToken(token);
+    }
+
+    /// <summary>
+    /// Sinh mã OTP 6 số + ghi nhận mã đã sinh (test seam — AuthService.otpGenerator; production
+    /// không log OTP nên test đọc mã từ recorder thay vì log dev).
+    /// </summary>
+    public sealed class RecordingOtpGenerator
+    {
+        public List<string> GeneratedCodes { get; } = [];
+
+        public string Generate()
+        {
+            var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+            GeneratedCodes.Add(code);
+            return code;
+        }
+
+        public string Last => GeneratedCodes[^1];
     }
 
     public static ExerciseService CreateExerciseService(AppDbContext db, FixedClock clock) =>

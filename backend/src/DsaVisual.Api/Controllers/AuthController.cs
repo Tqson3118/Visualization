@@ -2,6 +2,8 @@ using Asp.Versioning;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
+using DsaVisual.Application.Validators;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +16,13 @@ namespace DsaVisual.Api.Controllers;
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v1/auth")]
-public class AuthController(IAuthService service) : ApiControllerBase
+public class AuthController(
+    IAuthService service,
+    IValidator<ChangePasswordRequest> changePasswordValidator,
+    IValidator<ForgotPasswordRequest> forgotPasswordValidator,
+    IValidator<ResetPasswordRequest> resetPasswordValidator,
+    IValidator<UpdateProfileRequest> updateProfileValidator,
+    IValidator<Verify2FaRequest> verify2FaValidator) : ApiControllerBase
 {
     private readonly IAuthService _service = service;
 
@@ -90,6 +98,12 @@ public class AuthController(IAuthService service) : ApiControllerBase
     [Authorize]
     public async Task<ActionResult<UserSummary>> UpdateMe([FromBody] UpdateProfileRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(updateProfileValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.UpdateMeAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -99,6 +113,14 @@ public class AuthController(IAuthService service) : ApiControllerBase
     [Authorize]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
     {
+        // Finding security#12: validate TRƯỚC khi chạy logic — thiếu field → VALIDATION_FAILED,
+        // không rơi vào OLD_PASSWORD_WRONG (tránh lộ thông tin + đúng contract API_REFERENCE §2.2).
+        var invalid = await ValidateRequestAsync(changePasswordValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.ChangePasswordAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -108,6 +130,12 @@ public class AuthController(IAuthService service) : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(forgotPasswordValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.ForgotPasswordAsync(request, ct);
         return result.IsSuccess ? Ok(new { message = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu" }) : MapResultExtensions.MapResult(this, result);
     }
@@ -117,6 +145,12 @@ public class AuthController(IAuthService service) : ApiControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(resetPasswordValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.ResetPasswordAsync(request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
@@ -149,6 +183,12 @@ public class AuthController(IAuthService service) : ApiControllerBase
     public async Task<ActionResult<Toggle2FaResponse>> Verify2Fa(
         [FromBody] Verify2FaRequest request, CancellationToken ct)
     {
+        var invalid = await ValidateRequestAsync(verify2FaValidator, request, ct);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
         var result = await _service.Verify2FaCodeAsync(CurrentUserId(), request, ct);
         return MapResultExtensions.MapResult(this, result);
     }

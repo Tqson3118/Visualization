@@ -23,6 +23,12 @@ public sealed class ExerciseConfiguration : IEntityTypeConfiguration<Exercise>
         builder.HasIndex(e => e.LessonId);
         builder.HasIndex(e => new { e.NodeId, e.Stage });
 
+        // UNIQUE (LessonId, Title) — chốt khoá seed Exercises (SDD §7.3.9, audit bề mặt #2).
+        // Filter DeletedAt IS NULL: xóa mềm không chặn tái sử dụng Title.
+        builder.HasIndex(e => new { e.LessonId, e.Title })
+            .IsUnique()
+            .HasFilter("[DeletedAt] IS NULL");
+
         builder.HasOne<Lesson>()
             .WithMany(l => l.Exercises)
             .HasForeignKey(e => e.LessonId)
@@ -75,10 +81,19 @@ public sealed class ExerciseSubmissionConfiguration : IEntityTypeConfiguration<E
         builder.Property(s => s.AnswersJson).IsRequired();
         builder.Property(s => s.ResultJson).IsRequired();
         builder.Property(s => s.SubmittedAt).HasColumnType("datetime2");
+        // Idempotency key optional — phải có MaxLength (nvarchar(max) không làm key column index).
+        builder.Property(s => s.ClientRequestId).HasMaxLength(128);
 
+        // Chống nộp trùng multi-instance CHỈ khi client gửi idempotency key (fix Đợt D — review Major #1):
+        // cùng (User, Exercise, ClassAssignment, ClientRequestId) → 1 bản nộp duy nhất (retry/double-click an toàn).
+        // ClientRequestId NULL (FE hiện không gửi) → KHÔNG có ràng buộc → re-attempt cải thiện điểm hợp lệ (FR-4.4/FR-9.5).
+        // Double-submit single-instance: SubmissionLockRegistry (đã có); multi-instance không key: ghi chú NFR-12.
+        builder.HasIndex(s => new { s.UserId, s.ExerciseId, s.ClassAssignmentId, s.ClientRequestId })
+            .IsUnique()
+            .HasFilter("[ClientRequestId] IS NOT NULL")
+            .HasDatabaseName("IX_ExerciseSubmissions_User_Exercise_Assignment_ClientRequestId");
         builder.HasIndex(s => new { s.UserId, s.ExerciseId, s.SubmittedAt });
         builder.HasIndex(s => s.ExerciseId);
-        builder.HasIndex(s => s.ClassAssignmentId);
 
         builder.HasOne<User>()
             .WithMany()
@@ -135,7 +150,16 @@ public sealed class CodeSubmissionConfiguration : IEntityTypeConfiguration<CodeS
         builder.Property(s => s.Code).IsRequired();
         builder.Property(s => s.ResultJson).IsRequired();
         builder.Property(s => s.SubmittedAt).HasColumnType("datetime2");
+        builder.Property(s => s.IsClientDeclared).HasDefaultValue(true);
+        // Idempotency key optional — phải có MaxLength (nvarchar(max) không làm key column index).
+        builder.Property(s => s.ClientRequestId).HasMaxLength(128);
 
+        // Fix Đợt D (review Major #1): BỎ unique vĩnh viễn (UserId, ExerciseId) — FR-9.5 yêu cầu
+        // lịch sử nhiều lần nộp + so sánh 2 lần. Chỉ unique khi client gửi idempotency key:
+        builder.HasIndex(s => new { s.UserId, s.ExerciseId, s.ClientRequestId })
+            .IsUnique()
+            .HasFilter("[ClientRequestId] IS NOT NULL")
+            .HasDatabaseName("IX_CodeSubmissions_User_Exercise_ClientRequestId");
         builder.HasIndex(s => new { s.UserId, s.ExerciseId, s.SubmittedAt });
         builder.HasIndex(s => s.ExerciseId);
 

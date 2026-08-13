@@ -16,9 +16,9 @@ public interface IExerciseService
     Task<Result<SubmitResultDto>> SubmitAsync(int userId, int id, SubmitRequest request, CancellationToken ct);
     Task<Result<ExerciseDto>> PracticeAsync(int userId, int id, CancellationToken ct);
     Task<Result<ImportCsvResultDto>> ImportCsvAsync(int userId, int lessonId, string csvText, CancellationToken ct);
-    Task<Result<PagedResponse<SubmissionSummaryDto>>> GetSubmissionsAsync(int userId, string role, int id, int page, int pageSize, CancellationToken ct);
-    Task<Result<PagedResponse<SubmissionSummaryDto>>> GetMySubmissionsAsync(int userId, int id, int page, int pageSize, CancellationToken ct);
+    Task<Result<PagedResponse<SubmissionSummaryDto>>> GetSubmissionsAsync(int userId, string role, int id, int page, int pageSize, CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null);
+    Task<Result<PagedResponse<SubmissionSummaryDto>>> GetMySubmissionsAsync(int userId, int id, int page, int pageSize, CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null);
     Task<Result<CodeSubmitResultDto>> SubmitCodeAsync(int userId, int id, CodeSubmitRequest request, CancellationToken ct);
-    Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetCodeSubmissionsAsync(int userId, string role, int id, int page, int pageSize, CancellationToken ct);
-    Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetMyCodeSubmissionsAsync(int userId, int id, int page, int pageSize, CancellationToken ct);
+    Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetCodeSubmissionsAsync(int userId, string role, int id, int page, int pageSize, CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null);
+    Task<Result<PagedResponse<CodeSubmissionSummaryDto>>> GetMyCodeSubmissionsAsync(int userId, int id, int page, int pageSize, CancellationToken ct = default, DateTime? lastSubmittedAt = null, int? lastId = null);
 }

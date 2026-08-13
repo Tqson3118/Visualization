@@ -22,10 +22,16 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt).HasColumnType("datetime2");
         builder.Property(u => u.UpdatedAt).HasColumnType("datetime2");
         builder.Property(u => u.DeletedAt).HasColumnType("datetime2");   // xóa mềm (D-5)
+        builder.Property(u => u.RowVersion).IsRowVersion();        // concurrency token (finding #3)
 
         builder.HasIndex(u => u.Email).IsUnique();
         builder.HasIndex(u => new { u.Role, u.IsActive });
         builder.HasIndex(u => u.PremiumUntil);
+        // perf#5: index leaderboard — ORDER BY Xp DESC (level/week/class tab) không sort toàn bộ Users;
+        // filtered DeletedAt IS NULL khớp WHERE mọi tab (loại trừ user xóa mềm).
+        builder.HasIndex(u => u.Xp).HasFilter("[DeletedAt] IS NULL");
+        // perf#19: leaderboard tab "week" filter LastActivityDate >= weekStart (scan → seek).
+        builder.HasIndex(u => u.LastActivityDate);
     }
 }
 

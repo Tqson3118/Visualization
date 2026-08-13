@@ -273,7 +273,18 @@ public sealed class LessonService(
             progress.UpdatedAt = now;
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Finding #3: dòng UserProgress đổi (RowVersion) giữa lúc đọc và ghi (2 tab mở bài cùng lúc)
+            return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        // Finding #6 (FR-10.3): xem lesson → tăng quest lesson_viewed (atomic, không chặn luồng chính)
+        await QuestProgressWriter.IncrementAsync(db, userId, "lesson_viewed", ct);
 
         logger.LogInformation("User {UserId} marked lesson {LessonId} as viewed", userId, lessonId);
         return Result.Ok();

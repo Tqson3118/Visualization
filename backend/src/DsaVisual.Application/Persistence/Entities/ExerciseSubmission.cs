@@ -12,4 +12,11 @@ public sealed class ExerciseSubmission
     public string ResultJson { get; set; } = string.Empty;
     public int? DurationSeconds { get; set; }
     public DateTime SubmittedAt { get; set; }
+
+    /// <summary>
+    /// Idempotency key OPTIONAL (fix Đợt D — review Major #1): NULL → mọi lần nộp là lần mới
+    /// (re-attempt hợp lệ FR-4.4); có giá trị → unique filtered (UserId, ExerciseId, ClassAssignmentId,
+    /// ClientRequestId) chống nộp trùng cùng key. FE hiện không gửi (backward compatible).
+    /// </summary>
+    public string? ClientRequestId { get; set; }
 }

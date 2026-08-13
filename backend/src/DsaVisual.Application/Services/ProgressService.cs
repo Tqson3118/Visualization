@@ -21,7 +21,7 @@ public sealed class ProgressService(
 
     public async Task<Result<ProgressOverviewDto>> GetMyOverviewAsync(int userId, CancellationToken ct)
     {
-        var (lessonsTotal, exercisesTotal, topics) = await LoadCountsAsync(ct);
+        var (lessonsTotal, exercisesTotal, topics) = await LoadCountsAsync(userId, ct);
 
         var viewed = await db.UserProgress.AsNoTracking()
             .Where(p => p.UserId == userId)
@@ -204,7 +204,7 @@ public sealed class ProgressService(
 
     // ── Private ───────────────────────────────────────────────
 
-    private async Task<(int LessonsTotal, int ExercisesTotal, List<TopicAggregate> Topics)> LoadCountsAsync(CancellationToken ct)
+    private async Task<(int LessonsTotal, int ExercisesTotal, List<TopicAggregate> Topics)> LoadCountsAsync(int userId, CancellationToken ct)
     {
         var topics = await db.Topics.AsNoTracking()
             .Where(t => t.DeletedAt == null)
@@ -216,11 +216,15 @@ public sealed class ProgressService(
             .OrderBy(l => l.SortOrder).ThenBy(l => l.Id)
             .ToListAsync(ct);
 
+        // findings-perf #3: bắt buộc filter UserId — chỉ đọc progress của user hiện tại
+        // (unique (UserId, LessonId) → tối đa 1 dòng/lesson/user; GroupBy phòng duplicate key)
         var lessonIds = lessons.Select(l => l.Id).ToList();
         var progress = await db.UserProgress.AsNoTracking()
-            .Where(p => lessonIds.Contains(p.LessonId))
+            .Where(p => p.UserId == userId && lessonIds.Contains(p.LessonId))
             .ToListAsync(ct);
-        var progressByLesson = progress.ToDictionary(p => p.LessonId);
+        var progressByLesson = progress
+            .GroupBy(p => p.LessonId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var exercisesTotal = await db.Exercises.AsNoTracking()
             .CountAsync(e => e.DeletedAt == null && e.Status == ExerciseStatus.Active, ct);

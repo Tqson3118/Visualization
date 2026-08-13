@@ -126,3 +126,20 @@
 | 1 | SMTP thật khi deploy: đặt `DSA__Email__SmtpHost/Port/From` (mục §1.3 — SMTP trường/Gmail App Password) — dev hiện dùng **MailHog** (docker-compose, SMTP localhost:1025, UI http://localhost:8025) | 2FA + forgot-password đều gửi qua SMTP này; SMTP thiếu → mã OTP/link ghi trong **log dev** (KHÔNG block luồng — SDD §5.6) — không dùng cho production | [ ] |
 | 2 | (Tùy chọn) Luồng 2FA bước 2 khi đăng nhập (SDD Màn Login bước 2: tài khoản bật 2FA → yêu cầu mã trước khi cấp token; sai 3 lần khóa 10 phút; ghi nhớ thiết bị 30 ngày) | GP-T2 mới triển khai phần BẬT/TẮT 2FA qua email (OtpCodes + send/verify); phần chặn đăng nhập khi thiếu mã là task backend riêng (mở rộng LoginAsync + purpose "login") | [ ] |
 | 3 | (Tùy chọn) FE Màn N-1 (Cài đặt bảo mật): UI bật/tắt 2FA gọi PUT /auth/2fa + POST /auth/2fa/send + /verify | Contract đã có trong API_REFERENCE §4.12 (v1.3) | [ ] |
+
+## [2026-08-13] H-D e2e ghi nhận (đợt I/J — KHÔNG sửa trong đợt H)
+| # | Mức | Vấn đề | Vị trí |
+|---|---|---|---|
+| 1 | P1 | Contract lệch: quests trả progress/reward{}, shop thiếu description/slot, premium trả planId/status → SubscriptionView EmptyState dù active | backend DTO vs frontend/src/api/gamification.ts:33-56 |
+| 2 | P3 | /me/hearts trả nextHeartInSeconds ≠ FE đọc nextHeartAt | backend HeartsDto |
+
+
+| 3 | P2 | GET /progress/me trả 500 duplicate key (seed) — console error khi vào app | backend ProgressService/seed |
+| 4 | P2 | Vào thẳng /shop gems luôn 0 — backend KHÔNG có GET gems balance (gems chỉ trong response buy/claim) | backend GamificationService + FE ShopView |
+
+
+| 5 | P3 | Dark mode không bật/persist qua UI toggle (ui.ts không sync class, boot ghi đè html.className) | frontend ui.ts/App.vue |
+
+
+| 6 | P3 | FinalTest nộp bài bị backend 422 khi chưa pass bậc trước — UX nên đọc finalTestUnlocked sớm → lock state từ đầu | frontend/src/views/FinalTestView.vue |
+
