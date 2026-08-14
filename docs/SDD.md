@@ -23,6 +23,7 @@
 | 1.5 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): Màn 25/26 — checkout 2 bước mới (chọn gói → QR VietQR EMVCo + nội dung CK `DSV{userId}T{months}` + nút "Tôi đã chuyển khoản" sau đếm ngược 60s; `qrcode` npm MIT); §7.3.28 PremiumSubscriptions.OrderRef = `DSV{userId}T{months}`; API `POST /premium/upgrade` trả `contentRef`; §3.9 cập nhật bundle thật 13/08 (qrcode vào chunk lazy PremiumView, JS lần đầu ≈ 852KB không đổi) |
 | 1.6 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §7.3.1 `Users` +3 cột `Department nvarchar(100)` / `StaffCode nvarchar(50)` / `TeacherBio nvarchar(500)` (NULL, bắt buộc nhập khi đăng ký vai trò Giảng viên) + migration `20260813052933_AddTeacherProfileFields`; cập nhật 2 sơ đồ ERD (Users); Màn 02 — bỏ checkbox "Tôi là giảng viên" → segmented chọn vai trò Sinh viên/Giảng viên + form con 3 trường; Màn 29 — danh sách chờ duyệt + modal hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã GV, Kinh nghiệm) |
 | 1.7 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §7.5 — setting `allowed.email.domains` KHÔNG còn được seed (bỏ chặn domain — mọi email đăng ký được); nếu DB còn setting cũ, bước SeedCleanupSettingsAsync tự xóa; bổ sung mô tả SeedDemoActivity (seed dữ liệu hoạt động người dùng demo — idempotent) |
+| 1.8 | 14/08/2026 | Trần Viết Tâm Phúc | PR #23 (docs sync v2.15 — 5 khối logic): §5.4 cập nhật trách nhiệm LessonService (kiểm duyệt + báo cáo vi phạm)/ClassService (join-by-code + allowLate)/UserService (reject reason bắt buộc + stats); §5.7.2 ghi chú luồng trạng thái bài học; §7.3.1 `Users` +`AcademicDegree`/`ProfileLink`; §7.3.2 `Lessons` mở rộng enum `PendingReview` +`IsClassOnly`/`PublishedAt`/`RejectionReason`; §7.3.16-18 `ClassAssignments` +`AllowLateSubmission`; §7.3.22 `BugReports` +`AdminNote`; Màn 09/29 ghi chú UI (editor markdown ProseContent, tab chờ duyệt, lý do từ chối bắt buộc) — migration `20260814003835_FullBusinessLogicAndClassOverhaul` |
 
 ---
 
@@ -1154,15 +1155,15 @@ sequenceDiagram
 | Service | Trách nhiệm chính |
 |---|---|
 | AuthService | đăng ký, đăng nhập, refresh (rotate-invalidate), logout, khôi phục mật khẩu, khóa tạm |
-| UserService | CRUD người dùng, khóa/mở, đổi vai trò, phê duyệt Teacher, ẩn danh hóa — kiểm tra `IsPrimaryAdmin` (Admin thường không quản được Admin khác → 403) + cấm vô hiệu hóa Admin cuối cùng còn active → 400 |
+| UserService | CRUD người dùng, khóa/mở, đổi vai trò, phê duyệt Teacher, ẩn danh hóa — kiểm tra `IsPrimaryAdmin` (Admin thường không quản được Admin khác → 403) + cấm vô hiệu hóa Admin cuối cùng còn active → 400; **từ chối Teacher bắt buộc `reason` → 400 `VALIDATION_FAILED` (v2.15)**; **`GET /users/{id}` nạp stats học tập (Xp/Level/StreakDays/Gems/Hearts/LessonsCompletedCount/ExercisesPassedCount/JoinedClassesCount) cho drawer chi tiết (v2.15)** |
 | TopicService | cây chủ đề, CRUD, reorder, chặn xóa khi có con |
-| LessonService | CRUD bài học, sanitize HTML, gắn mô phỏng, đánh dấu đã học, quyền sở hữu |
+| LessonService | CRUD bài học, sanitize HTML, gắn mô phỏng, đánh dấu đã học, quyền sở hữu; **kiểm duyệt nội dung: Teacher public → `PendingReview`, Admin duyệt → `Active` (`PublishedAt`), từ chối bắt buộc lý do → `Draft` + `RejectionReason`; `IsClassOnly` → Active ngay; sửa bài Active giữ Active; báo cáo vi phạm → BugReports `CONTENT_VIOLATION` (v2.15)**; **`simulationKeys` thay multi-select cũ, key phải có trong catalog (`SIMULATION_KEY_INVALID`) (v2.15)** |
 | SimulationCatalogService | danh mục mô phỏng + schema (đồng bộ khóa frontend catalog — §9.9) |
 | ExerciseService | CRUD bài tập/câu hỏi, chấm điểm (SINGLE/MULTI/BOOLEAN/Lab), chống nộp trùng, import CSV |
 | ProgressService | upsert tiến độ, dashboard, báo cáo giảng viên + CSV, báo cáo lớp (số liệu) |
 | FavoriteService | CRUD yêu thích |
 | SettingService | cấu hình hệ thống + cache |
-| ClassService | CRUD lớp, mã mời 6 ký tự, thêm/xóa sinh viên, gán nội dung + hạn nộp, báo cáo lớp |
+| ClassService | CRUD lớp, mã mời 6 ký tự, thêm/xóa sinh viên, gán nội dung + hạn nộp, báo cáo lớp; **`JoinByCodeAsync` (v2.15) — tham gia bằng mã mời không cần classId (trống → 400, không tìm thấy → 404, lớp Đóng/đã tham gia → 400)**; **`allowLateSubmission` ở gán/sửa bài (v2.15) — `false` + quá `DueAt` → chặn nộp** |
 | CodeRunnerService | lưu CodeRuns, lịch sử nộp + so sánh (chấm điểm chạy client sandbox — ADR-012) |
 | GamificationService | 1 public seam duy nhất Module J (ADR-011), nội bộ ≥ 2 module: hearts/session (trừ tim atomic + NodeSessions), quest/streak (streak EAGER khi hoạt động — v2.8; job 00:30 đóng sổ StreakLastProcessed), shop/gems (atomic), premium (job downgrade), achievement |
 
@@ -1238,6 +1239,8 @@ public async Task<Result<LessonDto>> CreateAsync(int userId, LessonUpsertRequest
     return Result.Ok(_mapper.Map<LessonDto>(lesson));
 }
 ```
+
+> **v2.15 (PR #23) — ghi chú hành vi thật của LessonService** (khác mẫu trích trên): (1) trạng thái khi TẠO — Admin gán tùy ý; Teacher: `IsClassOnly` → `Active` ngay, public → `PendingReview` (phải Admin duyệt qua `ReviewAsync`, từ chối bắt buộc `reason` ở CONTROLLER → 400); (2) khi SỬA — Teacher sửa bài đang `Active` giữ `Active` (không duyệt lại), chuyển public từ trạng thái khác → `PendingReview`; (3) `PublishedAt` set khi chuyển sang `Active` (lần đầu), xóa khi rời `Active`; (4) `simulationKeys` thay toàn bộ danh sách mô phỏng cũ, key không có trong catalog → 400 `SIMULATION_KEY_INVALID`; (5) `ReportAsync` — reason ≥ 5 ký tự (400 nếu thiếu), tối đa 2000 (cắt), lưu `BugReports` với `ContextJson.type = "CONTENT_VIOLATION"`.
 
 ### 5.7.3 Quy ước Result<T>
 
@@ -1417,8 +1420,10 @@ erDiagram
 | Department | nvarchar(100) | NULL | | Khoa/Bộ môn (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
 | StaffCode | nvarchar(50) | NULL | | Mã giảng viên (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
 | TeacherBio | nvarchar(500) | NULL | | Kinh nghiệm/giới thiệu giảng dạy (form đăng ký GV — task L); ≤ 500 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+| AcademicDegree | nvarchar(max) | NULL | | Học vị (Thạc sĩ, Tiến sĩ...) (form đăng ký GV — v2.15); ≤ 100 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+| ProfileLink | nvarchar(max) | NULL | | Link hồ sơ nghiên cứu / LinkedIn (form đăng ký GV — v2.15); ≤ 300 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
 
-> Migration: `20260813052933_AddTeacherProfileFields` (13/08/2026 — task L) thêm 3 cột trên (đều nullable, không phá dữ liệu cũ).
+> Migration: `20260813052933_AddTeacherProfileFields` (13/08/2026 — task L) thêm `Department`/`StaffCode`/`TeacherBio`; `20260814003835_FullBusinessLogicAndClassOverhaul` (14/08/2026 — v2.15) thêm `AcademicDegree`/`ProfileLink` (đều nullable, không phá dữ liệu cũ).
 
 ### 7.3.2 `Lessons`
 
@@ -1430,10 +1435,15 @@ erDiagram
 | Description | nvarchar(500) | NULL | |
 | ContentHtml | nvarchar(max) | NOT NULL | đã sanitize |
 | SortOrder | int | NOT NULL default 0 | |
-| Status | int | NOT NULL default 0 | 0=draft, 1=active, 2=hidden |
+| Status | int | NOT NULL default 0 | 0=draft, 1=pendingreview (chờ Admin duyệt — v2.15), 2=active, 3=hidden |
+| IsClassOnly | bit | NOT NULL default 0 | bài nội bộ lớp — Active ngay, không hiển thị toàn sàn (v2.15) |
+| PublishedAt | datetime2 | NULL | thời điểm duyệt/xuất bản Active (v2.15) |
+| RejectionReason | nvarchar(max) | NULL | lý do Admin từ chối khi duyệt (v2.15) |
 | CreatedBy | int | FK→Users.Id | quyền sở hữu Teacher |
 | UpdatedBy | int | NULL | |
 | CreatedAt/UpdatedAt/DeletedAt | datetime2 | | |
+
+> Migration `20260814003835_FullBusinessLogicAndClassOverhaul` (v2.15): mở rộng enum `LessonStatus` (Draft=0, PendingReview=1, Active=2, Hidden=3) + 3 cột `IsClassOnly`/`PublishedAt`/`RejectionReason`. Hành vi: Admin gán trạng thái tùy ý; Teacher public → PendingReview; IsClassOnly → Active ngay; Teacher sửa bài Active giữ Active (không duyệt lại).
 
 ### 7.3.3 `Questions`
 
@@ -1524,9 +1534,11 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 
 - **Classes**: Id; Name nvarchar(200); InviteCode nvarchar(6) UNIQUE (mã mời 6 ký tự chữ hoa + số); Semester nvarchar(50) NULL; Description nvarchar(500) NULL; OwnerId int FK; Status int default 0 (0=Mở, 1=Đóng); CreatedAt/DeletedAt.
 - **ClassMembers**: Id; ClassId FK cascade; UserId FK — UNIQUE (ClassId, UserId); JoinedAt.
-- **ClassAssignments**: Id; ClassId FK cascade; LessonId int? FK; ExerciseId int? FK; **CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL)**; DueAt datetime2 NULL; CreatedAt. Index (ClassId, DueAt), (LessonId), (ExerciseId).
+- **ClassAssignments**: Id; ClassId FK cascade; LessonId int? FK; ExerciseId int? FK; **CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL)**; DueAt datetime2 NULL; AllowLateSubmission bit NOT NULL (entity mặc định `true` — v2.15; `false` → chặn nộp sau `DueAt` với 422 `ASSIGNMENT_OVERDUE`); CreatedAt. Index (ClassId, DueAt), (LessonId), (ExerciseId).
 
 > **Vòng đời lớp (v2.8)**: Teacher sở hữu (OwnerId) bị khóa/xóa → lớp tự động Status = 1 (Đóng); Admin chuyển quyền sở hữu qua `PUT /classes/{id}` body `{ownerId}`. Nộp bài kèm `classAssignmentId` (ExerciseSubmissions.ClassAssignmentId) → validate người nộp ∈ ClassMembers hiện tại + lớp Mở (Status=0), lớp Đóng → 409 CONFLICT. Báo cáo lớp chỉ tính ClassMembers HIỆN TẠI.
+> **Tham gia bằng mã mời (v2.15)**: `POST /classes/join-by-code` `{inviteCode}` — tìm Class theo InviteCode (không cần classId); mã trống → 400 `VALIDATION_FAILED`; không tìm thấy → 404 `NOT_FOUND`; lớp Đóng → 400; đã là ClassMember → 400.
+> **Nộp trễ (v2.15)**: `AllowLateSubmission=false` (tạo/sửa bài gán) + đã quá `DueAt` → nộp MCQ (`POST /exercises/{id}/submit`) lẫn code (`POST /exercises/{id}/code-submit`) bị chặn 422 `ASSIGNMENT_OVERDUE` (mặc định `true` → vẫn nộp trễ, tính "Nộp trễ" như cũ).
 
 ### 7.3.19-7.3.20 `Achievements` / `UserAchievements` [FR-5.5]
 
@@ -1536,7 +1548,7 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 ### 7.3.21 `ContentFeedback` / 7.3.22 `BugReports`
 
 - **ContentFeedback** [FR-7.4]: Id; UserId FK; LessonId FK — UNIQUE (UserId, LessonId); Rating int 1-5; Comment nvarchar(200) NULL (≤ 200 ký tự — FR-7.4, lọc từ thô); CreatedAt/UpdatedAt.
-- **BugReports**: Id; UserId int? FK (null = khách); Description nvarchar(2000); ContextJson nvarchar(max) NULL (URL, browser, bước mô phỏng); Status int default 0 (0=mới, 1=đang xử lý, 2=đã xử lý, 3=đóng); AssigneeId int? FK; CreatedAt/ResolvedAt. Index (Status, CreatedAt).
+- **BugReports**: Id; UserId int? FK (null = khách); Description nvarchar(2000); ContextJson nvarchar(max) NULL (URL, browser, bước mô phỏng — cũng chứa `{"type":"CONTENT_VIOLATION",...}` cho báo cáo vi phạm bài học v2.15); Status int default 0 (0=mới, 1=đang xử lý, 2=đã xử lý, 3=đóng); AssigneeId int? FK; AdminNote nvarchar(max) NULL — phản hồi của Admin khi xử lý, sanitize HTML trước khi lưu (v2.15); CreatedAt/ResolvedAt. Index (Status, CreatedAt).
 
 ### 7.3.23 `CodeRuns` [FR-9.2, FR-9.4] / 7.3.24 `CodeSubmissions` [FR-9.3, FR-9.5]
 
@@ -2130,6 +2142,8 @@ graph LR
 
 ### Màn 09 — Quản trị nội dung (`/admin/lessons`, `/admin/topics`, `/admin/exercises`)
 **Mục đích**: Giảng viên/Admin biên soạn và quản lý toàn bộ nội dung học tập: cây chủ đề, bài học (rich-text Quill), bài tập (quiz/lab/code) và gắn mô phỏng từ danh mục, kèm xem trước như người học.
+
+> **(v2.15) Ghi chú UI — đồng bộ code thật**: editor nội dung chuyển sang **markdown với ProseContent** (thay rich-text Quill); danh sách bài học thêm cột trạng thái `pendingreview` + tab "Chờ duyệt" (Admin — `GET /lessons/pending` + modal duyệt/từ chối bắt buộc lý do `POST /lessons/{id}/review`); bài học có nút "Báo cáo vi phạm" phía người học (`POST /lessons/{id}/report`); gắn mô phỏng bằng multi-select key (`simulationKeys`); bài `isClassOnly` chỉ dùng trong Lớp (không hiển thị toàn sàn).
 **Nguồn yêu cầu**: FR-2.1, FR-2.2, FR-4.1, FR-4.5, FR-4.10, FR-3.1 (danh mục mô phỏng), UC-09; quyết định 17.7: rich-text = **Quill**.
 **Bố cục**: Sidebar admin (theo 20.5.2) + vùng nội dung; 3 route con đổi tab: Lessons / Topics / Exercises. Mỗi route: bảng dữ liệu (phân trang, tìm kiếm, lọc) + nút "Thêm mới" → form biên soạn (tabs: Thông tin / Nội dung / Mô phỏng / Bài tập) → modal xem trước.
 **Thành phần**:
@@ -3273,6 +3287,8 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 | Từ chối không có lý do | "Vui lòng nhập lý do từ chối" | Nút xác nhận disabled |
 | API lỗi (user đã đổi trạng thái) | Toast đỏ "Trạng thái đã thay đổi" | Tải lại danh sách |
 | Duyệt trùng | Idempotent — trạng thái giữ nguyên | — |
+
+> **(v2.15)** Server siết chặt: `POST /users/{id}/approve-teacher` với `{approve:false}` thiếu `reason` → 400 `VALIDATION_FAILED` "Phải nhập lý do khi từ chối hồ sơ giảng viên" (không chỉ disable nút phía UI như mô tả trên); modal "Thông tin giảng viên" hiển thị thêm Học vị (`academicDegree`) + Link hồ sơ (`profileLink`).
 
 ---
 
