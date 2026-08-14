@@ -12,12 +12,9 @@ import * as adminApi from '@/api/admin';
 import type { AdminStatsDto } from '@/api/admin';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from '@/components/ui/card';
+import PageHero from '@/components/ui/PageHero.vue';
+import AdminHeroStrip from '@/components/admin/AdminHeroStrip.vue';
+import StatCard from '@/components/ui/StatCard.vue';
 import AdminNav from '@/components/admin/AdminNav.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -59,9 +56,6 @@ const KPIS: Array<{ key: keyof AdminStatsDto; label: string }> = [
   { key: 'totalSimulations', label: messages.admin.stats.totalSimulations },
   { key: 'activeUsersToday', label: messages.admin.stats.activeToday },
 ];
-
-/** Strip banner: block-token dữ liệu thật — 5 chỉ số đang theo dõi + index mono. */
-const stripBlocks = [true, true, true, true, true];
 
 // ── Bar chart 7 ngày (dữ liệu minh họa — backend chỉ trả KPI tức thời) ──
 const WEEK = [
@@ -158,39 +152,18 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
 <template>
   <main class="admin-stats container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-stats__hero">
-      <div class="admin-stats__hero-inner">
-        <div class="admin-stats__hero-main">
-          <div class="admin-stats__hero-badges">
-            <Badge variant="primary">
-              <Activity :size="12" /> {{ messages.admin.badge }}
-            </Badge>
-          </div>
-          <h1 class="admin-stats__title">{{ messages.admin.stats.title }}</h1>
-          <p class="admin-stats__sub">{{ messages.admin.stats.subtitle }}</p>
-        </div>
-
-        <!-- Mono strip: block-token (5 chỉ số) + index mono (quyết định #4) -->
-        <div class="admin-stats__hero-strip" aria-hidden="true">
-          <div class="admin-stats__strip-panel">
-            <div class="admin-stats__strip-blocks">
-              <span
-                v-for="(filled, i) in stripBlocks"
-                :key="i"
-                class="admin-stats__strip-block"
-                :class="{ 'admin-stats__strip-block--empty': !filled }"
-                :style="{ '--i': i }"
-              />
-            </div>
-            <div class="admin-stats__strip-index">
-              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
-            </div>
-          </div>
-          <p class="admin-stats__strip-caption">{{ messages.admin.stats.stripLabel(5) }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: surface band level-2 (PageHero — DESIGN §1/#1: KHÔNG gradient, KHÔNG shadow) -->
+    <PageHero :title="messages.admin.stats.title" :description="messages.admin.stats.subtitle">
+      <template #badges>
+        <Badge variant="primary">
+          <Activity :size="12" /> {{ messages.admin.badge }}
+        </Badge>
+      </template>
+      <!-- Mono strip: block-token (5 chỉ số) + index mono (quyết định #4) -->
+      <template #side>
+        <AdminHeroStrip :count="5" :label="messages.admin.stats.stripLabel(5)" />
+      </template>
+    </PageHero>
 
     <AdminNav active="stats" />
 
@@ -213,32 +186,29 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
     <template v-else-if="stats">
       <!-- 1 hero-stat (block-token tối) + 4 KPI level-1 — §6 -->
       <div class="admin-stats__kpis">
-        <Card class="admin-stats__hero">
-          <CardHeader class="admin-stats__hero-head">
-            <span class="admin-stats__hero-icon" aria-hidden="true"><Users :size="18" /></span>
-            <CardDescription class="admin-stats__kpi-label">{{ messages.admin.stats.totalUsers }}</CardDescription>
-          </CardHeader>
-          <CardContent class="admin-stats__hero-body">
-            <div class="admin-stats__hero-panel">
-              <div class="admin-stats__hero-block-row">
-                <span class="admin-stats__hero-block" />
-                <span class="admin-stats__hero-block admin-stats__hero-block--ghost" />
-                <span class="admin-stats__hero-block" />
-              </div>
-              <p class="admin-stats__hero-value">{{ kpiValue('totalUsers') }}</p>
-              <p class="admin-stats__hero-index">USERS · 01</p>
+        <StatCard
+          level="hero"
+          :icon="Users"
+          :label="messages.admin.stats.totalUsers"
+          :value="kpiValue('totalUsers')"
+          index="USERS · 01"
+          class="admin-stats__kpi-hero"
+        >
+          <template #panel>
+            <div class="admin-stats__hero-block-row">
+              <span class="admin-stats__hero-block" />
+              <span class="admin-stats__hero-block admin-stats__hero-block--ghost" />
+              <span class="admin-stats__hero-block" />
             </div>
-          </CardContent>
-        </Card>
+          </template>
+        </StatCard>
 
-        <Card v-for="kpi in KPIS" :key="kpi.key" class="admin-stats__kpi">
-          <CardHeader class="admin-stats__kpi-head">
-            <CardDescription class="admin-stats__kpi-label">{{ kpi.label }}</CardDescription>
-          </CardHeader>
-          <CardContent class="admin-stats__kpi-body">
-            <p class="admin-stats__kpi-value">{{ kpiValue(kpi.key) }}</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          v-for="kpi in KPIS"
+          :key="kpi.key"
+          :label="kpi.label"
+          :value="kpiValue(kpi.key)"
+        />
       </div>
 
       <div class="admin-stats__charts">
@@ -293,122 +263,6 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
   gap: var(--space-lg);
 }
 
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-stats__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-stats__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-stats__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.admin-stats__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-stats__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-stats__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-/* ── Mono strip: block-token (khoảnh khắc đầu tư duy nhất) ── */
-.admin-stats__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-stats__strip-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.admin-stats__strip-blocks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-stats__strip-block {
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--data-core);
-  opacity: 0;
-  transform: translateY(6px);
-  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
-}
-
-.admin-stats__strip-block--empty {
-  background: transparent;
-  border: 1px dashed var(--data-core);
-  opacity: 1;
-  transform: none;
-  animation: none;
-}
-
-.admin-stats__strip-index {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-stats__strip-index span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  text-align: center;
-}
-
-.admin-stats__strip-caption {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
-  letter-spacing: 0.08em;
-  text-align: right;
-}
-
-@keyframes admin-strip-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-stats__strip-block {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* ── Loading / Error ── */
 .admin-stats__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
@@ -426,42 +280,17 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
 .admin-stats__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
 
-/* ── KPI: 1 hero-stat + 4 level-1 (§6) ── */
+/* ── KPI: 1 hero-stat + 4 level-1 (StatCard — §6) ── */
 .admin-stats__kpis {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
-.admin-stats__hero { grid-column: span 2; display: flex; flex-direction: column; border-color: var(--border-subtle); background: var(--card-raised); }
+/* Hero-stat chiếm 2 cột grid (StatCard level="hero" nhận qua fallthrough) */
+.admin-stats__kpi-hero { grid-column: span 2; }
 
-.admin-stats__hero-head { display: flex; flex-direction: row; align-items: center; gap: var(--space-sm); padding: var(--space-md) var(--space-md) 0; }
-
-.admin-stats__hero-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-  color: var(--foreground-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.admin-stats__hero-body { padding: var(--space-sm) var(--space-md) var(--space-md); }
-
-/* Block-token tối — signature Data Bench (quyết định #4/#5) */
-.admin-stats__hero-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
+/* Block row trong panel tối (slot #panel của StatCard hero) */
 .admin-stats__hero-block-row { display: flex; gap: var(--space-xs); }
 
 .admin-stats__hero-block {
@@ -474,39 +303,6 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 .admin-stats__hero-block--ghost {
   background: transparent;
   border: 1px dashed var(--data-core);
-}
-
-.admin-stats__hero-value {
-  margin: 0;
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: #d9dde8;
-  font-variant-numeric: tabular-nums;
-}
-
-.admin-stats__hero-index {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-}
-
-.admin-stats__kpi { display: flex; flex-direction: column; }
-
-.admin-stats__kpi-head { display: flex; flex-direction: row; align-items: center; gap: var(--space-sm); padding: var(--space-md) var(--space-md) 0; }
-
-.admin-stats__kpi-label { font-size: var(--text-xs); font-weight: 500; }
-
-.admin-stats__kpi-body { padding: var(--space-xs) var(--space-md) var(--space-md); }
-
-.admin-stats__kpi-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
 }
 
 /* ── Charts: vùng dữ liệu LUÔN tối (quyết định #5) ── */
@@ -580,14 +376,10 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 @media (max-width: 900px) {
   .admin-stats__charts { grid-template-columns: 1fr; }
   .admin-stats__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .admin-stats__hero { grid-column: span 2; }
 }
 
 @media (max-width: 640px) {
-  .admin-stats__hero { padding: var(--space-lg); }
-  .admin-stats__hero-strip { flex-basis: 100%; }
-  .admin-stats__strip-caption { text-align: left; }
   .admin-stats__kpis { grid-template-columns: 1fr; }
-  .admin-stats__hero { grid-column: span 1; }
+  .admin-stats__kpi-hero { grid-column: span 1; }
 }
 </style>

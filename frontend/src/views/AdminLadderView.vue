@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import PageHero from '@/components/ui/PageHero.vue';
 
 const ui = useUiStore();
 
@@ -99,20 +100,14 @@ async function attach(): Promise<void> {
 
 <template>
   <main class="admin-ladder container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-ladder__hero">
-      <div class="admin-ladder__hero-inner">
-        <div class="admin-ladder__hero-main">
-          <div class="admin-ladder__hero-badges">
-            <Badge variant="primary">
-              <ListOrdered :size="12" /> {{ messages.admin.badge }}
-            </Badge>
-          </div>
-          <h1 class="admin-ladder__title">{{ messages.admin.ladder.title }}</h1>
-          <p class="admin-ladder__sub">{{ messages.admin.ladder.subtitle }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: surface band level-2 (PageHero — DESIGN §1/#1: KHÔNG gradient, KHÔNG shadow) -->
+    <PageHero :title="messages.admin.ladder.title" :description="messages.admin.ladder.subtitle">
+      <template #badges>
+        <Badge variant="primary">
+          <ListOrdered :size="12" /> {{ messages.admin.badge }}
+        </Badge>
+      </template>
+    </PageHero>
 
     <AdminNav active="ladder" />
 
@@ -217,46 +212,6 @@ async function attach(): Promise<void> {
   flex-direction: column;
   gap: var(--space-lg);
   max-width: 1000px;
-}
-
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-ladder__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-ladder__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-ladder__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-}
-
-.admin-ladder__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-ladder__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-ladder__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
 }
 
 /* ── Info banner ── */
@@ -381,9 +336,5 @@ async function attach(): Promise<void> {
 
 @media (max-width: 800px) {
   .admin-ladder__grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 640px) {
-  .admin-ladder__hero { padding: var(--space-lg); }
 }
 </style>

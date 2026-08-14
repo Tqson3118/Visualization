@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
+import PageHero from '@/components/ui/PageHero.vue';
 
 const ui = useUiStore();
 const loading = ref(true);
@@ -111,20 +112,14 @@ async function save(): Promise<void> {
 
 <template>
   <main class="admin-settings container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-settings__hero">
-      <div class="admin-settings__hero-inner">
-        <div class="admin-settings__hero-main">
-          <div class="admin-settings__hero-badges">
-            <Badge variant="primary">
-              <ShieldCheck :size="12" /> {{ messages.admin.badge }}
-            </Badge>
-          </div>
-          <h1 class="admin-settings__title">{{ messages.admin.settings.title }}</h1>
-          <p class="admin-settings__sub">{{ messages.admin.settings.subtitle }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: surface band level-2 (PageHero — DESIGN §1/#1: KHÔNG gradient, KHÔNG shadow) -->
+    <PageHero :title="messages.admin.settings.title" :description="messages.admin.settings.subtitle">
+      <template #badges>
+        <Badge variant="primary">
+          <ShieldCheck :size="12" /> {{ messages.admin.badge }}
+        </Badge>
+      </template>
+    </PageHero>
 
     <AdminNav active="settings" />
 
@@ -270,46 +265,6 @@ async function save(): Promise<void> {
   max-width: 760px;
 }
 
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-settings__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-settings__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-settings__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-}
-
-.admin-settings__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-settings__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-settings__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
 .admin-settings__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
 /* ── Form (panel không shadow — DESIGN §6) ── */
@@ -444,7 +399,6 @@ async function save(): Promise<void> {
 }
 
 @media (max-width: 640px) {
-  .admin-settings__hero { padding: var(--space-lg); }
   .admin-settings__form { padding: var(--space-lg); }
   .admin-settings__row { grid-template-columns: 1fr; }
 }

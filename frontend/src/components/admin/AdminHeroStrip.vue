@@ -22,10 +22,11 @@ const props = withDefaults(
   },
 );
 
-const size = Math.min(Math.max(props.count, 1), 5);
+// size reactive theo props.count (count thay đổi sau khi data load — VD AdminUsers pendingCount).
+const size = computed(() => Math.min(Math.max(props.count, 1), 5));
 
 const blocks = computed(() =>
-  Array.from({ length: size }, (_, i) =>
+  Array.from({ length: size.value }, (_, i) =>
     props.activeIndices ? props.activeIndices.includes(i) : i < props.count,
   ),
 );
