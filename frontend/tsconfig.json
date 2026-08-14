@@ -5,6 +5,7 @@
   // qua project references — compilerOptions này không ảnh hưởng kết quả build.
   "compilerOptions": {
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./src/*"]
     }

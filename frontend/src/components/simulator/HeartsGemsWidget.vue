@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // HeartsGemsWidget — hiển thị tim/gems/streak ở header (SDD §8.7, FR-10.1/10.4)
-// Dữ liệu từ gamificationStore (fetchAll). Click tim < max → popover hồi tim + link Premium.
-import { computed, onMounted, ref } from 'vue';
+// Dữ liệu từ gamificationStore (fetchHearts → GET /api/v1/me/hearts). Đếm ngược tới tim kế
+// theo gói: Free 30 phút/tim (max ≤ 10), Premium 10 phút/tim (max 30) — khớp HeartConfig backend.
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { useGamificationStore } from '@/stores/gamification';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
@@ -11,21 +12,58 @@ import { formatDuration } from '@/utils/format';
 const gamification = useGamificationStore();
 const popoverOpen = ref(false);
 
+/** Mốc thời gian hiện tại — tick mỗi giây để đếm ngược chạy (không cần re-render nguồn khác). */
+const nowMs = ref(Date.now());
+
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Chu kỳ hồi tim theo gói — Premium 10 phút, Free 30 phút (heartsMax ≥ 30 ⇒ đang Premium). */
+const regenMinutes = computed(() =>
+  gamification.isPremium || gamification.heartsMax >= 30 ? 10 : 30,
+);
+
 onMounted(() => {
-  if (gamification.heartsMax === 5 && gamification.hearts === 0) {
-    void gamification.fetchHearts();
-  }
+  // Đồng bộ hearts/heartsMax/lastHeartAt từ backend (store chỉ fetch theo view cụ thể).
+  void gamification.fetchHearts();
+  tickTimer = setInterval(() => {
+    nowMs.value = Date.now();
+  }, 1000);
+});
+
+onBeforeUnmount(() => {
+  if (tickTimer !== null) clearInterval(tickTimer);
+  if (syncTimer !== null) clearTimeout(syncTimer);
 });
 
 const heartsLabel = computed(() => `${gamification.hearts}/${gamification.heartsMax}`);
 
-/** Đếm ngược tới tim kế tiếp (từ lastHeartAt + 30 phút) */
-const nextHeartIn = computed(() => {
+/** Mốc tim kế tiếp = lastHeartAt + (floor(elapsed/interval) + 1) * interval — khớp nextHeartInSeconds backend. */
+const nextHeartAtMs = computed(() => {
   if (!gamification.lastHeartAt) return null;
+  const intervalMs = regenMinutes.value * 60 * 1000;
   const base = new Date(gamification.lastHeartAt).getTime();
-  const next = base + 30 * 60 * 1000;
-  const diff = Math.max(0, next - Date.now());
+  const elapsed = Math.max(0, nowMs.value - base);
+  return base + (Math.floor(elapsed / intervalMs) + 1) * intervalMs;
+});
+
+/** Còn bao lâu tới tim kế tiếp — null khi tim đầy hoặc chưa có dữ liệu. */
+const nextHeartIn = computed(() => {
+  if (gamification.hearts >= gamification.heartsMax) return null;
+  const next = nextHeartAtMs.value;
+  if (next === null) return null;
+  const diff = Math.max(0, next - nowMs.value);
   return diff <= 0 ? null : formatDuration(Math.ceil(diff / 1000));
+});
+
+// Vừa hết đếm ngược (tim đã hồi) → fetch lại để đồng bộ hearts với backend.
+watch(nextHeartIn, (value, prev) => {
+  if (prev !== null && value === null && gamification.hearts < gamification.heartsMax) {
+    if (syncTimer !== null) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      void gamification.fetchHearts();
+    }, 500);
+  }
 });
 </script>
 
@@ -56,9 +94,10 @@ const nextHeartIn = computed(() => {
         <div v-if="popoverOpen" class="hearts-gems__pop card">
           <p class="hearts-gems__pop-title">Tim của bạn</p>
           <p v-if="nextHeartIn" class="hearts-gems__pop-desc">
-            Tim tiếp theo sau <strong>{{ nextHeartIn }}</strong> (30 phút/tim — bản Free)
+            Tim tiếp theo sau <strong>{{ nextHeartIn }}</strong> ({{ regenMinutes }} phút/tim — bản
+            {{ gamification.isPremium ? 'Premium' : 'Free' }})
           </p>
-          <RouterLink class="hearts-gems__pop-link" to="/premium">
+          <RouterLink v-if="!gamification.isPremium" class="hearts-gems__pop-link" to="/premium">
             Nâng cấp Premium — hồi tim chỉ 10 phút
           </RouterLink>
           <button type="button" class="hearts-gems__pop-close" @click="popoverOpen = false">

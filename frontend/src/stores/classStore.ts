@@ -32,17 +32,15 @@ export const useClassStore = defineStore('classStore', () => {
     return created;
   }
 
-  async function joinClass(code: string): Promise<ClassDto> {
-    // Cần id lớp — join theo mã mời: endpoint POST /classes/{id}/join cần id.
-    // Khi chưa có id, tìm lớp khớp mã trong danh sách đã tải (hoặc ném lỗi).
-    const target = classes.value.find((c) => c.inviteCode.toUpperCase() === code.toUpperCase());
-    if (!target) {
-      // Server hỗ trợ join theo mã: thử id 0? Không — ném lỗi rõ ràng để view hướng dẫn.
-      throw new Error('Không tìm thấy lớp với mã mời này — hãy kiểm tra lại mã hoặc liên hệ giảng viên.');
-    }
-    const joined = await classesApi.joinClass(target.id, code);
+  /** v2.15: tham gia lớp bằng mã mời — gọi API trực tiếp POST /classes/join-by-code (KHÔNG dò trong danh sách đã tham gia). */
+  async function joinByCode(code: string): Promise<ClassDto> {
+    const joined = await classesApi.joinByCode(code);
     classes.value = [joined, ...classes.value.filter((c) => c.id !== joined.id)];
     return joined;
+  }
+
+  async function joinClass(code: string): Promise<ClassDto> {
+    return joinByCode(code);
   }
 
   async function fetchClass(id: number): Promise<void> {
@@ -69,18 +67,39 @@ export const useClassStore = defineStore('classStore', () => {
     assignments.value = await classesApi.fetchClassAssignments(id);
   }
 
-  async function assignContent(payload: { classId: number; lessonId?: number | null; exerciseId?: number | null; dueAt?: string | null }): Promise<void> {
+  async function assignContent(payload: {
+    classId: number;
+    lessonId?: number | null;
+    exerciseId?: number | null;
+    dueAt?: string | null;
+    allowLateSubmission?: boolean;
+  }): Promise<void> {
     const created = await classesApi.createClassAssignment(payload.classId, {
       lessonId: payload.lessonId ?? null,
       exerciseId: payload.exerciseId ?? null,
       dueAt: payload.dueAt ?? null,
+      allowLateSubmission: payload.allowLateSubmission,
     });
     assignments.value = [...assignments.value, created];
   }
 
+  async function updateAssignment(
+    classId: number,
+    assignId: number,
+    payload: { dueAt?: string | null; allowLateSubmission?: boolean },
+  ): Promise<void> {
+    await classesApi.updateClassAssignment(classId, assignId, payload);
+    await reloadAssignments(classId);
+  }
+
+  async function removeAssignment(classId: number, assignId: number): Promise<void> {
+    await classesApi.deleteClassAssignment(classId, assignId);
+    await reloadAssignments(classId);
+  }
+
   async function removeMember(classId: number, userId: number): Promise<void> {
     await classesApi.removeClassMember(classId, userId);
-    members.value = members.value.filter((m) => m.id !== userId);
+    members.value = members.value.filter((m) => m.userId !== userId);
   }
 
   async function removeClass(classId: number): Promise<void> {
@@ -98,11 +117,14 @@ export const useClassStore = defineStore('classStore', () => {
     error,
     fetchClasses,
     createClass,
+    joinByCode,
     joinClass,
     fetchClass,
     reloadMembers,
     reloadAssignments,
     assignContent,
+    updateAssignment,
+    removeAssignment,
     removeMember,
     removeClass,
   };

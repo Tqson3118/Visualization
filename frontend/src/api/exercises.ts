@@ -70,6 +70,17 @@ export interface SubmitResultDto {
   submittedAt: string;
 }
 
+/** Dòng trong GET /exercises/{id}/submissions/me (PagedResponse<SubmissionSummaryDto> — lịch sử nộp bài). */
+export interface SubmissionSummaryDto {
+  id: number;
+  userId: number;
+  userDisplayName?: string | null;
+  score: number;
+  durationSeconds?: number | null;
+  classAssignmentId?: number | null;
+  submittedAt: string;
+}
+
 // ── CRUD (API_REFERENCE §4.6) ──
 
 export async function fetchExercises(params: { lessonId?: number; nodeId?: number; stage?: number } = {}): Promise<ExerciseSummaryDto[]> {
@@ -90,8 +101,14 @@ export async function practiceExercise(id: number, answers: Array<{ questionId: 
   return getData<SubmitResultDto>({ method: 'POST', url: EXERCISE_ENDPOINTS.practice(id), data: { answers } });
 }
 
-export async function fetchMySubmissions(id: number): Promise<SubmitResultDto[]> {
-  return getData<SubmitResultDto[]>({ method: 'GET', url: EXERCISE_ENDPOINTS.mySubmissions(id) });
+/** Lịch sử nộp của tôi — BE trả PagedResponse<SubmissionSummaryDto> (API_REFERENCE §3.11) → unwrap items. */
+export async function fetchMySubmissions(id: number, params: { page?: number; pageSize?: number } = {}): Promise<SubmissionSummaryDto[]> {
+  const paged = await getData<PagedResponse<SubmissionSummaryDto>>({
+    method: 'GET',
+    url: EXERCISE_ENDPOINTS.mySubmissions(id),
+    params,
+  });
+  return Array.isArray(paged.items) ? paged.items : [];
 }
 
 /** Admin/Teacher: CRUD bài tập (API_REFERENCE §4.6) */

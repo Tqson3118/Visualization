@@ -156,6 +156,73 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     expect(payload).not.toHaveProperty('department');
     expect(payload).not.toHaveProperty('staffCode');
     expect(payload).not.toHaveProperty('teacherBio');
+    expect(payload).not.toHaveProperty('academicDegree');
+    expect(payload).not.toHaveProperty('profileLink');
     expect(replaceMock).toHaveBeenCalledWith({ name: 'path' });
+  });
+
+  // ── Block 2.3 — học vị + link hồ sơ giảng viên ──
+
+  it('submit teacher với profileLink không hợp lệ → lỗi inline hiện, KHÔNG gọi API', async () => {
+    const wrapper = mount(RegisterView);
+    await selectRole(wrapper, messages.auth.roleTeacher);
+
+    await fillStudentFields(wrapper);
+    await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
+    await wrapper.find(`input[placeholder="${messages.auth.staffCodePlaceholder}"]`).setValue('GV001');
+    await wrapper.find(`input[placeholder="${messages.auth.profileLinkPlaceholder}"]`).setValue('linkedin.com/in/abc');
+
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain(messages.auth.profileLinkInvalid);
+    expect(registerMock).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it('submit teacher với học vị + profileLink hợp lệ → payload gửi kèm cả hai (đã trim)', async () => {
+    const wrapper = mount(RegisterView);
+    await selectRole(wrapper, messages.auth.roleTeacher);
+
+    await fillStudentFields(wrapper);
+    await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
+    await wrapper.find(`input[placeholder="${messages.auth.staffCodePlaceholder}"]`).setValue('GV001');
+    await wrapper.find('#register-academic-degree').setValue('Thạc sĩ');
+    await wrapper.find(`input[placeholder="${messages.auth.profileLinkPlaceholder}"]`).setValue(' https://www.linkedin.com/in/abc ');
+    await wrapper.find('#register-teacher-bio').setValue('10 năm giảng dạy');
+
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(registerMock).toHaveBeenCalledTimes(1);
+    expect(registerMock).toHaveBeenCalledWith({
+      displayName: 'Nguyễn Minh',
+      email: 'minh@university.edu.vn',
+      password: validPassword,
+      isTeacher: true,
+      department: 'Khoa CNTT',
+      staffCode: 'GV001',
+      academicDegree: 'Thạc sĩ',
+      profileLink: 'https://www.linkedin.com/in/abc',
+      teacherBio: '10 năm giảng dạy',
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it('submit teacher KHÔNG điền học vị/link → payload không chứa 2 field mới', async () => {
+    const wrapper = mount(RegisterView);
+    await selectRole(wrapper, messages.auth.roleTeacher);
+
+    await fillStudentFields(wrapper);
+    await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
+    await wrapper.find(`input[placeholder="${messages.auth.staffCodePlaceholder}"]`).setValue('GV001');
+
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(registerMock).toHaveBeenCalledTimes(1);
+    const payload = registerMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('academicDegree');
+    expect(payload).not.toHaveProperty('profileLink');
   });
 });

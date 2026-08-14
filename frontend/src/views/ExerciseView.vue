@@ -3,7 +3,7 @@
 // Tái sử dụng QuizStage + nút chuyển chế độ luyện tập (FR-4.6) + liên kết lý thuyết.
 // Phase 1 view-quality: toolbar = surface band level-2 (thay class .card có shadow),
 // kicker mono (bỏ 700 + tracking dương), toast không emoji, nút toggle có aria-pressed.
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import * as exercisesApi from '@/api/exercises';
@@ -23,6 +23,12 @@ const exercise = ref<ExerciseDto | null>(null);
 const loading = ref(true);
 const error = ref('');
 const practiceMode = ref(false);
+
+/** Bài tập mở từ lớp học: /exercise/:id?classAssignmentId={assignmentId} → nộp kèm để chấm theo bài gán. */
+const classAssignmentId = computed<number | null>(() => {
+  const raw = Number(route.query.classAssignmentId);
+  return Number.isFinite(raw) && raw > 0 ? raw : null;
+});
 
 onMounted(async () => {
   const id = Number(route.params.id);
@@ -89,6 +95,7 @@ function onFinished(): void {
       <QuizStage
         :exercise="exercise"
         :practice-mode="practiceMode"
+        :class-assignment-id="classAssignmentId"
         @passed="onPassed"
         @finished="onFinished"
       />

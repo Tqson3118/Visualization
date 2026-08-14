@@ -92,4 +92,30 @@ describe('api/classes', () => {
       data: { exerciseId: 5, dueAt: '2026-09-01T00:00:00Z' },
     });
   });
+
+  it('joinByCode gọi POST /classes/join-by-code với mã mời', async () => {
+    vi.mocked(getData).mockResolvedValue({ ...mockClass, members: [], assignments: [] });
+    const joined = await classesApi.joinByCode('ABC123');
+    expect(getData).toHaveBeenCalledWith({
+      method: 'POST',
+      url: '/classes/join-by-code',
+      data: { inviteCode: 'ABC123' },
+    });
+    expect(joined.id).toBe(7);
+  });
+
+  it('updateClassAssignment gọi PUT /classes/{id}/assignments/{assignId} với dueAt + allowLateSubmission', async () => {
+    vi.mocked(client.put).mockResolvedValue({});
+    await classesApi.updateClassAssignment(7, 3, { dueAt: '2026-10-01T00:00:00Z', allowLateSubmission: false });
+    expect(client.put).toHaveBeenCalledWith('/classes/7/assignments/3', {
+      dueAt: '2026-10-01T00:00:00Z',
+      allowLateSubmission: false,
+    });
+  });
+
+  it('deleteClassAssignment gọi DELETE /classes/{id}/assignments/{assignId} qua client', async () => {
+    vi.mocked(client.delete).mockResolvedValue({});
+    await classesApi.deleteClassAssignment(7, 3);
+    expect(client.delete).toHaveBeenCalledWith('/classes/7/assignments/3');
+  });
 });

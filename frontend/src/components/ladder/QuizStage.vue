@@ -6,8 +6,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 
 import * as exercisesApi from '@/api/exercises';
-import type { ExerciseDto, QuestionDto, SubmitResultDto } from '@/api/exercises';
+import type { ExerciseDto, QuestionDto, SubmitResultDto, SubmissionSummaryDto } from '@/api/exercises';
 import { messages } from '@/i18n/vi';
+import { formatDateTime } from '@/utils/format';
 import { useUiStore } from '@/stores/ui';
 import { fireConfetti } from '@/composables/useConfetti';
 import Button from '@/components/ui/Button.vue';
@@ -15,6 +16,7 @@ import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
+import Drawer from '@/components/ui/Drawer.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -22,11 +24,14 @@ const props = withDefaults(
     loading?: boolean;
     /** Chế độ luyện tập — không chấm điểm, xem kết quả ngay (FR-4.6) */
     practiceMode?: boolean;
+    /** Mở từ lớp học — nộp kèm classAssignmentId để chấm theo bài gán */
+    classAssignmentId?: number | null;
   }>(),
   {
     exercise: null,
     loading: false,
     practiceMode: false,
+    classAssignmentId: null,
   },
 );
 
@@ -44,6 +49,11 @@ const result = ref<SubmitResultDto | null>(null);
 const submitting = ref(false);
 const submitError = ref('');
 const practiceChecked = ref(false);
+
+const historyOpen = ref(false);
+const historyLoading = ref(false);
+const historyError = ref('');
+const historyItems = ref<SubmissionSummaryDto[]>([]);
 
 const questions = computed<QuestionDto[]>(() => props.exercise?.questions ?? []);
 const answeredCount = computed(() => Object.keys(answers).length);
@@ -91,7 +101,10 @@ async function onSubmit(): Promise<void> {
       result.value = await exercisesApi.practiceExercise(props.exercise.id, payload);
       practiceChecked.value = true;
     } else {
-      result.value = await exercisesApi.submitExercise(props.exercise.id, { answers: payload });
+      result.value = await exercisesApi.submitExercise(props.exercise.id, {
+        answers: payload,
+        classAssignmentId: props.classAssignmentId ?? undefined,
+      });
     }
     showResultToast();
   } catch (err) {
@@ -144,6 +157,32 @@ function finish(): void {
   if (passed.value) emit('passed', scorePct.value);
   else emit('finished');
 }
+
+/** Mở drawer lịch sử nộp bài — GET /exercises/{id}/submissions/me (PagedResponse<SubmissionSummaryDto>). */
+function openHistory(): void {
+  historyOpen.value = true;
+  if (historyItems.value.length > 0 || historyLoading.value) return;
+  void loadHistory();
+}
+
+async function loadHistory(): Promise<void> {
+  if (!props.exercise) return;
+  historyLoading.value = true;
+  historyError.value = '';
+  try {
+    historyItems.value = await exercisesApi.fetchMySubmissions(props.exercise.id);
+  } catch (err) {
+    historyError.value = err instanceof Error ? err.message : 'Không thể tải lịch sử làm bài.';
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
+/** Kết quả theo tỷ lệ điểm (đạt ≥ 60% maxScore — cùng ngưỡng với pass). */
+function historyPassed(item: SubmissionSummaryDto): boolean {
+  const max = props.exercise?.maxScore ?? 0;
+  return max > 0 && item.score / max >= 0.6;
+}
 </script>
 
 <template>
@@ -195,7 +234,10 @@ function finish(): void {
         <div class="quiz-stage__question-area">
           <header class="quiz-stage__header">
             <h2 class="quiz-stage__title">{{ exercise.title }}</h2>
-            <Badge variant="primary">Câu {{ currentQuestion + 1 }}/{{ questions.length }}</Badge>
+            <div class="quiz-stage__header-actions">
+              <Button variant="ghost" size="sm" @click="openHistory">Lịch sử làm bài</Button>
+              <Badge variant="primary">Câu {{ currentQuestion + 1 }}/{{ questions.length }}</Badge>
+            </div>
           </header>
 
           <ProgressBar
@@ -267,6 +309,44 @@ function finish(): void {
         </aside>
       </div>
     </template>
+
+    <!-- Lịch sử làm bài (GET /exercises/{id}/submissions/me) -->
+    <Drawer :open="historyOpen" :title="'Lịch sử làm bài'" width="560px" @close="historyOpen = false">
+      <p v-if="historyLoading" class="quiz-stage__history-note">Đang tải lịch sử...</p>
+      <p v-else-if="historyError" class="quiz-stage__history-note quiz-stage__history-note--error" role="alert">
+        {{ historyError }}
+      </p>
+      <EmptyState
+        v-else-if="historyItems.length === 0"
+        icon="book"
+        title="Chưa có bài nộp"
+        description="Bạn chưa nộp bài tập này lần nào."
+      />
+      <div v-else class="quiz-stage__history-scroll">
+        <table class="quiz-stage__history-table">
+          <thead>
+            <tr>
+              <th scope="col">Lần nộp</th>
+              <th scope="col">Điểm</th>
+              <th scope="col">Ngày nộp</th>
+              <th scope="col">Kết quả</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, idx) in historyItems" :key="item.id">
+              <td class="quiz-stage__history-idx">#{{ String(idx + 1).padStart(2, '0') }}</td>
+              <td class="quiz-stage__history-score">{{ item.score }} / {{ exercise?.maxScore ?? 0 }}</td>
+              <td class="quiz-stage__history-date">{{ formatDateTime(item.submittedAt) }}</td>
+              <td>
+                <Badge :variant="historyPassed(item) ? 'success' : 'danger'">
+                  {{ historyPassed(item) ? 'Đạt' : 'Chưa đạt' }}
+                </Badge>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Drawer>
   </section>
 </template>
 
@@ -284,6 +364,8 @@ function finish(): void {
   gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
+
+.quiz-stage__header-actions { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 
 .quiz-stage__progress { margin-bottom: var(--space-md); }
 
@@ -400,6 +482,41 @@ function finish(): void {
 .quiz-stage__explain-answer { font-size: var(--text-xs); color: var(--color-success); }
 
 .quiz-stage__actions { display: flex; gap: var(--space-sm); }
+
+/* ── Lịch sử làm bài (drawer) ── */
+.quiz-stage__history-note { font-size: var(--text-sm); color: var(--color-text-muted); }
+.quiz-stage__history-note--error { color: var(--color-destructive); }
+
+.quiz-stage__history-scroll { overflow-x: auto; }
+
+.quiz-stage__history-table { width: 100%; border-collapse: collapse; }
+
+.quiz-stage__history-table th {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.quiz-stage__history-table td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  vertical-align: middle;
+}
+
+.quiz-stage__history-table tbody tr:last-child td { border-bottom: none; }
+
+.quiz-stage__history-idx,
+.quiz-stage__history-score,
+.quiz-stage__history-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
 
 @media (max-width: 900px) {
   .quiz-stage__body { grid-template-columns: 1fr; }

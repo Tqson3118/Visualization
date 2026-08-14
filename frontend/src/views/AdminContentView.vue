@@ -5,14 +5,18 @@
 // cột "Ngày tạo" hiển thị formatDate(new Date()) (LessonSummary không có
 // createdAt) → cột index mono #01; topic card bỏ gradient/hover-lift;
 // error state + retry.
-// Ghi chú Phase 2: nội dung rich-text (contentHtml) của CMS — KHÔNG sửa.
-import { computed, onMounted, reactive, ref } from 'vue';
+// v2.15: Smart Markdown editor (2 tab Soạn thảo/Xem trước + toolbar định dạng),
+// checkbox xuất bản (Class Only ↔ Public → isClassOnly + status), multi-select
+// simulationKeys, luồng kiểm duyệt (Chờ duyệt / Từ chối kèm lý do).
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowRight, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
-import type { LessonSummary, Topic } from '@/api/lessons';
+import type { LessonSummary, LessonUpsertRequest, Topic } from '@/api/lessons';
+import { getData } from '@/api/client';
 import { useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import { messages } from '@/i18n/vi';
 import {
   Card,
@@ -28,13 +32,42 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import ProseContent from '@/components/ui/ProseContent.vue';
 import { CATALOG } from '@/engines/catalog';
+
+// ── Kiểu local theo backend v2.15 (lessons.ts chưa theo kịp — không sửa file khác) ──
+
+type LessonStatusValue = 'draft' | 'pendingreview' | 'active' | 'hidden';
+
+interface LessonRow extends Omit<LessonSummary, 'status'> {
+  status: LessonStatusValue;
+  isClassOnly: boolean;
+  publishedAt: string | null;
+}
+
+interface LessonDetailRow extends LessonRow {
+  contentHtml: string;
+  rejectionReason: string | null;
+  simulations: Array<{ simulationKey: string; title: string }>;
+}
+
+interface LessonSavePayload {
+  topicId: number;
+  title: string;
+  description?: string;
+  contentHtml: string;
+  status: LessonStatusValue;
+  isClassOnly: boolean;
+  sortOrder?: number;
+  simulationKeys: string[];
+}
 
 const ui = useUiStore();
 const router = useRouter();
+const auth = useAuthStore();
 
 const tab = ref<'lessons' | 'topics'>('lessons');
-const lessons = ref<LessonSummary[]>([]);
+const lessons = ref<LessonRow[]>([]);
 const topics = ref<Topic[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
@@ -47,11 +80,21 @@ const form = reactive({
   title: '',
   description: '',
   topicId: 1,
-  status: 'draft' as 'draft' | 'active' | 'hidden',
   contentHtml: '',
-  simulationKey: '',
+  isClassOnly: false,
+  simulationKeys: [] as string[],
   sortOrder: 1,
 });
+
+/** Lý do từ chối của bài đang sửa (backend chỉ trả khi tải chi tiết). */
+const formRejectionReason = ref('');
+
+/** Map lý do từ chối theo bài — hiển thị nhãn "Bị từ chối" trong danh sách. */
+const rejectedReasons = reactive<Record<number, string>>({});
+
+// Editor Markdown
+const editorTab = ref<'write' | 'preview'>('write');
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 // Form topic
 const topicFormOpen = ref(false);
@@ -67,7 +110,7 @@ async function load(): Promise<void> {
       lessonsApi.fetchLessons({}),
       lessonsApi.fetchTopics().catch(() => [] as Topic[]),
     ]);
-    lessons.value = lessonPage.items;
+    lessons.value = lessonPage.items.map(toRow);
     topics.value = topicTree;
     if (topicTree.length > 0 && form.topicId === 1 && !topicTree.some((t) => t.id === 1)) {
       form.topicId = topicTree[0].id;
@@ -77,6 +120,35 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+
+/** Backend v2.15 trả thêm isClassOnly/publishedAt — kiểu lessons.ts chưa khai báo. */
+function toRow(item: LessonSummary): LessonRow {
+  const extra = item as { isClassOnly?: boolean; publishedAt?: string | null };
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    topicId: item.topicId,
+    sortOrder: item.sortOrder,
+    status: item.status as LessonStatusValue,
+    isClassOnly: extra.isClassOnly ?? false,
+    publishedAt: extra.publishedAt ?? null,
+    simulationCount: item.simulationCount,
+    exerciseCount: item.exerciseCount,
+    progress: item.progress,
+  };
+}
+
+async function fetchLessonDetail(id: number): Promise<LessonDetailRow> {
+  const dto = await lessonsApi.fetchLesson(id);
+  const extra = dto as { rejectionReason?: string | null };
+  return {
+    ...toRow(dto),
+    contentHtml: dto.contentHtml,
+    rejectionReason: extra.rejectionReason ?? null,
+    simulations: dto.simulations ?? [],
+  };
 }
 
 const topicName = computed(() => (id: number) => topics.value.find((t) => t.id === id)?.name ?? `#${id}`);
@@ -104,38 +176,61 @@ const contentTabs = computed(() => [
   { key: 'topics', label: messages.admin.content.tabTopics, badge: topics.value.length > 0 ? topics.value.length : undefined },
 ]);
 
+const isAdmin = computed(() => auth.role === 'ADMIN');
+
+/** Trạng thái xuất bản theo checkbox: Class Only → active, Public → pendingreview. */
+const publishStatus = computed<'active' | 'pendingreview'>(() => (form.isClassOnly ? 'active' : 'pendingreview'));
+
 const statusLabel: Record<string, string> = {
   draft: messages.admin.content.statusDraft,
+  pendingreview: 'Chờ duyệt',
   active: messages.admin.content.statusActive,
   hidden: messages.admin.content.statusHidden,
 };
 
+const statusVariant: Record<LessonStatusValue, 'success' | 'warning' | 'muted'> = {
+  active: 'success',
+  pendingreview: 'warning',
+  draft: 'muted',
+  hidden: 'muted',
+};
+
 function openCreate(): void {
   editingId.value = null;
+  formRejectionReason.value = '';
   Object.assign(form, {
     title: '',
     description: '',
     topicId: topics.value[0]?.id ?? 1,
-    status: 'draft',
     contentHtml: '',
-    simulationKey: '',
+    isClassOnly: false,
+    simulationKeys: [],
     sortOrder: lessons.value.length + 1,
   });
+  editorTab.value = 'write';
   formOpen.value = true;
 }
 
-function openEdit(lesson: LessonSummary): void {
+async function openEdit(lesson: LessonRow): Promise<void> {
   editingId.value = lesson.id;
-  Object.assign(form, {
-    title: lesson.title,
-    description: lesson.description,
-    topicId: lesson.topicId,
-    status: lesson.status,
-    contentHtml: '',
-    simulationKey: '',
-    sortOrder: lesson.sortOrder,
-  });
-  formOpen.value = true;
+  try {
+    const detail = await fetchLessonDetail(lesson.id);
+    formRejectionReason.value = detail.status === 'draft' ? detail.rejectionReason : '';
+    if (detail.rejectionReason) rejectedReasons[lesson.id] = detail.rejectionReason;
+    Object.assign(form, {
+      title: detail.title,
+      description: detail.description,
+      topicId: detail.topicId,
+      contentHtml: detail.contentHtml,
+      isClassOnly: detail.isClassOnly,
+      simulationKeys: detail.simulations.map((sim) => sim.simulationKey),
+      sortOrder: detail.sortOrder,
+    });
+    editorTab.value = 'write';
+    formOpen.value = true;
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể tải bài học.', 'error');
+  }
 }
 
 async function saveLesson(): Promise<void> {
@@ -145,19 +240,19 @@ async function saveLesson(): Promise<void> {
   }
   saving.value = true;
   try {
+    // Kiểu lessons.ts chưa theo kịp backend v2.15 (status pendingreview, simulationKeys) — cast biên API.
     const payload = {
       topicId: form.topicId,
       title: form.title.trim(),
       description: form.description,
       contentHtml: form.contentHtml || '<p>Đang biên soạn...</p>',
-      status: form.status,
+      status: publishStatus.value,
+      isClassOnly: form.isClassOnly,
       sortOrder: form.sortOrder,
-    };
+      simulationKeys: [...form.simulationKeys],
+    } as unknown as LessonUpsertRequest;
     if (editingId.value === null) {
-      const created = await lessonsApi.createLesson(payload);
-      if (form.simulationKey) {
-        await lessonsApi.attachSimulation(created.id, { simulationKey: form.simulationKey }).catch(() => undefined);
-      }
+      await lessonsApi.createLesson(payload);
     } else {
       await lessonsApi.updateLesson(editingId.value, payload);
     }
@@ -171,7 +266,7 @@ async function saveLesson(): Promise<void> {
   }
 }
 
-async function deleteLesson(lesson: LessonSummary): Promise<void> {
+async function deleteLesson(lesson: LessonRow): Promise<void> {
   if (!window.confirm(`Xóa bài học "${lesson.title}"? (xóa mềm — ẩn khỏi người học)`)) return;
   try {
     await lessonsApi.deleteLesson(lesson.id);
@@ -181,6 +276,261 @@ async function deleteLesson(lesson: LessonSummary): Promise<void> {
     ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
   }
 }
+
+// ── Kiểm duyệt Admin (backend v2.15: POST /lessons/{id}/review) ──
+
+async function reviewLesson(id: number, payload: { approve: boolean; reason?: string }): Promise<{ rejectionReason?: string | null }> {
+  return getData<{ rejectionReason?: string | null }>({ method: 'POST', url: `/lessons/${id}/review`, data: payload });
+}
+
+async function approveLesson(lesson: LessonRow): Promise<void> {
+  if (!window.confirm(`Duyệt bài học "${lesson.title}"? Bài sẽ được xuất bản công khai.`)) return;
+  try {
+    await reviewLesson(lesson.id, { approve: true });
+    ui.showToast('Đã duyệt bài học.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Duyệt thất bại.', 'error');
+  }
+}
+
+async function rejectLesson(lesson: LessonRow): Promise<void> {
+  const reason = window.prompt(`Lý do từ chối bài học "${lesson.title}" (bắt buộc):`);
+  if (reason === null) return;
+  if (!reason.trim()) {
+    ui.showToast('Phải nhập lý do từ chối.', 'warning');
+    return;
+  }
+  try {
+    const result = await reviewLesson(lesson.id, { approve: false, reason: reason.trim() });
+    if (result.rejectionReason) rejectedReasons[lesson.id] = result.rejectionReason;
+    ui.showToast('Đã từ chối bài học.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Từ chối thất bại.', 'error');
+  }
+}
+
+// ── Toolbar Markdown: chèn vào vị trí con trỏ textarea (v2.15) ──
+
+type ToolbarAction =
+  | { kind: 'wrap'; label: string; title: string; before: string; after: string; placeholder: string }
+  | { kind: 'line'; label: string; title: string; prefix: string }
+  | { kind: 'snippet'; label: string; title: string; text: string };
+
+const TABLE_SNIPPET = [
+  '| Thuật toán | Độ phức tạp | Ghi chú |',
+  '| ---------- | ----------- | ------- |',
+  '| Ví dụ | O(n) | Mô tả |',
+].join('\n');
+
+const toolbarActions: ToolbarAction[] = [
+  { kind: 'line', label: 'H2', title: 'Tiêu đề cấp 2 (## )', prefix: '## ' },
+  { kind: 'line', label: 'H3', title: 'Tiêu đề cấp 3 (### )', prefix: '### ' },
+  { kind: 'wrap', label: 'B', title: 'Đậm (**chữ**)', before: '**', after: '**', placeholder: 'chữ đậm' },
+  { kind: 'wrap', label: 'I', title: 'Nghiêng (*chữ*)', before: '*', after: '*', placeholder: 'chữ nghiêng' },
+  { kind: 'wrap', label: 'Code', title: 'Code inline (`mã`)', before: '`', after: '`', placeholder: 'mã' },
+  { kind: 'wrap', label: 'Block', title: 'Code block (```)', before: '```\n', after: '\n```', placeholder: '// code' },
+  { kind: 'line', label: '• List', title: 'Danh sách gạch đầu dòng (- )', prefix: '- ' },
+  { kind: 'line', label: '1. List', title: 'Danh sách đánh số (1. )', prefix: '1. ' },
+  { kind: 'line', label: '❝', title: 'Trích dẫn (> )', prefix: '> ' },
+  { kind: 'snippet', label: 'Bảng', title: 'Chèn bảng Markdown', text: TABLE_SNIPPET },
+  { kind: 'line', label: 'NOTE', title: 'Callout ghi chú (> [!NOTE])', prefix: '> [!NOTE] ' },
+  { kind: 'line', label: 'TIP', title: 'Callout mẹo (> [!TIP])', prefix: '> [!TIP] ' },
+  { kind: 'line', label: 'WARN', title: 'Callout cảnh báo (> [!WARNING])', prefix: '> [!WARNING] ' },
+];
+
+function runToolbar(action: ToolbarAction): void {
+  const el = textareaRef.value;
+  if (!el) return;
+  if (action.kind === 'wrap') {
+    wrapSelection(el, action.before, action.after, action.placeholder);
+  } else if (action.kind === 'line') {
+    prefixLines(el, action.prefix);
+  } else {
+    insertSnippet(el, action.text);
+  }
+}
+
+/** Bọc vùng chọn (đậm/nghiêng/code...): chưa chọn thì chèn placeholder để gõ đè. */
+function wrapSelection(el: HTMLTextAreaElement, before: string, after: string, placeholder: string): void {
+  const { selectionStart: start, selectionEnd: end } = el;
+  const core = form.contentHtml.slice(start, end) || placeholder;
+  form.contentHtml = form.contentHtml.slice(0, start) + before + core + after + form.contentHtml.slice(end);
+  void nextTick(() => {
+    el.focus();
+    el.setSelectionRange(start + before.length, start + before.length + core.length);
+  });
+}
+
+/** Chèn prefix vào đầu dòng (heading/list/quote/callout); đa dòng → prefix từng dòng. */
+function prefixLines(el: HTMLTextAreaElement, prefix: string): void {
+  const { selectionStart: start, selectionEnd: end } = el;
+  const value = form.contentHtml;
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  const blockEnd = value.indexOf('\n', end);
+  const block = value.slice(lineStart, blockEnd === -1 ? value.length : blockEnd);
+  const callout = prefix.startsWith('> [!');
+  const lines = block.split('\n').map((line, idx) => {
+    if (!line || line.startsWith(prefix.trim())) return line;
+    return callout && idx > 0 ? `> ${line}` : prefix + line;
+  });
+  form.contentHtml = value.slice(0, lineStart) + lines.join('\n') + value.slice(blockEnd === -1 ? value.length : blockEnd);
+  void nextTick(() => {
+    el.focus();
+    el.setSelectionRange(start + prefix.length, end + prefix.length);
+  });
+}
+
+/** Chèn khối mẫu (bảng) và chọn ô đầu tiên để gõ nhanh. */
+function insertSnippet(el: HTMLTextAreaElement, text: string): void {
+  const { selectionStart: start, selectionEnd: end } = el;
+  const inserted = `\n\n${text}\n`;
+  form.contentHtml = form.contentHtml.slice(0, start) + inserted + form.contentHtml.slice(end);
+  void nextTick(() => {
+    el.focus();
+    const marker = 'Ví dụ';
+    const markerIdx = inserted.indexOf(marker);
+    const pos = markerIdx === -1 ? start + inserted.length : start + markerIdx;
+    el.setSelectionRange(pos, pos + (markerIdx === -1 ? 0 : marker.length));
+  });
+}
+
+// ── Render Markdown nhẹ cho tab Xem trước (v2.15) ─────────────
+// Chỉ convert khi nội dung là Markdown; nội dung đã là HTML (bài cũ) truyền nguyên vẹn
+// (backend đã sanitize khi lưu).
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function inlineMd(text: string): string {
+  return text
+    .replace(/`([^`\n]+)`/g, (_match, code: string) => `<code>${escapeHtml(code)}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+}
+
+function splitTableRow(line: string): string[] {
+  const body = line.trim();
+  const inner = body.startsWith('|') ? body.slice(1) : body;
+  const cells = inner.endsWith('|') ? inner.slice(0, -1) : inner;
+  return cells.split('|').map((cell) => cell.trim());
+}
+
+function renderMarkdown(src: string): string {
+  if (/<[a-z][^>]*>/i.test(src)) return src;
+  const lines = src.replace(/\r\n?/g, '\n').split('\n');
+  const out: string[] = [];
+  let paragraph: string[] | null = null;
+  const flushParagraph = (): void => {
+    if (paragraph) {
+      out.push(`<p>${inlineMd(paragraph.join(' '))}</p>`);
+      paragraph = null;
+    }
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block (```)
+    if (line.trimStart().startsWith('```')) {
+      flushParagraph();
+      const buf: string[] = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
+        buf.push(lines[i]);
+        i += 1;
+      }
+      i += 1;
+      out.push(`<pre><code>${escapeHtml(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+
+    // Heading
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      flushParagraph();
+      const level = heading[1].length;
+      out.push(`<h${level}>${inlineMd(heading[2])}</h${level}>`);
+      i += 1;
+      continue;
+    }
+
+    // Bảng (dòng kế tiếp là dòng phân cách)
+    if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
+      flushParagraph();
+      const head = splitTableRow(line);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes('|')) {
+        rows.push(splitTableRow(lines[i]));
+        i += 1;
+      }
+      out.push(
+        '<table><thead><tr>' +
+          head.map((cell) => `<th>${inlineMd(cell)}</th>`).join('') +
+          '</tr></thead><tbody>' +
+          rows.map((row) => `<tr>${row.map((cell) => `<td>${inlineMd(cell)}</td>`).join('')}</tr>`).join('') +
+          '</tbody></table>',
+      );
+      continue;
+    }
+
+    // Blockquote / callout (> [!NOTE|TIP|WARNING])
+    if (line.startsWith('>')) {
+      flushParagraph();
+      const buf: string[] = [];
+      while (i < lines.length && lines[i].startsWith('>')) {
+        buf.push(lines[i].replace(/^>\s?/, ''));
+        i += 1;
+      }
+      const callout = /^\[!(NOTE|TIP|WARNING)\]\s*(.*)$/i.exec(buf[0] ?? '');
+      if (callout) {
+        const type = callout[1].toLowerCase();
+        const content = [callout[2], ...buf.slice(1)].filter((part) => part.length > 0).join(' ');
+        out.push(`<blockquote data-callout="${type}"><p>${inlineMd(content)}</p></blockquote>`);
+      } else {
+        out.push(`<blockquote><p>${inlineMd(buf.filter((part) => part.length > 0).join(' '))}</p></blockquote>`);
+      }
+      continue;
+    }
+
+    // Danh sách gạch đầu dòng / đánh số
+    const unordered = /^[-*]\s+(.*)$/.exec(line);
+    const ordered = /^\d+\.\s+(.*)$/.exec(line);
+    if (unordered || ordered) {
+      flushParagraph();
+      const pattern = ordered ? /^\d+\.\s+(.*)$/ : /^[-*]\s+(.*)$/;
+      const tag = ordered ? 'ol' : 'ul';
+      const items: string[] = [];
+      while (i < lines.length) {
+        const match = pattern.exec(lines[i]);
+        if (!match) break;
+        items.push(inlineMd(match[1]));
+        i += 1;
+      }
+      out.push(`<${tag}>${items.map((item) => `<li>${item}</li>`).join('')}</${tag}>`);
+      continue;
+    }
+
+    // Dòng trống → đóng đoạn
+    if (line.trim() === '') {
+      flushParagraph();
+      i += 1;
+      continue;
+    }
+
+    paragraph = paragraph ?? [];
+    paragraph.push(line);
+    i += 1;
+  }
+  flushParagraph();
+  return out.join('\n');
+}
+
+const previewHtml = computed(() => renderMarkdown(form.contentHtml));
 
 async function saveTopic(): Promise<void> {
   try {
@@ -280,12 +630,16 @@ async function saveTopic(): Promise<void> {
                 <td :data-label="messages.admin.content.colTitle" class="admin-content__title-cell">
                   <p class="admin-content__title-text">{{ lesson.title }}</p>
                   <p v-if="lesson.description" class="admin-content__title-desc">{{ lesson.description }}</p>
+                  <p v-if="lesson.status === 'draft' && rejectedReasons[lesson.id]" class="admin-content__rejected">
+                    Bị từ chối: {{ rejectedReasons[lesson.id] }}
+                  </p>
                 </td>
                 <td :data-label="messages.admin.content.colTopic"><Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge></td>
                 <td :data-label="messages.admin.content.colStatus">
-                  <Badge :variant="lesson.status === 'active' ? 'success' : lesson.status === 'draft' ? 'warning' : 'muted'">
-                    {{ statusLabel[lesson.status] ?? lesson.status }}
-                  </Badge>
+                  <div class="admin-content__status-cell">
+                    <Badge :variant="statusVariant[lesson.status]">{{ statusLabel[lesson.status] ?? lesson.status }}</Badge>
+                    <Badge v-if="lesson.isClassOnly" variant="secondary">Lớp học riêng</Badge>
+                  </div>
                 </td>
                 <td :data-label="messages.admin.content.colSim">
                   <span class="admin-content__sim-count" :class="{ 'admin-content__sim-count--zero': lesson.simulationCount === 0 }">
@@ -294,6 +648,10 @@ async function saveTopic(): Promise<void> {
                 </td>
                 <td :data-label="messages.admin.content.colActions">
                   <div class="admin-content__actions">
+                    <template v-if="isAdmin && lesson.status === 'pendingreview'">
+                      <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
+                      <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
+                    </template>
                     <Button size="sm" variant="ghost" @click="openEdit(lesson)">
                       <Pencil :size="16" /> {{ messages.admin.content.edit }}
                     </Button>
@@ -345,6 +703,9 @@ async function saveTopic(): Promise<void> {
     <!-- Modal bài học -->
     <Modal :open="formOpen" :title="editingId === null ? messages.admin.content.createLessonTitle : messages.admin.content.editLessonTitle" @close="formOpen = false">
       <form class="admin-content__form" novalidate @submit.prevent="saveLesson">
+        <p v-if="formRejectionReason" class="admin-content__reject-banner" role="alert">
+          Bài học đã bị từ chối: {{ formRejectionReason }} — sửa nội dung và lưu để gửi lại duyệt.
+        </p>
         <Input v-model="form.title" :label="messages.admin.content.lessonTitle" required />
         <Input v-model="form.description" :label="messages.admin.content.lessonDesc" />
         <div class="admin-content__row">
@@ -353,24 +714,89 @@ async function saveTopic(): Promise<void> {
             <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
           </select>
         </div>
+        <!-- Xuất bản: Class Only → active; Public → pendingreview (backend v2.15) -->
         <div class="admin-content__row">
-          <label class="label" for="lesson-status">{{ messages.admin.content.lessonStatus }}</label>
-          <select id="lesson-status" v-model="form.status" class="input">
-            <option value="draft">{{ messages.admin.content.statusDraft }}</option>
-            <option value="active">{{ messages.admin.content.statusActive }}</option>
-            <option value="hidden">{{ messages.admin.content.statusHidden }}</option>
-          </select>
+          <label class="admin-content__publish" for="lesson-class-only">
+            <input id="lesson-class-only" v-model="form.isClassOnly" type="checkbox" class="admin-content__checkbox" />
+            <span class="admin-content__publish-text">
+              <span class="admin-content__publish-label">
+                {{ form.isClassOnly ? 'Chỉ dùng trong Lớp học riêng (Class Only)' : 'Gửi yêu cầu xuất bản toàn hệ thống (Public)' }}
+              </span>
+              <span class="admin-content__publish-hint">
+                {{ form.isClassOnly ? 'Sẽ lưu trạng thái Kích hoạt — chỉ hiển thị trong lớp học riêng.' : 'Sẽ lưu trạng thái Chờ duyệt — Admin kiểm duyệt trước khi công khai.' }}
+              </span>
+            </span>
+          </label>
         </div>
+        <!-- Mô phỏng multi-select → simulationKeys -->
         <div class="admin-content__row">
-          <label class="label" for="lesson-sim">{{ messages.admin.content.simAttach }}</label>
-          <select id="lesson-sim" v-model="form.simulationKey" class="input">
-            <option value="">{{ messages.admin.content.simNone }}</option>
-            <option v-for="sim in CATALOG" :key="sim.key" :value="sim.key">{{ sim.title }}</option>
-          </select>
+          <span class="label">{{ messages.admin.content.simAttach }}</span>
+          <div class="admin-content__sims" role="group" aria-label="Danh sách mô phỏng">
+            <label v-for="sim in CATALOG" :key="sim.key" class="admin-content__sim-option">
+              <input v-model="form.simulationKeys" type="checkbox" :value="sim.key" />
+              <span class="admin-content__sim-title">{{ sim.title }}</span>
+              <code class="admin-content__sim-key">{{ sim.key }}</code>
+            </label>
+          </div>
+          <p class="admin-content__sim-hint">
+            {{ form.simulationKeys.length > 0 ? `Đã chọn ${form.simulationKeys.length} mô phỏng.` : 'Chưa chọn mô phỏng nào.' }}
+          </p>
         </div>
+        <!-- Editor Markdown: Soạn thảo ↔ Xem trước -->
         <div class="admin-content__row">
-          <label class="label" for="lesson-html">{{ messages.admin.content.contentHtml }}</label>
-          <textarea id="lesson-html" v-model="form.contentHtml" class="input admin-content__html" rows="5" :placeholder="messages.admin.content.htmlPlaceholder" />
+          <span class="label">{{ messages.admin.content.contentHtml }}</span>
+          <div class="admin-content__editor">
+            <div class="admin-content__editor-tabs" role="tablist" aria-label="Chế độ soạn thảo nội dung">
+              <button
+                type="button"
+                role="tab"
+                :aria-selected="editorTab === 'write'"
+                class="admin-content__editor-tab"
+                :class="{ 'admin-content__editor-tab--active': editorTab === 'write' }"
+                @click="editorTab = 'write'"
+              >
+                Soạn thảo
+              </button>
+              <button
+                type="button"
+                role="tab"
+                :aria-selected="editorTab === 'preview'"
+                class="admin-content__editor-tab"
+                :class="{ 'admin-content__editor-tab--active': editorTab === 'preview' }"
+                @click="editorTab = 'preview'"
+              >
+                Xem trước
+              </button>
+            </div>
+            <div v-if="editorTab === 'write'">
+              <div class="admin-content__md-toolbar" role="toolbar" aria-label="Thanh định dạng Markdown">
+                <button
+                  v-for="action in toolbarActions"
+                  :key="action.label"
+                  type="button"
+                  class="admin-content__md-toolbar-btn"
+                  :title="action.title"
+                  @click="runToolbar(action)"
+                >
+                  {{ action.label }}
+                </button>
+              </div>
+              <textarea
+                ref="textareaRef"
+                id="lesson-html"
+                v-model="form.contentHtml"
+                class="admin-content__html"
+                rows="14"
+                :placeholder="messages.admin.content.htmlPlaceholder"
+              />
+            </div>
+            <div v-else class="admin-content__preview">
+              <p v-if="!form.contentHtml.trim()" class="admin-content__preview-empty">
+                Chưa có nội dung — gõ Markdown ở tab Soạn thảo.
+              </p>
+              <ProseContent v-else :content-html="previewHtml" />
+            </div>
+          </div>
         </div>
         <div class="admin-content__actions">
           <Button variant="ghost" @click="formOpen = false">{{ messages.admin.content.cancel }}</Button>
@@ -587,6 +1013,10 @@ async function saveTopic(): Promise<void> {
 
 .admin-content__title-desc { font-size: var(--text-xs); color: var(--foreground-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 
+.admin-content__status-cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+
+.admin-content__rejected { margin: 2px 0 0; font-size: var(--text-xs); color: var(--destructive); }
+
 .admin-content__sim-count {
   display: inline-flex;
   align-items: center;
@@ -640,7 +1070,7 @@ async function saveTopic(): Promise<void> {
 
 .admin-content__row { display: flex; flex-direction: column; gap: var(--space-xs); }
 
-/* Select/textarea chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
+/* Select chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
 .admin-content__row .input,
 .admin-content__html {
   background: var(--card);
@@ -650,7 +1080,145 @@ async function saveTopic(): Promise<void> {
   transition: border-color 150ms;
 }
 
-.admin-content__html { font-family: var(--font-mono); font-size: var(--text-xs); resize: vertical; }
+/* ── Editor Markdown 2 tab (v2.15) ── */
+.admin-content__editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--card);
+}
+
+.admin-content__editor-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--muted); }
+
+.admin-content__editor-tab {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+
+.admin-content__editor-tab--active {
+  color: var(--foreground);
+  font-weight: 500;
+  background: var(--card);
+  border-bottom-color: var(--data-core);
+}
+
+.admin-content__md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-content__md-toolbar-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--foreground-secondary);
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms;
+}
+
+.admin-content__md-toolbar-btn:hover { border-color: var(--border-strong); color: var(--foreground); }
+
+.admin-content__editor .admin-content__html {
+  width: 100%;
+  min-height: 280px;
+  padding: var(--space-md);
+  border: none;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  resize: vertical;
+}
+
+.admin-content__preview {
+  padding: var(--space-md);
+  min-height: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.admin-content__preview-empty { margin: 0; font-size: var(--text-sm); color: var(--foreground-tertiary); }
+
+/* Callout trong preview — nhãn + màu viền theo loại */
+.admin-content__preview :deep(blockquote[data-callout])::before {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-xs);
+}
+
+.admin-content__preview :deep(blockquote[data-callout='note']) { border-left-color: var(--color-primary); }
+.admin-content__preview :deep(blockquote[data-callout='note'])::before { content: 'Ghi chú'; color: var(--color-primary); }
+.admin-content__preview :deep(blockquote[data-callout='tip']) { border-left-color: var(--color-success); }
+.admin-content__preview :deep(blockquote[data-callout='tip'])::before { content: 'Mẹo'; color: var(--color-success); }
+.admin-content__preview :deep(blockquote[data-callout='warning']) { border-left-color: var(--color-warning); }
+.admin-content__preview :deep(blockquote[data-callout='warning'])::before { content: 'Cảnh báo'; color: var(--color-warning); }
+
+/* ── Xuất bản + mô phỏng (v2.15) ── */
+.admin-content__publish { display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer; }
+
+.admin-content__publish .admin-content__checkbox { margin-top: 3px; accent-color: var(--data-core); }
+
+.admin-content__publish-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.admin-content__publish-label { font-size: var(--text-sm); font-weight: 500; color: var(--foreground); }
+
+.admin-content__publish-hint { font-size: var(--text-xs); color: var(--foreground-tertiary); }
+
+.admin-content__reject-banner {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--destructive);
+}
+
+.admin-content__sims {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.admin-content__sim-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.admin-content__sim-option:hover { background: var(--muted); }
+
+.admin-content__sim-option input { accent-color: var(--data-core); }
+
+.admin-content__sim-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.admin-content__sim-key { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--foreground-tertiary); }
+
+.admin-content__sim-hint { margin: 0; font-size: var(--text-xs); color: var(--foreground-tertiary); }
 
 .admin-content__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
 

@@ -120,7 +120,7 @@ function finish(): void {
         <Lightbulb :size="18" />
       </span>
       <p class="practice__guidance-text">
-        Chưa chạy mô phỏng — bấm Bắt đầu trên thanh điều khiển để thực hành từng bước.
+        Chọn nút ▶ trên thanh điều khiển để chạy mô phỏng — sau đó trả lời thao tác kế tiếp của từng bước.
       </p>
     </div>
 

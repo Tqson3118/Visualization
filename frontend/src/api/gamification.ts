@@ -16,6 +16,7 @@ export const GAMIFICATION_ENDPOINTS = {
   buy: '/shop/buy',
   inventory: '/me/inventory',
   equip: '/me/inventory/equip',
+  achievements: '/achievements',
   premiumStatus: '/premium/status',
   premiumUpgrade: '/premium/upgrade',
   premiumMockPay: '/premium/mock-pay',
@@ -82,11 +83,23 @@ export interface LeaderboardDto {
 }
 
 export interface InventoryItemDto {
-  id: number;
+  id: number;              // rowId của dòng UserInventory
   itemId: number;
+  itemKey: string;
   name: string;
-  slot: string | null;
+  quantity: number;
+  type: number;            // 0=consumable / 1=avatar / 2=frame (fallback — ưu tiên itemKey prefix)
   isEquipped: boolean;
+  expiresAt: string | null;
+}
+
+export interface AchievementDto {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  earnedAt: string | null; // null = chưa đạt
 }
 
 export interface StreakDto {
@@ -181,8 +194,13 @@ export async function fetchInventory(): Promise<InventoryItemDto[]> {
   return getData<InventoryItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.inventory });
 }
 
-export async function equipItem(itemId: number, slot: string): Promise<InventoryItemDto[]> {
-  return getData<InventoryItemDto[]>({ method: 'PUT', url: GAMIFICATION_ENDPOINTS.equip, data: { itemId, slot } });
+export async function equipItem(itemId: number, isEquipped: boolean): Promise<void> {
+  // Bug contract: PUT /me/inventory/equip trả 200 OK body RỖNG → caller phải fetch lại inventory.
+  await client.put(GAMIFICATION_ENDPOINTS.equip, { itemId, isEquipped });
+}
+
+export async function fetchAchievements(): Promise<AchievementDto[]> {
+  return getData<AchievementDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.achievements });
 }
 
 export async function fetchPremiumStatus(): Promise<PremiumStatusDto> {

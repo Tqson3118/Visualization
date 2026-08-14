@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import * as gamificationApi from '@/api/gamification';
-import type { InventoryItemDto, PremiumStatusDto, QuestDto, StreakDto } from '@/api/gamification';
+import type { AchievementDto, InventoryItemDto, PremiumStatusDto, QuestDto, StreakDto } from '@/api/gamification';
 
 /** Store gamification theo SDD §3.2 — Module J (ADR-011) — triển khai thật với API. */
 export const useGamificationStore = defineStore('gamification', () => {
@@ -16,6 +16,7 @@ export const useGamificationStore = defineStore('gamification', () => {
   const level = ref(1);
   const quests = ref<QuestDto[]>([]);
   const inventory = ref<InventoryItemDto[]>([]);
+  const achievements = ref<AchievementDto[]>([]);
   const premium = ref<PremiumStatusDto | null>(null);
   const loading = ref(false);
 
@@ -72,8 +73,18 @@ export const useGamificationStore = defineStore('gamification', () => {
     await fetchInventory();
   }
 
-  async function equipItem(id: number, slot: string): Promise<void> {
-    inventory.value = await gamificationApi.equipItem(id, slot);
+  async function equipItem(id: number, isEquipped: boolean): Promise<void> {
+    // Bug contract: API trả 200 body rỗng → luôn refetch inventory để UI khớp server.
+    await gamificationApi.equipItem(id, isEquipped);
+    await fetchInventory();
+  }
+
+  async function fetchAchievements(): Promise<void> {
+    try {
+      achievements.value = await gamificationApi.fetchAchievements();
+    } catch {
+      achievements.value = [];
+    }
   }
 
   async function fetchStreak(): Promise<void> {
@@ -115,6 +126,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     level,
     quests,
     inventory,
+    achievements,
     premium,
     loading,
     heartsPercent,
@@ -128,6 +140,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     fetchInventory,
     buyItem,
     equipItem,
+    fetchAchievements,
     fetchStreak,
     fetchPremium,
   };

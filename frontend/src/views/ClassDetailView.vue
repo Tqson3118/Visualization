@@ -3,7 +3,7 @@
 // View-quality Phase 1 (Nhóm D): banner = surface band level-2; mã mời =
 // block-token tối canvas-ink (quyết định #4/#5); bảng chuẩn §4.6 + mobile
 // card-stack; assignment có index mono; bỏ gradient/glassmorphism/hover-lift.
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
@@ -13,6 +13,7 @@ import {
   Check,
   ClipboardCopy,
   KeyRound,
+  Pencil,
   Puzzle,
   Trash2,
   UserPlus,
@@ -22,6 +23,8 @@ import {
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import * as lessonsApi from '@/api/lessons';
+import * as exercisesApi from '@/api/exercises';
 import { formatDate } from '@/utils/format';
 import { messages } from '@/i18n/vi';
 import type { ClassAssignmentDto } from '@/api/types';
@@ -33,6 +36,7 @@ import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import Select, { type SelectOption } from '@/components/ui/Select.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -50,7 +54,28 @@ const copied = ref(false);
 const addEmail = ref('');
 const addMemberOpen = ref(false);
 const assignOpen = ref(false);
+const assignType = ref<string>('lesson');
+const assignItem = ref('');
 const assignDue = ref('');
+const assignLate = ref(true);
+const assignSubmitting = ref(false);
+const assignLoading = ref(false);
+const lessonOptions = ref<SelectOption[]>([]);
+const exerciseOptions = ref<SelectOption[]>([]);
+
+const editAssign = ref<ClassAssignmentDto | null>(null);
+const editDue = ref('');
+const editLate = ref(true);
+const editSaving = ref(false);
+
+const confirmAssignDelete = ref<number | null>(null);
+
+const assignOptions = computed<SelectOption[]>(() => (assignType.value === 'lesson' ? lessonOptions.value : exerciseOptions.value));
+
+/** Đổi loại nội dung → reset lựa chọn item. */
+watch(assignType, () => {
+  assignItem.value = '';
+});
 
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -63,6 +88,9 @@ const isManager = computed(() => {
   const cls = classStore.currentClass;
   return cls?.ownerId === auth.user?.id || auth.role === 'ADMIN';
 });
+
+/** Vai trò thành viên: backend ClassMemberDto không trả role → so với OwnerId của lớp. */
+const isMemberTeacher = (member: { userId: number }): boolean => member.userId === classStore.currentClass?.ownerId;
 
 const detailTabs = computed<Array<{ key: 'members' | 'assignments' | 'settings'; label: string }>>(() => {
   const tabs: Array<{ key: 'members' | 'assignments' | 'settings'; label: string }> = [
@@ -119,21 +147,109 @@ async function addMember(): Promise<void> {
   }
 }
 
+/** Mở modal gán: tải danh sách bài học + bài tập để chọn (GET /lessons, GET /exercises). */
+async function openAssign(): Promise<void> {
+  assignOpen.value = true;
+  assignLoading.value = true;
+  try {
+    const [lessonsPaged, exercises] = await Promise.all([
+      lessonsApi.fetchLessons({ page: 1, pageSize: 100 }),
+      exercisesApi.fetchExercises({}),
+    ]);
+    lessonOptions.value = (lessonsPaged.items ?? []).map((l) => ({ label: l.title, value: l.id }));
+    exerciseOptions.value = exercises.map((e) => ({ label: e.title, value: e.id }));
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : messages.classes.detailAssignFailed, 'error');
+    lessonOptions.value = [];
+    exerciseOptions.value = [];
+  } finally {
+    assignLoading.value = false;
+  }
+}
+
 async function createAssignment(): Promise<void> {
+  const itemId = Number(assignItem.value);
+  if (!assignItem.value || !Number.isFinite(itemId)) {
+    ui.showToast(messages.classes.detailAssignItemRequired, 'warning');
+    return;
+  }
+  assignSubmitting.value = true;
   try {
     await classStore.assignContent({
       classId: classId.value,
-      exerciseId: null,
-      lessonId: null,
+      lessonId: assignType.value === 'lesson' ? itemId : null,
+      exerciseId: assignType.value === 'exercise' ? itemId : null,
       dueAt: assignDue.value ? new Date(assignDue.value).toISOString() : null,
+      allowLateSubmission: assignLate.value,
     });
     ui.showToast(messages.classes.detailAssigned, 'success');
     assignOpen.value = false;
+    assignItem.value = '';
     assignDue.value = '';
+    assignLate.value = true;
     await classStore.reloadAssignments(classId.value);
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.classes.detailAssignFailed, 'error');
+  } finally {
+    assignSubmitting.value = false;
   }
+}
+
+/** ISO → giá trị cho input datetime-local (múi giờ địa phương). */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openEdit(assign: ClassAssignmentDto): void {
+  editAssign.value = assign;
+  editDue.value = assign.dueAt ? toLocalInput(assign.dueAt) : '';
+  editLate.value = assign.allowLateSubmission;
+}
+
+async function saveEdit(): Promise<void> {
+  if (!editAssign.value) return;
+  editSaving.value = true;
+  try {
+    await classStore.updateAssignment(classId.value, editAssign.value.id, {
+      dueAt: editDue.value ? new Date(editDue.value).toISOString() : null,
+      allowLateSubmission: editLate.value,
+    });
+    ui.showToast(messages.classes.detailEditSaved, 'success');
+    editAssign.value = null;
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : messages.classes.detailEditFailed, 'error');
+  } finally {
+    editSaving.value = false;
+  }
+}
+
+async function removeAssignment(assignId: number): Promise<void> {
+  try {
+    await classStore.removeAssignment(classId.value, assignId);
+    ui.showToast(messages.classes.detailDeleteAssignSuccess, 'success');
+    confirmAssignDelete.value = null;
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : messages.classes.detailDeleteAssignFailed, 'error');
+  }
+}
+
+/** Mở nội dung bài gán: bài tập → /exercise/:id?classAssignmentId=..., bài học → route lesson. */
+function openAssignment(assign: ClassAssignmentDto): void {
+  if (assign.exerciseId !== null) {
+    void router.push({
+      name: 'exercise',
+      params: { id: String(assign.exerciseId) },
+      query: { classAssignmentId: String(assign.id) },
+    });
+  } else if (assign.lessonId !== null) {
+    void router.push({ name: 'lesson', params: { lessonId: String(assign.lessonId) } });
+  }
+}
+
+function isNavigable(assign: ClassAssignmentDto): boolean {
+  return assign.exerciseId !== null || assign.lessonId !== null;
 }
 
 async function confirmDeleteClass(): Promise<void> {
@@ -161,6 +277,7 @@ function copyInvite(): void {
 }
 
 function assignmentTitle(assign: ClassAssignmentDto): string {
+  if (assign.title) return assign.title;
   if (assign.lessonId !== null) return messages.classes.detailLesson(assign.lessonId);
   if (assign.exerciseId !== null) return messages.classes.detailExercise(assign.exerciseId);
   return messages.classes.detailGenericContent;
@@ -257,7 +374,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
               <tbody>
                 <tr
                   v-for="member in classStore.members"
-                  :key="member.id"
+                  :key="member.userId"
                   class="hover:bg-muted/50"
                 >
                   <td :data-label="messages.classes.detailColMember">
@@ -270,15 +387,15 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                     </div>
                   </td>
                   <td :data-label="messages.classes.detailColRole">
-                    <Badge :variant="member.role === 'TEACHER' ? 'primary' : 'muted'">
-                      {{ member.role === 'TEACHER' ? messages.classes.roleTeacher : messages.classes.roleStudent }}
+                    <Badge :variant="isMemberTeacher(member) ? 'primary' : 'muted'">
+                      {{ isMemberTeacher(member) ? messages.classes.roleTeacher : messages.classes.roleStudent }}
                     </Badge>
                   </td>
                   <td class="class-detail__date" :data-label="messages.classes.detailColJoined">
                     {{ formatDate(member.joinedAt) }}
                   </td>
                   <td v-if="isManager" :data-label="messages.classes.detailColActions">
-                    <Button size="sm" variant="danger" @click="confirmRemove = member.id">
+                    <Button size="sm" variant="danger" @click="confirmRemove = member.userId">
                       {{ messages.classes.detailRemove }}
                     </Button>
                   </td>
@@ -292,7 +409,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
       <!-- Tab Lộ trình đã gán -->
       <section v-else-if="tab === 'assignments'" class="class-detail__panel">
         <div v-if="isManager" class="class-detail__toolbar">
-          <Button size="md" @click="assignOpen = true">
+          <Button size="md" @click="openAssign">
             <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.detailAssignBtn }}
           </Button>
         </div>
@@ -303,7 +420,18 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
           :description="messages.classes.detailEmptyAssignDesc"
         />
         <div v-else class="class-detail__assignments">
-          <Card v-for="(assign, i) in classStore.assignments" :key="assign.id" class="class-detail__assign">
+          <Card
+            v-for="(assign, i) in classStore.assignments"
+            :key="assign.id"
+            class="class-detail__assign"
+            :class="{ 'class-detail__assign--link': isNavigable(assign) }"
+            :role="isNavigable(assign) ? 'button' : undefined"
+            :tabindex="isNavigable(assign) ? 0 : undefined"
+            :aria-label="isNavigable(assign) ? assignmentTitle(assign) : undefined"
+            @click="isNavigable(assign) && openAssignment(assign)"
+            @keydown.enter="isNavigable(assign) && openAssignment(assign)"
+            @keydown.space.prevent="isNavigable(assign) && openAssignment(assign)"
+          >
             <span class="class-detail__assign-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
             <span class="class-detail__assign-icon" aria-hidden="true">
               <Puzzle v-if="assign.exerciseId !== null" :size="18" />
@@ -316,9 +444,22 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                 {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
               </p>
             </div>
-            <Badge :variant="assign.status === 'open' ? 'success' : 'danger'">
-              {{ assign.status === 'open' ? messages.classes.detailOpen : messages.classes.detailClosed }}
-            </Badge>
+            <div class="class-detail__assign-actions">
+              <Badge v-if="assign.allowLateSubmission" variant="muted">
+                {{ messages.classes.detailLateBadge }}
+              </Badge>
+              <Button v-if="isNavigable(assign)" size="sm" variant="secondary" @click.stop="openAssignment(assign)">
+                {{ messages.classes.detailDoBtn }} <ArrowRight :size="14" aria-hidden="true" />
+              </Button>
+              <template v-if="isManager">
+                <Button size="sm" variant="ghost" @click.stop="openEdit(assign)">
+                  <Pencil :size="14" aria-hidden="true" /> {{ messages.classes.detailEditDueBtn }}
+                </Button>
+                <Button size="sm" variant="danger" @click.stop="confirmAssignDelete = assign.id">
+                  <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.detailDeleteAssignBtn }}
+                </Button>
+              </template>
+            </div>
           </Card>
         </div>
       </section>
@@ -368,19 +509,69 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
     <!-- Modal gán nội dung -->
     <Modal :open="assignOpen" :title="messages.classes.detailAssignTitle" @close="assignOpen = false">
-      <form novalidate @submit.prevent="createAssignment">
+      <form class="class-detail__assign-form" novalidate @submit.prevent="createAssignment">
+        <Select
+          v-model="assignType"
+          :label="messages.classes.detailAssignTypeLabel"
+          :options="[
+            { label: messages.classes.detailAssignTypeLesson, value: 'lesson' },
+            { label: messages.classes.detailAssignTypeExercise, value: 'exercise' },
+          ]"
+        />
+        <Select
+          v-model="assignItem"
+          :label="messages.classes.detailAssignItemLabel"
+          :options="assignOptions"
+          :placeholder="messages.classes.detailAssignItemPlaceholder"
+          :disabled="assignLoading"
+        />
+        <p class="class-detail__modal-note">{{ messages.classes.detailAssignNote }}</p>
         <Input
           id="assign-due"
           v-model="assignDue"
           type="datetime-local"
           :label="messages.classes.detailAssignDueLabel"
         />
-        <p class="class-detail__modal-note">{{ messages.classes.detailAssignNote }}</p>
+        <label class="class-detail__late">
+          <input v-model="assignLate" type="checkbox" />
+          {{ messages.classes.detailAssignLateLabel }}
+        </label>
         <div class="class-detail__modal-actions">
           <Button variant="ghost" @click="assignOpen = false">{{ messages.classes.cancel }}</Button>
-          <Button type="submit">{{ messages.classes.detailAssignSubmit }}</Button>
+          <Button type="submit" :loading="assignSubmitting">{{ messages.classes.detailAssignSubmit }}</Button>
         </div>
       </form>
+    </Modal>
+
+    <!-- Modal sửa hạn nộp bài gán -->
+    <Modal :open="editAssign !== null" :title="messages.classes.detailEditDueTitle" @close="editAssign = null">
+      <form class="class-detail__assign-form" novalidate @submit.prevent="saveEdit">
+        <Input
+          id="edit-due"
+          v-model="editDue"
+          type="datetime-local"
+          :label="messages.classes.detailAssignDueLabel"
+        />
+        <label class="class-detail__late">
+          <input v-model="editLate" type="checkbox" />
+          {{ messages.classes.detailAssignLateLabel }}
+        </label>
+        <div class="class-detail__modal-actions">
+          <Button variant="ghost" @click="editAssign = null">{{ messages.classes.cancel }}</Button>
+          <Button type="submit" :loading="editSaving">{{ messages.classes.detailEditDueSubmit }}</Button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- Modal xác nhận xóa bài gán -->
+    <Modal :open="confirmAssignDelete !== null" :title="messages.classes.detailDeleteAssignTitle" @close="confirmAssignDelete = null">
+      <p class="class-detail__modal-text">{{ messages.classes.detailDeleteAssignConfirm }}</p>
+      <template #footer>
+        <Button variant="ghost" @click="confirmAssignDelete = null">{{ messages.classes.cancel }}</Button>
+        <Button variant="danger" @click="removeAssignment(confirmAssignDelete ?? 0)">
+          <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.detailDeleteAssignBtn }}
+        </Button>
+      </template>
     </Modal>
 
     <!-- Modal xác nhận xóa lớp -->
@@ -613,6 +804,9 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__assign:hover { border-color: var(--border-strong); }
 
+.class-detail__assign--link { cursor: pointer; }
+.class-detail__assign--link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
 .class-detail__assign-index {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -653,6 +847,29 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   color: var(--foreground-tertiary);
   white-space: nowrap;
 }
+
+.class-detail__assign-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* ── Form gán / sửa hạn ── */
+.class-detail__assign-form { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.class-detail__late {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.class-detail__late input { accent-color: var(--ring); width: 16px; height: 16px; }
 
 /* ── Cài đặt (danger zone — semantic destructive) ── */
 .class-detail__settings {

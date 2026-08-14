@@ -24,9 +24,11 @@ import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import * as favoritesApi from '@/api/favorites';
 import { getCatalogMeta } from '@/engines/catalog';
+import { buildSimOverviewHtml } from '@/utils/simOverview';
 import { messages } from '@/i18n/vi';
 import { ChevronDown, ChevronRight, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
+import ProseContent from '@/components/ui/ProseContent.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -75,6 +77,7 @@ const showLegend = ref(true);
 const practiceMode = ref(false);
 const favorite = ref(false);
 const showCallStack = ref(false);
+const theoryOpen = ref(false);
 const pseudocodeCollapsed = ref(false);
 const renderOptions = ref({ showIndex: true, showValues: true, zoom: 1 });
 
@@ -172,6 +175,9 @@ function onManualDone(result: { correct: number; wrong: number }): void {
 }
 
 const currentVariables = computed(() => currentStep.value?.variables ?? {});
+
+/** HTML giới thiệu thuật toán/CTDL từ catalog meta — render qua ProseContent (typography chuẩn). */
+const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)));
 </script>
 
 <template>
@@ -324,6 +330,11 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
             </p>
           </div>
           <div class="simulator__panel-actions">
+            <Button variant="ghost" size="sm" @click="theoryOpen = !theoryOpen">
+              <ChevronDown v-if="theoryOpen" :size="16" aria-hidden="true" />
+              <ChevronRight v-else :size="16" aria-hidden="true" />
+              Giới thiệu
+            </Button>
             <Button variant="ghost" size="sm" @click="showCallStack = !showCallStack">
               <ChevronDown v-if="showCallStack" :size="16" aria-hidden="true" />
               <ChevronRight v-else :size="16" aria-hidden="true" />
@@ -334,6 +345,9 @@ const currentVariables = computed(() => currentStep.value?.variables ?? {});
               <ChevronRight v-else :size="16" aria-hidden="true" />
               Legend
             </Button>
+          </div>
+          <div v-if="theoryOpen" class="simulator__theory simulator__panel">
+            <ProseContent :content-html="theoryHtml" />
           </div>
           <CallStackPanel v-if="showCallStack" :variables="currentVariables" />
         </div>

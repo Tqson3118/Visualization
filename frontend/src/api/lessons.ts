@@ -117,6 +117,11 @@ export async function deleteLesson(id: number): Promise<void> {
   await client.delete(LESSON_ENDPOINTS.lesson(id));
 }
 
+/** Báo cáo bài học vi phạm (v2.15) — POST /lessons/{id}/report, lưu BugReports CONTENT_VIOLATION */
+export async function reportLesson(id: number, reason: string): Promise<void> {
+  await client.post(`${LESSON_ENDPOINTS.lesson(id)}/report`, { reason });
+}
+
 export async function attachSimulation(id: number, payload: { simulationKey: string; title?: string; defaultInput?: unknown }): Promise<void> {
   await client.post(LESSON_ENDPOINTS.attachSimulation(id), payload);
 }

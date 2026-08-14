@@ -3,6 +3,7 @@
 // Editor (textarea — Monaco sẽ bật khi cài gói monaco-editor) + chạy sandbox client +
 // nộp (test ẩn hiện tên + kết quả sau nộp). Pass ≥ 70% → emit('passed').
 import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { useCodeRunnerStore } from '@/stores/codeRunner';
 import { useUiStore } from '@/stores/ui';
@@ -28,8 +29,15 @@ const emit = defineEmits<{
   'view-theory': [];
 }>();
 
+const route = useRoute();
 const ui = useUiStore();
 const codeStore = useCodeRunnerStore();
+
+/** Bài tập mở từ lớp học: /exercise/:id?classAssignmentId=... → nộp kèm để chấm theo bài gán. */
+const classAssignmentId = computed<number | null>(() => {
+  const raw = Number(route.query.classAssignmentId);
+  return Number.isFinite(raw) && raw > 0 ? raw : null;
+});
 
 const submitResult = ref<{ passed: number; total: number; results: Array<{ testId: string; passed: boolean; message: string }> } | null>(null);
 const submitting = ref(false);
@@ -54,7 +62,7 @@ async function onSubmit(): Promise<void> {
   }
   submitting.value = true;
   try {
-    const result = await codeStore.submit(props.exerciseId);
+    const result = await codeStore.submit(props.exerciseId, classAssignmentId.value);
     submitResult.value = result;
     if (result.total > 0 && result.passed / result.total >= 0.7) {
       ui.showToast('🎉 Hoàn thành node! Điểm = Quiz 20% + Lab 30% + Code 50%.', 'success');
