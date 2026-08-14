@@ -112,6 +112,7 @@ export const messages = {
     toLogin: 'Đăng nhập ngay',
     forgotPassword: 'Quên mật khẩu?',
     loginFailed: 'Đăng nhập thất bại. Vui lòng kiểm tra lại.',
+    tooManyAttempts: 'Quá nhiều lần thử. Vui lòng chờ 60 giây rồi thử lại.',
     invalidEmail: 'Email không hợp lệ',
     passwordRequirement:
       'Mật khẩu phải từ 8-64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
