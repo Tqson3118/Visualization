@@ -169,6 +169,7 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
     equippingId.value = null;
   }
 }
+>>>>>>> fedccea (style: profile improvements)
 
 // ── Skill radar (vue-echarts — G-F2d) ──
 // 5-6 kỹ năng = chủ đề (topics) từ /progress/me. Giá trị = progressPct thật — KHÔNG bịa.
@@ -564,12 +565,12 @@ function csvExport(): void {
   box-shadow: none;
 }
 
-/* ── Hero profile card — surface band level-2 (DESIGN.md §6) ── */
+/* ── Hero profile card — surface band level-2 (DESIGN.md §6), compact ── */
 .profile__hero {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  padding: var(--space-xl);
+  padding: var(--space-lg);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background: var(--color-card-raised);
@@ -578,7 +579,7 @@ function csvExport(): void {
 .profile__hero-main {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: var(--space-md);
   flex-wrap: wrap;
 }
 
@@ -637,8 +638,8 @@ function csvExport(): void {
 }
 
 .profile__avatar {
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--radius-full);
   background: var(--color-muted);
   color: var(--color-text-secondary);
@@ -646,7 +647,7 @@ function csvExport(): void {
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: var(--text-2xl);
+  font-size: var(--text-lg);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -661,9 +662,9 @@ function csvExport(): void {
 .profile__identity { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
 
 .profile__name {
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   color: var(--color-foreground);
   margin: 0;
 }
@@ -674,17 +675,20 @@ function csvExport(): void {
 
 .profile__actions { margin-left: auto; }
 
-/* ── Stat hierarchy: 1 hero (XP) + 4 stat phụ level-1 ── */
+/* ── Stat hierarchy: 1 hero (XP) + stat phụ level-1 — compact 1 hàng ── */
 .profile__stats-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-sm);
-  padding-top: var(--space-md);
+  padding-top: var(--space-sm);
   border-top: 1px solid var(--color-border-subtle);
 }
 
+/* Mobile: XP hero full width, stat phụ 2 cột — không chiếm cả màn hình */
+.profile__stats-hero { grid-column: 1 / -1; }
+
 @media (min-width: 640px) {
-  .profile__stats-row { grid-template-columns: repeat(2, 1fr); }
+  .profile__stats-row { grid-template-columns: repeat(4, 1fr); }
   .profile__stats-hero { grid-column: span 2; }
 }
 
@@ -707,10 +711,11 @@ function csvExport(): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-md);
+  padding: var(--space-sm);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-card);
+  min-width: 0;
 }
 
 .profile__stat-label {
@@ -719,14 +724,15 @@ function csvExport(): void {
   font-weight: 500;
 }
 
-.profile__stat-line { display: flex; align-items: baseline; gap: var(--space-sm); }
+.profile__stat-line { display: flex; align-items: baseline; gap: var(--space-xs); }
 
 .profile__stat-value {
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .profile__stat-unit {
@@ -735,14 +741,14 @@ function csvExport(): void {
   color: var(--color-text-tertiary);
 }
 
-.profile__level-progress { display: flex; flex-direction: column; gap: var(--space-sm); }
+.profile__level-progress { display: flex; flex-direction: column; gap: var(--space-xs); }
 .profile__level-progress-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
 .profile__level-progress-label { font-size: var(--text-sm); font-weight: 600; }
 .profile__level-progress-note { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 .profile__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.profile__panel { display: flex; flex-direction: column; gap: var(--space-md); }
+.profile__panel { display: flex; flex-direction: column; gap: var(--space-lg); }
 
 .profile__panel-title {
   font-size: var(--text-xl);
@@ -798,11 +804,14 @@ function csvExport(): void {
   border-radius: var(--radius-lg);
   background: var(--color-canvas-ink);
   padding: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .profile__progress-actions { display: flex; gap: var(--space-sm); justify-content: flex-end; }
 
-.profile__topics { display: flex; flex-direction: column; gap: var(--space-md); }
+.profile__topics { display: flex; flex-direction: column; gap: var(--space-lg); }
 
 .profile__topic { display: flex; flex-direction: column; gap: var(--space-sm); }
 
