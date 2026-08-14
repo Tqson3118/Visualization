@@ -508,6 +508,7 @@ export const messages = {
       retry: 'Thử lại',
       // Chuỗi hardcode còn sót từ đợt fix/redesign
       exercisesCount: (n: number) => `${n} bài tập`,
+      passedUsersCount: (n: number) => `${n} user đã qua`,
       stage: {
         1: 'Quiz (Bậc 1)',
         2: 'Lab (Bậc 2)',

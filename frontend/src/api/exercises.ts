@@ -50,6 +50,8 @@ export interface ExerciseSummaryDto {
   durationMinutes: number;
   maxScore: number;
   status: 'draft' | 'active' | 'hidden';
+  /** Số user đã pass exercise này (field mới — optional để tương thích khi backend chưa deploy) */
+  completedByUserCount?: number;
 }
 
 export interface SubmitRequest {

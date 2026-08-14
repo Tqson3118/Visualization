@@ -72,10 +72,16 @@ const nodeExerciseCounts = computed(() => {
   return counts;
 });
 
-// TODO(backend): "Số user đã qua node" chưa hiển thị — API GET /exercises trả
-// ExerciseSummaryDto KHÔNG có field user-passed count (không có completedByUserCount /
-// passCount / tương đương). Khi backend bổ sung field (vd: node stats endpoint hoặc
-// completedByUserCount trên summary), hiện badge "N user đã qua" cạnh count bài tập.
+// Số user đã qua từng node (tổng completedByUserCount của exercise gắn node — field
+// optional, backend deploy song song; chưa có field thì badge hiển thị 0).
+const nodePassedUserCounts = computed(() => {
+  const counts = new Map<number, number>();
+  for (const node of NODES) counts.set(node.id, 0);
+  for (const ex of exercises.value) {
+    if (ex.nodeId !== null) counts.set(ex.nodeId, (counts.get(ex.nodeId) ?? 0) + (ex.completedByUserCount ?? 0));
+  }
+  return counts;
+});
 
 async function attach(): Promise<void> {
   if (selectedNode.value === null || selectedExercise.value === null) return;
@@ -136,6 +142,9 @@ async function attach(): Promise<void> {
               <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
               <Badge variant="secondary" class="admin-ladder__node-count">
                 {{ messages.admin.ladder.exercisesCount(nodeExerciseCounts.get(node.id) ?? 0) }}
+              </Badge>
+              <Badge variant="secondary" class="admin-ladder__node-passed">
+                {{ messages.admin.ladder.passedUsersCount(nodePassedUserCounts.get(node.id) ?? 0) }}
               </Badge>
               <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
                 <Check :size="12" /> {{ messages.admin.ladder.attached }}
@@ -350,8 +359,9 @@ async function attach(): Promise<void> {
 
 .admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Count badge nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
-.admin-ladder__node-count { flex-shrink: 0; }
+/* Count badges nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
+.admin-ladder__node-count,
+.admin-ladder__node-passed { flex-shrink: 0; }
 
 .admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
 
