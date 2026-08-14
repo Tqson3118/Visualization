@@ -547,4 +547,103 @@ public class ExerciseServiceTests
         Assert.True(created.IsSuccess, created.ErrorMessage);
         return (service, created.Value!.Id, db);
     }
+
+    // ── CompletedByUserCount (GET /exercises) ────────────────
+    // Semantics: số user DISTINCT có best score ≥ MaxScore (ExerciseSubmissions + CodeSubmissions).
+
+    private async Task<(ExerciseService Service, int ExerciseId, AppDbContext Db)> SetupSummaryAsync(string dbName)
+    {
+        var (service, exerciseId, db) = await SetupAsync(dbName);
+        db.Users.AddRange(
+            new User { Id = 2, Email = "u2@university.edu.vn", PasswordHash = "x", DisplayName = "U2", CreatedAt = _clock.UtcNow },
+            new User { Id = 3, Email = "u3@university.edu.vn", PasswordHash = "x", DisplayName = "U3", CreatedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+        return (service, exerciseId, db);
+    }
+
+    [Fact]
+    public async Task GetList_CompletedByUserCount_UserPassedOnce_CountsOne()
+    {
+        var (service, exerciseId, db) = await SetupSummaryAsync(nameof(GetList_CompletedByUserCount_UserPassedOnce_CountsOne));
+        db.ExerciseSubmissions.Add(new ExerciseSubmission
+        {
+            UserId = 1, ExerciseId = exerciseId, Score = 10, // = MaxScore → pass
+            AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(1, dto.CompletedByUserCount);
+    }
+
+    [Fact]
+    public async Task GetList_CompletedByUserCount_UserNeverPassed_CountsZero()
+    {
+        var (service, exerciseId, db) = await SetupSummaryAsync(nameof(GetList_CompletedByUserCount_UserNeverPassed_CountsZero));
+        db.ExerciseSubmissions.AddRange(
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 4, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 7, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(0, dto.CompletedByUserCount);
+    }
+
+    [Fact]
+    public async Task GetList_CompletedByUserCount_MultipleAttemptsOnePass_CountsOnceDistinct()
+    {
+        var (service, exerciseId, db) = await SetupSummaryAsync(nameof(GetList_CompletedByUserCount_MultipleAttemptsOnePass_CountsOnceDistinct));
+        db.ExerciseSubmissions.AddRange(
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 3, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 6, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(1, dto.CompletedByUserCount);
+    }
+
+    [Fact]
+    public async Task GetList_CompletedByUserCount_MultipleDistinctUsers_CountsEachOnce()
+    {
+        var (service, exerciseId, db) = await SetupSummaryAsync(nameof(GetList_CompletedByUserCount_MultipleDistinctUsers_CountsEachOnce));
+        db.ExerciseSubmissions.AddRange(
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 2, ExerciseId = exerciseId, Score = 9, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new ExerciseSubmission { UserId = 3, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(2, dto.CompletedByUserCount); // user 1 (2 lần đạt) + user 3; user 2 chưa đạt
+    }
+
+    [Fact]
+    public async Task GetList_CompletedByUserCount_CodeSubmissions_Counted()
+    {
+        var (service, exerciseId, db) = await SetupSummaryAsync(nameof(GetList_CompletedByUserCount_CodeSubmissions_Counted));
+        db.CodeSubmissions.AddRange(
+            new CodeSubmission { UserId = 1, ExerciseId = exerciseId, Score = 10, PassedTests = 10, TotalTests = 10, Code = "x", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new CodeSubmission { UserId = 1, ExerciseId = exerciseId, Score = 2, PassedTests = 2, TotalTests = 10, Code = "x", ResultJson = "{}", SubmittedAt = _clock.UtcNow },
+            new CodeSubmission { UserId = 2, ExerciseId = exerciseId, Score = 10, PassedTests = 10, TotalTests = 10, Code = "x", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = Assert.Single(result.Value!.Items);
+        Assert.Equal(2, dto.CompletedByUserCount); // user 1 (đạt 1/2 lần) + user 2
+    }
 }

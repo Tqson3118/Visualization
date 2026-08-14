@@ -68,8 +68,54 @@ public sealed class ExerciseService(
             })
             .ToListAsync(ct);
 
+        await PopulateCompletedByUserCountAsync(items, ct);
+
         return Result<PagedResponse<ExerciseSummaryDto>>.Ok(
             PagedResponse<ExerciseSummaryDto>.Create(items, safePage, safeSize, total, Pagination.TotalPages(total, safeSize)));
+    }
+
+    /// <summary>
+    /// Cách A (pre-load 2 query): đếm số user distinct đã PASS từng bài trong <paramref name="items"/>.
+    /// Pass = best score ≥ MaxScore. Bài MCQ/SIMULATION_LAB nộp qua ExerciseSubmissions, bài CODE qua
+    /// CodeSubmissions; mỗi exercise chỉ có 1 type → gộp 2 nguồn không double-count. GroupBy (ExerciseId,
+    /// UserId) → 1 user nộp n lần (dù có lần đạt) chỉ tính 1. Dùng ≥ thay vì == (SubmitAsync dùng
+    /// score == maxScore; giả định server clamp Score ≤ MaxScore nên 2 cách tương đương, ≥ an toàn hơn).
+    /// </summary>
+    private async Task PopulateCompletedByUserCountAsync(List<ExerciseSummaryDto> items, CancellationToken ct)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var ids = items.Select(e => e.Id).ToList();
+        var maxScoreById = items.ToDictionary(e => e.Id, e => e.MaxScore);
+
+        var mcqBest = await db.ExerciseSubmissions.AsNoTracking()
+            .Where(s => ids.Contains(s.ExerciseId))
+            .GroupBy(s => new { s.ExerciseId, s.UserId })
+            .Select(g => new { g.Key.ExerciseId, g.Key.UserId, Best = g.Max(s => s.Score) })
+            .ToListAsync(ct);
+
+        var codeBest = await db.CodeSubmissions.AsNoTracking()
+            .Where(s => ids.Contains(s.ExerciseId))
+            .GroupBy(s => new { s.ExerciseId, s.UserId })
+            .Select(g => new { g.Key.ExerciseId, g.Key.UserId, Best = g.Max(s => s.Score) })
+            .ToListAsync(ct);
+
+        var passedByExercise = new Dictionary<int, int>();
+        foreach (var row in mcqBest.Concat(codeBest))
+        {
+            if (row.Best >= maxScoreById[row.ExerciseId])
+            {
+                passedByExercise[row.ExerciseId] = passedByExercise.GetValueOrDefault(row.ExerciseId) + 1;
+            }
+        }
+
+        foreach (var item in items)
+        {
+            item.CompletedByUserCount = passedByExercise.GetValueOrDefault(item.Id);
+        }
     }
 
     public async Task<Result<ExerciseDto>> GetByIdAsync(int userId, int id, CancellationToken ct)
