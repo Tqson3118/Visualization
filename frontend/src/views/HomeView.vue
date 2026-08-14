@@ -393,10 +393,7 @@ function blockStatusClass(status: string): string {
 }
 
 /* ── Hero band — surface level-2, luminance stacking (KHÔNG gradient, KHÔNG blob) ── */
-.home__hero {
-  background: var(--color-card-raised);
-  border-bottom: 1px solid var(--color-border-subtle);
-}
+.home__hero { background: var(--color-card-raised); border-bottom: 1px solid var(--color-border-subtle); }
 
 .home__hero-grid {
   display: grid;
@@ -409,7 +406,6 @@ function blockStatusClass(status: string): string {
   .home__hero-grid {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     align-items: center;
-    gap: var(--space-xl);
     padding-block: var(--space-3xl);
   }
 
@@ -435,9 +431,7 @@ function blockStatusClass(status: string): string {
   letter-spacing: 0.08em;
 }
 
-.home__kicker--center {
-  justify-content: center;
-}
+.home__kicker--center { justify-content: center; }
 
 .home__kicker-dot {
   width: 8px;
@@ -493,7 +487,6 @@ function blockStatusClass(status: string): string {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
@@ -520,9 +513,7 @@ function blockStatusClass(status: string): string {
 }
 
 .home__bench-key,
-.home__bench-step {
-  color: var(--color-index-muted);
-}
+.home__bench-step { color: var(--color-index-muted); }
 
 .home__bench-key {
   overflow: hidden;
@@ -561,15 +552,21 @@ function blockStatusClass(status: string): string {
   border-radius: var(--radius-md);
 }
 
+/* Mono dùng chung (bench + demo) — chỉ gom font-family, không đổi giá trị khác */
+.home__bench-head,
+.home__block-value,
+.home__block-index,
+.home__bench-explain,
+.home__demo-meta,
+.home__demo-complexity dd { font-family: var(--font-mono); }
+
 .home__block-value {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .home__block-index {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--color-index-muted);
 }
@@ -590,22 +587,14 @@ function blockStatusClass(status: string): string {
 .home__bench-explain {
   margin: 0;
   min-height: 36px;
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.6);
 }
 
 /* Selector demo — segmented trên nền tối (Button ghost + active rõ) */
-.home__bench-tabs {
-  display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.home__bench-tab {
-  color: var(--color-index-muted);
-}
+.home__bench-tabs { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.home__bench-tab { color: var(--color-index-muted); }
 
 .home__bench-tab:hover {
   color: rgba(255, 255, 255, 0.9);
@@ -637,11 +626,7 @@ function blockStatusClass(status: string): string {
   text-align: center;
 }
 
-.home__stats-note {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
+.home__stats-note { margin: 0; font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 .home__stats-grid {
   display: grid;
@@ -649,10 +634,7 @@ function blockStatusClass(status: string): string {
   gap: var(--space-md);
 }
 
-.home__stat-hero {
-  grid-column: span 2;
-  width: 100%;
-}
+.home__stat-hero { grid-column: span 2; width: 100%; }
 
 .home__stat {
   display: flex;
@@ -665,9 +647,7 @@ function blockStatusClass(status: string): string {
   padding: var(--space-lg);
 }
 
-.home__stat-icon {
-  color: var(--color-text-tertiary);
-}
+.home__stat-icon { color: var(--color-text-tertiary); }
 
 .home__stat-value {
   font-size: var(--text-2xl);
@@ -676,17 +656,10 @@ function blockStatusClass(status: string): string {
   color: var(--color-foreground);
 }
 
-.home__stat-label {
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
+.home__stat-label { font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 /* ── Sections chung ── */
-.home__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
+.home__section { display: flex; flex-direction: column; gap: var(--space-lg); }
 
 .home__section-head {
   text-align: center;
@@ -717,10 +690,7 @@ function blockStatusClass(status: string): string {
   gap: var(--space-lg);
 }
 
-.home__grid--features {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: var(--space-lg);
-}
+.home__grid--features { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 
 /* Feature cards — featured level-2 (DESIGN §6), compact là dải level-1 gọn hơn */
 .home__feature--featured {
@@ -732,16 +702,9 @@ function blockStatusClass(status: string): string {
 .home__feature--path { grid-column: span 4; }
 .home__feature--compact { grid-column: 1 / -1; }
 
-.home__feature-header-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-}
+.home__feature-header-row { display: flex; align-items: center; gap: var(--space-lg); }
 
-.home__feature-header-row .home__feature-icon {
-  margin-bottom: 0;
-  flex-shrink: 0;
-}
+.home__feature-header-row .home__feature-icon { margin-bottom: 0; flex-shrink: 0; }
 
 .home__feature-icon {
   width: 48px;
@@ -756,15 +719,8 @@ function blockStatusClass(status: string): string {
 }
 
 /* Card demo — level-1, hover chỉ đổi border (§4.2), không hover-lift/shadow */
-.home__demo {
-  display: flex;
-  flex-direction: column;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.home__demo:hover {
-  border-color: var(--color-border-strong);
-}
+.home__demo { display: flex; flex-direction: column; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); }
+.home__demo:hover { border-color: var(--color-border-strong); }
 
 /* Thumbnail tối — mini illustration theo type trên canvas-ink (LUÔN tối bất kể theme) */
 .home__demo-thumb {
@@ -779,18 +735,9 @@ function blockStatusClass(status: string): string {
 }
 
 /* Sort — dãy bar tiến trình sắp xếp (data-core → resolved) */
-.home__thumb-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 48px;
-}
+.home__thumb-bars { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
 
-.home__thumb-bar {
-  width: 14px;
-  border-radius: var(--radius-sm) var(--radius-sm) 2px 2px;
-  background: var(--color-data-core);
-}
+.home__thumb-bar { width: 14px; border-radius: var(--radius-sm) var(--radius-sm) 2px 2px; background: var(--color-data-core); }
 
 .home__thumb-bar:nth-child(1) { height: 40%; }
 .home__thumb-bar:nth-child(2) { height: 65%; }
@@ -798,21 +745,10 @@ function blockStatusClass(status: string): string {
 .home__thumb-bar:nth-child(4) { height: 80%; }
 .home__thumb-bar:nth-child(5) { height: 100%; }
 
-.home__thumb-bar--done { background: var(--color-resolved); }
-
 /* Search — block với phần tử tìm thấy ở giữa (resolved + ring) */
-.home__thumb-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.home__thumb-row { display: flex; align-items: center; gap: 4px; }
 
-.home__thumb-block {
-  width: 18px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--color-data-core);
-}
+.home__thumb-block { width: 18px; height: 24px; border-radius: var(--radius-sm); background: var(--color-data-core); }
 
 .home__thumb-block--found {
   background: var(--color-resolved);
@@ -820,26 +756,15 @@ function blockStatusClass(status: string): string {
 }
 
 /* Graph — chuỗi node-cạnh, node đã duyệt (resolved) */
-.home__thumb-graph {
-  display: flex;
-  align-items: center;
-}
+.home__thumb-graph { display: flex; align-items: center; }
 
-.home__thumb-node {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  background: var(--color-data-core);
-}
+.home__thumb-node { width: 14px; height: 14px; border-radius: var(--radius-full); background: var(--color-data-core); }
 
+/* Phần tử tô resolved — gộp selector cùng body (bar sort + node graph) */
+.home__thumb-bar--done,
 .home__thumb-node--visited { background: var(--color-resolved); }
 
-.home__thumb-edge {
-  width: 18px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--color-index-muted);
-}
+.home__thumb-edge { width: 18px; height: 2px; border-radius: 1px; background: var(--color-index-muted); }
 
 .home__demo-title {
   display: flex;
@@ -851,17 +776,9 @@ function blockStatusClass(status: string): string {
   letter-spacing: -0.015em;
 }
 
-.home__demo-title-icon {
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
+.home__demo-title-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
 
-.home__demo-meta {
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
+.home__demo-meta { margin-top: 4px; font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 .home__demo-content {
   margin-top: auto;
@@ -881,45 +798,26 @@ function blockStatusClass(status: string): string {
   margin: 0;
 }
 
-.home__demo-complexity dt {
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-}
+.home__demo-complexity dt { font-weight: 500; color: var(--color-text-tertiary); }
+.home__demo-complexity dd { color: var(--color-foreground); }
 
-.home__demo-complexity dd {
-  font-family: var(--font-mono);
-  color: var(--color-foreground);
-}
-
-.home__feature-title {
-  font-size: var(--text-md);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
+.home__feature-title { font-size: var(--text-md); font-weight: 600; letter-spacing: -0.015em; }
 
 @media (max-width: 900px) {
   .home__feature--visual,
-  .home__feature--path {
-    grid-column: 1 / -1;
-  }
+  .home__feature--path { grid-column: 1 / -1; }
 
   .home__feature-header-row {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .home__feature-header-row .home__feature-icon {
-    margin-bottom: var(--space-sm);
-  }
+  .home__feature-header-row .home__feature-icon { margin-bottom: var(--space-sm); }
 }
 
 @media (max-width: 640px) {
   /* §8: mobile giảm 1 bậc spacing — section gap 32px */
-  .home {
-    gap: var(--space-xl);
-    padding-bottom: var(--space-2xl);
-  }
-
+  .home { gap: var(--space-xl); padding-bottom: var(--space-2xl); }
   .home__stats-grid { grid-template-columns: 1fr; }
   .home__stat-hero { grid-column: auto; }
   .home__title { font-size: var(--text-3xl); }
