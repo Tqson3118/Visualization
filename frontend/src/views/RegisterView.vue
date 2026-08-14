@@ -15,6 +15,7 @@ import {
   Check,
   CheckCircle2,
   Circle,
+  Link as LinkIcon,
   Lock,
   Mail,
   ShieldCheck,
@@ -26,7 +27,7 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/api/client';
 import { messages } from '@/i18n/vi';
-import { isValidEmail, validatePassword } from '@/utils/validators';
+import { isValidEmail, isValidUrl, validatePassword } from '@/utils/validators';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 
@@ -44,6 +45,8 @@ const form = reactive({
   confirmPassword: '',
   department: '',
   staffCode: '',
+  academicDegree: '',
+  profileLink: '',
   teacherBio: '',
   agreePolicy: false,
 });
@@ -57,6 +60,8 @@ const touched = reactive({
   confirmPassword: false,
   department: false,
   staffCode: false,
+  academicDegree: false,
+  profileLink: false,
   teacherBio: false,
 });
 const fieldErrors = reactive<Record<string, string>>({});
@@ -96,6 +101,9 @@ function validate(): boolean {
   if (role.value === 'teacher') {
     if (!form.department.trim()) errors.department = messages.auth.departmentRequired;
     if (!form.staffCode.trim()) errors.staffCode = messages.auth.staffCodeRequired;
+    if (form.profileLink.trim() && !isValidUrl(form.profileLink.trim())) {
+      errors.profileLink = messages.auth.profileLinkInvalid;
+    }
     if (form.teacherBio.length > TEACHER_BIO_MAX) errors.teacherBio = messages.auth.teacherBioMax;
   }
   if (!form.agreePolicy) errors.agreePolicy = messages.register.agreePolicyError;
@@ -134,6 +142,8 @@ async function onSubmit(): Promise<void> {
         ? {
             department: form.department.trim(),
             staffCode: form.staffCode.trim(),
+            ...(form.academicDegree.trim() ? { academicDegree: form.academicDegree.trim() } : {}),
+            ...(form.profileLink.trim() ? { profileLink: form.profileLink.trim() } : {}),
             teacherBio: form.teacherBio.trim(),
           }
         : {}),
@@ -326,6 +336,33 @@ const BENCH_BLOCKS = [
                 :maxlength="50"
                 required
                 @blur="onBlur('staffCode')"
+              />
+
+              <div class="register__field">
+                <label class="register__field-label" for="register-academic-degree">{{ messages.auth.academicDegree }}</label>
+                <select
+                  id="register-academic-degree"
+                  v-model="form.academicDegree"
+                  class="register__select"
+                  @blur="onBlur('academicDegree')"
+                >
+                  <option value="">{{ messages.auth.academicDegreePlaceholder }}</option>
+                  <option v-for="opt in messages.auth.academicDegreeOptions" :key="opt" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+              </div>
+
+              <Input
+                v-model="form.profileLink"
+                :label="messages.auth.profileLink"
+                type="url"
+                :icon="LinkIcon"
+                :error="touched.profileLink ? fieldErrors.profileLink : ''"
+                :placeholder="messages.auth.profileLinkPlaceholder"
+                autocomplete="off"
+                :maxlength="2048"
+                @blur="onBlur('profileLink')"
               />
 
               <div class="register__field">
@@ -635,6 +672,17 @@ const BENCH_BLOCKS = [
   font-size: var(--text-sm);
   font-family: inherit;
   background: var(--color-card);
+}
+
+.register__select {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  background: var(--color-card);
+  color: var(--color-text-secondary);
 }
 
 .register__bio-meta {

@@ -344,4 +344,32 @@ public sealed class LessonsIntegrationTests : IntegrationTestBase, IClassFixture
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("NOT_FOUND", await GetErrorCodeAsync(response));
     }
+
+    [Fact(DisplayName = "v2.15: Admin reject bài chờ duyệt KHÔNG kèm lý do → 400 VALIDATION_FAILED")]
+    public async Task Review_RejectWithoutReason_Returns400()
+    {
+        // Arrange — bài PendingReview của Teacher
+        var teacher = await CreateUserAsync(role: UserRole.Teacher);
+        var topic = await CreateTopicAsync(createdBy: teacher.Id);
+        var pending = await CreateLessonAsync(topic.Id, teacher.Id, "Bài chờ duyệt", LessonStatus.PendingReview);
+
+        var admin = await CreateUserAsync(role: UserRole.Admin);
+        using var client = CreateClientWithToken(admin.Id, RoleNames.Admin);
+
+        // Act — reject không reason (controller bắt buộc reason khi approve == false)
+        var response = await client.PostAsJsonAsync($"{BaseUrl}/{pending.Id}/review", new { approve = false });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var error = doc.RootElement.GetProperty("error");
+        Assert.Equal("VALIDATION_FAILED", error.GetProperty("code").GetString());
+        Assert.Equal("reason", error.GetProperty("field").GetString());
+
+        // Bài vẫn còn PendingReview — không bị đẩy về Draft khi thiếu lý do
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var saved = await db.Lessons.AsNoTracking().SingleAsync(l => l.Id == pending.Id);
+        Assert.Equal(LessonStatus.PendingReview, saved.Status);
+    }
 }

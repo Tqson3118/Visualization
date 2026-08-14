@@ -130,11 +130,11 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     }
   }
 
-  async function submit(exerciseId: number): Promise<CodeSubmitResult> {
+  async function submit(exerciseId: number, classAssignmentId?: number | null): Promise<CodeSubmitResult> {
     runState.value = 'running';
     runError.value = null;
     try {
-      const result = await codeRunnerApi.submitCode(exerciseId, editorCode.value);
+      const result = await codeRunnerApi.submitCode(exerciseId, editorCode.value, classAssignmentId);
       runState.value = 'passed';
       await fetchHistory(exerciseId);
       return result;

@@ -4,7 +4,20 @@
 // block-token (số chờ duyệt — dữ liệu thật); bảng chuẩn §4.6 + mobile card-stack;
 // error state + retry; icon/avatar neutral; actions gap ≥8px.
 import { computed, onMounted, ref } from 'vue';
-import { Check, Lock, LockOpen, RefreshCw, Search, UserCheck, Users, X } from 'lucide-vue-next';
+import {
+  Check,
+  ExternalLink,
+  GraduationCap,
+  KeyRound,
+  Lock,
+  LockOpen,
+  RefreshCw,
+  Search,
+  UserCheck,
+  UserCog,
+  Users,
+  X,
+} from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
 import type { AdminUserDto } from '@/api/admin';
@@ -16,6 +29,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
+import Drawer from '@/components/ui/Drawer.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import AdminNav from '@/components/admin/AdminNav.vue';
@@ -34,11 +48,18 @@ const statusFilter = ref('');
 const reviewTarget = ref<AdminUserDto | null>(null);
 const reviewAction = ref<'approve' | 'reject'>('approve');
 const rejectReason = ref('');
+const rejectError = ref('');
 
-// Task L — hiển thị thông tin đăng ký GV trong modal (chỉ khi có giá trị)
+// Block 2.3 — drawer chi tiết user (stats thật qua GET /users/{id})
+const drawerUser = ref<AdminUserDto | null>(null);
+const drawerDetail = ref<AdminUserDto | null>(null);
+const drawerLoading = ref(false);
+const drawerError = ref(false);
+
+// Block 2.3 — hiển thị thông tin đăng ký GV trong modal (chỉ khi có giá trị)
 const hasReviewInfo = computed(() => {
   const u = reviewTarget.value;
-  return Boolean(u && (u.department || u.staffCode || u.teacherBio));
+  return Boolean(u && (u.department || u.staffCode || u.academicDegree || u.profileLink || u.teacherBio));
 });
 
 onMounted(load);
@@ -97,6 +118,8 @@ async function toggleLock(user: AdminUserDto): Promise<void> {
   try {
     await adminApi.setUserStatus(user.id, { isActive: !user.isActive });
     user.isActive = !user.isActive;
+    const row = users.value.find((u) => u.id === user.id);
+    if (row) row.isActive = user.isActive;
     ui.showToast(user.isActive ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.', 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
@@ -107,18 +130,76 @@ function openReview(user: AdminUserDto, action: 'approve' | 'reject'): void {
   reviewTarget.value = user;
   reviewAction.value = action;
   rejectReason.value = '';
+  rejectError.value = '';
 }
 
 async function submitReview(): Promise<void> {
   if (!reviewTarget.value) return;
+  if (reviewAction.value === 'reject' && !rejectReason.value.trim()) {
+    rejectError.value = messages.admin.users.rejectReasonRequired;
+    return;
+  }
   try {
     await adminApi.approveTeacher(reviewTarget.value.id, {
       approve: reviewAction.value === 'approve',
-      reason: reviewAction.value === 'reject' ? rejectReason.value : undefined,
+      reason: reviewAction.value === 'reject' ? rejectReason.value.trim() : undefined,
     });
     ui.showToast(reviewAction.value === 'approve' ? 'Đã duyệt giảng viên!' : 'Đã từ chối — tài khoản về vai học viên.', 'success');
     reviewTarget.value = null;
     void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
+  }
+}
+
+// ── Block 2.3 — Drawer chi tiết user ──
+
+function openDrawer(user: AdminUserDto): void {
+  drawerUser.value = user;
+  drawerDetail.value = null;
+  drawerError.value = false;
+  drawerLoading.value = true;
+  void loadDrawerDetail(user.id);
+}
+
+function closeDrawer(): void {
+  drawerUser.value = null;
+  drawerDetail.value = null;
+  drawerLoading.value = false;
+  drawerError.value = false;
+}
+
+async function loadDrawerDetail(id: number): Promise<void> {
+  drawerLoading.value = true;
+  drawerError.value = false;
+  try {
+    drawerDetail.value = await adminApi.fetchUser(id);
+  } catch {
+    drawerError.value = true;
+    drawerDetail.value = null;
+  } finally {
+    drawerLoading.value = false;
+  }
+}
+
+/** Đổi vai trò STUDENT ↔ TEACHER (không áp dụng cho TEACHER_PENDING/ADMIN). */
+async function changeRole(user: AdminUserDto): Promise<void> {
+  const next = user.role === 'TEACHER' ? 'STUDENT' : 'TEACHER';
+  try {
+    await adminApi.setUserRole(user.id, { role: next });
+    user.role = next;
+    const row = users.value.find((u) => u.id === user.id);
+    if (row) row.role = next;
+    ui.showToast(messages.admin.users.roleChanged(next === 'STUDENT' ? messages.admin.users.roleStudent : messages.admin.users.roleTeacher), 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
+  }
+}
+
+async function resetPassword(user: AdminUserDto): Promise<void> {
+  try {
+    await adminApi.resetUserPassword(user.id);
+    ui.showToast(messages.admin.users.passwordReset, 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
   }
@@ -224,7 +305,17 @@ async function submitReview(): Promise<void> {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in filtered" :key="user.id">
+            <tr
+              v-for="user in filtered"
+              :key="user.id"
+              class="admin-users__row"
+              tabindex="0"
+              role="button"
+              :aria-label="`${messages.admin.users.detailsHint}: ${user.displayName || user.email}`"
+              @click="openDrawer(user)"
+              @keydown.enter="openDrawer(user)"
+              @keydown.space.prevent="openDrawer(user)"
+            >
               <td :data-label="messages.admin.users.colUser">
                 <div class="admin-users__user">
                   <span class="admin-users__avatar" aria-hidden="true">{{ initial(user.displayName) }}</span>
@@ -244,7 +335,7 @@ async function submitReview(): Promise<void> {
               </td>
               <td :data-label="messages.admin.users.colCreated" class="admin-users__date">{{ formatDate(user.createdAt) }}</td>
               <td :data-label="messages.admin.users.colActions">
-                <div class="admin-users__actions">
+                <div class="admin-users__actions" @click.stop>
                   <template v-if="user.role === 'TEACHER_PENDING'">
                     <Button size="sm" variant="secondary" @click="openReview(user, 'approve')">
                       <Check :size="16" /> {{ messages.admin.users.approve }}
@@ -292,6 +383,22 @@ async function submitReview(): Promise<void> {
           <span class="admin-users__review-info-label">{{ messages.admin.users.staffCode }}</span>
           <span class="admin-users__review-info-value">{{ reviewTarget.staffCode }}</span>
         </div>
+        <div v-if="reviewTarget?.academicDegree" class="admin-users__review-info-row">
+          <span class="admin-users__review-info-label">{{ messages.admin.users.academicDegree }}</span>
+          <span class="admin-users__review-info-value">{{ reviewTarget.academicDegree }}</span>
+        </div>
+        <div v-if="reviewTarget?.profileLink" class="admin-users__review-info-row">
+          <span class="admin-users__review-info-label">{{ messages.admin.users.profileLink }}</span>
+          <a
+            class="admin-users__review-info-link"
+            :href="reviewTarget.profileLink"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ reviewTarget.profileLink }}
+            <ExternalLink :size="12" aria-hidden="true" />
+          </a>
+        </div>
         <div v-if="reviewTarget?.teacherBio" class="admin-users__review-info-row">
           <span class="admin-users__review-info-label">{{ messages.admin.users.teacherBio }}</span>
           <span class="admin-users__review-info-value">{{ reviewTarget.teacherBio }}</span>
@@ -302,18 +409,154 @@ async function submitReview(): Promise<void> {
         v-model="rejectReason"
         :label="messages.admin.users.rejectReasonLabel"
         :placeholder="messages.admin.users.rejectReasonPlaceholder"
+        :error="rejectError"
+        @update:model-value="rejectError = ''"
       />
       <template #footer>
         <Button variant="ghost" @click="reviewTarget = null">{{ messages.admin.users.cancel }}</Button>
         <Button
           :variant="reviewAction === 'approve' ? 'primary' : 'danger'"
-          :disabled="reviewAction === 'reject' && rejectReason.trim() === ''"
           @click="submitReview"
         >
           {{ reviewAction === 'approve' ? messages.admin.users.confirmApprove : messages.admin.users.confirmReject }}
         </Button>
       </template>
     </Modal>
+
+    <!-- Block 2.3 — Drawer chi tiết user: stats thật qua GET /users/{id} -->
+    <Drawer :open="drawerUser !== null" :title="messages.admin.users.drawerTitle" :width="'440px'" @close="closeDrawer">
+      <div v-if="drawerLoading" class="admin-users__drawer-loading" aria-busy="true">
+        <Skeleton v-for="i in 4" :key="i" height="48px" />
+      </div>
+
+      <div v-else-if="drawerError" class="admin-users__drawer-error" role="alert">
+        <p class="admin-users__drawer-error-text">{{ messages.admin.users.drawerLoadError }}</p>
+        <Button size="sm" variant="secondary" @click="drawerUser && loadDrawerDetail(drawerUser.id)">
+          <RefreshCw :size="14" /> {{ messages.admin.users.retry }}
+        </Button>
+      </div>
+
+      <div v-else-if="drawerDetail" class="admin-users__drawer">
+        <div class="admin-users__drawer-head">
+          <span class="admin-users__drawer-avatar" aria-hidden="true">{{ initial(drawerDetail.displayName) }}</span>
+          <div class="admin-users__drawer-head-meta">
+            <p class="admin-users__drawer-name">{{ drawerDetail.displayName }}</p>
+            <p class="admin-users__drawer-email">{{ drawerDetail.email }}</p>
+            <div class="admin-users__drawer-badges">
+              <Badge :variant="drawerDetail.role === 'TEACHER_PENDING' ? 'warning' : 'primary'">
+                {{ roleLabel[drawerDetail.role] }}
+              </Badge>
+              <Badge :variant="drawerDetail.isActive ? 'success' : 'danger'">
+                {{ drawerDetail.isActive ? messages.admin.users.active : messages.admin.users.locked }}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <section class="admin-users__drawer-section">
+          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.sectionProfile }}</h3>
+          <div class="admin-users__drawer-info">
+            <div v-if="drawerDetail.department" class="admin-users__drawer-row">
+              <span class="admin-users__drawer-label">{{ messages.admin.users.department }}</span>
+              <span class="admin-users__drawer-value">{{ drawerDetail.department }}</span>
+            </div>
+            <div v-if="drawerDetail.staffCode" class="admin-users__drawer-row">
+              <span class="admin-users__drawer-label">{{ messages.admin.users.staffCode }}</span>
+              <span class="admin-users__drawer-value">{{ drawerDetail.staffCode }}</span>
+            </div>
+            <div v-if="drawerDetail.academicDegree" class="admin-users__drawer-row">
+              <span class="admin-users__drawer-label">{{ messages.admin.users.academicDegree }}</span>
+              <span class="admin-users__drawer-value">{{ drawerDetail.academicDegree }}</span>
+            </div>
+            <div v-if="drawerDetail.profileLink" class="admin-users__drawer-row">
+              <span class="admin-users__drawer-label">{{ messages.admin.users.profileLink }}</span>
+              <a
+                class="admin-users__drawer-link"
+                :href="drawerDetail.profileLink"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ drawerDetail.profileLink }}
+                <ExternalLink :size="12" aria-hidden="true" />
+              </a>
+            </div>
+            <div class="admin-users__drawer-row">
+              <span class="admin-users__drawer-label">{{ messages.admin.users.colCreated }}</span>
+              <span class="admin-users__drawer-value admin-users__drawer-value--mono">{{ formatDate(drawerDetail.createdAt) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-users__drawer-section">
+          <h3 class="admin-users__drawer-section-title">
+            <GraduationCap :size="14" aria-hidden="true" />
+            {{ messages.admin.users.sectionLearning }}
+          </h3>
+          <div class="admin-users__drawer-stats">
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.level ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statLevel }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.xp ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statXp }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.streakDays ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statStreak }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.gems ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statGems }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.hearts ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statHearts }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-users__drawer-section">
+          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.sectionActivity }}</h3>
+          <div class="admin-users__drawer-stats">
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.lessonsCompletedCount ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statLessons }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.exercisesPassedCount ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statExercises }}</span>
+            </div>
+            <div class="admin-users__drawer-stat">
+              <span class="admin-users__drawer-stat-value">{{ drawerDetail.joinedClassesCount ?? 0 }}</span>
+              <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statClasses }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-users__drawer-section">
+          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.colActions }}</h3>
+          <div class="admin-users__drawer-actions">
+            <Button size="sm" :variant="drawerDetail.isActive ? 'secondary' : 'primary'" @click="toggleLock(drawerDetail)">
+              <LockOpen v-if="!drawerDetail.isActive" :size="16" />
+              <Lock v-else :size="16" />
+              {{ drawerDetail.isActive ? messages.admin.users.lock : messages.admin.users.unlock }}
+            </Button>
+            <Button
+              v-if="drawerDetail.role === 'TEACHER' || drawerDetail.role === 'STUDENT'"
+              size="sm"
+              variant="secondary"
+              @click="changeRole(drawerDetail)"
+            >
+              <UserCog :size="16" /> {{ messages.admin.users.changeRole }}
+            </Button>
+            <Button size="sm" variant="secondary" @click="resetPassword(drawerDetail)">
+              <KeyRound :size="16" /> {{ messages.admin.users.resetPassword }}
+            </Button>
+          </div>
+        </section>
+      </div>
+    </Drawer>
   </main>
 </template>
 
@@ -622,6 +865,160 @@ async function submitReview(): Promise<void> {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ── Row clickable → drawer chi tiết (Block 2.3) ── */
+.admin-users__row { cursor: pointer; }
+
+.admin-users__row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.admin-users__review-info-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--primary);
+  word-break: break-all;
+}
+
+.admin-users__review-info-link:hover { text-decoration: underline; }
+
+/* ── Drawer chi tiết user (Block 2.3) ── */
+.admin-users__drawer { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+.admin-users__drawer-loading { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.admin-users__drawer-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.admin-users__drawer-error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
+
+.admin-users__drawer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-users__drawer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--foreground-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--text-base);
+  flex-shrink: 0;
+}
+
+.admin-users__drawer-head-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.admin-users__drawer-name { font-weight: 600; margin: 0; word-break: break-word; }
+.admin-users__drawer-email { font-size: var(--text-xs); color: var(--foreground-tertiary); margin: 0; word-break: break-all; }
+
+.admin-users__drawer-badges { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-top: var(--space-xs); }
+
+.admin-users__drawer-section { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.admin-users__drawer-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--foreground-tertiary);
+}
+
+.admin-users__drawer-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+
+.admin-users__drawer-row {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.admin-users__drawer-label {
+  flex-shrink: 0;
+  min-width: 7rem;
+  color: var(--foreground-tertiary);
+}
+
+.admin-users__drawer-value {
+  font-weight: 600;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-users__drawer-value--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-users__drawer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--primary);
+  word-break: break-all;
+}
+
+.admin-users__drawer-link:hover { text-decoration: underline; }
+
+.admin-users__drawer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.admin-users__drawer-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+}
+
+.admin-users__drawer-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.admin-users__drawer-stat-label {
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+}
+
+.admin-users__drawer-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 @media (max-width: 640px) {
   .admin-users__hero { padding: var(--space-lg); }

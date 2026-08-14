@@ -56,11 +56,11 @@ export async function fetchCodeRunTrace(id: number): Promise<unknown[]> {
   return getData<unknown[]>({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.codeRunTrace(id) });
 }
 
-export async function submitCode(exerciseId: number, code: string): Promise<CodeSubmitResult> {
+export async function submitCode(exerciseId: number, code: string, classAssignmentId?: number | null): Promise<CodeSubmitResult> {
   return getData<CodeSubmitResult>({
     method: 'POST',
     url: CODE_RUNNER_ENDPOINTS.codeSubmit(exerciseId),
-    data: { code },
+    data: { code, classAssignmentId: classAssignmentId ?? undefined },
   });
 }
 

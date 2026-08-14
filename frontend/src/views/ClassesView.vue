@@ -78,7 +78,7 @@ async function join(): Promise<void> {
   }
   joinError.value = '';
   try {
-    const joined = await classStore.joinClass(inviteCode.value);
+    const joined = await classStore.joinByCode(inviteCode.value);
     ui.showToast(messages.classes.joinSuccess, 'success');
     joinOpen.value = false;
     void router.push({ name: 'class-detail', params: { id: String(joined.id) } });

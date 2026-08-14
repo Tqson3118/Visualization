@@ -16,6 +16,7 @@ export const GAMIFICATION_ENDPOINTS = {
   buy: '/shop/buy',
   inventory: '/me/inventory',
   equip: '/me/inventory/equip',
+  achievements: '/achievements',
   premiumStatus: '/premium/status',
   premiumUpgrade: '/premium/upgrade',
   premiumMockPay: '/premium/mock-pay',
@@ -39,6 +40,18 @@ export interface QuestDto {
   rewardGems: number;
   rewardXp: number;
   claimed: boolean;
+}
+
+/** DTO thật từ backend GET /me/quests — trả progress + reward:{gems,xp} (KHÔNG có current/rewardGems/rewardXp). */
+interface RawQuestDto {
+  id: number;
+  questId: number;
+  title: string;
+  type: number;
+  progress: number;
+  target: number;
+  claimed: boolean;
+  reward: { gems: number; xp: number };
 }
 
 export interface ShopItemDto {
@@ -82,11 +95,23 @@ export interface LeaderboardDto {
 }
 
 export interface InventoryItemDto {
-  id: number;
+  id: number;              // rowId của dòng UserInventory
   itemId: number;
+  itemKey: string;
   name: string;
-  slot: string | null;
+  quantity: number;
+  type: number;            // 0=consumable / 1=avatar / 2=frame (fallback — ưu tiên itemKey prefix)
   isEquipped: boolean;
+  expiresAt: string | null;
+}
+
+export interface AchievementDto {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  earnedAt: string | null; // null = chưa đạt
 }
 
 export interface StreakDto {
@@ -139,11 +164,27 @@ export async function fetchFinalTest(id: number): Promise<unknown> {
 }
 
 export async function fetchQuests(): Promise<QuestDto[]> {
-  return getData<QuestDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests });
+  // Map DTO backend → view: progress→current, reward.{gems,xp}→rewardGems/rewardXp
+  // (fix NaN% — backend KHÔNG trả current/rewardGems/rewardXp/description)
+  const raw = await getData<RawQuestDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests });
+  return raw.map((q) => ({
+    id: q.id,
+    title: q.title,
+    description: '',
+    target: q.target,
+    current: q.progress,
+    rewardGems: q.reward?.gems ?? 0,
+    rewardXp: q.reward?.xp ?? 0,
+    claimed: q.claimed,
+  }));
 }
 
 export async function claimQuest(id: number): Promise<{ gems: number; xp: number }> {
-  return getData<{ gems: number; xp: number }>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.claimQuest(id) });
+  const raw = await getData<{ claimed: boolean; reward: { gems: number; xp: number }; gemsTotal: number }>({
+    method: 'POST',
+    url: GAMIFICATION_ENDPOINTS.claimQuest(id),
+  });
+  return { gems: raw.reward?.gems ?? 0, xp: raw.reward?.xp ?? 0 };
 }
 
 export async function fetchStreak(): Promise<StreakDto> {
@@ -181,8 +222,13 @@ export async function fetchInventory(): Promise<InventoryItemDto[]> {
   return getData<InventoryItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.inventory });
 }
 
-export async function equipItem(itemId: number, slot: string): Promise<InventoryItemDto[]> {
-  return getData<InventoryItemDto[]>({ method: 'PUT', url: GAMIFICATION_ENDPOINTS.equip, data: { itemId, slot } });
+export async function equipItem(itemId: number, isEquipped: boolean): Promise<void> {
+  // Bug contract: PUT /me/inventory/equip trả 200 OK body RỖNG → caller phải fetch lại inventory.
+  await client.put(GAMIFICATION_ENDPOINTS.equip, { itemId, isEquipped });
+}
+
+export async function fetchAchievements(): Promise<AchievementDto[]> {
+  return getData<AchievementDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.achievements });
 }
 
 export async function fetchPremiumStatus(): Promise<PremiumStatusDto> {

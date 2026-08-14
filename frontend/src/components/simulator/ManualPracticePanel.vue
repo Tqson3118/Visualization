@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // ManualPracticePanel — chế độ Tự thực hành (FR-3.12)
 // Hộp chọn thao tác kế tiếp; so sánh với trace thật (bước kế) → đúng/sai
-import { computed, ref } from 'vue';
+// UX: hướng dẫn khi chưa chạy mô phỏng · tự cuộn vào view khi panel xuất hiện ·
+// tự sang bước kế sau khi trả lời (~400ms để feedback hiện rõ).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Lightbulb } from 'lucide-vue-next';
 
 import type { Step } from '@/engines/core/types';
 import Button from '@/components/ui/Button.vue';
@@ -21,6 +24,29 @@ const lastResult = ref<'correct' | 'wrong' | null>(null);
 const correctCount = ref(0);
 const wrongCount = ref(0);
 const finished = ref(false);
+
+/** Chưa chạy mô phỏng (chưa có bước nào) → hiện hướng dẫn thay cho vùng trống. */
+const hasRun = computed(() => props.steps.length > 0);
+
+const panelEl = ref<HTMLElement | null>(null);
+
+/** Auto-scroll: khi panel xuất hiện (bật chế độ Tự thực hành) → cuộn mượt vào view. */
+onMounted(async () => {
+  await nextTick();
+  panelEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+/** Timer tự động sang bước kế sau khi trả lời (feedback hiện rõ ~400ms). */
+let advanceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearAdvanceTimer(): void {
+  if (advanceTimer !== null) {
+    clearTimeout(advanceTimer);
+    advanceTimer = null;
+  }
+}
+
+onBeforeUnmount(clearAdvanceTimer);
 
 /** Các thao tác gợi ý (≤ 6) cho bước kế */
 const OPTIONS = [
@@ -48,7 +74,7 @@ function inferExpected(): string {
 }
 
 function submit(): void {
-  if (!selected.value) return;
+  if (!selected.value || advanceTimer !== null) return;
   const expected = inferExpected();
   if (selected.value === expected) {
     lastResult.value = 'correct';
@@ -58,21 +84,30 @@ function submit(): void {
     wrongCount.value += 1;
   }
   selected.value = '';
+
+  // Tự sang bước kế sau ~400ms — cùng hàm stepForward mà nút "Bước tới" dùng (parent @skip="stepForward").
+  advanceTimer = setTimeout(() => {
+    advanceTimer = null;
+    lastResult.value = null;
+    emit('skip');
+  }, 400);
 }
 
 function skip(): void {
+  clearAdvanceTimer();
   lastResult.value = null;
   emit('skip');
 }
 
 function finish(): void {
+  clearAdvanceTimer();
   finished.value = true;
   emit('done', { correct: correctCount.value, wrong: wrongCount.value });
 }
 </script>
 
 <template>
-  <section class="practice card" aria-label="Tự thực hành">
+  <section ref="panelEl" class="practice card" aria-label="Tự thực hành">
     <header class="practice__header">
       <h3 class="practice__title">Tự thực hành</h3>
       <span class="practice__score">
@@ -80,7 +115,16 @@ function finish(): void {
       </span>
     </header>
 
-    <p v-if="finished" class="practice__result" role="status">
+    <div v-if="!hasRun" class="practice__guidance" role="status">
+      <span class="practice__guidance-icon" aria-hidden="true">
+        <Lightbulb :size="18" />
+      </span>
+      <p class="practice__guidance-text">
+        Chọn nút ▶ trên thanh điều khiển để chạy mô phỏng — sau đó trả lời thao tác kế tiếp của từng bước.
+      </p>
+    </div>
+
+    <p v-else-if="finished" class="practice__result" role="status">
       Kết thúc luyện tập: {{ correctCount }} đúng / {{ wrongCount }} sai
     </p>
 
@@ -120,6 +164,30 @@ function finish(): void {
 .practice__title { font-size: var(--text-md); }
 
 .practice__score { font-size: var(--text-sm); color: var(--color-text-muted); }
+
+/* Hướng dẫn khi chưa chạy mô phỏng (thay vùng trống) */
+.practice__guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+}
+
+.practice__guidance-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.practice__guidance-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
 
 .practice__prompt { font-size: var(--text-sm); }
 

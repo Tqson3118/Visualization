@@ -82,4 +82,22 @@ public class UserServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
     }
+
+    [Fact]
+    public async Task ApproveTeacher_RejectWithoutReason_ReturnsValidationFailed()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(ApproveTeacher_RejectWithoutReason_ReturnsValidationFailed));
+        var service = TestServices.CreateUserService(db, _clock);
+        await SeedPendingTeacherAsync(db);
+
+        // v2.15 (Vấn đề 2): từ chối bắt buộc nhập Lý do — ứng viên cần biết lý do để chỉnh hồ sơ
+        var result = await service.ApproveTeacherAsync(
+            actorId: 99, actorIsPrimaryAdmin: true, id: 1,
+            new ApproveTeacherRequest { Approve = false }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        var saved = await db.Users.AsNoTracking().SingleAsync(u => u.Id == 1);
+        Assert.Equal(UserRole.TeacherPending, saved.Role);
+    }
 }

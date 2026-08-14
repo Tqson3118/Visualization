@@ -9,6 +9,7 @@ namespace DsaVisual.Api.Controllers;
 /// <summary>
 /// Controller mẫu theo SDD §5.7.1: nhận DTO → gọi Service → map Result qua MapResult.
 /// KHÔNG logic nghiệp vụ > 5 dòng, KHÔNG truy cập DbContext (SDD §5.3.1).
+/// v2.15: endpoint kiểm duyệt (admin) + báo cáo vi phạm (student).
 /// </summary>
 [ApiController]
 [ApiVersion("1.0")]
@@ -46,7 +47,7 @@ public class LessonsController(ILessonService service) : ApiControllerBase
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<LessonDto>> Create([FromBody] LessonUpsertRequest request, CancellationToken ct)
     {
-        var result = await _service.CreateAsync(CurrentUserId(), request, ct);
+        var result = await _service.CreateAsync(CurrentUserId(), CurrentRole(), request, ct);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetLesson), new { id = result.Value!.Id }, result.Value)
             : MapResultExtensions.MapResult(this, result);
@@ -81,6 +82,49 @@ public class LessonsController(ILessonService service) : ApiControllerBase
         [FromRoute] int id, [FromBody] LessonFeedbackRequest request, CancellationToken ct)
     {
         var result = await _service.AddFeedbackAsync(CurrentUserId(), CurrentRole(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    // ── Báo cáo vi phạm (v2.15) ──
+
+    [HttpPost("{id:int}/report")]
+    public async Task<ActionResult> ReportLesson(
+        [FromRoute] int id, [FromBody] LessonReportRequest request, CancellationToken ct)
+    {
+        var result = await _service.ReportAsync(CurrentUserId(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    // ── Kiểm duyệt Admin (v2.15) ──
+
+    [HttpGet("pending")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<ActionResult<List<LessonSummaryDto>>> GetPendingLessons(CancellationToken ct)
+    {
+        var result = await _service.GetPendingListAsync(ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    [HttpPost("{id:int}/review")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<ActionResult<LessonDto>> ReviewLesson(
+        [FromRoute] int id, [FromBody] LessonReviewRequest request, CancellationToken ct)
+    {
+        if (!request.Approve && string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BadRequest(new
+            {
+                error = new
+                {
+                    code = "VALIDATION_FAILED",
+                    message = "Phải nhập lý do khi từ chối duyệt bài học",
+                    field = "reason",
+                    details = new[] { "Phải nhập lý do khi từ chối duyệt bài học" }
+                }
+            });
+        }
+
+        var result = await _service.ReviewAsync(CurrentUserId(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 }

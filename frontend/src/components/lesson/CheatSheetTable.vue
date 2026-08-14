@@ -5,9 +5,10 @@
 // giá trị Big-O → block-token chip tối canvas-ink + mono (vùng dữ liệu LUÔN tối); mobile
 // ≤640px = card-stack (cấm scroll ngang bảng chính §8); i18n thay hardcode.
 import { computed, ref } from 'vue';
-import { Play } from 'lucide-vue-next';
+import { BookOpen, Play } from 'lucide-vue-next';
 
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
+import { getReference } from '@/data/referenceLinks';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/button/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -43,6 +44,12 @@ const filtered = computed(() => {
 function clearFilters(): void {
   activeGroup.value = messages.cheatsheet.all;
   filterKey.value = '';
+}
+
+/** URL tài liệu — ưu tiên Wikipedia, fallback GeeksforGeeks (undefined → ẩn link). */
+function referenceUrl(key: string): string | undefined {
+  const ref = getReference(key);
+  return ref?.wikipedia ?? ref?.geeksforgeeks;
 }
 </script>
 
@@ -122,15 +129,28 @@ function clearFilters(): void {
               <code class="cheatsheet__bigo">{{ item.complexity.space }}</code>
             </td>
             <td :data-label="messages.cheatsheet.colAction">
-              <Button
-                variant="outline"
-                size="sm"
-                :aria-label="messages.cheatsheet.openSimulation(item.title)"
-                @click="emit('open-simulation', item.key)"
-              >
-                <Play aria-hidden="true" />
-                {{ messages.cheatsheet.simulate }}
-              </Button>
+              <div class="cheatsheet__actions">
+                <a
+                  v-if="referenceUrl(item.key)"
+                  class="cheatsheet__doc-link"
+                  :href="referenceUrl(item.key)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :aria-label="`Đọc tài liệu: ${item.title}`"
+                >
+                  <BookOpen :size="14" aria-hidden="true" />
+                  Đọc tài liệu
+                </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :aria-label="messages.cheatsheet.openSimulation(item.title)"
+                  @click="emit('open-simulation', item.key)"
+                >
+                  <Play aria-hidden="true" />
+                  {{ messages.cheatsheet.simulate }}
+                </Button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -189,6 +209,41 @@ function clearFilters(): void {
 }
 
 .cheatsheet__name { font-weight: 600; }
+
+.cheatsheet__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* Link tài liệu — anchor dạng nút outline (pattern SimulationsView.simulations__doc-link) */
+.cheatsheet__doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cheatsheet__doc-link:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+.cheatsheet__doc-link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
 
 .cheatsheet__meta { display: flex; gap: var(--space-sm); margin-top: var(--space-xs); flex-wrap: wrap; }
 

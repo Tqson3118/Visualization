@@ -207,4 +207,82 @@ public class LessonServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
     }
+
+    // ── Kiểm duyệt nội dung (v2.15) ──────────────────────────
+
+    private static LessonUpsertRequest BuildUpsertRequest(int topicId, LessonStatus status, bool isClassOnly = false) => new()
+    {
+        TopicId = topicId,
+        Title = "Bài học kiểm duyệt",
+        Description = "Mô tả",
+        ContentHtml = "<p>Nội dung bài học kiểm duyệt</p>",
+        Status = status,
+        IsClassOnly = isClassOnly,
+        SortOrder = 1
+    };
+
+    [Fact]
+    public async Task Create_TeacherPublic_BecomesPendingReview()
+    {
+        var (service, db) = await SetupAsync(nameof(Create_TeacherPublic_BecomesPendingReview));
+
+        // Teacher đăng public (Active) → KHÔNG active trực tiếp, phải chờ Admin duyệt
+        var result = await service.CreateAsync(
+            1, "TEACHER", BuildUpsertRequest(1, LessonStatus.Active), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal("pendingreview", result.Value!.Status);
+        Assert.Null(result.Value.PublishedAt);
+        var saved = await db.Lessons.AsNoTracking().SingleAsync(l => l.Id == result.Value.Id);
+        Assert.Equal(LessonStatus.PendingReview, saved.Status);
+        Assert.Null(saved.PublishedAt);
+    }
+
+    [Fact]
+    public async Task Create_TeacherClassOnly_BecomesActive()
+    {
+        var (service, db) = await SetupAsync(nameof(Create_TeacherClassOnly_BecomesActive));
+
+        // Teacher bài IsClassOnly → Active ngay (chỉ lớp học, không cần duyệt)
+        var result = await service.CreateAsync(
+            1, "TEACHER", BuildUpsertRequest(1, LessonStatus.Active, isClassOnly: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal("active", result.Value!.Status);
+        Assert.True(result.Value.IsClassOnly);
+        var saved = await db.Lessons.AsNoTracking().SingleAsync(l => l.Id == result.Value.Id);
+        Assert.Equal(LessonStatus.Active, saved.Status);
+    }
+
+    [Fact]
+    public async Task Review_Approve_BecomesActiveWithPublishedAt()
+    {
+        var (service, db) = await SetupAsync(nameof(Review_Approve_BecomesActiveWithPublishedAt));
+        var pending = await db.Lessons.SingleAsync(l => l.Id == 2);
+        pending.Status = LessonStatus.PendingReview;
+        await db.SaveChangesAsync();
+
+        var result = await service.ReviewAsync(
+            99, 2, new LessonReviewRequest { Approve = true }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal("active", result.Value!.Status);
+        Assert.Equal(_clock.UtcNow, result.Value.PublishedAt);
+        var saved = await db.Lessons.AsNoTracking().SingleAsync(l => l.Id == 2);
+        Assert.Equal(LessonStatus.Active, saved.Status);
+        Assert.Equal(_clock.UtcNow, saved.PublishedAt);
+    }
+
+    [Fact]
+    public async Task Report_ShortReason_ReturnsValidationFailed()
+    {
+        var (service, db) = await SetupAsync(nameof(Report_ShortReason_ReturnsValidationFailed));
+
+        // Lý do < 5 ký tự → VALIDATION_FAILED, KHÔNG tạo BugReport
+        var result = await service.ReportAsync(1, 1, new LessonReportRequest { Reason = "abc" }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+        Assert.Equal(0, await db.BugReports.CountAsync());
+    }
 }

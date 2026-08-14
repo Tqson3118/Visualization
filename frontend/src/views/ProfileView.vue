@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// ProfileView — Màn 32: 4 tab (Tổng quan / Tiến độ / Thành tích / Cài đặt) + thẻ tắt nhanh.
+// ProfileView — Màn 32: 5 tab (Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt) + thẻ tắt nhanh.
 // View-quality C (DESIGN.md §1/§6): hero = surface band level-2 (bỏ gradient/blob/shadow),
 // 1 stat hero duy nhất (XP — block-token tối canvas-ink + index mono), stat phụ level-1,
 // radar + vùng dữ liệu LUÔN tối, icon lucide-vue-next (cấm emoji), không hover-lift/shadow card.
@@ -8,10 +8,14 @@ import type { Component } from 'vue';
 import {
   Check,
   Circle,
+  Clock,
   Download,
   Flame,
+  Frame,
+  Image as ImageIcon,
   Lock,
   Medal,
+  Package,
   Pencil,
   RefreshCw,
   ShoppingBag,
@@ -25,6 +29,8 @@ import { useGamificationStore } from '@/stores/gamification';
 import { useProgressStore } from '@/stores/progress';
 import * as progressApi from '@/api/progress';
 import * as authApi from '@/api/auth';
+import type { InventoryItemDto } from '@/api/gamification';
+import { avatarVariant, equipGroup, equippedItem, frameVariant } from '@/utils/equipment';
 import { useUiStore } from '@/stores/ui';
 import Tabs from '@/components/ui/Tabs.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -42,7 +48,7 @@ const gamification = useGamificationStore();
 const progressStore = useProgressStore();
 const ui = useUiStore();
 
-const tab = ref<'overview' | 'progress' | 'achievements' | 'settings'>('overview');
+const tab = ref<'overview' | 'progress' | 'achievements' | 'inventory' | 'settings'>('overview');
 const loading = ref(true);
 const loadError = ref('');
 
@@ -53,9 +59,16 @@ const passwordBusy = ref(false);
 const level = computed(() => gamification.level);
 const xp = computed(() => gamification.xp);
 
+const isTeacherPending = computed(() => auth.role === 'TEACHER_PENDING');
+
 onMounted(async () => {
   loading.value = true;
-  await Promise.allSettled([gamification.fetchAll(), auth.fetchMe().catch(() => undefined)]);
+  await Promise.allSettled([
+    gamification.fetchAll(),
+    gamification.fetchInventory(),
+    gamification.fetchAchievements(),
+    auth.fetchMe().catch(() => undefined),
+  ]);
   try {
     await progressStore.fetchOverview();
   } catch {
@@ -117,14 +130,45 @@ const quickLinks: Array<{ label: string; to: string; icon: Component }> = [
   { label: 'Lớp học', to: 'classes', icon: Users },
 ];
 
-const achievements = [
-  { id: 'first-sim', label: 'Mô phỏng đầu tiên', unlocked: true },
-  { id: 'first-quiz', label: 'Bài quiz đầu tiên', unlocked: true },
-  { id: 'streak-7', label: '7 ngày liên tiếp', unlocked: gamification.streakDays >= 7 },
-  { id: 'pass-node', label: 'Hoàn thành node đầu tiên', unlocked: false },
-  { id: 'final-test', label: 'Kiểm tra cuối lộ trình', unlocked: false },
-  { id: 'top10', label: 'Top 10 bảng xếp hạng', unlocked: false },
-] as const;
+const achievements = computed(() => gamification.achievements);
+
+// ── Kho đồ (Màn N-8): avatar + khung viền từ /me/inventory (data thật) ──
+const equippingId = ref<number | null>(null);
+
+const avatarItems = computed(() => gamification.inventory.filter((item) => equipGroup(item) === 'avatar'));
+const frameItems = computed(() => gamification.inventory.filter((item) => equipGroup(item) === 'frame'));
+const consumableItems = computed(() => gamification.inventory.filter((item) => equipGroup(item) === null));
+
+const invGroups = computed(() =>
+  [
+    { key: 'avatar', label: 'Avatar', icon: ImageIcon, items: avatarItems.value },
+    { key: 'frame', label: 'Khung viền', icon: Frame, items: frameItems.value },
+  ].filter((group) => group.items.length > 0),
+);
+
+const equippedAvatar = computed(() => equippedItem(gamification.inventory, 'avatar'));
+const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
+
+const avatarThemeClass = computed(() => {
+  const key = equippedAvatar.value?.itemKey;
+  return key ? `profile__avatar--${avatarVariant(key)}` : '';
+});
+const frameThemeClass = computed(() => {
+  const key = equippedFrame.value?.itemKey;
+  return key ? `profile__avatar-frame--${frameVariant(key)}` : '';
+});
+
+async function toggleEquip(item: InventoryItemDto): Promise<void> {
+  equippingId.value = item.itemId;
+  try {
+    await gamification.equipItem(item.itemId, !item.isEquipped);
+    ui.showToast(item.isEquipped ? 'Đã gỡ trang bị.' : `Đã trang bị "${item.name}".`, 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể trang bị vật phẩm.', 'error');
+  } finally {
+    equippingId.value = null;
+  }
+}
 
 // ── Skill radar (vue-echarts — G-F2d) ──
 // 5-6 kỹ năng = chủ đề (topics) từ /progress/me. Giá trị = progressPct thật — KHÔNG bịa.
@@ -222,11 +266,19 @@ function csvExport(): void {
 
 <template>
   <main class="profile container">
+    <!-- Banner hồ sơ giảng viên chờ duyệt (TEACHER_PENDING) -->
+    <div v-if="isTeacherPending" class="profile__banner" role="status">
+      <Clock :size="16" aria-hidden="true" />
+      <span>Hồ sơ giảng viên của bạn đang chờ xét duyệt — tính năng giảng dạy sẽ mở khóa khi Admin duyệt.</span>
+    </div>
+
     <!-- Hero profile card — surface band level-2 (không gradient, không blob, không shadow) -->
     <header class="profile__hero">
       <div class="profile__hero-main">
-        <span class="profile__avatar" aria-hidden="true">
-          {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+        <span class="profile__avatar-frame" :class="frameThemeClass">
+          <span class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
+            {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+          </span>
         </span>
         <div class="profile__identity">
           <h1 class="profile__name">{{ auth.user?.displayName ?? 'Người dùng' }}</h1>
@@ -292,11 +344,12 @@ function csvExport(): void {
       </div>
     </header>
 
-    <!-- Tabs shadcn: Tổng quan / Tiến độ / Thành tích / Cài đặt -->
+    <!-- Tabs shadcn: Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt -->
     <Tabs
       :tabs="[
         { key: 'overview', label: 'Tổng quan' },
         { key: 'progress', label: 'Tiến độ' },
+        { key: 'inventory', label: 'Túi đồ' },
         { key: 'achievements', label: 'Thành tích' },
         { key: 'settings', label: 'Cài đặt' },
       ]"
@@ -409,24 +462,73 @@ function csvExport(): void {
       </div>
     </section>
 
-    <!-- Tab Thành tích -->
+    <!-- Tab Túi đồ (Kho đồ — Màn N-8): avatar + khung viền từ /me/inventory -->
+    <section v-else-if="tab === 'inventory'" class="profile__panel">
+      <div class="profile__inv-groups">
+        <section v-for="group in invGroups" :key="group.key" class="profile__inv-group">
+          <h2 class="profile__panel-title profile__inv-title">{{ group.label }}</h2>
+          <div class="profile__inv-grid">
+            <article v-for="item in group.items" :key="item.id" class="card profile__inv-card">
+              <span class="profile__inv-icon" aria-hidden="true">
+                <component :is="group.icon" :size="20" />
+              </span>
+              <div class="profile__inv-body">
+                <p class="profile__inv-name">{{ item.name }}</p>
+                <Badge variant="muted">x{{ item.quantity }}</Badge>
+              </div>
+              <Button
+                size="sm"
+                :variant="item.isEquipped ? 'secondary' : 'primary'"
+                :loading="equippingId === item.itemId"
+                :disabled="equippingId !== null && equippingId !== item.itemId"
+                @click="toggleEquip(item)"
+              >
+                {{ item.isEquipped ? 'Đang trang bị' : 'Trang bị' }}
+              </Button>
+            </article>
+          </div>
+        </section>
+
+        <section v-if="consumableItems.length > 0" class="profile__inv-group">
+          <h2 class="profile__panel-title profile__inv-title">Vật phẩm khác</h2>
+          <ul class="card profile__inv-other">
+            <li v-for="item in consumableItems" :key="item.id" class="profile__inv-other-row">
+              <Package :size="16" aria-hidden="true" />
+              <span class="profile__inv-name">{{ item.name }}</span>
+              <Badge variant="muted">x{{ item.quantity }}</Badge>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <EmptyState
+        v-if="gamification.inventory.length === 0"
+        icon="package"
+        title="Túi đồ trống"
+        description="Mua avatar và khung viền tại Cửa hàng — trang bị ngay tại đây."
+      />
+    </section>
+
+    <!-- Tab Thành tích (data thật từ /achievements) -->
     <section v-else-if="tab === 'achievements'" class="profile__panel">
       <div class="profile__achievements">
         <div
           v-for="ach in achievements"
           :key="ach.id"
           class="profile__achievement"
-          :class="{ 'profile__achievement--locked': !ach.unlocked }"
+          :class="{ 'profile__achievement--locked': !ach.earnedAt }"
         >
-          <span class="profile__achievement-icon" :class="{ 'profile__achievement-icon--open': ach.unlocked }">
-            <component :is="ach.unlocked ? Medal : Lock" :size="20" aria-hidden="true" />
+          <span class="profile__achievement-icon" :class="{ 'profile__achievement-icon--open': ach.earnedAt }">
+            <img v-if="ach.iconUrl" :src="ach.iconUrl" :alt="ach.name" class="profile__achievement-img" />
+            <component :is="ach.earnedAt ? Medal : Lock" v-else :size="20" aria-hidden="true" />
           </span>
-          <p class="profile__achievement-label">{{ ach.label }}</p>
-          <Badge :variant="ach.unlocked ? 'success' : 'muted'">{{ ach.unlocked ? 'Đã mở' : 'Chưa mở' }}</Badge>
+          <p class="profile__achievement-label">{{ ach.name }}</p>
+          <p v-if="ach.description" class="profile__achievement-desc">{{ ach.description }}</p>
+          <Badge :variant="ach.earnedAt ? 'success' : 'muted'">{{ ach.earnedAt ? 'Đã mở' : 'Chưa mở' }}</Badge>
         </div>
       </div>
       <EmptyState
-        v-if="achievements.every((a) => !a.unlocked)"
+        v-if="achievements.every((a) => !a.earnedAt)"
         icon="party-popper"
         title="Chưa có huy hiệu"
         description="Bắt đầu học để mở huy hiệu đầu tiên nhé!"
@@ -480,6 +582,60 @@ function csvExport(): void {
   flex-wrap: wrap;
 }
 
+/* Banner hồ sơ giảng viên chờ duyệt — warning band (không shadow card) */
+.profile__banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-foreground);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.profile__banner svg { color: var(--color-warning); flex-shrink: 0; }
+
+/* Khung viền avatar — gradient theo itemKey (frameVariant), fallback primary */
+.profile__avatar-frame {
+  border-radius: var(--radius-full);
+  padding: 3px;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.profile__avatar-frame--neon {
+  background: linear-gradient(135deg, #ec4899, #22d3ee);
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
+}
+
+.profile__avatar-frame--gold {
+  background: linear-gradient(135deg, #f59e0b, #fde68a, #f59e0b);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.5);
+}
+
+.profile__avatar-frame--cyber {
+  background: linear-gradient(135deg, #22d3ee, #6366f1);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.45);
+}
+
+.profile__avatar-frame--fire {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.5);
+}
+
+.profile__avatar-frame--ice {
+  background: linear-gradient(135deg, #7dd3fc, #93c5fd);
+  box-shadow: 0 0 14px rgba(125, 211, 252, 0.5);
+}
+
+.profile__avatar-frame--default {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-data-core));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
 .profile__avatar {
   width: 72px;
   height: 72px;
@@ -494,6 +650,13 @@ function csvExport(): void {
   font-weight: 600;
   flex-shrink: 0;
 }
+
+/* Avatar theme theo itemKey đang trang bị — gradient tối + chữ sáng (đọc được cả 2 theme) */
+.profile__avatar--cyber { background: linear-gradient(135deg, #0e7490, #155e75); color: #a5f3fc; }
+.profile__avatar--gold { background: linear-gradient(135deg, #b45309, #92400e); color: #fef3c7; }
+.profile__avatar--neon { background: linear-gradient(135deg, #be185d, #6b21a8); color: #fbcfe8; }
+.profile__avatar--wizard { background: linear-gradient(135deg, #6d28d9, #4c1d95); color: #ddd6fe; }
+.profile__avatar--bot { background: linear-gradient(135deg, #0f766e, #134e4a); color: #99f6e4; }
 
 .profile__identity { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
 
@@ -697,7 +860,81 @@ function csvExport(): void {
 
 .profile__achievement-icon { color: var(--color-text-quaternary); }
 .profile__achievement-icon--open { color: var(--color-success); }
+.profile__achievement-img { width: 24px; height: 24px; object-fit: contain; border-radius: var(--radius-sm); }
 .profile__achievement-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-foreground); }
+.profile__achievement-desc { font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-muted); }
+
+/* ── Kho đồ — nhóm avatar/khung + vật phẩm khác ── */
+.profile__inv-groups { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+.profile__inv-group { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.profile__inv-title { margin-bottom: 0; }
+
+.profile__inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.profile__inv-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile__inv-card:hover { border-color: var(--color-border-strong); }
+
+.profile__inv-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile__inv-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  min-width: 0;
+  flex: 1;
+}
+
+.profile__inv-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.profile__inv-other {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+}
+
+.profile__inv-other-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.profile__inv-other-row svg { color: var(--color-text-tertiary); flex-shrink: 0; }
+.profile__inv-other-row .profile__inv-name { flex: 1; }
 
 .profile__settings { display: flex; flex-direction: column; gap: var(--space-md); max-width: 440px; }
 

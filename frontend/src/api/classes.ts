@@ -1,5 +1,5 @@
 import { client, getData } from './client';
-import type { ClassAssignmentDto, ClassDto, ClassMemberDto, ClassReportDto, PagedResponse } from './types';
+import type { ClassAssignmentDto, ClassDetailDto, ClassDto, ClassMemberDto, ClassReportDto } from './types';
 
 /** Endpoint theo API_REFERENCE §4.11 (Classes — Module H) */
 export const CLASS_ENDPOINTS = {
@@ -8,6 +8,7 @@ export const CLASS_ENDPOINTS = {
   update: (id: number) => `/classes/${id}`,
   remove: (id: number) => `/classes/${id}`,
   join: (id: number) => `/classes/${id}/join`,
+  joinByCode: '/classes/join-by-code',
   members: (id: number) => `/classes/${id}/members`,
   member: (id: number, userId: number) => `/classes/${id}/members/${userId}`,
   assignments: (id: number) => `/classes/${id}/assignments`,
@@ -26,11 +27,8 @@ export async function createClass(payload: { name: string; description?: string 
   return getData<ClassDto>({ method: 'POST', url: CLASS_ENDPOINTS.list, data: payload });
 }
 
-export async function fetchClass(id: number): Promise<ClassDto & { members?: ClassMemberDto[]; assignments?: ClassAssignmentDto[] }> {
-  return getData<ClassDto & { members?: ClassMemberDto[]; assignments?: ClassAssignmentDto[] }>({
-    method: 'GET',
-    url: CLASS_ENDPOINTS.detail(id),
-  });
+export async function fetchClass(id: number): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'GET', url: CLASS_ENDPOINTS.detail(id) });
 }
 
 export async function updateClass(id: number, payload: { name?: string; description?: string; ownerId?: number }): Promise<ClassDto> {
@@ -41,8 +39,13 @@ export async function deleteClass(id: number): Promise<void> {
   await client.delete(CLASS_ENDPOINTS.remove(id));
 }
 
-export async function joinClass(id: number, inviteCode: string): Promise<ClassDto> {
-  return getData<ClassDto>({ method: 'POST', url: CLASS_ENDPOINTS.join(id), data: { inviteCode } });
+export async function joinClass(id: number, inviteCode: string): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'POST', url: CLASS_ENDPOINTS.join(id), data: { inviteCode } });
+}
+
+/** v2.15: tham gia lớp bằng mã mời — POST /classes/join-by-code (không cần classId). */
+export async function joinByCode(inviteCode: string): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'POST', url: CLASS_ENDPOINTS.joinByCode, data: { inviteCode } });
 }
 
 export async function fetchClassMembers(id: number): Promise<ClassMemberDto[]> {
@@ -63,7 +66,7 @@ export async function fetchClassAssignments(id: number): Promise<ClassAssignment
 
 export async function createClassAssignment(
   id: number,
-  payload: { lessonId?: number | null; exerciseId?: number | null; dueAt?: string | null },
+  payload: { lessonId?: number | null; exerciseId?: number | null; dueAt?: string | null; allowLateSubmission?: boolean },
 ): Promise<ClassAssignmentDto> {
   return getData<ClassAssignmentDto>({ method: 'POST', url: CLASS_ENDPOINTS.assignments(id), data: payload });
 }
@@ -71,9 +74,9 @@ export async function createClassAssignment(
 export async function updateClassAssignment(
   id: number,
   assignId: number,
-  payload: { dueAt?: string | null; status?: 'open' | 'closed' },
-): Promise<ClassAssignmentDto> {
-  return getData<ClassAssignmentDto>({ method: 'PUT', url: CLASS_ENDPOINTS.assignment(id, assignId), data: payload });
+  payload: { dueAt?: string | null; allowLateSubmission?: boolean },
+): Promise<void> {
+  await client.put(CLASS_ENDPOINTS.assignment(id, assignId), payload);
 }
 
 export async function deleteClassAssignment(id: number, assignId: number): Promise<void> {

@@ -71,7 +71,7 @@ export async function fetchTopic(id: number): Promise<Topic> {
   return getData<Topic>({ method: 'GET', url: LESSON_ENDPOINTS.topic(id) });
 }
 
-export async function fetchLessons(params: { topicId?: number; status?: string; q?: string; page?: number } = {}): Promise<PagedResponse<LessonSummary>> {
+export async function fetchLessons(params: { topicId?: number; status?: string; q?: string; page?: number; pageSize?: number } = {}): Promise<PagedResponse<LessonSummary>> {
   return getData<PagedResponse<LessonSummary>>({ method: 'GET', url: LESSON_ENDPOINTS.lessons, params });
 }
 
@@ -115,6 +115,11 @@ export async function updateLesson(id: number, payload: LessonUpsertRequest): Pr
 
 export async function deleteLesson(id: number): Promise<void> {
   await client.delete(LESSON_ENDPOINTS.lesson(id));
+}
+
+/** Báo cáo bài học vi phạm (v2.15) — POST /lessons/{id}/report, lưu BugReports CONTENT_VIOLATION */
+export async function reportLesson(id: number, reason: string): Promise<void> {
+  await client.post(`${LESSON_ENDPOINTS.lesson(id)}/report`, { reason });
 }
 
 export async function attachSimulation(id: number, payload: { simulationKey: string; title?: string; defaultInput?: unknown }): Promise<void> {

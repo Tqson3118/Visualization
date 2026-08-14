@@ -13,9 +13,10 @@ import { Card } from '@/components/ui/card';
 import Drawer from '@/components/ui/Drawer.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ProseContent from '@/components/ui/ProseContent.vue';
 import { getCatalogMeta } from '@/engines/catalog';
 import { toast } from '@/lib/toast';
-import { submitLessonFeedback } from '@/api/lessons';
+import { submitLessonFeedback, reportLesson } from '@/api/lessons';
 
 const props = withDefaults(
   defineProps<{
@@ -42,6 +43,9 @@ const noteSavedAt = ref('');
 const ratingOpen = ref(false);
 const rating = ref(0);
 const ratingSubmitted = ref(false);
+const reportOpen = ref(false);
+const reportReason = ref('');
+const reportSubmitted = ref(false);
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -102,6 +106,18 @@ async function submitRating(): Promise<void> {
   }
 }
 
+// Báo cáo bài học vi phạm (v2.15) — POST /lessons/{id}/report → BugReports CONTENT_VIOLATION
+async function submitReport(): Promise<void> {
+  if (reportReason.value.trim().length < 5) return;
+  try {
+    await reportLesson(Number(props.lessonId), reportReason.value.trim());
+    reportSubmitted.value = true;
+    toast.success('Đã gửi báo cáo. Cảm ơn bạn đã giúp cộng đồng!');
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Không thể gửi báo cáo.');
+  }
+}
+
 onBeforeUnmount(() => {
   if (autosaveTimer) clearTimeout(autosaveTimer);
 });
@@ -131,14 +147,17 @@ onBeforeUnmount(() => {
           <Badge v-if="lesson.progress?.viewed" variant="success">Đã học</Badge>
           <Button size="sm" variant="ghost" @click="notesOpen = true">📝 Ghi chú</Button>
           <Button size="sm" variant="secondary" @click="ratingOpen = true">★ Đánh giá</Button>
+          <Button size="sm" variant="ghost" class="lesson-detail__report-btn" @click="reportOpen = true">
+            🚩 Báo cáo vi phạm
+          </Button>
           <Button size="sm" :disabled="lesson.progress?.viewed" @click="markViewed">
             {{ lesson.progress?.viewed ? 'Đã đánh dấu' : 'Đánh dấu đã học' }}
           </Button>
         </div>
       </header>
 
-      <!-- Rich content -->
-      <article class="lesson-detail__content" v-html="lesson.contentHtml || '<p>Bài học đang được biên soạn.</p>'" />
+      <!-- Rich content — typography chuẩn qua ProseContent (heading/p/ul/code/table/callout) -->
+      <ProseContent :content-html="lesson.contentHtml || '<p>Bài học đang được biên soạn.</p>'" />
 
       <!-- Mô phỏng liên quan -->
       <section v-if="lesson.simulations && lesson.simulations.length > 0" class="lesson-detail__section">
@@ -226,6 +245,40 @@ onBeforeUnmount(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Modal báo cáo vi phạm (v2.15) -->
+    <Teleport to="body">
+      <Transition name="rating-fade">
+        <div v-if="reportOpen" class="lesson-detail__rating-overlay" @click.self="reportOpen = false">
+          <div class="lesson-detail__rating card">
+            <h3 class="lesson-detail__rating-title">Báo cáo bài học vi phạm</h3>
+            <p class="lesson-detail__rating-note text-muted">
+              Báo cáo sẽ được gửi tới Admin xử lý (nội dung không phù hợp, sai kiến thức, 18+, spam...).
+            </p>
+            <textarea
+              v-model="reportReason"
+              class="lesson-detail__note"
+              rows="4"
+              maxlength="2000"
+              placeholder="Mô tả lý do báo cáo (tối thiểu 5 ký tự)..."
+            />
+            <p v-if="reportSubmitted" class="lesson-detail__rating-done" role="status">
+              Đã gửi báo cáo thành công
+            </p>
+            <div class="lesson-detail__rating-actions">
+              <Button variant="ghost" @click="reportOpen = false">{{ messages.common.close }}</Button>
+              <Button
+                variant="danger"
+                :disabled="reportReason.trim().length < 5 || reportSubmitted"
+                @click="submitReport"
+              >
+                Gửi báo cáo
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </section>
 </template>
 
@@ -247,19 +300,6 @@ onBeforeUnmount(() => {
 .lesson-detail__desc { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: 4px; }
 
 .lesson-detail__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
-
-.lesson-detail__content {
-  font-size: var(--text-base);
-  line-height: 1.75;
-}
-
-.lesson-detail__content :deep(h2) { font-size: var(--text-lg); margin-block: var(--space-md) var(--space-sm); }
-.lesson-detail__content :deep(h3) { font-size: var(--text-md); margin-block: var(--space-md) var(--space-sm); }
-.lesson-detail__content :deep(p) { margin-bottom: var(--space-sm); }
-.lesson-detail__content :deep(pre) { background: var(--color-muted); padding: var(--space-md); border-radius: var(--radius-md); overflow-x: auto; }
-.lesson-detail__content :deep(code) { font-family: var(--font-mono); font-size: var(--text-sm); }
-.lesson-detail__content :deep(table) { border-collapse: collapse; width: 100%; margin-block: var(--space-md); }
-.lesson-detail__content :deep(th), .lesson-detail__content :deep(td) { border: 1px solid var(--color-border); padding: 6px 10px; text-align: left; }
 
 .lesson-detail__section { display: flex; flex-direction: column; gap: var(--space-sm); }
 

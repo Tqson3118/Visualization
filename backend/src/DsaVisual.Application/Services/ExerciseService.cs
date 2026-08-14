@@ -275,6 +275,13 @@ public sealed class ExerciseService(
             {
                 return Result<SubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lớp đã đóng, không nhận bài nộp");
             }
+
+            // v2.15 (Vấn đề 14): AllowLateSubmission == false → chặn nộp sau deadline (ASSIGNMENT_OVERDUE)
+            if (!assignment.AllowLateSubmission && assignment.DueAt is { } dueAt && clock.UtcNow > dueAt)
+            {
+                return Result<SubmitResultDto>.Fail(ErrorCodes.ASSIGNMENT_OVERDUE,
+                    "Đã quá hạn nộp bài tập này", new() { ["classAssignmentId"] = ["Đã quá hạn nộp bài tập này"] });
+            }
         }
 
         // Ladder (FR-4.11): bài tập thuộc node — phải pass node trước
@@ -656,6 +663,13 @@ public sealed class ExerciseService(
             if (classRoom.Status != ClassStatus.Open)
             {
                 return Result<CodeSubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lớp đã đóng, không nhận bài nộp");
+            }
+
+            // v2.15 (Vấn đề 14): AllowLateSubmission == false → chặn nộp sau deadline (ASSIGNMENT_OVERDUE)
+            if (!assignment.AllowLateSubmission && assignment.DueAt is { } dueAt && clock.UtcNow > dueAt)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.ASSIGNMENT_OVERDUE,
+                    "Đã quá hạn nộp bài tập này", new() { ["classAssignmentId"] = ["Đã quá hạn nộp bài tập này"] });
             }
         }
 

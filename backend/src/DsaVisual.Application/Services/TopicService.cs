@@ -107,12 +107,18 @@ public sealed class TopicService(
         return Result<TopicDto>.Ok(ToDto(topic));
     }
 
-    public async Task<Result<TopicDto>> UpdateAsync(int id, TopicUpsertRequest request, CancellationToken ct)
+    public async Task<Result<TopicDto>> UpdateAsync(int userId, string role, int id, TopicUpsertRequest request, CancellationToken ct)
     {
         var topic = await db.Topics.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct);
         if (topic is null)
         {
             return Result<TopicDto>.Fail(ErrorCodes.NOT_FOUND, "Chủ đề không tồn tại");
+        }
+
+        // v2.15 (Vấn đề 3): Teacher chỉ sửa được Topic do chính mình tạo; Admin sửa được tất cả
+        if (!IsAdmin(role) && topic.CreatedBy != userId)
+        {
+            return Result<TopicDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền chỉnh sửa hoặc xóa chủ đề này");
         }
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -157,12 +163,18 @@ public sealed class TopicService(
         return Result<TopicDto>.Ok(ToDto(topic));
     }
 
-    public async Task<Result> DeleteAsync(int id, CancellationToken ct)
+    public async Task<Result> DeleteAsync(int userId, string role, int id, CancellationToken ct)
     {
         var topic = await db.Topics.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct);
         if (topic is null)
         {
             return Result.Fail(ErrorCodes.NOT_FOUND, "Chủ đề không tồn tại");
+        }
+
+        // v2.15 (Vấn đề 3): Teacher chỉ xóa được Topic do chính mình tạo; Admin xóa được tất cả
+        if (!IsAdmin(role) && topic.CreatedBy != userId)
+        {
+            return Result.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền chỉnh sửa hoặc xóa chủ đề này");
         }
 
         var hasLessons = await db.Lessons.AsNoTracking().AnyAsync(l => l.TopicId == id && l.DeletedAt == null, ct);
@@ -215,6 +227,11 @@ public sealed class TopicService(
         logger.LogInformation("Topics reordered: {Ids}", string.Join(',', request.Ids));
         return Result.Ok();
     }
+
+    private const string RoleAdmin = "ADMIN";
+
+    private static bool IsAdmin(string role) =>
+        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase);
 
     private async Task<bool> SiblingNameExistsAsync(int? excludeId, int? parentId, string name, CancellationToken ct)
     {

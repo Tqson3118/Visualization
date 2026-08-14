@@ -33,5 +33,6 @@ public sealed class ClassAssignmentDto
     public int? ExerciseId { get; set; }
     public string? Title { get; set; }
     public DateTime? DueAt { get; set; }
+    public bool AllowLateSubmission { get; set; } = true;   // v2.15
     public DateTime CreatedAt { get; set; }
 }

@@ -15,6 +15,7 @@ import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
 import { CATALOG, getCatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
+import { buildSimOverviewHtml, escapeHtml } from '@/utils/simOverview';
 import { messages } from '@/i18n/vi';
 import LessonDetail from '@/components/lesson/LessonDetail.vue';
 import LadderShell from '@/components/ladder/LadderShell.vue';
@@ -23,6 +24,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
+import ProseContent from '@/components/ui/ProseContent.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -62,6 +64,13 @@ const simKey = computed(() => {
 const nodeTitle = computed(() => {
   const meta = CATALOG.find((c) => c.key === simKey.value);
   return meta?.title ?? `Node ${nodeId.value}`;
+});
+
+/** Fallback lý thuyết: overview từ catalog meta + hướng dẫn (render qua ProseContent). */
+const fallbackHtml = computed(() => {
+  const overview = buildSimOverviewHtml(getCatalogMeta(simKey.value));
+  const guide = `<p>${escapeHtml(messages.nodeHub.fallbackText)}</p>`;
+  return overview ? `${overview}\n${guide}` : guide;
 });
 
 /** Exercise Ladder theo node: quiz (stage 1) + code (stage 3) — GET /exercises?nodeId&stage (SETUP_TODO §6.6) */
@@ -170,7 +179,7 @@ function openExercise(id: number): void {
               </span>
               <h2 class="node-hub__fallback-title">{{ messages.nodeHub.fallbackTitle(nodeTitle) }}</h2>
             </div>
-            <p class="node-hub__fallback-text">{{ messages.nodeHub.fallbackText }}</p>
+            <ProseContent :content-html="fallbackHtml" />
             <Button @click="openSimulation(simKey)">
               <Play :size="16" aria-hidden="true" />
               {{ messages.nodeHub.fallbackCta(simKey) }}
@@ -346,13 +355,6 @@ function openExercise(id: number): void {
 }
 
 .node-hub__fallback-title { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
-
-.node-hub__fallback-text {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  max-width: 72ch;
-  margin: 0;
-}
 
 /* ── Actions (ngoài chrome — nền trang) ── */
 .node-hub__actions {

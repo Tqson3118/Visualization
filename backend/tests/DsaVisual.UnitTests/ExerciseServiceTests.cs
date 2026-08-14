@@ -428,6 +428,78 @@ public class ExerciseServiceTests
             .OrderBy(q => q.SortOrder)
             .ToListAsync();
 
+    // ── Nộp qua luồng lớp — hạn nộp + AllowLateSubmission (v2.15, Vấn đề 14) ──
+
+    private async Task SeedClassAssignmentAsync(AppDbContext db, int exerciseId, bool allowLate, DateTime dueAt)
+    {
+        db.Users.Add(new User
+        {
+            Id = 2,
+            Email = "teacher@university.edu.vn",
+            PasswordHash = "x",
+            DisplayName = "Teacher",
+            CreatedAt = _clock.UtcNow
+        });
+        db.Classes.Add(new Class
+        {
+            Id = 1,
+            Name = "Lớp K17",
+            InviteCode = "ABC123",
+            OwnerId = 2,
+            Status = ClassStatus.Open,
+            CreatedAt = _clock.UtcNow
+        });
+        db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = 1, JoinedAt = _clock.UtcNow });
+        db.ClassAssignments.Add(new ClassAssignment
+        {
+            Id = 1,
+            ClassId = 1,
+            ExerciseId = exerciseId,
+            DueAt = dueAt,
+            AllowLateSubmission = allowLate,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Submit_AfterDue_AllowLateFalse_ReturnsAssignmentOverdue()
+    {
+        var (service, exerciseId, db) = await SetupAsync(nameof(Submit_AfterDue_AllowLateFalse_ReturnsAssignmentOverdue));
+        await SeedClassAssignmentAsync(db, exerciseId, allowLate: false, dueAt: _clock.UtcNow.AddDays(-1));
+
+        // Quá hạn + không cho nộp muộn → ASSIGNMENT_OVERDUE (chặn trước khi chấm điểm)
+        var result = await service.SubmitAsync(1, exerciseId, new SubmitRequest { ClassAssignmentId = 1 }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.ASSIGNMENT_OVERDUE, result.ErrorCode);
+        Assert.Equal(0, await db.ExerciseSubmissions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Submit_AfterDue_AllowLateTrue_Succeeds()
+    {
+        var (service, exerciseId, db) = await SetupAsync(nameof(Submit_AfterDue_AllowLateTrue_Succeeds));
+        await SeedClassAssignmentAsync(db, exerciseId, allowLate: true, dueAt: _clock.UtcNow.AddDays(-1));
+        var questions = await LoadQuestionsAsync(db, exerciseId);
+
+        // Quá hạn nhưng GV cho phép nộp muộn → vẫn nộp + chấm bình thường
+        var result = await service.SubmitAsync(1, exerciseId, new SubmitRequest
+        {
+            ClassAssignmentId = 1,
+            Answers = new List<AnswerDto>
+            {
+                new() { QuestionId = questions[0].Id, Selected = [1] },       // SINGLE đúng
+                new() { QuestionId = questions[1].Id, Selected = [0, 2] },    // MULTI đúng
+                new() { QuestionId = questions[2].Id, Selected = [0] }        // BOOLEAN đúng
+            }
+        }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(10, result.Value!.Score);
+        Assert.Equal(1, await db.ExerciseSubmissions.CountAsync(s => s.UserId == 1));
+    }
+
     private async Task<(ExerciseService Service, int ExerciseId, AppDbContext Db)> SetupLabAsync(string dbName)
     {
         var db = TestServices.CreateInMemoryDb(dbName);

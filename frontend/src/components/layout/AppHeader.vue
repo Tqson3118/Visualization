@@ -1,20 +1,42 @@
 <script setup lang="ts">
 // AppHeader — thanh điều hướng chung (SDD §8.7 — navigation theo vai trò)
 // Hiển thị cho mọi route; ẩn menu học tập khi chưa đăng nhập.
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { useAuthStore } from '@/stores/auth';
+import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
+import { avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
 import { messages } from '@/i18n/vi';
 import HeartsGemsWidget from '@/components/simulator/HeartsGemsWidget.vue';
 
 const auth = useAuthStore();
+const gamification = useGamificationStore();
 const ui = useUiStore();
 const router = useRouter();
 const menuOpen = ref(false);
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
+
+// Quản trị: TEACHER → /admin/content (roles TEACHER|ADMIN); ADMIN → /admin/users
+const adminTarget = computed(() => ({ name: auth.role === 'TEACHER' ? 'admin-content' : 'admin-users' }));
+
+const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
+const equippedAvatar = computed(() => equippedItem(gamification.inventory, 'avatar'));
+
+const userFrameClass = computed(() => {
+  const key = equippedFrame.value?.itemKey;
+  return key ? `app-header__user-frame--${frameVariant(key)}` : '';
+});
+const userAvatarClass = computed(() => {
+  const key = equippedAvatar.value?.itemKey;
+  return key ? `app-header__user-avatar--${avatarVariant(key)}` : '';
+});
+
+onMounted(() => {
+  void gamification.fetchInventory();
+});
 
 async function onLogout(): Promise<void> {
   menuOpen.value = false;
@@ -37,7 +59,7 @@ async function onLogout(): Promise<void> {
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
-        <RouterLink v-if="isTeacherOrAdmin" :to="{ name: 'admin-users' }" class="app-header__link">
+        <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__link">
           {{ messages.nav.admin }}
         </RouterLink>
       </nav>
@@ -49,9 +71,17 @@ async function onLogout(): Promise<void> {
           <RouterLink class="app-header__register" :to="{ name: 'register' }">{{ messages.nav.register }}</RouterLink>
         </template>
         <template v-else>
-          <button type="button" class="app-header__user" :aria-label="auth.user?.displayName ?? 'Hồ sơ'" @click="menuOpen = !menuOpen">
-            {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
-          </button>
+          <span class="app-header__user-frame" :class="userFrameClass">
+            <button
+              type="button"
+              class="app-header__user"
+              :class="userAvatarClass"
+              :aria-label="auth.user?.displayName ?? 'Hồ sơ'"
+              @click="menuOpen = !menuOpen"
+            >
+              {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+            </button>
+          </span>
           <Transition name="app-menu">
             <div v-if="menuOpen" class="app-header__menu card">
               <RouterLink :to="{ name: 'profile' }" class="app-header__menu-item" @click="menuOpen = false">
@@ -157,6 +187,44 @@ async function onLogout(): Promise<void> {
   text-decoration: none;
 }
 
+.app-header__user-frame {
+  border-radius: var(--radius-full);
+  padding: 2px;
+  display: inline-flex;
+  line-height: 0;
+}
+
+/* Gradient theo frame itemKey đang trang bị (khớp ProfileView — utils/equipment.ts) */
+.app-header__user-frame--neon {
+  background: linear-gradient(135deg, #ec4899, #22d3ee);
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.45);
+}
+
+.app-header__user-frame--gold {
+  background: linear-gradient(135deg, #f59e0b, #fde68a, #f59e0b);
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.5);
+}
+
+.app-header__user-frame--cyber {
+  background: linear-gradient(135deg, #22d3ee, #6366f1);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+.app-header__user-frame--fire {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.app-header__user-frame--ice {
+  background: linear-gradient(135deg, #7dd3fc, #93c5fd);
+  box-shadow: 0 0 10px rgba(125, 211, 252, 0.5);
+}
+
+.app-header__user-frame--default {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-data-core));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
 .app-header__user {
   width: 36px;
   height: 36px;
@@ -167,6 +235,13 @@ async function onLogout(): Promise<void> {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* Avatar theme theo itemKey đang trang bị — gradient tối + chữ sáng */
+.app-header__user-avatar--cyber { background: linear-gradient(135deg, #0e7490, #155e75); color: #a5f3fc; }
+.app-header__user-avatar--gold { background: linear-gradient(135deg, #b45309, #92400e); color: #fef3c7; }
+.app-header__user-avatar--neon { background: linear-gradient(135deg, #be185d, #6b21a8); color: #fbcfe8; }
+.app-header__user-avatar--wizard { background: linear-gradient(135deg, #6d28d9, #4c1d95); color: #ddd6fe; }
+.app-header__user-avatar--bot { background: linear-gradient(135deg, #0f766e, #134e4a); color: #99f6e4; }
 
 .app-header__menu {
   position: absolute;

@@ -23,11 +23,11 @@ export interface ClassDto {
   role: 'OWNER' | 'TEACHER' | 'STUDENT';
 }
 
+/** Thành viên lớp — ClassMemberDto (API_REFERENCE §4.11): chỉ có userId, KHÔNG có id. */
 export interface ClassMemberDto {
-  id: number;
+  userId: number;
   displayName: string;
   email: string;
-  role: 'STUDENT' | 'TEACHER';
   joinedAt: string;
 }
 
@@ -35,9 +35,14 @@ export interface ClassAssignmentDto {
   id: number;
   lessonId: number | null;
   exerciseId: number | null;
+  title: string | null;
   dueAt: string | null;
-  status: 'open' | 'closed';
+  allowLateSubmission: boolean;
+  createdAt: string;
 }
+
+/** Chi tiết lớp — GET /classes/{id} + POST /classes/join-by-code (API_REFERENCE §4.11). */
+export type ClassDetailDto = ClassDto & { members?: ClassMemberDto[]; assignments?: ClassAssignmentDto[] };
 
 /** Thống kê 1 bài gán trong báo cáo lớp — khớp backend ClassReportAssignmentDto. */
 export interface ClassReportAssignmentDto {

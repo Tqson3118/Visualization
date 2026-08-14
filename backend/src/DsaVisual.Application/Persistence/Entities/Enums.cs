@@ -9,12 +9,13 @@ public enum UserRole
     Admin = 3
 }
 
-/// <summary>Trạng thái bài học (SDD §7.3.2: 0=draft, 1=active, 2=hidden).</summary>
+/// <summary>Trạng thái bài học (SDD §7.3.2: 0=draft, 1=active, 2=hidden) — v2.15 mở rộng PendingReview.</summary>
 public enum LessonStatus
 {
-    Draft = 0,
-    Active = 1,
-    Hidden = 2
+    Draft = 0,          // Bản nháp (chỉ người tạo thấy)
+    PendingReview = 1,  // Chờ Admin duyệt để Public toàn sàn
+    Active = 2,         // Đã xuất bản (sinh viên thấy)
+    Hidden = 3          // Tạm ẩn
 }
 
 /// <summary>Loại bài tập (SDD §7.3.9: 0=MCQ, 1=SIMULATION_PREDICT, 2=SIMULATION_LAB, 3=CODE).</summary>

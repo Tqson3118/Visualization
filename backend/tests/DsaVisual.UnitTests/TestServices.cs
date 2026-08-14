@@ -132,8 +132,14 @@ internal static class TestServices
     public static UserService CreateUserService(AppDbContext db, FixedClock clock) =>
         new(db, clock, CreateConfig(), NullLogger<UserService>.Instance);
 
+    public static ClassService CreateClassService(AppDbContext db, FixedClock clock) =>
+        new(db, clock, NullLogger<ClassService>.Instance);
+
     public static LessonService CreateLessonService(AppDbContext db, FixedClock clock) =>
-        new(db, new LessonValidator(), new LessonFeedbackRequestValidator(), new Ganss.Xss.HtmlSanitizer(), clock, NullLogger<LessonService>.Instance);
+        CreateLessonService(db, clock, new SimulationCatalogService(CreateConfig(), new FakeEnvironment(), NullLogger<SimulationCatalogService>.Instance));
+
+    public static LessonService CreateLessonService(AppDbContext db, FixedClock clock, ISimulationCatalogService catalog) =>
+        new(db, new LessonValidator(), new LessonFeedbackRequestValidator(), new Ganss.Xss.HtmlSanitizer(), catalog, clock, NullLogger<LessonService>.Instance);
 
     public static TopicService CreateTopicService(AppDbContext db, FixedClock clock) =>
         new(db, clock, NullLogger<TopicService>.Instance);

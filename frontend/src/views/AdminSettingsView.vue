@@ -4,9 +4,10 @@
 // không dùng accent (chỉ interactive); error alert semantic + nút Thử lại;
 // panel form không shadow (DESIGN §6).
 import { onMounted, reactive, ref } from 'vue';
-import { AlertTriangle, Cpu, Globe, KeyRound, RefreshCw, Save, Settings, ShieldCheck } from 'lucide-vue-next';
+import { AlertTriangle, Bug, Cpu, Globe, KeyRound, RefreshCw, Save, Settings, ShieldCheck } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
+import type { BugReportDto } from '@/api/admin';
 import type { SystemSettingsDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
@@ -32,6 +33,45 @@ const form = reactive<SystemSettingsDto>({
 
 const domainsText = ref('');
 
+// ── Báo cáo lỗi & vi phạm (v2.15 — Vấn đề 7/12) ──
+const reports = ref<BugReportDto[]>([]);
+const reportsLoading = ref(true);
+const reportsError = ref('');
+const adminNotes = reactive<Record<number, string>>({});
+
+async function loadReports(): Promise<void> {
+  reportsLoading.value = true;
+  reportsError.value = '';
+  try {
+    reports.value = await adminApi.fetchBugReports();
+  } catch {
+    reportsError.value = 'Không thể tải báo cáo lỗi & vi phạm.';
+  } finally {
+    reportsLoading.value = false;
+  }
+}
+
+async function saveReport(report: BugReportDto): Promise<void> {
+  try {
+    const saved = await adminApi.updateBugReport(report.id, {
+      status: report.status,
+      adminNote: adminNotes[report.id]?.trim() || undefined,
+    });
+    Object.assign(report, saved);
+    adminNotes[report.id] = '';
+    ui.showToast('Đã cập nhật báo cáo.', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Cập nhật báo cáo thất bại.', 'error');
+  }
+}
+
+const reportStatusLabel: Record<BugReportDto['status'], string> = {
+  NEW: 'Mới',
+  PROCESSING: 'Đang xử lý',
+  RESOLVED: 'Đã xử lý',
+  CLOSED: 'Đã đóng',
+};
+
 async function load(): Promise<void> {
   loading.value = true;
   error.value = '';
@@ -46,7 +86,10 @@ async function load(): Promise<void> {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  void load();
+  void loadReports();
+});
 
 async function save(): Promise<void> {
   saving.value = true;
@@ -157,6 +200,64 @@ async function save(): Promise<void> {
         </Button>
       </div>
     </form>
+
+    <!-- Báo cáo lỗi & vi phạm (v2.15) -->
+    <section class="admin-settings__reports">
+      <h2 class="admin-settings__section-title">
+        <Bug :size="16" aria-hidden="true" /> Báo cáo lỗi &amp; vi phạm
+      </h2>
+      <p class="admin-settings__reports-sub">
+        Báo cáo lỗi từ người dùng và báo cáo vi phạm bài học (CONTENT_VIOLATION). Chọn trạng thái và
+        nhập phản hồi (AdminNote) để xử lý.
+      </p>
+
+      <div v-if="reportsLoading" class="admin-settings__loading" aria-busy="true">
+        <Skeleton v-for="i in 3" :key="i" height="64px" />
+      </div>
+
+      <div v-else-if="reportsError" class="admin-settings__error" role="alert">
+        <AlertTriangle :size="16" aria-hidden="true" />
+        <span class="admin-settings__error-text">{{ reportsError }}</span>
+        <Button size="sm" variant="secondary" @click="loadReports">
+          <RefreshCw :size="14" /> Thử lại
+        </Button>
+      </div>
+
+      <div v-else-if="reports.length === 0" class="admin-settings__reports-empty text-muted">
+        Chưa có báo cáo nào.
+      </div>
+
+      <div v-else class="admin-settings__reports-list">
+        <article v-for="report in reports" :key="report.id" class="admin-settings__report">
+          <div class="admin-settings__report-head">
+            <Badge :variant="report.status === 'NEW' ? 'primary' : report.status === 'PROCESSING' ? 'warning' : 'success'">
+              {{ reportStatusLabel[report.status] }}
+            </Badge>
+            <span class="admin-settings__report-date text-muted">
+              {{ new Date(report.createdAt).toLocaleString('vi-VN') }}
+            </span>
+          </div>
+          <p class="admin-settings__report-desc">{{ report.description }}</p>
+          <p v-if="report.context" class="admin-settings__report-context text-muted">
+            <code>{{ report.context }}</code>
+          </p>
+          <p v-if="report.adminNote" class="admin-settings__report-note">
+            <strong>Phản hồi:</strong> {{ report.adminNote }}
+          </p>
+          <div class="admin-settings__report-actions">
+            <select v-model="report.status" class="admin-settings__report-status">
+              <option v-for="(label, key) in reportStatusLabel" :key="key" :value="key">{{ label }}</option>
+            </select>
+            <input
+              v-model="adminNotes[report.id]"
+              class="admin-settings__report-note-input"
+              placeholder="Phản hồi của Admin (tùy chọn)..."
+            />
+            <Button size="sm" @click="saveReport(report)">Lưu</Button>
+          </div>
+        </article>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -275,6 +376,72 @@ async function save(): Promise<void> {
 }
 
 .admin-settings__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: var(--space-lg); }
+
+/* ── Báo cáo lỗi & vi phạm ── */
+.admin-settings__reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-settings__reports-sub { color: var(--foreground-secondary); font-size: var(--text-sm); margin: 0; }
+
+.admin-settings__reports-empty { font-size: var(--text-sm); padding: var(--space-md) 0; }
+
+.admin-settings__reports-list { display: flex; flex-direction: column; gap: var(--space-md); }
+
+.admin-settings__report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.admin-settings__report-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+
+.admin-settings__report-date { font-size: var(--text-xs); }
+
+.admin-settings__report-desc { margin: 0; font-size: var(--text-sm); }
+
+.admin-settings__report-context { margin: 0; font-size: var(--text-xs); overflow-wrap: anywhere; }
+
+.admin-settings__report-context code {
+  background: var(--surface-muted, color-mix(in srgb, var(--foreground) 6%, transparent));
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.admin-settings__report-note { margin: 0; font-size: var(--text-sm); color: var(--foreground); }
+
+.admin-settings__report-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+
+.admin-settings__report-status {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+}
+
+.admin-settings__report-note-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
 
 @media (max-width: 640px) {
   .admin-settings__hero { padding: var(--space-lg); }
