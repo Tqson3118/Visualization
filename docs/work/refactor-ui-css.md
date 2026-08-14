@@ -148,3 +148,43 @@ Gom/rui gon (KHONG doi gia tri - visual bat bien):
 ### Commit
 
 - `3149a0f` refactor(home): clean up scoped css and align banner layouts in HomeView (son)
+## Verify độc lập (dev-test)
+
+Ngày 14/08/2026 — tester độc lập, worktree `D:\FPT\neww\trees\refactor-ui-css` (branch feature/refactor-ui-css), baseline dev: scoped CSS 9 views = 3127 dòng, vitest 174/174.
+
+### A. Build + Test — PASS
+
+- `npm run build` (= `vue-tsc -b && vite build`): vue-tsc 0 lỗi, vite **"built in 1.52s"** (chạy 2 lần, cả 2 PASS).
+- `npx vitest run`: **178 passed (178)**, 20 test files, 0 fail (baseline 174 + 4 test mới AdminHeroStrip.spec.ts).
+
+### B. Đo scoped CSS 9 views — số thật: TOTAL 2243 (baseline 3127) = giảm 884 dòng = **-28.3%** (đạt ≥20% hard-gate; dưới mục tiêu spec 35% — đúng như dev báo ~28%)
+
+| View | scoped CSS |
+|---|---|
+| AdminStatsView.vue | 126 |
+| AdminUsersView.vue | 365 |
+| AdminContentView.vue | 335 |
+| AdminSettingsView.vue | 145 |
+| AdminLadderView.vue | 131 |
+| ClassesView.vue | 162 |
+| ClassDetailView.vue | 317 |
+| ClassReportView.vue | 225 |
+| HomeView.vue | 437 |
+
+### C. Kiểm tra an toàn regression — PASS
+
+1. Hex rời MỚI trong 9 views + 4 components = **0**. Mọi hex thật còn lại đều pre-existing trên dev: AdminStatsView `#d9dde8` (dòng 77/229/329/354) + fallback JS cssVar `#0D1020/#4255FF/#6B7385` (dòng 74-76) — git diff xác nhận KHÔNG nằm trong các dòng +; ClassReportView `#d9dde8` (428-429) = lagging đã duyệt. 3 dòng diff chứa `#[0-9a-fA-F]` chỉ là comment (`#1`, `#4`). 4 component mới: 0 hex.
+2. Raw `<button` trong 9 views: chỉ AdminContentView dòng 764/774/787 (editor-tab + md-toolbar) — pre-existing, git diff thêm 0 dòng `<button`. Còn lại toàn `<Button>` (Button.vue).
+3. 4 component mới (AdminHeroStrip, DetailSection, PageHero, StatCard) không import lẫn nhau, không import view; chỉ import ui cũ (Badge, Card, Skeleton) + vue core.
+4. `git log dev..HEAD` = đúng 7 commit: 4 refactor (05e7315, 13d4ba7, 5e53607, 3149a0f) + 3 docs (5b57f5e, 7a550da, 703bee6). Không commit lạ.
+5. `git diff dev..HEAD --stat` = 15 file đúng scope: 4 components mới + 9 views + docs/work/refactor-ui-css.md (+ AdminHeroStrip.spec.ts — spec mới đi kèm component, chấp nhận). KHÔNG đụng styles/engines/backend/package.json. +976/−1229.
+
+### D. Smoke UI — PASS (dev server 5173, Chrome DevTools MCP)
+
+- `/` : h1 "Trực quan hóa mọi giải thuật, từng bước một", console error/warn = 0, horizontal overflow = 0.
+- `/admin/stats`: h1 "Thống kê hệ thống" (PageHero render), console = 0, overflow = 0.
+- `/classes`: h1 "Lớp học", console = 0, overflow = 0.
+
+### E. Verdict
+
+**PASS** — A build + 178/178 test PASS; B 2243 dòng (−28.3% thật, đạt ≥20%); C.1-5 sạch; D 3 route console 0 error, không overflow. Lưu ý: giảm CSS −28.3% < mục tiêu spec 35% (chênh lệch đã được dev báo cáo trước, do giữ block theo keep-list — không phải lỗi regression; mở lại cho pm nếu spec coi là cứng).
