@@ -120,9 +120,9 @@ async function toggleLock(user: AdminUserDto): Promise<void> {
     user.isActive = !user.isActive;
     const row = users.value.find((u) => u.id === user.id);
     if (row) row.isActive = user.isActive;
-    ui.showToast(user.isActive ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.', 'success');
+    ui.showToast(user.isActive ? messages.admin.users.toastUnlocked : messages.admin.users.toastLocked, 'success');
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : messages.admin.users.toastActionFailed, 'error');
   }
 }
 
@@ -144,15 +144,15 @@ async function submitReview(): Promise<void> {
       approve: reviewAction.value === 'approve',
       reason: reviewAction.value === 'reject' ? rejectReason.value.trim() : undefined,
     });
-    ui.showToast(reviewAction.value === 'approve' ? 'Đã duyệt giảng viên!' : 'Đã từ chối — tài khoản về vai học viên.', 'success');
+    ui.showToast(reviewAction.value === 'approve' ? messages.admin.users.toastApproved : messages.admin.users.toastRejected, 'success');
     reviewTarget.value = null;
     void load();
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : messages.admin.users.toastActionFailed, 'error');
   }
 }
 
-// ── Block 2.3 — Drawer chi tiết user ──
+// ── Block 2.3 - Drawer chi tiết user ──
 
 function openDrawer(user: AdminUserDto): void {
   drawerUser.value = user;

@@ -148,7 +148,7 @@ onMounted(async () => {
     try {
       await lessonStore.fetchLesson(lessonId.value);
     } catch {
-      ui.showToast('Không thể tải lý thuyết — hiển thị nội dung mẫu.', 'warning');
+      ui.showToast(messages.nodeHub.theoryLoadError, 'warning');
     }
   }
   await loadLadderExercises();
@@ -174,7 +174,7 @@ function openExercise(id: number): void {
       :animate="{ opacity: 1, y: 0 }"
       :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <nav class="node-hub__breadcrumb" aria-label="Breadcrumb">
+      <nav class="node-hub__breadcrumb" :aria-label="messages.common.breadcrumb">
         <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
           {{ messages.nodeHub.breadcrumbPath }}
         </RouterLink>
@@ -195,7 +195,7 @@ function openExercise(id: number): void {
             <h1 class="node-hub__title">{{ nodeTitle }}</h1>
             <Badge v-if="nodeCompleted" variant="success" class="node-hub__badge">
               <Check :size="12" aria-hidden="true" />
-              Đã hoàn thành
+              {{ messages.nodeHub.completedBadge }}
             </Badge>
             <Badge v-else variant="muted" class="node-hub__badge">
               {{ messages.nodeHub.badgeNode(nodeId) }}
@@ -216,7 +216,7 @@ function openExercise(id: number): void {
           v-if="catalogMeta"
           class="node-hub__complexity"
           role="group"
-          aria-label="Độ phức tạp thuật toán"
+          :aria-label="messages.nodeHub.complexityAria"
         >
           <span
             v-for="(label, key) in COMPLEXITY_LABELS"
@@ -277,12 +277,12 @@ function openExercise(id: number): void {
           >
             <h2 id="node-hub-readmore-title" class="node-hub__readmore-title">
               <BookOpen :size="18" aria-hidden="true" />
-              Đọc thêm
+              {{ messages.nodeHub.readMore }}
             </h2>
             <p class="node-hub__readmore-desc">
-              Tài liệu tham khảo cho
+              {{ messages.nodeHub.readMorePrefix }}
               <code class="node-hub__readmore-key">{{ simKey }}</code>
-              — mở tab mới.
+              {{ messages.nodeHub.readMoreSuffix }}
             </p>
             <ul class="node-hub__readmore-list">
               <li v-for="link in referenceLinks" :key="link.url">
@@ -543,7 +543,6 @@ function openExercise(id: number): void {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
->>>>>>> 4b3667e (style: node hub improvements)
 
 /* ── Actions (ngoài chrome — nền trang) ── */
 .node-hub__actions {

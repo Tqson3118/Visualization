@@ -137,7 +137,9 @@ const notFound = computed(() => !currentSim.value && steps.value.length === 0 &&
 
 // ── Redesign header: breadcrumb theo category + description clamp-2 ──
 const categoryLabel = computed(() =>
-  getCatalogMeta(key.value)?.category === 'structure' ? 'Cấu trúc dữ liệu' : 'Thuật toán',
+  getCatalogMeta(key.value)?.category === 'structure'
+    ? messages.simulator.categoryStructure
+    : messages.simulator.categoryAlgorithm,
 );
 
 /** Tooltip đầy đủ 4 mức Big-O — mono data (DESIGN.md §3). */
@@ -145,7 +147,7 @@ const complexityFull = computed(() => {
   const meta = getCatalogMeta(key.value);
   if (!meta) return '';
   const { best, average, worst, space } = meta.complexity;
-  return `Tốt nhất ${best} · Trung bình ${average} · Tệ nhất ${worst} · Không gian ${space}`;
+  return messages.simulator.complexityFull(best, average, worst, space);
 });
 
 const descEl = ref<HTMLElement | null>(null);
@@ -255,7 +257,7 @@ async function checkFavorite(): Promise<void> {
 
 async function toggleFavorite(): Promise<void> {
   if (!auth.isAuthenticated) {
-    ui.showToast('Đăng nhập để lưu yêu thích.', 'info');
+    ui.showToast(messages.simulator.toastFavoriteLogin, 'info');
     return;
   }
   try {
@@ -267,10 +269,10 @@ async function toggleFavorite(): Promise<void> {
     } else {
       await favoritesApi.addFavorite({ simKey: key.value, input: inputConfig.value?.data });
       favorite.value = true;
-      ui.showToast('Đã thêm vào yêu thích!', 'success');
+      ui.showToast(messages.simulator.toastFavoriteAdded, 'success');
     }
   } catch {
-    ui.showToast('Không thể cập nhật yêu thích.', 'error');
+    ui.showToast(messages.simulator.toastFavoriteError, 'error');
   }
 }
 
@@ -279,12 +281,12 @@ function shareLink(): void {
   url.searchParams.set('sim', key.value);
   if (inputConfig.value) url.searchParams.set('input', encodeURIComponent(JSON.stringify(inputConfig.value.data)));
   void navigator.clipboard?.writeText(url.toString()).then(() => {
-    ui.showToast('Đã sao chép link chia sẻ!', 'success');
+    ui.showToast(messages.simulator.toastCopied, 'success');
   });
 }
 
 function onManualDone(result: { correct: number; wrong: number }): void {
-  ui.showToast(`Kết thúc: ${result.correct} đúng / ${result.wrong} sai`, 'info');
+  ui.showToast(messages.simulator.toastPracticeDone(result.correct, result.wrong), 'info');
   practiceMode.value = false;
 }
 
@@ -302,15 +304,15 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
         <div class="simulator__title-block">
           <!-- 1 hàng: breadcrumb gọn (category) + title + chip complexity (DESIGN.md §4.3) -->
           <div class="simulator__title-row">
-            <nav class="simulator__breadcrumb" aria-label="Breadcrumb">
-              <RouterLink :to="{ name: 'simulations' }">Khám phá</RouterLink>
+            <nav class="simulator__breadcrumb" :aria-label="messages.common.breadcrumb">
+              <RouterLink :to="{ name: 'simulations' }">{{ messages.simulator.breadcrumbExplore }}</RouterLink>
               <span aria-hidden="true">/</span>
               <span>{{ categoryLabel }}</span>
             </nav>
             <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
             <span v-if="generator" class="simulator__chip">{{ generator.dataStructure }}</span>
             <span v-if="generator" class="simulator__chip simulator__chip--complexity" :title="complexityFull">
-              <span class="simulator__chip-label">Độ phức tạp TB</span>
+              <span class="simulator__chip-label">{{ messages.simulator.complexityChip }}</span>
               <span class="simulator__chip-value">{{ generator.complexity.average }}</span>
             </span>
           </div>
@@ -330,7 +332,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             :aria-expanded="descExpanded"
             @click="toggleDesc"
           >
-            {{ descExpanded ? 'Thu gọn' : 'Xem thêm' }}
+            {{ descExpanded ? messages.simulator.descCollapse : messages.simulator.descExpand }}
             <component :is="descExpanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" />
           </Button>
         </div>
@@ -339,26 +341,26 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             variant="ghost"
             size="icon"
             :class="{ 'simulator__fav-on': favorite }"
-            :aria-label="favorite ? 'Bỏ yêu thích' : 'Yêu thích'"
+            :aria-label="favorite ? messages.simulator.unfavoriteAria : messages.simulator.favoriteAria"
             :aria-pressed="favorite"
             @click="toggleFavorite"
           >
             <Star :size="16" aria-hidden="true" :fill="favorite ? 'currentColor' : 'none'" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Chia sẻ" @click="shareLink">
+          <Button variant="ghost" size="icon" :aria-label="messages.simulator.shareAria" @click="shareLink">
             <Share2 :size="16" aria-hidden="true" />
           </Button>
           <Button size="sm" variant="secondary" @click="configOpen = true">
             {{ messages.simulator.inputConfig }}
           </Button>
-          <Tooltip :text="practiceDisabled ? 'Chạy mô phỏng trước để bật Tự thực hành' : ''">
+          <Tooltip :text="practiceDisabled ? messages.simulator.practiceDisabledHint : ''">
             <Button
               size="sm"
               variant="ghost"
               :disabled="practiceDisabled"
               @click="practiceMode = !practiceMode"
             >
-              {{ practiceMode ? 'Thoát tự thực hành' : 'Tự thực hành' }}
+              {{ practiceMode ? messages.simulator.practiceExit : messages.simulator.practiceEnter }}
             </Button>
           </Tooltip>
           <div v-if="docLinks.length > 0" ref="docMenuRef" class="simulator__doc">
@@ -369,15 +371,15 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
               aria-controls="simulator-doc-menu"
               @click="docOpen = !docOpen"
             >
-              📖 Tài liệu
+              {{ messages.simulator.docButton }}
             </Button>
             <div
               v-if="docOpen"
               id="simulator-doc-menu"
               class="simulator__doc-menu"
-              :aria-label="`Tài liệu tham khảo — ${currentSim?.title ?? key}`"
+              :aria-label="messages.simulator.docMenuAria(currentSim?.title ?? key)"
             >
-              <p class="simulator__doc-title">📖 Đọc thêm</p>
+              <p class="simulator__doc-title">{{ messages.simulator.docTitle }}</p>
               <a
                 v-for="link in docLinks"
                 :key="link.url"
@@ -399,20 +401,20 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
     <DemoBanner v-if="isDemo" :sim-key="key" />
 
     <div v-if="loading" class="simulator__loading simulator__panel" role="status">
-      <p>{{ messages.common.loading }} Đang dựng mô phỏng...</p>
+      <p>{{ messages.common.loading }} {{ messages.simulator.loadingSim }}</p>
     </div>
 
     <div v-else-if="loadError" class="simulator__error simulator__panel" role="alert">
       <p>{{ loadError }}</p>
       <Button size="sm" variant="secondary" @click="router.push({ name: 'simulations' })">
-        Về danh mục
+        {{ messages.simulator.backToCatalog }}
       </Button>
     </div>
 
     <div v-else-if="notFound" class="simulator__empty simulator__panel" role="status">
       <p>{{ messages.simulator.notFound }} ({{ key }})</p>
       <Button size="sm" variant="secondary" @click="router.push({ name: 'simulations' })">
-        Về danh mục
+        {{ messages.simulator.backToCatalog }}
       </Button>
     </div>
 
@@ -442,7 +444,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             />
             <div class="simulator__canvas-meta">
               <span class="simulator__canvas-dot" aria-hidden="true" />
-              <span class="simulator__canvas-label">Khu vực vẽ — renderer cấu trúc dữ liệu</span>
+              <span class="simulator__canvas-label">{{ messages.simulator.canvasMeta }}</span>
             </div>
           </div>
           <StatsBar
@@ -459,7 +461,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             data-testid="breakpoint-badge"
           >
             <span class="simulator__bp-dot" aria-hidden="true" />
-            Đã dừng tại breakpoint dòng {{ breakpointHit }}
+            {{ messages.simulator.breakpointHit(breakpointHit) }}
           </div>
           <ControlBar
             :current-index="currentIndex"
@@ -512,12 +514,12 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             <Button variant="ghost" size="sm" @click="showCallStack = !showCallStack">
               <ChevronDown v-if="showCallStack" :size="16" aria-hidden="true" />
               <ChevronRight v-else :size="16" aria-hidden="true" />
-              Call stack
+              {{ messages.simulator.callStack }}
             </Button>
             <Button variant="ghost" size="sm" @click="showLegend = !showLegend">
               <ChevronDown v-if="showLegend" :size="16" aria-hidden="true" />
               <ChevronRight v-else :size="16" aria-hidden="true" />
-              Legend
+              {{ messages.simulator.legend }}
             </Button>
           </div>
           <div v-if="theoryOpen" class="simulator__theory simulator__panel">
@@ -544,7 +546,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
     />
 
     <footer class="simulator__footer">
-      Phím tắt: Space = Phát/Dừng · ←/→ = Bước · Home/End = Về đầu/cuối · [ / ] = Tốc độ
+      {{ messages.simulator.footerShortcuts }}
     </footer>
   </main>
 </template>

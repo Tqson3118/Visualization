@@ -8,6 +8,7 @@ import { Lightbulb } from 'lucide-vue-next';
 
 import type { Step } from '@/engines/core/types';
 import Button from '@/components/ui/Button.vue';
+import { messages } from '@/i18n/vi';
 
 const props = defineProps<{
   steps: Step[];
@@ -41,15 +42,10 @@ onMounted(async () => {
   rootEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
-/** Các thao tác gợi ý (≤ 6) cho bước kế */
-const OPTIONS = [
-  { key: 'compare', label: 'So sánh hai phần tử' },
-  { key: 'swap', label: 'Hoán đổi hai phần tử' },
-  { key: 'assign', label: 'Gán giá trị' },
-  { key: 'move', label: 'Di chuyển con trỏ' },
-  { key: 'insert', label: 'Chèn phần tử' },
-  { key: 'delete', label: 'Xóa phần tử' },
-];
+/** Các thao tác gợi ý (≈ 6) cho bước kế — label i18n theo key (messages.practice.options) */
+type PracticeOptionKey = keyof typeof messages.practice.options;
+
+const OPTIONS: PracticeOptionKey[] = ['compare', 'swap', 'assign', 'move', 'insert', 'delete'];
 
 const nextStep = computed<Step | null>(() => props.steps[props.currentIndex + 1] ?? null);
 
@@ -98,12 +94,12 @@ function finish(): void {
     ref="rootEl"
     class="practice card"
     :class="{ 'practice--active': !isEmpty }"
-    aria-label="Tự thực hành"
+    :aria-label="messages.practice.ariaLabel"
   >
     <header class="practice__header">
-      <h3 class="practice__title">Tự thực hành</h3>
+      <h3 class="practice__title">{{ messages.practice.title }}</h3>
       <span class="practice__score">
-        Đúng {{ correctCount }} · Sai {{ wrongCount }}
+        {{ messages.practice.score(correctCount, wrongCount) }}
       </span>
     </header>
 
@@ -117,36 +113,36 @@ function finish(): void {
     </div>
 
     <p v-else-if="finished" class="practice__result" role="status">
-      Kết thúc luyện tập: {{ correctCount }} đúng / {{ wrongCount }} sai
+      {{ messages.practice.finished(correctCount, wrongCount) }}
     </p>
 
     <p v-else-if="isEmpty" class="practice__empty" role="status">
-      ⏵ Hãy bấm Play để chạy mô phỏng trước, rồi bật Tự thực hành để đoán bước kế tiếp.
+      {{ messages.practice.emptyHint }}
     </p>
 
     <template v-else>
       <p class="practice__prompt">
-        Bước kế tiếp của thuật toán là gì?
-        <span v-if="lastResult === 'correct'" class="practice__ok">✓ Chính xác!</span>
-        <span v-else-if="lastResult === 'wrong'" class="practice__bad">✗ Chưa đúng — xem giải thích ở panel bên.</span>
+        {{ messages.practice.prompt }}
+        <span v-if="lastResult === 'correct'" class="practice__ok">{{ messages.practice.correct }}</span>
+        <span v-else-if="lastResult === 'wrong'" class="practice__bad">{{ messages.practice.wrong }}</span>
       </p>
 
       <div class="practice__options" role="radiogroup">
         <label
           v-for="opt in OPTIONS"
-          :key="opt.key"
+          :key="opt"
           class="practice__option"
-          :class="{ 'practice__option--selected': selected === opt.key }"
+          :class="{ 'practice__option--selected': selected === opt }"
         >
-          <input v-model="selected" type="radio" :value="opt.key" class="visually-hidden" />
-          {{ opt.label }}
+          <input v-model="selected" type="radio" :value="opt" class="visually-hidden" />
+          {{ messages.practice.options[opt] }}
         </label>
       </div>
 
       <div class="practice__actions">
-        <Button variant="ghost" size="sm" @click="skip">Bỏ qua bước</Button>
-        <Button size="sm" :disabled="!selected" @click="submit">Kiểm tra</Button>
-        <Button variant="secondary" size="sm" @click="finish">Kết thúc</Button>
+        <Button variant="ghost" size="sm" @click="skip">{{ messages.practice.skip }}</Button>
+        <Button size="sm" :disabled="!selected" @click="submit">{{ messages.practice.check }}</Button>
+        <Button variant="secondary" size="sm" @click="finish">{{ messages.practice.finish }}</Button>
       </div>
     </template>
   </section>
