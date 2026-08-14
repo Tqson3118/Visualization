@@ -169,7 +169,6 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
     equippingId.value = null;
   }
 }
->>>>>>> fedccea (style: profile improvements)
 
 // ── Skill radar (vue-echarts — G-F2d) ──
 // 5-6 kỹ năng = chủ đề (topics) từ /progress/me. Giá trị = progressPct thật — KHÔNG bịa.

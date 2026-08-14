@@ -59,11 +59,7 @@ async function onLogout(): Promise<void> {
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
-<<<<<<< HEAD
         <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__link">
-=======
-        <RouterLink v-if="isTeacherOrAdmin" :to="adminRoute" class="app-header__link">
->>>>>>> 894ec70 (fix: teacher admin nav route)
           {{ messages.nav.admin }}
         </RouterLink>
       </nav>
