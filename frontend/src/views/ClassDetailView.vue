@@ -37,6 +37,7 @@ import Input from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Select, { type SelectOption } from '@/components/ui/Select.vue';
+import PageHero from '@/components/ui/PageHero.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -297,13 +298,11 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
     </div>
 
     <template v-else-if="classStore.currentClass">
-      <!-- Banner: surface band level-2 (DESIGN §1/#1 — không gradient) -->
-      <header class="class-detail__hero">
-        <div class="class-detail__hero-top">
-          <div class="class-detail__hero-main">
-            <h1 class="class-detail__hero-title">{{ classStore.currentClass.name }}</h1>
-            <p class="class-detail__hero-desc">{{ classStore.currentClass.description || messages.classes.noDescription }}</p>
-          </div>
+      <!-- Banner: PageHero shared (surface band level-2 — DESIGN §1/#1, không gradient) -->
+      <PageHero border="full" padding="xl">
+        <template #title>{{ classStore.currentClass.name }}</template>
+        <template #description>{{ classStore.currentClass.description || messages.classes.noDescription }}</template>
+        <template #side>
           <div class="class-detail__hero-badges">
             <Badge variant="primary">
               {{ isManager ? messages.classes.roleManager : messages.classes.roleMember }}
@@ -313,36 +312,37 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
               {{ messages.classes.members(classStore.members.length) }}
             </span>
           </div>
-        </div>
-
-        <div class="class-detail__hero-actions">
-          <!-- Mã mời = block-token tối (vùng dữ liệu LUÔN tối — quyết định #5) -->
-          <span class="class-detail__code-panel">
-            <span class="class-detail__code-label">
-              <KeyRound :size="13" aria-hidden="true" />
-              {{ messages.classes.inviteLabel }}
+        </template>
+        <template #bottom>
+          <div class="class-detail__hero-actions">
+            <!-- Mã mời = block-token tối (vùng dữ liệu LUÔN tối — quyết định #5) -->
+            <span class="class-detail__code-panel">
+              <span class="class-detail__code-label">
+                <KeyRound :size="13" aria-hidden="true" />
+                {{ messages.classes.inviteLabel }}
+              </span>
+              <code class="class-detail__code">{{ classStore.currentClass.inviteCode }}</code>
+              <Button
+                v-if="isManager"
+                size="sm"
+                variant="secondary"
+                class="class-detail__copy-btn"
+                :aria-label="messages.classes.detailCopy"
+                @click="copyInvite"
+              >
+                <Check v-if="copied" :size="14" aria-hidden="true" />
+                <ClipboardCopy v-else :size="14" aria-hidden="true" />
+                {{ messages.classes.detailCopy }}
+              </Button>
             </span>
-            <code class="class-detail__code">{{ classStore.currentClass.inviteCode }}</code>
-            <Button
-              v-if="isManager"
-              size="sm"
-              variant="secondary"
-              class="class-detail__copy-btn"
-              :aria-label="messages.classes.detailCopy"
-              @click="copyInvite"
-            >
-              <Check v-if="copied" :size="14" aria-hidden="true" />
-              <ClipboardCopy v-else :size="14" aria-hidden="true" />
-              {{ messages.classes.detailCopy }}
-            </Button>
-          </span>
-          <RouterLink :to="{ name: 'class-report', params: { id: String(classId) } }" class="class-detail__hero-link">
-            <Button v-if="isManager" size="md" variant="secondary">
-              {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
-            </Button>
-          </RouterLink>
-        </div>
-      </header>
+            <RouterLink :to="{ name: 'class-report', params: { id: String(classId) } }" class="class-detail__hero-link">
+              <Button v-if="isManager" size="md" variant="secondary">
+                {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
+              </Button>
+            </RouterLink>
+          </div>
+        </template>
+      </PageHero>
 
       <!-- Tabs shadcn: Thành viên / Lộ trình đã gán / Cài đặt -->
       <Tabs :tabs="detailTabs" :model-value="tab" @change="tab = $event as typeof tab" />
@@ -605,42 +605,9 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   flex-wrap: wrap;
 }
 
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.class-detail__hero {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-xl);
-  border-radius: var(--radius-lg);
-  background: var(--card-raised);
-  border: 1px solid var(--border-subtle);
-}
-
-.class-detail__hero-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.class-detail__hero-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
-
-.class-detail__hero-title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-  overflow-wrap: anywhere;
-}
-
-.class-detail__hero-desc {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
+/* ── Banner: PageHero shared — chỉ giữ override max-width desc (cũ 70ch vs 60ch) ── */
+:deep(.page-hero__desc) {
   max-width: 70ch;
-  margin: 0;
 }
 
 .class-detail__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
@@ -905,8 +872,6 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 .class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-tertiary); margin-top: var(--space-sm); }
 
 @media (max-width: 640px) {
-  .class-detail__hero { padding: var(--space-lg); }
-
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .class-detail__table-scroll { overflow-x: visible; }
 

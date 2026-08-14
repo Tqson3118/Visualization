@@ -19,6 +19,8 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
+import PageHero from '@/components/ui/PageHero.vue';
+import AdminHeroStrip from '@/components/admin/AdminHeroStrip.vue';
 
 const classStore = useClassStore();
 const auth = useAuthStore();
@@ -42,13 +44,8 @@ const isTeacher = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN
 /** API list KHÔNG trả `role` (chỉ OwnerId — ClassService.ToDto) → tính từ owner. */
 const isManagerOf = (cls: ClassDto): boolean => cls.ownerId === auth.user?.id || auth.role === 'ADMIN';
 
-/** Strip banner: block-token dữ liệu thật — số lớp (tối đa 5 block) + index mono. */
-const stripBlocks = computed<boolean[]>(() => {
-  const count = Math.min(classStore.classes.length, 5);
-  const size = Math.max(count, 1);
-  return Array.from({ length: size }, (_, i) => i < count);
-});
-
+/** Strip banner: block-token dữ liệu thật — số lớp (tối đa 5 block) + index mono
+    (AdminHeroStrip tự clamp count 1..5 — count=0 → 1 block empty). */
 const stripLabel = computed(() => {
   const total = classStore.classes.length;
   const members = classStore.classes.reduce((sum, cls) => sum + cls.memberCount, 0);
@@ -122,45 +119,25 @@ async function createClass(): Promise<void> {
 
 <template>
   <main class="classes container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="classes__hero">
-      <div class="classes__hero-inner">
-        <div class="classes__hero-main">
-          <div class="classes__hero-badges">
-            <Badge variant="primary">{{ messages.classes.badge }}</Badge>
-          </div>
-          <h1 class="classes__hero-title">{{ messages.classes.title }}</h1>
-          <p class="classes__hero-desc">{{ messages.classes.subtitle }}</p>
-          <div class="classes__hero-actions">
-            <Button v-if="isTeacher" size="lg" @click="createOpen = true">
-              <Plus :size="16" aria-hidden="true" /> {{ messages.classes.createBtn }}
-            </Button>
-            <Button v-else size="lg" @click="joinOpen = true">
-              <KeyRound :size="16" aria-hidden="true" /> {{ messages.classes.joinBtn }}
-            </Button>
-          </div>
-        </div>
-
-        <!-- Mono strip: block-token dữ liệu thật (số lớp) + index mono (quyết định #4) -->
-        <div class="classes__hero-strip" aria-hidden="true">
-          <div class="classes__strip-panel">
-            <div class="classes__strip-blocks">
-              <span
-                v-for="(filled, i) in stripBlocks"
-                :key="i"
-                class="classes__strip-block"
-                :class="{ 'classes__strip-block--empty': !filled }"
-                :style="{ '--i': i }"
-              />
-            </div>
-            <div class="classes__strip-index">
-              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
-            </div>
-          </div>
-          <p class="classes__strip-caption">{{ stripLabel }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: PageHero shared (surface band level-2 — DESIGN §1/#1, không gradient) -->
+    <PageHero
+      :badge="messages.classes.badge"
+      :title="messages.classes.title"
+      :description="messages.classes.subtitle"
+    >
+      <template #actions>
+        <Button v-if="isTeacher" size="lg" @click="createOpen = true">
+          <Plus :size="16" aria-hidden="true" /> {{ messages.classes.createBtn }}
+        </Button>
+        <Button v-else size="lg" @click="joinOpen = true">
+          <KeyRound :size="16" aria-hidden="true" /> {{ messages.classes.joinBtn }}
+        </Button>
+      </template>
+      <!-- Mono strip: block-token dữ liệu thật (số lớp) + index mono (quyết định #4) -->
+      <template #side>
+        <AdminHeroStrip :count="classStore.classes.length" :label="stripLabel" />
+      </template>
+    </PageHero>
 
     <div v-if="loading" class="classes__loading" aria-busy="true">
       <div class="classes__grid">
@@ -274,130 +251,6 @@ async function createClass(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-}
-
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.classes__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.classes__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.classes__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.classes__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.classes__hero-title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.classes__hero-desc {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-.classes__hero-actions {
-  display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: var(--space-sm);
-}
-
-/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
-.classes__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.classes__strip-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.classes__strip-blocks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.classes__strip-block {
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--data-core);
-  opacity: 0;
-  transform: translateY(6px);
-  animation: classes-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
-}
-
-.classes__strip-block--empty {
-  background: transparent;
-  border: 1px dashed var(--data-core);
-  opacity: 1;
-  transform: none;
-  animation: none;
-}
-
-.classes__strip-index {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.classes__strip-index span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  text-align: center;
-}
-
-.classes__strip-caption {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
-  letter-spacing: 0.08em;
-  text-align: right;
-}
-
-@keyframes classes-strip-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .classes__strip-block {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* ── Loading ── */
@@ -555,10 +408,4 @@ async function createClass(): Promise<void> {
 }
 
 .classes__create { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-@media (max-width: 640px) {
-  .classes__hero { padding: var(--space-lg); }
-  .classes__hero-strip { flex-basis: 100%; }
-  .classes__strip-caption { text-align: left; }
-}
 </style>

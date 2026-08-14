@@ -21,7 +21,9 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import PageHero from '@/components/ui/PageHero.vue';
+import StatCard from '@/components/ui/StatCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -116,15 +118,13 @@ function printReport(): void {
       <span>{{ messages.classes.reportTitle }}</span>
     </nav>
 
-    <!-- Banner: surface band level-2 compact (DESIGN §1/#1 — không gradient) -->
-    <header class="class-report__hero">
-      <div class="class-report__hero-top">
-        <div class="class-report__hero-main">
-          <h1 class="class-report__title">{{ messages.classes.reportTitle }}</h1>
-          <p class="class-report__sub">
-            {{ report?.className ?? '…' }} · ID {{ pad(classId) }}
-          </p>
-        </div>
+    <!-- Banner: PageHero shared (surface band level-2 compact — DESIGN §1/#1) -->
+    <PageHero border="full" padding="lg">
+      <template #title>{{ messages.classes.reportTitle }}</template>
+      <template #description>
+        <span class="class-report__sub">{{ report?.className ?? '…' }} · ID {{ pad(classId) }}</span>
+      </template>
+      <template #side>
         <div class="class-report__actions">
           <Button size="md" :loading="exporting" @click="exportCsv">
             <Download :size="14" aria-hidden="true" /> {{ messages.classes.reportExportCsv }}
@@ -133,8 +133,8 @@ function printReport(): void {
             <Printer :size="14" aria-hidden="true" /> {{ messages.classes.reportPrint }}
           </Button>
         </div>
-      </div>
-    </header>
+      </template>
+    </PageHero>
 
     <div v-if="loading" class="class-report__loading" aria-busy="true">
       <div class="class-report__kpis">
@@ -156,22 +156,19 @@ function printReport(): void {
     />
 
     <template v-else>
-      <!-- KPI: 1 hero-stat (block-token tối) + 3 stat level-1 (quyết định #3) -->
+      <!-- KPI: 1 hero-stat (StatCard hero — block-token tối) + 3 stat level-1 (quyết định #3) -->
       <div class="class-report__kpis">
-        <Card :padded="false" class="class-report__kpi class-report__kpi--hero">
-          <div class="class-report__hero-stat" aria-hidden="true">
-            <p class="class-report__hero-stat-value">{{ formatNumber(report.totalMembers) }}</p>
-            <p class="class-report__hero-stat-index">{{ messages.classes.reportKpiMembers }}</p>
-          </div>
-        </Card>
-        <Card v-for="kpi in secondaryKpis" :key="kpi.label" :padded="false" class="class-report__kpi">
-          <CardHeader class="class-report__kpi-head">
-            <CardDescription class="class-report__kpi-label">{{ kpi.label }}</CardDescription>
-          </CardHeader>
-          <CardContent class="class-report__kpi-body">
-            <p class="class-report__kpi-value">{{ kpi.value }}</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          level="hero"
+          :label="messages.classes.reportKpiMembers"
+          :value="formatNumber(report.totalMembers)"
+        />
+        <StatCard
+          v-for="kpi in secondaryKpis"
+          :key="kpi.label"
+          :label="kpi.label"
+          :value="kpi.value"
+        />
       </div>
 
       <!-- Tỷ lệ hoàn thành -->
@@ -275,38 +272,13 @@ function printReport(): void {
   flex-wrap: wrap;
 }
 
-/* ── Banner: surface band level-2 compact (DESIGN §6) ── */
-.class-report__hero {
-  border-radius: var(--radius-lg);
-  background: var(--card-raised);
-  border: 1px solid var(--border-subtle);
-  padding: var(--space-lg) var(--space-xl);
-}
-
-.class-report__hero-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.class-report__hero-main { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
-
-.class-report__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
+/* ── Banner: PageHero shared — sub mono trong slot #description ── */
 .class-report__sub {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--foreground-tertiary);
   margin: 0;
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -318,85 +290,11 @@ function printReport(): void {
 /* ── Loading ── */
 .class-report__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
-/* ── KPI: 1 hero-stat + 3 stat phụ ── */
+/* ── KPI: 1 hero-stat (StatCard) + 3 stat phụ ── */
 .class-report__kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-md);
-}
-
-.class-report__kpi { display: flex; flex-direction: column; }
-
-/* Hero-stat: level-2 + block-token tối (khoảnh khắc đầu tư — enter) */
-.class-report__kpi--hero {
-  background: var(--card-raised);
-  border-color: var(--border-subtle);
-  justify-content: center;
-  padding: var(--space-md);
-}
-
-.class-report__hero-stat {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.3);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  flex: 1;
-  justify-content: center;
-  opacity: 0;
-  transform: translateY(6px);
-  animation: report-hero-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.class-report__hero-stat-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--data-core);
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.class-report__hero-stat-index {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  margin: 0;
-  letter-spacing: 0.08em;
-}
-
-@keyframes report-hero-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .class-report__hero-stat {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Stat phụ: level-1, không icon tròn, không shadow (DESIGN §6 + prompt #8) */
-.class-report__kpi-head { display: flex; flex-direction: row; align-items: center; padding: var(--space-md) var(--space-md) 0; }
-
-.class-report__kpi-label { font-size: var(--text-xs); color: var(--foreground-tertiary); }
-
-.class-report__kpi-body { padding: var(--space-xs) var(--space-md) var(--space-md); }
-
-.class-report__kpi-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Summary ── */
@@ -546,7 +444,6 @@ function printReport(): void {
 }
 
 @media (max-width: 640px) {
-  .class-report__hero { padding: var(--space-lg); }
   .class-report__sub { white-space: normal; }
   .class-report__kpis { grid-template-columns: 1fr; }
 
