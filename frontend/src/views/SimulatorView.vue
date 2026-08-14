@@ -4,6 +4,8 @@
 // Dùng generator THẬT từ engines/registry (task 3). Demo công khai không token (FR-7.6).
 // Phase 1 view-quality: chrome = surface band level-2 (bỏ gradient-mint + blob + text-gradient),
 // nút icon/toggle qua Button.vue (lucide), khung canvas = nền canvas-ink (motif tối lan tỏa §6).
+// Redesign header: breadcrumb + title + chip complexity 1 hàng, description clamp-2 + "Xem thêm";
+// mobile <768px: stack 1 cột (canvas → mã giả → explain), pseudocode auto-collapse.
 // KHÔNG đụng CanvasArea/engine — vùng dữ liệu giữ NGUYÊN.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -27,7 +29,7 @@ import { getCatalogMeta } from '@/engines/catalog';
 import { buildSimOverviewHtml } from '@/utils/simOverview';
 import { getReference } from '@/data/referenceLinks';
 import { messages } from '@/i18n/vi';
-import { ChevronDown, ChevronRight, ExternalLink, Share2, Star } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, ChevronUp, ExternalLink, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 import Tooltip from '@/components/ui/Tooltip.vue';
@@ -49,6 +51,7 @@ onMounted(() => {
   }
   window.addEventListener('keydown', onKeydown);
   checkFavorite();
+  initResponsive();
 });
 
 const {
@@ -132,15 +135,75 @@ watch(practiceMode, async (on) => {
 
 const notFound = computed(() => !currentSim.value && steps.value.length === 0 && status.value === 'idle' && !loading.value && !loadError.value);
 
+// ── Redesign header: breadcrumb theo category + description clamp-2 ──
+const categoryLabel = computed(() =>
+  getCatalogMeta(key.value)?.category === 'structure' ? 'Cấu trúc dữ liệu' : 'Thuật toán',
+);
+
+/** Tooltip đầy đủ 4 mức Big-O — mono data (DESIGN.md §3). */
+const complexityFull = computed(() => {
+  const meta = getCatalogMeta(key.value);
+  if (!meta) return '';
+  const { best, average, worst, space } = meta.complexity;
+  return `Tốt nhất ${best} · Trung bình ${average} · Tệ nhất ${worst} · Không gian ${space}`;
+});
+
+const descEl = ref<HTMLElement | null>(null);
+const descExpanded = ref(false);
+const descOverflows = ref(false);
+
+/** Đo xem description có tràn quá 2 dòng (clamp) hay không — nếu có mới hiện nút "Xem thêm". */
+function measureDesc(): void {
+  const el = descEl.value;
+  if (!el) return;
+  descOverflows.value = el.scrollHeight > el.clientHeight + 1;
+}
+
+function toggleDesc(): void {
+  descExpanded.value = !descExpanded.value;
+  if (!descExpanded.value) void nextTick(measureDesc);
+}
+
+// ── Mobile <768px: pseudocode auto-collapse (chỉ 1 lần khi vào mobile, không cướp thao tác user) ──
+let mobilePseudoApplied = false;
+const mobileQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)') : null;
+
+function onMobileQueryChange(event: MediaQueryListEvent | MediaQueryList): void {
+  if (event.matches) {
+    if (!mobilePseudoApplied) {
+      pseudocodeCollapsed.value = true;
+      mobilePseudoApplied = true;
+    }
+  } else {
+    mobilePseudoApplied = false;
+  }
+}
+
+function onResize(): void {
+  measureDesc();
+}
+
+function initResponsive(): void {
+  if (mobileQuery) {
+    mobileQuery.addEventListener('change', onMobileQueryChange);
+    onMobileQueryChange(mobileQuery);
+  }
+  window.addEventListener('resize', onResize);
+  void nextTick(measureDesc);
+}
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
   document.removeEventListener('pointerdown', onDocPointerDown);
   document.removeEventListener('keydown', onDocKeydown);
+  if (mobileQuery) mobileQuery.removeEventListener('change', onMobileQueryChange);
+  window.removeEventListener('resize', onResize);
 });
 
 watch(key, () => {
   reset();
   void checkFavorite();
+  void nextTick(measureDesc);
 });
 
 /** Phím tắt: Space, →/←, Home/End, [ ] (FR-3.5) */
@@ -237,19 +300,39 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
     <header class="simulator__chrome">
       <div class="simulator__header">
         <div class="simulator__title-block">
-          <nav class="simulator__breadcrumb" aria-label="Breadcrumb">
-            <RouterLink :to="{ name: 'simulations' }">Khám phá</RouterLink>
-            <span aria-hidden="true">/</span>
-            <span>{{ currentSim?.title ?? key }}</span>
-          </nav>
-          <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
-          <p class="simulator__subtitle">
-            <template v-if="generator">
-              {{ generator.dataStructure }} · Độ phức tạp TB
-              <span class="simulator__complexity">{{ generator.complexity.average }}</span>
-            </template>
-            <template v-else>{{ messages.simulator.subtitle }}</template>
+          <!-- 1 hàng: breadcrumb gọn (category) + title + chip complexity (DESIGN.md §4.3) -->
+          <div class="simulator__title-row">
+            <nav class="simulator__breadcrumb" aria-label="Breadcrumb">
+              <RouterLink :to="{ name: 'simulations' }">Khám phá</RouterLink>
+              <span aria-hidden="true">/</span>
+              <span>{{ categoryLabel }}</span>
+            </nav>
+            <h1 class="simulator__title">{{ currentSim?.title ?? key }}</h1>
+            <span v-if="generator" class="simulator__chip">{{ generator.dataStructure }}</span>
+            <span v-if="generator" class="simulator__chip simulator__chip--complexity" :title="complexityFull">
+              <span class="simulator__chip-label">Độ phức tạp TB</span>
+              <span class="simulator__chip-value">{{ generator.complexity.average }}</span>
+            </span>
+          </div>
+          <!-- Description clamp 2 dòng + "Xem thêm"/"Thu gọn" khi tràn -->
+          <p
+            ref="descEl"
+            class="simulator__desc"
+            :class="{ 'simulator__desc--clamped': !descExpanded }"
+          >
+            {{ messages.simulator.subtitle }}
           </p>
+          <Button
+            v-if="descOverflows"
+            variant="ghost"
+            size="sm"
+            class="simulator__desc-toggle"
+            :aria-expanded="descExpanded"
+            @click="toggleDesc"
+          >
+            {{ descExpanded ? 'Thu gọn' : 'Xem thêm' }}
+            <component :is="descExpanded ? ChevronUp : ChevronDown" :size="14" aria-hidden="true" />
+          </Button>
         </div>
         <div class="simulator__actions">
           <Button
@@ -335,8 +418,9 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 
     <template v-else>
       <div class="simulator__grid">
-        <!-- Trái: mã giả -->
+        <!-- Trái: mã giả (mobile: auto-collapse + xếp sau canvas) -->
         <PseudocodePanel
+          class="simulator__pseudo"
           :pseudocode="generator?.pseudocode ?? []"
           :active-line="currentStep?.pseudocodeLine ?? 0"
           :variables="currentVariables"
@@ -469,7 +553,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 .simulator {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   padding-block: var(--space-md) var(--space-2xl);
 }
 
@@ -489,14 +573,28 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   flex-wrap: wrap;
 }
 
-.simulator__breadcrumb {
+.simulator__title-block {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 1 hàng: breadcrumb + title + chips — baseline căn chỉnh (DESIGN.md §3) */
+.simulator__title-row {
   display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  row-gap: var(--space-xs);
+  column-gap: var(--space-md);
+}
+
+.simulator__breadcrumb {
+  display: inline-flex;
+  align-items: baseline;
   gap: var(--space-sm);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-xs);
+  color: var(--color-text-tertiary);
 }
 
 .simulator__breadcrumb a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
@@ -504,23 +602,54 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 .simulator__title {
   font-size: var(--text-3xl);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
   color: var(--color-foreground);
   margin: 0;
 }
 
-.simulator__subtitle {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  margin-top: var(--space-xs);
-  max-width: 56ch;
+/* Chip meta — badge chuẩn DESIGN.md §4.3 (text-xs, min-h 24px, radius-md) */
+.simulator__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
-.simulator__complexity {
+.simulator__chip--complexity { border-color: var(--color-border-strong); }
+
+.simulator__chip-label { color: var(--color-text-tertiary); }
+
+.simulator__chip-value {
   font-family: var(--font-mono);
   font-weight: 600;
   color: var(--color-foreground);
 }
+
+/* Description — clamp 2 dòng, nút "Xem thêm" chỉ hiện khi tràn */
+.simulator__desc {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  max-width: 64ch;
+}
+
+.simulator__desc--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.simulator__desc-toggle { margin-top: var(--space-xs); }
 
 .simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
 
@@ -535,6 +664,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   right: 0;
   z-index: var(--z-raised);
   min-width: 200px;
+  max-width: min(280px, calc(100vw - var(--space-xl)));
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -573,14 +703,17 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   outline-offset: -2px;
 }
 
+/* Grid — minmax(0, …) chống tràn ngang (grid blowout) */
 .simulator__grid {
   display: grid;
-  grid-template-columns: 3fr 6fr 3fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 6fr) minmax(0, 3fr);
   gap: var(--space-md);
   align-items: start;
 }
 
-.simulator__center { display: flex; flex-direction: column; gap: var(--space-sm); }
+.simulator__pseudo { min-width: 0; }
+
+.simulator__center { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
 
 /* Badge breakpoint hit — trạng thái dừng tại breakpoint (mono, không shadow) */
 .simulator__bp-badge {
@@ -607,6 +740,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 /* Khung vẽ — NGUYÊN CanvasArea bên trong; khung ngoài = nền canvas-ink (motif tối §6) */
 .simulator__canvas-wrap {
   position: relative;
+  min-width: 0;
   border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
   border-radius: var(--radius-lg);
   background: var(--color-canvas-ink);
@@ -631,7 +765,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-data-core) 22%, transparent);
 }
 
-.simulator__right { display: flex; flex-direction: column; gap: var(--space-sm); }
+.simulator__right { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
 
 .simulator__panel {
   background: var(--color-card);
@@ -667,7 +801,20 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 }
 
 @media (max-width: 1024px) {
-  .simulator__grid { grid-template-columns: 1fr; }
+  .simulator__grid { grid-template-columns: minmax(0, 1fr); }
   .simulator__right { order: 3; }
+}
+
+/* Mobile <768px (DESIGN.md §8): stack 1 cột — canvas trước, mã giả auto-collapse, explain cuối */
+@media (max-width: 767px) {
+  .simulator { gap: var(--space-md); padding-block: var(--space-sm) var(--space-xl); }
+  .simulator__chrome { padding: var(--space-md); }
+  .simulator__title { font-size: var(--text-2xl); }
+  .simulator__title-row { column-gap: var(--space-sm); }
+  .simulator__grid { gap: var(--space-sm); }
+  .simulator__center { order: 1; }
+  .simulator__pseudo { order: 2; }
+  .simulator__right { order: 3; }
+  .simulator__actions { width: 100%; }
 }
 </style>
