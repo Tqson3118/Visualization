@@ -132,6 +132,9 @@ internal static class TestServices
     public static UserService CreateUserService(AppDbContext db, FixedClock clock) =>
         new(db, clock, CreateConfig(), NullLogger<UserService>.Instance);
 
+    public static ClassService CreateClassService(AppDbContext db, FixedClock clock) =>
+        new(db, clock, NullLogger<ClassService>.Instance);
+
     public static LessonService CreateLessonService(AppDbContext db, FixedClock clock) =>
         CreateLessonService(db, clock, new SimulationCatalogService(CreateConfig(), new FakeEnvironment(), NullLogger<SimulationCatalogService>.Instance));
 
