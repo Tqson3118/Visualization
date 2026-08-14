@@ -11,16 +11,20 @@ import {
   BookOpen,
   CalendarClock,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ClipboardCopy,
+  Clock,
   KeyRound,
   Pencil,
   Puzzle,
+  Timer,
   Trash2,
   UserPlus,
   Users,
 } from 'lucide-vue-next';
+import type { Component } from 'vue';
 
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
@@ -149,6 +153,20 @@ function deadlineBadge(
   if (stats.notSubmitted > 0) return { label: messages.classes.detailStatusMissing(stats.notSubmitted), tone: 'destructive' };
   if (stats.late > 0) return { label: messages.classes.detailStatusLate(stats.late), tone: 'warning' };
   return { label: messages.classes.detailStatusOnTime, tone: 'success' };
+}
+
+/** FIX R1: icon lucide nhỏ cho badge hạn nộp theo tone (visual + semantic, không đổi logic). */
+function deadlineIcon(tone: 'success' | 'warning' | 'destructive' | 'muted'): Component {
+  switch (tone) {
+    case 'success':
+      return CheckCircle2;
+    case 'warning':
+      return Timer;
+    case 'destructive':
+      return AlertTriangle;
+    default:
+      return Clock;
+  }
 }
 
 /** Số bài thiếu của 1 học viên (0 = không trong danh sách chậm tiến độ của report). */
@@ -587,6 +605,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                     class="class-detail__deadline"
                     :class="`class-detail__deadline--${deadlineBadge(assign)!.tone}`"
                   >
+                    <component :is="deadlineIcon(deadlineBadge(assign)!.tone)" :size="12" aria-hidden="true" />
                     {{ deadlineBadge(assign)!.label }}
                   </span>
                 </div>
@@ -844,13 +863,15 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__table-scroll { overflow-x: auto; border-radius: inherit; }
 
-.class-detail__table table { width: 100%; border-collapse: collapse; }
+/* FIX R1: min-width bảng → tablet/desktop cuộn ngang TRONG card thay vì cột chật;
+   mobile (≤640) bỏ min-width vì chuyển card-stack (media bên dưới). */
+.class-detail__table table { width: 100%; min-width: 680px; border-collapse: collapse; }
 
 .class-detail__table th {
   text-align: left;
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   padding: 0 var(--space-md);
   border-bottom: 1px solid var(--border);
   background: var(--muted);
@@ -896,7 +917,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__email {
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -968,7 +989,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   gap: var(--space-xs);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   white-space: nowrap;
 }
 
@@ -991,15 +1012,16 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 .class-detail__assign-progress-count {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
-/* Badge hạn nộp: outline mono + semantic (Task 2 — DESIGN §4.3) */
+/* Badge hạn nộp: outline mono + semantic (Task 2 — DESIGN §4.3) + icon lucide (FIX R1) */
 .class-detail__deadline {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-xs);
   min-height: 24px;
   padding: 2px 10px;
   border: 1px solid var(--border);
@@ -1029,7 +1051,12 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 }
 
 .class-detail__deadline--muted {
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
+}
+
+/* FIX R1: progress bar nộp bài — animated width (transform transition, easing chủ đích) */
+.class-detail__assign-progress :deep([data-value]) {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Task 2: cột "Bài chưa nộp" (dữ liệu thật từ report.laggingLearners) ── */
@@ -1058,7 +1085,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__missing-text {
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
 }
 
 /* ── Task 2: phân trang bảng học viên ── */
@@ -1075,7 +1102,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 .class-detail__pager-info {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
 }
@@ -1139,11 +1166,18 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__modal-actions { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-md); }
 
-.class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-tertiary); margin-top: var(--space-sm); }
+.class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-secondary); margin-top: var(--space-sm); }
+
+/* FIX R1: tab active rõ hơn — thêm weight 600 cho tab đang chọn (bên dưới border primary) */
+.class-detail :deep([role="tab"][data-state="active"]) {
+  font-weight: 600;
+}
 
 @media (max-width: 640px) {
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .class-detail__table-scroll { overflow-x: visible; }
+
+  .class-detail__table table { min-width: 0; }
 
   .class-detail__table thead { display: none; }
 
@@ -1168,7 +1202,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   .class-detail__table td::before {
     content: attr(data-label);
     font-size: var(--text-xs);
-    color: var(--foreground-tertiary);
+    color: var(--foreground-secondary);
   }
 
   .class-detail__table td:first-child { grid-column: 1 / -1; }

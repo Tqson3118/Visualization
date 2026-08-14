@@ -295,6 +295,7 @@ async function createClass(): Promise<void> {
 @media (min-width: 640px) {
   .classes__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-lg);
   }
 }
 
@@ -305,7 +306,8 @@ async function createClass(): Promise<void> {
   }
 }
 
-/* Card level-1: hover chỉ đổi border → strong (DESIGN §6 — cấm shadow) */
+/* Card level-1: hover/active phản hồi rõ (FIX R1) — border → strong + nền surface-hover,
+   active = nền tint primary 8% (press feedback); KHÔNG shadow/scale (§6). */
 .classes__card {
   display: flex;
   flex-direction: column;
@@ -314,10 +316,17 @@ async function createClass(): Promise<void> {
   cursor: pointer;
   min-width: 0;
   border-color: var(--border);
-  transition: border-color 150ms;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
 
-.classes__card:hover { border-color: var(--border-strong); }
+.classes__card:hover {
+  border-color: var(--border-strong);
+  background: var(--color-surface-hover);
+}
+
+.classes__card:active {
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+}
 
 .classes__card:focus-visible {
   outline: 2px solid var(--ring);
@@ -404,7 +413,7 @@ async function createClass(): Promise<void> {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.08em;
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
 }
 
 .classes__stat :deep(.stat-card--default .stat-card__body) {

@@ -350,7 +350,7 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
           <!-- Callout bước — dạng trace/code line: gutter L{line} + explanation (Step thật) -->
           <p class="home__bench-trace" :aria-live="isPlaying ? 'off' : 'polite'">
             <span class="home__bench-trace-gutter" aria-hidden="true">{{ traceLine }}</span>
-            <span class="home__bench-trace-text">{{ currentStep?.explanation ?? ' ' }}</span>
+            <span class="home__bench-trace-text">{{ currentStep?.explanation || messages.home.simStepHint }}</span>
           </p>
 
           <!-- Bộ điều khiển mini-sim (Task 1) — icon-only + speed slider -->
@@ -1164,12 +1164,24 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Algorithm Catalog Grid (Task 1) ── */
+  /* ── Algorithm Catalog Grid (Task 1) ── */
 .home__filters {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-sm);
+}
+
+/* FIX R1: mobile — filter tabs cuộn ngang trong 1 hàng (không tràn/không wrap nát) */
+@media (max-width: 640px) {
+  .home__filters {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: var(--space-xs);
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .home__filter { color: var(--color-text-tertiary); }
@@ -1331,5 +1343,8 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   .home__bench-step { display: none; }
 
   .home__ladder { grid-template-columns: 1fr; }
+
+  /* FIX R1: CTA "Thực hành ngay" rõ hơn ở mobile — full width + hit target 44px (§8) */
+  .home__catalog-cta { width: 100%; min-height: 44px; }
 }
 </style>

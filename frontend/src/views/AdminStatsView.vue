@@ -178,7 +178,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
     <div v-else-if="loadError" class="admin-stats__error" role="alert">
       <p class="admin-stats__error-text">{{ messages.admin.stats.loadError }}</p>
-      <Button size="sm" variant="secondary" @click="load">
+      <Button size="md" variant="secondary" @click="load">
         <RefreshCw :size="14" /> {{ messages.admin.stats.retry }}
       </Button>
     </div>
@@ -257,6 +257,11 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
         </p>
         <p class="admin-stats__note admin-stats__note--muted">
           <span>{{ messages.admin.stats.noteMock }}</span>
+        </p>
+        <!-- FIX R1: microcopy ngắn — nguồn số liệu + cách làm mới (i18n) -->
+        <p class="admin-stats__note admin-stats__note--muted">
+          <RefreshCw :size="14" class="admin-stats__note-icon admin-stats__note-icon--muted" aria-hidden="true" />
+          <span>{{ messages.admin.stats.noteRefresh }}</span>
         </p>
       </div>
     </template>
@@ -381,16 +386,20 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
 .admin-stats__note { display: flex; align-items: flex-start; gap: var(--space-sm); color: var(--foreground); margin: 0; }
 
-.admin-stats__note--muted { color: var(--foreground-tertiary); font-size: var(--text-xs); }
+/* FIX R1: text phụ nâng 1 tầng (tertiary 3.4:1 → secondary ≥ 4.5:1 trên nền light) */
+.admin-stats__note--muted { color: var(--foreground-secondary); font-size: var(--text-xs); }
 
 .admin-stats__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--info); }
 
+.admin-stats__note-icon--muted { color: var(--foreground-secondary); }
+
+/* FIX R1: tablet (≤900) giữ chart 2 cột cho gọn luồng thao tác; chỉ xếp 1 cột ở mobile */
 @media (max-width: 900px) {
-  .admin-stats__charts { grid-template-columns: 1fr; }
   .admin-stats__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
+  .admin-stats__charts { grid-template-columns: 1fr; }
   .admin-stats__kpis { grid-template-columns: 1fr; }
   .admin-stats__kpi-hero { grid-column: span 1; }
 }

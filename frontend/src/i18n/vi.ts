@@ -90,6 +90,8 @@ export const messages = {
     simSpeed: 'Tốc độ',
     simSpeedValue: (x: number) => `${x}×`,
     simTraceLine: (line: number) => `L${String(line).padStart(2, '0')}`,
+    // FIX R1 — hint thay thế khi bước không có explanation (callout luôn có 1 dòng mô tả)
+    simStepHint: 'Bấm Tạm dừng để đọc từng bước — hoặc dùng Bước tới/lùi để tua.',
     // Task 1 — catalog grid: filter tabs + Big-O chips
     catalogBadge: 'Danh mục thuật toán',
     catalogTitle: 'Khám phá toàn bộ danh mục',
@@ -474,6 +476,8 @@ export const messages = {
       noteSimsPrefix: 'Tổng mô phỏng trong danh mục:',
       noteSimsSuffix: '(engines/catalog)',
       noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
+      // FIX R1 — microcopy nguồn số liệu + cách làm mới
+      noteRefresh: 'Số liệu KPI lấy tại thời điểm mở trang — tải lại để xem giá trị mới.',
       // Task 3a (ui-redesign) — nhãn biểu đồ vùng tối
       weekTag: '7 NGÀY',
       weekUnit: 'lượt',
