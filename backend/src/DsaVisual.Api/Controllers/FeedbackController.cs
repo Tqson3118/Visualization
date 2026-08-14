@@ -163,9 +163,10 @@ public class BugReportsController(
 [ApiVersion("1.0")]
 [Route("api/v1/admin/bug-reports")]
 [Authorize(Roles = "ADMIN")]
-public class AdminBugReportsController(AppDbContext db) : ApiControllerBase
+public class AdminBugReportsController(AppDbContext db, IHtmlSanitizer htmlSanitizer) : ApiControllerBase
 {
     private readonly AppDbContext _db = db;
+    private readonly IHtmlSanitizer _htmlSanitizer = htmlSanitizer;
 
     [HttpGet]
     public async Task<ActionResult<List<BugReportDto>>> GetList([FromQuery] string? status, CancellationToken ct)
@@ -185,6 +186,7 @@ public class AdminBugReportsController(AppDbContext db) : ApiControllerBase
                 Description = b.Description,
                 Context = b.ContextJson,
                 Status = b.Status.ToString(),
+                AdminNote = b.AdminNote,
                 CreatedAt = b.CreatedAt,
                 ResolvedAt = b.ResolvedAt
             })
@@ -208,6 +210,12 @@ public class AdminBugReportsController(AppDbContext db) : ApiControllerBase
 
         report.Status = status;
         report.AssigneeId = CurrentUserId();
+        // v2.15 (Vấn đề 7): Admin phản hồi → ghi nhận AdminNote
+        if (!string.IsNullOrWhiteSpace(request.AdminNote))
+        {
+            report.AdminNote = _htmlSanitizer.Sanitize(request.AdminNote.Trim());
+        }
+
         report.ResolvedAt = status is BugReportStatus.Resolved or BugReportStatus.Closed ? DateTime.UtcNow : null;
         await _db.SaveChangesAsync(ct);
 
@@ -218,6 +226,7 @@ public class AdminBugReportsController(AppDbContext db) : ApiControllerBase
             Description = report.Description,
             Context = report.ContextJson,
             Status = report.Status.ToString(),
+            AdminNote = report.AdminNote,
             CreatedAt = report.CreatedAt,
             ResolvedAt = report.ResolvedAt
         });

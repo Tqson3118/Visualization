@@ -29,4 +29,6 @@ public sealed class User
     public string? Department { get; set; }                          // Khoa/Bộ môn (form đăng ký GV)
     public string? StaffCode { get; set; }                           // Mã giảng viên (form đăng ký GV)
     public string? TeacherBio { get; set; }                          // Kinh nghiệm/giới thiệu (form đăng ký GV)
+    public string? AcademicDegree { get; set; }                      // Học vị: Thạc sĩ, Tiến sĩ... (form đăng ký GV)
+    public string? ProfileLink { get; set; }                         // Link LinkedIn / trang nghiên cứu khoa học
 }

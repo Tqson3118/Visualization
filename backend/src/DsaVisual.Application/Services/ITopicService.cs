@@ -11,7 +11,7 @@ public interface ITopicService
     Task<Result<List<TopicDto>>> GetTreeAsync(CancellationToken ct);
     Task<Result<TopicDto>> GetByIdAsync(int id, CancellationToken ct);
     Task<Result<TopicDto>> CreateAsync(int userId, TopicUpsertRequest request, CancellationToken ct);
-    Task<Result<TopicDto>> UpdateAsync(int id, TopicUpsertRequest request, CancellationToken ct);
-    Task<Result> DeleteAsync(int id, CancellationToken ct);
+    Task<Result<TopicDto>> UpdateAsync(int userId, string role, int id, TopicUpsertRequest request, CancellationToken ct);
+    Task<Result> DeleteAsync(int userId, string role, int id, CancellationToken ct);
     Task<Result> ReorderAsync(TopicReorderRequest request, CancellationToken ct);
 }

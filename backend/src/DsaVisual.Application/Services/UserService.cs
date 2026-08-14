@@ -70,9 +70,29 @@ public sealed class UserService(
     {
         var user = await db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null, ct);
-        return user is null
-            ? Result<AdminUserDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại")
-            : Result<AdminUserDto>.Ok(ToDto(user));
+        if (user is null)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        // v2.15: nạp thống kê học tập cho drawer chi tiết user (Vấn đề 8)
+        var dto = ToDto(user);
+        dto.Xp = user.Xp;
+        dto.Level = ComputeLevel(user.Xp);
+        dto.StreakDays = user.StreakDays;
+        dto.Gems = user.Gems;
+        dto.Hearts = user.Hearts;
+
+        dto.LessonsCompletedCount = await db.UserProgress.AsNoTracking()
+            .CountAsync(p => p.UserId == id && p.CompletedAt != null, ct);
+        dto.ExercisesPassedCount = await db.ExerciseSubmissions.AsNoTracking()
+            .Where(s => s.UserId == id)
+            .Join(db.Exercises.AsNoTracking(), s => s.ExerciseId, e => e.Id, (s, e) => s.Score == e.MaxScore)
+            .CountAsync(x => x, ct);
+        dto.JoinedClassesCount = await db.ClassMembers.AsNoTracking()
+            .CountAsync(m => m.UserId == id, ct);
+
+        return Result<AdminUserDto>.Ok(dto);
     }
 
     public async Task<Result> SetStatusAsync(int actorId, bool actorIsPrimaryAdmin, int id, bool isActive, CancellationToken ct)
@@ -157,6 +177,13 @@ public sealed class UserService(
         {
             return Result.Fail(ErrorCodes.VALIDATION_FAILED,
                 "Tài khoản không ở trạng thái chờ phê duyệt Teacher", new() { ["id"] = ["Tài khoản không ở trạng thái chờ phê duyệt Teacher"] });
+        }
+
+        // v2.15 (Vấn đề 2): từ chối bắt buộc nhập Lý do — ứng viên cần biết lý do để chỉnh hồ sơ
+        if (!request.Approve && string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Phải nhập lý do khi từ chối hồ sơ giảng viên", new() { ["reason"] = ["Phải nhập lý do khi từ chối hồ sơ giảng viên"] });
         }
 
         user.Role = request.Approve ? UserRole.Teacher : UserRole.Student;
@@ -342,6 +369,11 @@ public sealed class UserService(
         Department = user.Department,
         StaffCode = user.StaffCode,
         TeacherBio = user.TeacherBio,
+        AcademicDegree = user.AcademicDegree,
+        ProfileLink = user.ProfileLink,
         CreatedAt = user.CreatedAt
     };
+
+    /// <summary>Cấp độ theo XP — khớp GamificationService.ComputeLevel (1 + floor(sqrt(xp/100))).</summary>
+    private static int ComputeLevel(int xp) => 1 + (int)Math.Floor(Math.Sqrt(xp / 100.0));
 }

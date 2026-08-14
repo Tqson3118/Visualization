@@ -9,6 +9,7 @@ public sealed class BugReport
     public string? ContextJson { get; set; }                         // URL, browser, bước mô phỏng
     public BugReportStatus Status { get; set; } = BugReportStatus.New;
     public int? AssigneeId { get; set; }
+    public string? AdminNote { get; set; }                           // Phản hồi của Admin khi xử lý (v2.15)
     public DateTime CreatedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
 }

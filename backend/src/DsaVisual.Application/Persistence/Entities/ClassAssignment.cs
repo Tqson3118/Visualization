@@ -8,5 +8,6 @@ public sealed class ClassAssignment
     public int? LessonId { get; set; }
     public int? ExerciseId { get; set; }
     public DateTime? DueAt { get; set; }
+    public bool AllowLateSubmission { get; set; } = true;            // v2.15: false → chặn nộp sau deadline
     public DateTime CreatedAt { get; set; }
 }

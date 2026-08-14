@@ -10,6 +10,9 @@ public sealed class Lesson
     public string ContentHtml { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public LessonStatus Status { get; set; } = LessonStatus.Draft;
+    public bool IsClassOnly { get; set; }                            // Bài học nội bộ của lớp học (không public toàn sàn)
+    public string? RejectionReason { get; set; }                     // Lý do Admin từ chối duyệt
+    public DateTime? PublishedAt { get; set; }                       // Thời điểm được duyệt public
     public int CreatedBy { get; set; }                               // FK → Users.Id — quyền sở hữu Teacher
     public int? UpdatedBy { get; set; }
     public DateTime CreatedAt { get; set; }

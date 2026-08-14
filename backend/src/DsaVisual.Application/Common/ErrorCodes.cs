@@ -56,6 +56,7 @@ public static class ErrorCodes
     public const string LADDER_LOCKED = "LADDER_LOCKED";
     public const string INSUFFICIENT_GEMS = "INSUFFICIENT_GEMS";
     public const string QUEST_ALREADY_CLAIMED = "QUEST_ALREADY_CLAIMED";
+    public const string ASSIGNMENT_OVERDUE = "ASSIGNMENT_OVERDUE";   // [v2.15] chặn nộp sau deadline (AllowLateSubmission=false)
 
     // 429
     public const string RATE_LIMITED = "RATE_LIMITED";
@@ -79,7 +80,7 @@ public static class ErrorCodes
         NOT_FOUND => 404,
         EMAIL_EXISTS or TOPIC_HAS_LESSONS or LESSON_HAS_EXERCISES or DUPLICATE_SIMULATION or CONFLICT => 409,
         INPUT_TOO_LARGE or SUBMISSION_IN_PROGRESS or EXERCISE_CLOSED or LADDER_LOCKED
-            or INSUFFICIENT_GEMS or QUEST_ALREADY_CLAIMED => 422,
+            or INSUFFICIENT_GEMS or QUEST_ALREADY_CLAIMED or ASSIGNMENT_OVERDUE => 422,
         RATE_LIMITED => 429,
         SERVICE_UNAVAILABLE => 503,
         _ => 500

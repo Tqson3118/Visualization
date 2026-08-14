@@ -10,4 +10,6 @@ public sealed class RegisterRequest
     public string? Department { get; set; }                   // bắt buộc khi IsTeacher=true (Khoa/Bộ môn)
     public string? StaffCode { get; set; }                    // bắt buộc khi IsTeacher=true (Mã giảng viên)
     public string? TeacherBio { get; set; }                   // ≤ 500 ký tự (Kinh nghiệm/giới thiệu)
+    public string? AcademicDegree { get; set; }               // v2.15: Học vị (Thạc sĩ, Tiến sĩ...)
+    public string? ProfileLink { get; set; }                  // v2.15: Link hồ sơ nghiên cứu / LinkedIn
 }

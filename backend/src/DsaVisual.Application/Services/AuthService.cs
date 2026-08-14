@@ -87,6 +87,8 @@ public sealed class AuthService(
         var department = request.Department?.Trim();
         var staffCode = request.StaffCode?.Trim();
         var teacherBio = request.TeacherBio?.Trim();
+        var academicDegree = request.AcademicDegree?.Trim();
+        var profileLink = request.ProfileLink?.Trim();
         if (request.IsTeacher)
         {
             var teacherErrors = new Dictionary<string, string[]>();
@@ -113,6 +115,17 @@ public sealed class AuthService(
                 teacherErrors["teacherBio"] = ["Giới thiệu không được vượt quá 500 ký tự"];
             }
 
+            // v2.15 (Vấn đề 2): Học vị + Link hồ sơ (không bắt buộc nhưng giới hạn độ dài)
+            if (academicDegree?.Length > 100)
+            {
+                teacherErrors["academicDegree"] = ["Học vị không được vượt quá 100 ký tự"];
+            }
+
+            if (profileLink?.Length > 300)
+            {
+                teacherErrors["profileLink"] = ["Link hồ sơ không được vượt quá 300 ký tự"];
+            }
+
             if (teacherErrors.Count > 0)
             {
                 return Result<RefreshResponse>.Fail(ErrorCodes.VALIDATION_FAILED,
@@ -130,6 +143,8 @@ public sealed class AuthService(
             department = null;
             staffCode = null;
             teacherBio = null;
+            academicDegree = null;
+            profileLink = null;
         }
 
         var now = clock.UtcNow;
@@ -146,7 +161,9 @@ public sealed class AuthService(
             CreatedAt = now,
             Department = department,
             StaffCode = staffCode,
-            TeacherBio = teacherBio
+            TeacherBio = teacherBio,
+            AcademicDegree = academicDegree,
+            ProfileLink = profileLink
         };
 
         // Finding #19 (THAP): user + refresh token trong 1 transaction — tránh "user tồn tại nhưng không có phiên"

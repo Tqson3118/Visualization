@@ -154,6 +154,7 @@ public sealed class ClassService(
                 ExerciseId = assignment.ExerciseId,
                 Title = title,
                 DueAt = assignment.DueAt,
+                AllowLateSubmission = assignment.AllowLateSubmission,
                 CreatedAt = assignment.CreatedAt
             });
         }
@@ -278,6 +279,49 @@ public sealed class ClassService(
         return await GetByIdAsync(userId, RoleTeacher, id, ct);
     }
 
+    /// <summary>
+    /// v2.15 (Vấn đề 14/4.1): tham gia lớp bằng mã mời — tìm Class theo InviteCode, kiểm tra
+    /// Status == Open, thêm vào ClassMembers. Sinh viên không cần biết classId trước.
+    /// </summary>
+    public async Task<Result<ClassDetailDto>> JoinByCodeAsync(int userId, JoinClassByCodeRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.InviteCode))
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Mã mời không được để trống", new() { ["inviteCode"] = ["Mã mời không được để trống"] });
+        }
+
+        var code = request.InviteCode.Trim().ToUpperInvariant();
+        var classRoom = await db.Classes.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.InviteCode == code && c.DeletedAt == null, ct);
+
+        if (classRoom is null)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.NOT_FOUND,
+                "Không tìm thấy lớp học với mã mời này", new() { ["inviteCode"] = ["Không tìm thấy lớp học với mã mời này"] });
+        }
+
+        if (classRoom.Status != ClassStatus.Open)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Lớp đã đóng, không nhận thành viên mới", new() { ["inviteCode"] = ["Lớp đã đóng"] });
+        }
+
+        var duplicate = await db.ClassMembers.AsNoTracking()
+            .AnyAsync(m => m.ClassId == classRoom.Id && m.UserId == userId, ct);
+        if (duplicate)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Bạn đã tham gia lớp này", new() { ["inviteCode"] = ["Bạn đã tham gia lớp này"] });
+        }
+
+        db.ClassMembers.Add(new ClassMember { ClassId = classRoom.Id, UserId = userId, JoinedAt = clock.UtcNow });
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("User {UserId} joined class {ClassId} by invite code {InviteCode}", userId, classRoom.Id, code);
+        return await GetByIdAsync(userId, RoleTeacher, classRoom.Id, ct);
+    }
+
     public async Task<Result<ClassDetailDto>> AddMemberAsync(int userId, string role, int id, AddMemberRequest request, CancellationToken ct)
     {
         if (!await EnsureCanManageAsync(userId, role, id, ct))
@@ -375,6 +419,7 @@ public sealed class ClassService(
             LessonId = request.LessonId,
             ExerciseId = request.ExerciseId,
             DueAt = request.DueAt,
+            AllowLateSubmission = request.AllowLateSubmission,
             CreatedAt = clock.UtcNow
         });
         await db.SaveChangesAsync(ct);
@@ -397,7 +442,17 @@ public sealed class ClassService(
             return Result.Fail(ErrorCodes.NOT_FOUND, "Bài gán không tồn tại");
         }
 
-        assignment.DueAt = request.DueAt;
+        if (request.DueAt is { } dueAt)
+        {
+            assignment.DueAt = dueAt;
+        }
+
+        // v2.15: cho phép GV bật/tắt nhận bài muộn
+        if (request.AllowLateSubmission is { } allowLate)
+        {
+            assignment.AllowLateSubmission = allowLate;
+        }
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Assignment {AssignId} updated in class {ClassId} by user {UserId}", assignId, id, userId);

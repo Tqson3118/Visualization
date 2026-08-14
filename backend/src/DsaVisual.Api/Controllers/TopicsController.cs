@@ -59,7 +59,7 @@ public class TopicsController(
             return invalid;
         }
 
-        var result = await _service.UpdateAsync(id, request, ct);
+        var result = await _service.UpdateAsync(CurrentUserId(), CurrentRole(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 
@@ -67,7 +67,7 @@ public class TopicsController(
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult> Delete([FromRoute] int id, CancellationToken ct)
     {
-        var result = await _service.DeleteAsync(id, ct);
+        var result = await _service.DeleteAsync(CurrentUserId(), CurrentRole(), id, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 

@@ -72,6 +72,14 @@ public class ClassesController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    /// <summary>v2.15: tham gia lớp bằng mã mời (sinh viên nhập mã 6 ký tự, không cần classId).</summary>
+    [HttpPost("join-by-code")]
+    public async Task<ActionResult<ClassDetailDto>> JoinByCode([FromBody] JoinClassByCodeRequest request, CancellationToken ct)
+    {
+        var result = await _service.JoinByCodeAsync(CurrentUserId(), request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     [HttpPost("{id:int}/members")]
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<ClassDetailDto>> AddMember([FromRoute] int id, [FromBody] AddMemberRequest request, CancellationToken ct)

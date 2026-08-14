@@ -87,7 +87,7 @@ public class TopicServiceTests
         });
         await db.SaveChangesAsync();
 
-        var result = await service.DeleteAsync(topic.Value.Id, CancellationToken.None);
+        var result = await service.DeleteAsync(1, "TEACHER", topic.Value.Id, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.TOPIC_HAS_LESSONS, result.ErrorCode);
@@ -100,7 +100,7 @@ public class TopicServiceTests
 
         var topic = await service.CreateAsync(1, new TopicUpsertRequest { Name = "Sắp xếp" }, CancellationToken.None);
 
-        var result = await service.DeleteAsync(topic.Value!.Id, CancellationToken.None);
+        var result = await service.DeleteAsync(1, "TEACHER", topic.Value!.Id, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(0, await db.Topics.CountAsync(t => t.DeletedAt == null));
