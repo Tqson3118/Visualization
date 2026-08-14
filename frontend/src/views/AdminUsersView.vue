@@ -323,7 +323,7 @@ async function runConfirm(): Promise<void> {
         />
       </div>
       <!-- Select shadcn (reka-ui) — nhất quán ClassDetailView; label ẩn sr-only qua :deep -->
-      <div class="admin-users__select-group admin-users__select-group--role">
+      <div class="admin-users__select-group">
         <Select
           v-model="roleFilter"
           :label="messages.admin.users.roleFilterLabel"
@@ -331,7 +331,7 @@ async function runConfirm(): Promise<void> {
           :placeholder="messages.admin.users.roleAll"
         />
       </div>
-      <div class="admin-users__select-group admin-users__select-group--status">
+      <div class="admin-users__select-group">
         <Select
           v-model="statusFilter"
           :label="messages.admin.users.statusFilterLabel"

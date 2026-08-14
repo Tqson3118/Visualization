@@ -57,6 +57,8 @@ function copyInvite(code: string): void {
     copyTimer = setTimeout(() => {
       copiedCode.value = null;
     }, 1500);
+  }).catch(() => {
+    // FIX REVIEW: clipboard từ chối/không khả dụng → bỏ qua, không hiện trạng thái copy giả.
   });
 }
 

@@ -152,8 +152,14 @@ async function copyReminder(learner: LaggingLearnerDto): Promise<void> {
     report.value?.className ?? '',
     learner.missingCount,
   );
+  // FIX REVIEW: clipboard có thể không khả dụng (HTTP non-secure / trình duyệt chặn) —
+  // optional chain cũ → await undefined → toast "Đã sao chép" giả. Check tường minh.
+  if (!navigator.clipboard) {
+    ui.showToast(messages.classes.reportLaggingRemindFail, 'error');
+    return;
+  }
   try {
-    await navigator.clipboard?.writeText(message);
+    await navigator.clipboard.writeText(message);
     ui.showToast(messages.classes.reportLaggingRemindDone, 'success');
   } catch {
     ui.showToast(messages.classes.reportLaggingRemindFail, 'error');
@@ -273,7 +279,7 @@ function printReport(): void {
           <div class="class-report__hero-block">
             <p class="class-report__hero-value">{{ avgScore }}</p>
             <p class="class-report__hero-label">{{ messages.classes.reportHeroAvgScore }}</p>
-            <p class="class-report__hero-index">0.0 – 10.0 THANG ĐIỂM</p>
+            <p class="class-report__hero-index">{{ messages.classes.reportHeroScale }}</p>
           </div>
         </div>
       </Card>
@@ -295,7 +301,7 @@ function printReport(): void {
         <Card v-if="report.assignments.length > 0" class="class-report__chart-card">
           <div class="class-report__chart-head">
             <h2 class="class-report__chart-title">{{ messages.classes.reportChartTitle }}</h2>
-            <span class="class-report__chart-total">TỔNG {{ formatNumber(chartTotals.total) }} BÀI NỘP</span>
+            <span class="class-report__chart-total">{{ messages.classes.reportChartTotal(formatNumber(chartTotals.total)) }}</span>
           </div>
           <div class="class-report__chart">
             <VChartLazy :option="distributionOption" height="264px" />
@@ -304,11 +310,14 @@ function printReport(): void {
 
         <!-- Học viên chậm tiến độ (Task 2): card nổi bật — badge đỏ dịu destructive
              + nút hành động nhắc nhở rõ ràng (sao chép lời nhắc) -->
-        <Card class="class-report__lagging">
+        <Card
+          class="class-report__lagging"
+          :class="{ 'class-report__lagging--full': report.assignments.length === 0 }"
+        >
           <div class="class-report__lagging-head">
             <h2 class="class-report__lagging-title">{{ messages.classes.reportLaggingTitle }}</h2>
             <span v-if="report.laggingLearners.length > 0" class="class-report__lagging-count">
-              {{ pad(report.laggingLearners.length) }} HỌC VIÊN
+              {{ messages.classes.reportLaggingCount(report.laggingLearners.length) }}
             </span>
           </div>
           <div v-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
@@ -519,8 +528,10 @@ function printReport(): void {
 
 .class-report__lagging { grid-column: span 4; }
 
-/* Không có bài gán (chưa có chart) → lagging full width */
-.class-report__grid:not(:has(.class-report__chart-card)) .class-report__lagging {
+/* Không có bài gán (chưa có chart) → lagging full width.
+   FIX REVIEW: thay :not(:has(...)) (Chrome<105/FF<121 không chạy → card lagging kẹt
+   span 4 cột) bằng :class binding trên Card (class-report__lagging--full). */
+.class-report__lagging--full {
   grid-column: 1 / -1;
 }
 

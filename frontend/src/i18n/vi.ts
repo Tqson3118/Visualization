@@ -770,6 +770,10 @@ export const messages = {
     // Task 2 (ui-redesign): hero KPI tối + chart phân bố nộp bài + hành động nhắc nhở
     reportHeroCompletion: 'Tỷ lệ hoàn thành',
     reportHeroAvgScore: 'Điểm trung bình',
+    // FIX REVIEW: thay 3 chuỗi hardcode còn sót ở ClassReportView (scale / tổng bài nộp / số học viên)
+    reportHeroScale: '0.0 – 10.0 THANG ĐIỂM',
+    reportChartTotal: (total: string) => `TỔNG ${total} BÀI NỘP`,
+    reportLaggingCount: (n: number) => `${String(n).padStart(2, '0')} HỌC VIÊN`,
     reportChartTitle: 'Phân bố bài nộp',
     reportChartOnTime: 'Đúng hạn',
     reportChartLate: 'Nộp trễ',

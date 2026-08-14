@@ -262,7 +262,9 @@ async function toggleLesson(lesson: LessonRow): Promise<void> {
     const detail = await fetchLessonDetail(lesson.id);
     lessonSims[lesson.id] = detail.simulations;
   } catch {
-    lessonSims[lesson.id] = [];
+    // FIX REVIEW: KHÔNG cache kết quả fail — xóa entry để mở lại nhánh sẽ retry
+    // (trước đây cache `[]` → kẹt trạng thái rỗng vĩnh viễn dù mạng đã phục hồi).
+    delete lessonSims[lesson.id];
   }
 }
 
@@ -767,14 +769,15 @@ async function saveTopic(): Promise<void> {
         @action="topicFormOpen = true"
       />
 
-      <!-- Cây: topic (level 0/1) → bài học (level 2/3) → chip mô phỏng — thụt lề theo depth -->
-      <div v-else class="admin-content__tree" role="tree" :aria-label="messages.admin.content.treeAria">
+      <!-- Cây: topic (level 0/1) → bài học (level 2/3) → chip mô phỏng — thụt lề theo depth.
+           FIX REVIEW: role=list/listitem thay tree/treeitem (cây không có điều hướng arrow-key). -->
+      <div v-else class="admin-content__tree" role="list" :aria-label="messages.admin.content.treeAria">
         <template v-for="row in treeRows" :key="row.key">
           <!-- Chủ đề: folder + chevron + số bài học -->
           <button
             v-if="row.type === 'topic' && row.topic"
             type="button"
-            role="treeitem"
+            role="listitem"
             class="admin-content__tree-row"
             :class="[
               `admin-content__tree-row--depth-${Math.min(row.depth, 3)}`,
@@ -800,7 +803,7 @@ async function saveTopic(): Promise<void> {
           <!-- Bài học: file + badge trạng thái mono + số mô phỏng + thao tác -->
           <div
             v-else-if="row.lesson"
-            role="treeitem"
+            role="listitem"
             class="admin-content__tree-lesson"
             :class="`admin-content__tree-lesson--depth-${Math.min(row.depth + 1, 3)}`"
           >

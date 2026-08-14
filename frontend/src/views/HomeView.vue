@@ -134,6 +134,11 @@ function stopPlayback(): void {
 }
 
 function play(): void {
+  // FIX REVIEW (MAJOR): khôi phục guard cũ của startPlayback() — dừng mọi interval/
+  // timeout đang chạy trước khi phát. selectDemo()/setSpeed() gọi play() khi timer cũ
+  // còn sống → nếu thiếu guard: interval thứ 2 + timer cũ leak (tốc độ nhân đôi, vòng
+  // tự duy trì sống sót cả sau unmount).
+  stopPlayback();
   // Tôn trọng prefers-reduced-motion: không autoplay, giữ frame đầu tĩnh.
   if (prefersReducedMotion()) return;
   if (steps.value.length === 0) return;
