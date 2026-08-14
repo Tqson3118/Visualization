@@ -435,6 +435,19 @@ export const messages = {
       roleChanged: (role: string) => `Đã đổi vai trò thành ${role}.`,
       passwordReset: 'Đã đặt lại mật khẩu.',
       detailsHint: 'Bấm vào dòng để xem chi tiết',
+      // Task 3a (ui-redesign) — xác nhận hành động tài khoản trong drawer
+      lockConfirmTitle: 'Khóa tài khoản?',
+      lockConfirmMessage: (name: string) =>
+        `Khóa tài khoản "${name}" — người dùng sẽ không đăng nhập được cho tới khi được mở khóa.`,
+      unlockConfirmTitle: 'Mở khóa tài khoản?',
+      unlockConfirmMessage: (name: string) =>
+        `Mở khóa tài khoản "${name}" — người dùng đăng nhập lại bình thường.`,
+      resetConfirmTitle: 'Đặt lại mật khẩu?',
+      resetConfirmMessage: (name: string) =>
+        `Đặt lại mật khẩu cho "${name}" — mật khẩu cũ sẽ hết hiệu lực ngay sau khi đặt lại.`,
+      confirmLock: 'Khóa tài khoản',
+      confirmUnlock: 'Mở khóa',
+      confirmReset: 'Đặt lại mật khẩu',
       // Drawer chi tiết user + toast còn sót hardcode (v2.15 - PR #22)
       detailTitle: 'Chi tiết người dùng',
       detailDescription: (name: string) => `Thông tin chi tiết - ${name}`,
@@ -461,6 +474,10 @@ export const messages = {
       noteSimsPrefix: 'Tổng mô phỏng trong danh mục:',
       noteSimsSuffix: '(engines/catalog)',
       noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
+      // Task 3a (ui-redesign) — nhãn biểu đồ vùng tối
+      weekTag: '7 NGÀY',
+      weekUnit: 'lượt',
+      roleTooltip: (label: string, pct: number) => `${label} — ${pct}%`,
       loadError: 'Không thể tải thống kê.',
       stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỈ SỐ THEO DÕI`,
       retry: 'Thử lại',
