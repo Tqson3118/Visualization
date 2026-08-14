@@ -32,6 +32,9 @@ import Modal from '@/components/ui/Modal.vue';
 import Drawer from '@/components/ui/Drawer.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import PageHero from '@/components/ui/PageHero.vue';
+import DetailSection from '@/components/ui/DetailSection.vue';
+import AdminHeroStrip from '@/components/admin/AdminHeroStrip.vue';
 import AdminNav from '@/components/admin/AdminNav.vue';
 
 const ui = useUiStore();
@@ -106,13 +109,6 @@ const roleLabel: Record<string, string> = {
 };
 
 const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).toUpperCase() : '?');
-
-/** Strip banner: block-token dữ liệu thật — số chờ duyệt (tối đa 5 block) + index mono. */
-const stripBlocks = computed<boolean[]>(() => {
-  const count = Math.min(pendingCount.value, 5);
-  const size = Math.max(count, 1);
-  return Array.from({ length: size }, (_, i) => i < count);
-});
 
 async function toggleLock(user: AdminUserDto): Promise<void> {
   try {
@@ -208,37 +204,17 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
 
 <template>
   <main class="admin-users container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-users__hero">
-      <div class="admin-users__hero-inner">
-        <div class="admin-users__hero-main">
-          <div class="admin-users__hero-badges">
-            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
-          </div>
-          <h1 class="admin-users__title">{{ messages.admin.users.title }}</h1>
-          <p class="admin-users__sub">{{ messages.admin.users.subtitle }}</p>
-        </div>
-
-        <!-- Mono strip: block-token dữ liệu thật (số chờ duyệt) + index mono (quyết định #4) -->
-        <div class="admin-users__hero-strip" aria-hidden="true">
-          <div class="admin-users__strip-panel">
-            <div class="admin-users__strip-blocks">
-              <span
-                v-for="(filled, i) in stripBlocks"
-                :key="i"
-                class="admin-users__strip-block"
-                :class="{ 'admin-users__strip-block--empty': !filled }"
-                :style="{ '--i': i }"
-              />
-            </div>
-            <div class="admin-users__strip-index">
-              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
-            </div>
-          </div>
-          <p class="admin-users__strip-caption">{{ messages.admin.users.stripLabel(pendingCount) }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: surface band level-2 (PageHero — DESIGN §1/#1: KHÔNG gradient, KHÔNG shadow) -->
+    <PageHero
+      :badge="messages.admin.badge"
+      :title="messages.admin.users.title"
+      :description="messages.admin.users.subtitle"
+    >
+      <!-- Mono strip: block-token dữ liệu thật (số chờ duyệt) + index mono (quyết định #4) -->
+      <template #side>
+        <AdminHeroStrip :count="pendingCount" :label="messages.admin.users.stripLabel(pendingCount)" />
+      </template>
+    </PageHero>
 
     <AdminNav active="users" />
 
@@ -453,8 +429,7 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
           </div>
         </div>
 
-        <section class="admin-users__drawer-section">
-          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.sectionProfile }}</h3>
+        <DetailSection :title="messages.admin.users.sectionProfile">
           <div class="admin-users__drawer-info">
             <div v-if="drawerDetail.department" class="admin-users__drawer-row">
               <span class="admin-users__drawer-label">{{ messages.admin.users.department }}</span>
@@ -485,13 +460,9 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
               <span class="admin-users__drawer-value admin-users__drawer-value--mono">{{ formatDate(drawerDetail.createdAt) }}</span>
             </div>
           </div>
-        </section>
+        </DetailSection>
 
-        <section class="admin-users__drawer-section">
-          <h3 class="admin-users__drawer-section-title">
-            <GraduationCap :size="14" aria-hidden="true" />
-            {{ messages.admin.users.sectionLearning }}
-          </h3>
+        <DetailSection :title="messages.admin.users.sectionLearning" :icon="GraduationCap">
           <div class="admin-users__drawer-stats">
             <div class="admin-users__drawer-stat">
               <span class="admin-users__drawer-stat-value">{{ drawerDetail.level ?? 0 }}</span>
@@ -514,10 +485,9 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
               <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statHearts }}</span>
             </div>
           </div>
-        </section>
+        </DetailSection>
 
-        <section class="admin-users__drawer-section">
-          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.sectionActivity }}</h3>
+        <DetailSection :title="messages.admin.users.sectionActivity">
           <div class="admin-users__drawer-stats">
             <div class="admin-users__drawer-stat">
               <span class="admin-users__drawer-stat-value">{{ drawerDetail.lessonsCompletedCount ?? 0 }}</span>
@@ -532,10 +502,9 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
               <span class="admin-users__drawer-stat-label">{{ messages.admin.users.statClasses }}</span>
             </div>
           </div>
-        </section>
+        </DetailSection>
 
-        <section class="admin-users__drawer-section">
-          <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.colActions }}</h3>
+        <DetailSection :title="messages.admin.users.colActions">
           <div class="admin-users__drawer-actions">
             <Button size="sm" :variant="drawerDetail.isActive ? 'secondary' : 'primary'" @click="toggleLock(drawerDetail)">
               <LockOpen v-if="!drawerDetail.isActive" :size="16" />
@@ -554,7 +523,7 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
               <KeyRound :size="16" /> {{ messages.admin.users.resetPassword }}
             </Button>
           </div>
-        </section>
+        </DetailSection>
       </div>
     </Drawer>
   </main>
@@ -566,122 +535,6 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-}
-
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-users__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-users__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-users__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.admin-users__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-users__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-users__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
-.admin-users__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-users__strip-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.admin-users__strip-blocks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-users__strip-block {
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--data-core);
-  opacity: 0;
-  transform: translateY(6px);
-  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
-}
-
-.admin-users__strip-block--empty {
-  background: transparent;
-  border: 1px dashed var(--data-core);
-  opacity: 1;
-  transform: none;
-  animation: none;
-}
-
-.admin-users__strip-index {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-users__strip-index span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  text-align: center;
-}
-
-.admin-users__strip-caption {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
-  letter-spacing: 0.08em;
-  text-align: right;
-}
-
-@keyframes admin-strip-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-users__strip-block {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* ── Filter bar ── */
@@ -931,20 +784,6 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
 
 .admin-users__drawer-badges { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-top: var(--space-xs); }
 
-.admin-users__drawer-section { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-users__drawer-section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--foreground-tertiary);
-}
-
 .admin-users__drawer-info {
   display: flex;
   flex-direction: column;
@@ -1021,10 +860,6 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
 .admin-users__drawer-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 @media (max-width: 640px) {
-  .admin-users__hero { padding: var(--space-lg); }
-  .admin-users__hero-strip { flex-basis: 100%; }
-  .admin-users__strip-caption { text-align: left; }
-
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .admin-users__table-scroll { overflow-x: visible; }
 

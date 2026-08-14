@@ -33,6 +33,8 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
+import PageHero from '@/components/ui/PageHero.vue';
+import AdminHeroStrip from '@/components/admin/AdminHeroStrip.vue';
 import { CATALOG } from '@/engines/catalog';
 
 // ── Kiểu local theo backend v2.15 (lessons.ts chưa theo kịp — không sửa file khác) ──
@@ -193,13 +195,6 @@ const topicLessonCount = computed(() => {
     map.set(lesson.topicId, (map.get(lesson.topicId) ?? 0) + 1);
   }
   return map;
-});
-
-/** Strip banner: block-token dữ liệu thật — số bài học + số chủ đề. */
-const stripBlocks = computed<boolean[]>(() => {
-  const count = Math.min(Math.max(lessons.value.length, topics.value.length), 5);
-  const size = Math.max(count, 1);
-  return Array.from({ length: size }, (_, i) => i < count);
 });
 
 const pad = (n: number): string => String(n).padStart(2, '0');
@@ -579,37 +574,20 @@ async function saveTopic(): Promise<void> {
 
 <template>
   <main class="admin-content container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-content__hero">
-      <div class="admin-content__hero-inner">
-        <div class="admin-content__hero-main">
-          <div class="admin-content__hero-badges">
-            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
-          </div>
-          <h1 class="admin-content__title">{{ messages.admin.content.title }}</h1>
-          <p class="admin-content__sub">{{ messages.admin.content.subtitle }}</p>
-        </div>
-
-        <!-- Mono strip: block-token dữ liệu thật (bài học/chủ đề) + index mono -->
-        <div class="admin-content__hero-strip" aria-hidden="true">
-          <div class="admin-content__strip-panel">
-            <div class="admin-content__strip-blocks">
-              <span
-                v-for="(filled, i) in stripBlocks"
-                :key="i"
-                class="admin-content__strip-block"
-                :class="{ 'admin-content__strip-block--empty': !filled }"
-                :style="{ '--i': i }"
-              />
-            </div>
-            <div class="admin-content__strip-index">
-              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
-            </div>
-          </div>
-          <p class="admin-content__strip-caption">{{ messages.admin.content.stripLabel(lessons.length, topics.length) }}</p>
-        </div>
-      </div>
-    </header>
+    <!-- Banner: surface band level-2 (PageHero — DESIGN §1/#1: KHÔNG gradient, KHÔNG shadow) -->
+    <PageHero
+      :badge="messages.admin.badge"
+      :title="messages.admin.content.title"
+      :description="messages.admin.content.subtitle"
+    >
+      <!-- Mono strip: block-token dữ liệu thật (bài học/chủ đề) + index mono -->
+      <template #side>
+        <AdminHeroStrip
+          :count="Math.min(Math.max(lessons.length, topics.length), 5)"
+          :label="messages.admin.content.stripLabel(lessons.length, topics.length)"
+        />
+      </template>
+    </PageHero>
 
     <AdminNav active="content" />
 
@@ -872,122 +850,6 @@ async function saveTopic(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-}
-
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-content__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-content__hero-inner {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-content__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.admin-content__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-content__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-content__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
-.admin-content__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-content__strip-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-blocks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-block {
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--data-core);
-  opacity: 0;
-  transform: translateY(6px);
-  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
-}
-
-.admin-content__strip-block--empty {
-  background: transparent;
-  border: 1px dashed var(--data-core);
-  opacity: 1;
-  transform: none;
-  animation: none;
-}
-
-.admin-content__strip-index {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-index span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  text-align: center;
-}
-
-.admin-content__strip-caption {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
-  letter-spacing: 0.08em;
-  text-align: right;
-}
-
-@keyframes admin-strip-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-content__strip-block {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* ── Loading / Error ── */
@@ -1283,10 +1145,6 @@ async function saveTopic(): Promise<void> {
 .admin-content__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
 
 @media (max-width: 640px) {
-  .admin-content__hero { padding: var(--space-lg); }
-  .admin-content__hero-strip { flex-basis: 100%; }
-  .admin-content__strip-caption { text-align: left; }
-
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .admin-content__table-scroll { overflow-x: visible; }
 
