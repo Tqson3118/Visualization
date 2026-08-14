@@ -10,6 +10,7 @@ import { CheckCircle2, Lock, Mail, Sparkles, Target } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 import { messages } from '@/i18n/vi';
+import { ApiError } from '@/api/client';
 import { isValidEmail } from '@/utils/validators';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
@@ -37,8 +38,11 @@ async function onSubmit(): Promise<void> {
     await auth.login(form.email, form.password);
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/path';
     await router.replace(redirect);
-  } catch {
-    submitError.value = messages.auth.loginFailed;
+  } catch (err) {
+    submitError.value =
+      err instanceof ApiError && err.status === 429
+        ? messages.auth.tooManyAttempts
+        : messages.auth.loginFailed;
   } finally {
     submitting.value = false;
   }
