@@ -1,18 +1,26 @@
 <script setup lang="ts">
-// ClassReportView — Màn 21: báo cáo lớp (1 hero-stat + KPI phụ + bảng bài gán + lagging learners)
-// View-quality Phase 1 (Nhóm D):
-//  - Banner = surface band level-2 + sub mono; hero-stat duy nhất = block-token tối
-//    (quyết định #3/#4/#5); bảng chuẩn §4.6 + cột số mono + mobile card-stack.
+// ClassReportView — Màn 21: báo cáo lớp (hero KPI tối + KPI phụ + chart phân bố + lagging learners)
+// View-quality Phase 1 (Nhóm D) + Task 2 (ui-redesign):
+//  - Banner = surface band level-2 + sub mono; bảng chuẩn §4.6 + cột số mono + mobile card-stack.
 //  - 14/08: align contract API với backend THẬT (ClassReportDto = totalMembers/
 //    assignments[]/laggingLearners[] — trước đây view đọc completionPct/rows không tồn
 //    tại → "undefined%"/"NaN"/bảng rỗng). Bảng chuyển sang thống kê từng bài gán +
 //    block lagging learners (dữ liệu thật, block-token + index mono).
+//  - Task 2: hero KPI (tỷ lệ hoàn thành + điểm TB) trên panel LUÔN tối canvas-ink;
+//    donut ECharts phân bố nộp bài (Đúng hạn/Nộp trễ/Chưa nộp) nền tối + label/legend
+//    tương phản cao; card lagging nổi bật: badge đỏ dịu destructive + nút nhắc nhở.
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Check, Download, Printer } from 'lucide-vue-next';
+import { Check, Copy, Download, Printer } from 'lucide-vue-next';
+
+// ECharts: đăng ký thêm PieChart (VChartLazy đã đăng ký CanvasRenderer/Legend/Tooltip
+// toàn cục qua 'echarts/core' singleton — G-F2d pattern LeaderboardView/ProfileView).
+import { use } from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+use([PieChart]);
 
 import * as classesApi from '@/api/classes';
-import type { ClassReportAssignmentDto, ClassReportDto } from '@/api/types';
+import type { ClassReportAssignmentDto, ClassReportDto, LaggingLearnerDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
 import { formatDate, formatNumber } from '@/utils/format';
 import { messages } from '@/i18n/vi';
@@ -20,10 +28,10 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import ProgressBar from '@/components/ui/ProgressBar.vue';
 import { Card } from '@/components/ui/card';
 import PageHero from '@/components/ui/PageHero.vue';
 import StatCard from '@/components/ui/StatCard.vue';
+import VChartLazy from '@/components/ui/VChartLazy.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -52,16 +60,105 @@ const avgScore = computed(() => {
   return avg.toFixed(1);
 });
 
-/** KPI phụ (level-1 — KHÔNG icon tròn, không shadow; tối đa 1 hero-stat/màn). */
+/** KPI phụ (level-1 — KHÔNG icon tròn, không shadow; tối đa 1 hero-stat/màn).
+    Điểm TB đã vào hero tối → đây chỉ giữ 3 chỉ số còn lại. */
 const secondaryKpis = computed(() => {
   const r = report.value;
   if (!r) return [];
   return [
+    { label: messages.classes.reportKpiMembers, value: formatNumber(r.totalMembers) },
     { label: messages.classes.reportKpiAssignments, value: formatNumber(r.assignments.length) },
-    { label: messages.classes.reportKpiAvgScore, value: avgScore.value },
     { label: messages.classes.reportKpiSubmissions, value: formatNumber(totals.value.submitted) },
   ];
 });
+
+/** Tổng phân bố nộp bài (đúng hạn / trễ / chưa nộp) — cộng dồn các bài gán (dữ liệu thật). */
+const chartTotals = computed(() => {
+  const r = report.value;
+  if (!r) return { onTime: 0, late: 0, missing: 0, total: 0 };
+  const onTime = r.assignments.reduce((sum, a) => sum + a.onTime, 0);
+  const late = r.assignments.reduce((sum, a) => sum + a.late, 0);
+  const missing = r.assignments.reduce((sum, a) => sum + a.notSubmitted, 0);
+  return { onTime, late, missing, total: onTime + late + missing };
+});
+
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+/** Donut phân bố nộp bài — nền LUÔN tối (canvas-ink, vùng dữ liệu); màu semantic:
+    resolved/warning/conflict; label + legend tương phản cao trên nền tối (#D9DDE8 —
+    canvas text, precedent ClassReportView lagging-name). */
+const distributionOption = computed(() => {
+  // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
+  void ui.theme;
+  const ink = cssVar('--color-canvas-ink', '#0D1020');
+  const canvasText = '#D9DDE8';
+  const resolved = cssVar('--color-resolved', '#34D399');
+  const warning = cssVar('--color-warning', '#D97706');
+  const conflict = cssVar('--color-conflict', '#F87171');
+  const t = chartTotals.value;
+
+  return {
+    tooltip: {
+      trigger: 'item' as const,
+      backgroundColor: ink,
+      borderColor: 'rgba(255, 255, 255, 0.16)',
+      textStyle: { color: canvasText, fontSize: 12 },
+      formatter: (p: { name: string; value: number; percent: number }) =>
+        `${p.name}<br/><b>${p.value}</b> (${p.percent}%)`,
+    },
+    legend: {
+      bottom: 0,
+      icon: 'circle' as const,
+      itemWidth: 8,
+      itemHeight: 8,
+      itemGap: 20,
+      textStyle: { color: canvasText, fontSize: 12 },
+    },
+    series: [
+      {
+        type: 'pie' as const,
+        radius: ['52%', '72%'],
+        center: ['50%', '42%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 4, borderColor: ink, borderWidth: 2 },
+        label: {
+          show: true,
+          position: 'outside' as const,
+          color: canvasText,
+          fontSize: 12,
+          formatter: '{d}%',
+        },
+        labelLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.28)' } },
+        emphasis: { scaleSize: 4 },
+        data: [
+          { name: messages.classes.reportChartOnTime, value: t.onTime, itemStyle: { color: resolved } },
+          { name: messages.classes.reportChartLate, value: t.late, itemStyle: { color: warning } },
+          { name: messages.classes.reportChartMissing, value: t.missing, itemStyle: { color: conflict } },
+        ],
+      },
+    ],
+  };
+});
+
+/** Hành động "Nhắc nhở" (Task 2): sao chép lời nhắc chuẩn bị sẵn cho từng học viên
+    chậm tiến độ — dùng clipboard (không cần API mới), teacher tự dán vào kênh liên hệ. */
+async function copyReminder(learner: LaggingLearnerDto): Promise<void> {
+  const message = messages.classes.reportLaggingRemindMsg(
+    learner.displayName,
+    report.value?.className ?? '',
+    learner.missingCount,
+  );
+  try {
+    await navigator.clipboard?.writeText(message);
+    ui.showToast(messages.classes.reportLaggingRemindDone, 'success');
+  } catch {
+    ui.showToast(messages.classes.reportLaggingRemindFail, 'error');
+  }
+}
 
 function assignmentStatus(assign: ClassReportAssignmentDto): { label: string; variant: 'success' | 'warning' | 'muted' } {
   if (assign.late > 0) return { label: messages.classes.statusLate, variant: 'warning' };
@@ -156,13 +253,33 @@ function printReport(): void {
     />
 
     <template v-else>
-      <!-- KPI: 1 hero-stat (StatCard hero — block-token tối) + 3 stat level-1 (quyết định #3) -->
+      <!-- Hero KPI (Task 2): 1 hero-stat/màn — panel LUÔN tối canvas-ink chứa tỷ lệ
+           hoàn thành + điểm trung bình (block-token + index mono, DESIGN §1/#3/#5) -->
+      <Card class="class-report__hero">
+        <div class="class-report__hero-panel">
+          <div class="class-report__hero-block">
+            <p
+              class="class-report__hero-value"
+              :class="{ 'class-report__hero-value--done': totals.pct >= 100 }"
+            >
+              {{ totals.pct }}<span class="class-report__hero-unit">%</span>
+            </p>
+            <p class="class-report__hero-label">{{ messages.classes.reportHeroCompletion }}</p>
+            <p class="class-report__hero-index">
+              {{ pad(totals.submitted) }} / {{ pad(totals.expected) }} BÀI NỘP
+            </p>
+          </div>
+          <span class="class-report__hero-divider" aria-hidden="true" />
+          <div class="class-report__hero-block">
+            <p class="class-report__hero-value">{{ avgScore }}</p>
+            <p class="class-report__hero-label">{{ messages.classes.reportHeroAvgScore }}</p>
+            <p class="class-report__hero-index">0.0 – 10.0 THANG ĐIỂM</p>
+          </div>
+        </div>
+      </Card>
+
+      <!-- KPI phụ: 3 stat level-1 (members / assignments / submissions) -->
       <div class="class-report__kpis">
-        <StatCard
-          level="hero"
-          :label="messages.classes.reportKpiMembers"
-          :value="formatNumber(report.totalMembers)"
-        />
         <StatCard
           v-for="kpi in secondaryKpis"
           :key="kpi.label"
@@ -171,18 +288,45 @@ function printReport(): void {
         />
       </div>
 
-      <!-- Tỷ lệ hoàn thành -->
-      <Card class="class-report__summary">
-        <p class="class-report__summary-text">{{ messages.classes.reportSummary }}</p>
-        <ProgressBar
-          :value="totals.pct"
-          show-label
-          :variant="totals.pct >= 100 ? 'success' : 'default'"
-        />
-        <p class="class-report__summary-mono">
-          {{ pad(totals.submitted) }} / {{ pad(totals.expected) }} BÀI NỘP
-        </p>
-      </Card>
+      <!-- Phân bố nộp bài (Task 2): CHART CONTAINER nền LUÔN tối canvas-ink —
+           donut ECharts (vue-echarts sẵn có) + legend/label tương phản cao.
+           Grid 12: chart 8 cột + lagging 4 cột (DESIGN §5) — lagging luôn hiển thị. -->
+      <div class="class-report__grid">
+        <Card v-if="report.assignments.length > 0" class="class-report__chart-card">
+          <div class="class-report__chart-head">
+            <h2 class="class-report__chart-title">{{ messages.classes.reportChartTitle }}</h2>
+            <span class="class-report__chart-total">TỔNG {{ formatNumber(chartTotals.total) }} BÀI NỘP</span>
+          </div>
+          <div class="class-report__chart">
+            <VChartLazy :option="distributionOption" height="264px" />
+          </div>
+        </Card>
+
+        <!-- Học viên chậm tiến độ (Task 2): card nổi bật — badge đỏ dịu destructive
+             + nút hành động nhắc nhở rõ ràng (sao chép lời nhắc) -->
+        <Card class="class-report__lagging">
+          <div class="class-report__lagging-head">
+            <h2 class="class-report__lagging-title">{{ messages.classes.reportLaggingTitle }}</h2>
+            <span v-if="report.laggingLearners.length > 0" class="class-report__lagging-count">
+              {{ pad(report.laggingLearners.length) }} HỌC VIÊN
+            </span>
+          </div>
+          <div v-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
+            <Check :size="14" class="text-resolved" aria-hidden="true" />
+            <span class="class-report__lagging-empty-text">{{ messages.classes.reportLaggingEmpty }}</span>
+          </div>
+          <ul v-else class="class-report__lagging-list">
+            <li v-for="(learner, i) in report.laggingLearners" :key="learner.userId" class="class-report__lagging-row">
+              <span class="class-report__lagging-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
+              <span class="class-report__lagging-name">{{ learner.displayName }}</span>
+              <span class="class-report__lagging-badge">{{ messages.classes.reportLaggingMissing(learner.missingCount) }}</span>
+              <Button size="sm" variant="secondary" class="class-report__remind-btn" @click="copyReminder(learner)">
+                <Copy :size="14" aria-hidden="true" /> {{ messages.classes.reportLaggingRemind }}
+              </Button>
+            </li>
+          </ul>
+        </Card>
+      </div>
 
       <!-- Bảng bài gán (cột số mono — DESIGN §4.6) -->
       <template v-if="report.assignments.length > 0">
@@ -236,22 +380,6 @@ function printReport(): void {
         :action-label="messages.classes.reportBackDetail"
         @action="router.push({ name: 'class-detail', params: { id: String(classId) } })"
       />
-
-      <!-- Học viên chậm tiến độ: block-token tối + index mono (quyết định #4/#5) -->
-      <Card class="class-report__lagging">
-        <h2 class="class-report__lagging-title">{{ messages.classes.reportLaggingTitle }}</h2>
-        <div v-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
-          <Check :size="14" class="text-resolved" aria-hidden="true" />
-          <span class="class-report__lagging-empty-text">{{ messages.classes.reportLaggingEmpty }}</span>
-        </div>
-        <ul v-else class="class-report__lagging-list">
-          <li v-for="(learner, i) in report.laggingLearners" :key="learner.userId" class="class-report__lagging-row">
-            <span class="class-report__lagging-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
-            <span class="class-report__lagging-name">{{ learner.displayName }}</span>
-            <span class="class-report__lagging-missing">{{ messages.classes.reportLaggingMissing(learner.missingCount) }}</span>
-          </li>
-        </ul>
-      </Card>
     </template>
   </main>
 </template>
@@ -290,24 +418,146 @@ function printReport(): void {
 /* ── Loading ── */
 .class-report__loading { display: flex; flex-direction: column; gap: var(--space-md); }
 
-/* ── KPI: 1 hero-stat (StatCard) + 3 stat phụ ── */
+/* ── KPI: 3 stat phụ level-1 (hero tối đã nằm ở class-report__hero) ── */
 .class-report__kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
-/* ── Summary ── */
-.class-report__summary { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md) var(--space-lg); }
+/* ── Hero KPI (Task 2): card level-2 + panel LUÔN tối canvas-ink — block-token
+   lớn + index mono (DESIGN §1/#3/#5; tối đa 1 hero-stat/màn) ── */
+.class-report__hero {
+  background: var(--card-raised);
+  border-color: var(--border-subtle);
+  padding: var(--space-md);
+}
 
-.class-report__summary-text { font-size: var(--text-sm); color: var(--foreground-secondary); }
+.class-report__hero-panel {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-xl);
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.25);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-xl);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: report-hero-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
-.class-report__summary-mono {
+.class-report__hero-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.class-report__hero-value {
   margin: 0;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--data-core);
+  font-variant-numeric: tabular-nums;
+}
+
+.class-report__hero-value--done { color: var(--resolved); }
+
+.class-report__hero-unit { font-size: var(--text-2xl); letter-spacing: -0.015em; }
+
+.class-report__hero-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--index-muted);
+}
+
+.class-report__hero-index {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--index-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.class-report__hero-divider {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+@keyframes report-hero-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-report__hero-panel {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Grid 12: chart 8 cột + lagging 4 cột (DESIGN §5) ── */
+.class-report__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-md);
+  align-items: stretch;
+}
+
+.class-report__chart-card { grid-column: span 8; }
+
+.class-report__lagging { grid-column: span 4; }
+
+/* Không có bài gán (chưa có chart) → lagging full width */
+.class-report__grid:not(:has(.class-report__chart-card)) .class-report__lagging {
+  grid-column: 1 / -1;
+}
+
+/* ── Chart container: nền LUÔN tối canvas-ink (vùng dữ liệu — Task 2) ── */
+.class-report__chart-card { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.class-report__chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.class-report__chart-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--foreground-tertiary);
+}
+
+.class-report__chart-total {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--foreground-tertiary);
   letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.class-report__chart {
+  background: var(--canvas-ink);
+  border: 1px solid rgba(66, 85, 255, 0.25);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  min-width: 0;
 }
 
 /* ── Bảng bài gán (DESIGN §4.6) ── */
@@ -363,8 +613,17 @@ function printReport(): void {
   white-space: nowrap;
 }
 
-/* ── Lagging learners: block-token tối + index mono ── */
-.class-report__lagging { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-lg); }
+/* ── Lagging learners (Task 2): card nổi bật — list block-token tối + index mono,
+   badge đỏ dịu destructive + nút nhắc nhở rõ ràng ── */
+.class-report__lagging { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-lg); min-width: 0; }
+
+.class-report__lagging-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
 
 .class-report__lagging-title {
   font-size: var(--text-lg);
@@ -373,6 +632,14 @@ function printReport(): void {
   line-height: 1.25;
   margin: 0;
   color: var(--foreground);
+}
+
+.class-report__lagging-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--destructive);
+  white-space: nowrap;
 }
 
 .class-report__lagging-empty {
@@ -408,7 +675,7 @@ function printReport(): void {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-sm);
+  padding: var(--space-sm);
   border-radius: var(--radius-sm);
 }
 
@@ -432,20 +699,62 @@ function printReport(): void {
   text-overflow: ellipsis;
 }
 
-.class-report__lagging-missing {
+/* Badge đỏ dịu (Task 2): số bài thiếu — destructive tint + border (DESIGN §2.2) */
+.class-report__lagging-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
+  color: var(--destructive);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--conflict);
+  letter-spacing: 0.08em;
   white-space: nowrap;
+}
+
+/* Nút nhắc nhở TRÊN NỀN TỐI: màu sáng tường minh (không phụ thuộc theme — text
+   foreground light-mode tối sẽ không đọc được trên canvas-ink) */
+.class-report__remind-btn {
+  color: #d9dde8;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.class-report__remind-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 @media (max-width: 1023px) {
   .class-report__kpis { grid-template-columns: repeat(2, 1fr); }
+  .class-report__grid { grid-template-columns: 1fr; }
+  .class-report__chart-card,
+  .class-report__lagging { grid-column: auto; }
 }
 
 @media (max-width: 640px) {
   .class-report__sub { white-space: normal; }
   .class-report__kpis { grid-template-columns: 1fr; }
+
+  /* Hero: 2 block xếp dọc, divider chuyển thành line ngang (DESIGN §8 spacing) */
+  .class-report__hero-panel {
+    flex-direction: column;
+    gap: var(--space-md);
+    padding: var(--space-md);
+  }
+
+  .class-report__hero-divider {
+    width: auto;
+    height: 1px;
+  }
+
+  .class-report__hero-value { font-size: var(--text-3xl); }
+
+  .class-report__lagging-row { flex-wrap: wrap; }
+  .class-report__remind-btn { margin-left: auto; }
 
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .class-report__table-scroll { overflow-x: visible; }

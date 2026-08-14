@@ -579,6 +579,10 @@ export const messages = {
     noDescription: 'Chưa có mô tả',
     members: (n: number) => `${n} thành viên`,
     inviteLabel: 'Mã mời',
+    // Task 2 (ui-redesign): mã mời block-token 1-click copy + stat mini trên card
+    inviteCopyHint: 'Sao chép mã mời',
+    inviteCopied: 'Đã sao chép!',
+    statMembers: 'Thành viên',
     // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
     stripLabel: (total: number, members: number) =>
       `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,
@@ -609,8 +613,8 @@ export const messages = {
     detailCopy: 'Sao chép',
     detailCopied: 'Đã sao chép mã mời!',
     detailReportBtn: 'Báo cáo lớp',
-    detailTabMembers: 'Thành viên',
-    detailTabAssignments: 'Lộ trình đã gán',
+    detailTabMembers: 'Học viên',
+    detailTabAssignments: 'Bài tập',
     detailTabSettings: 'Cài đặt',
     detailAddMember: 'Thêm thành viên',
     detailEmptyMembers: 'Chưa có thành viên',
@@ -676,6 +680,20 @@ export const messages = {
     detailDeleteAssignConfirm: 'Xóa bài gán này? Học viên sẽ không còn thấy nội dung này.',
     detailDeleteAssignSuccess: 'Đã xóa bài gán.',
     detailDeleteAssignFailed: 'Xóa bài gán thất bại.',
+    // Task 2 (ui-redesign): trạng thái hạn nộp bài gán (semantic badge outline mono)
+    detailStatusOnTime: 'Đúng hạn',
+    detailStatusLate: (n: number) => `Nộp trễ ${String(n).padStart(2, '0')}`,
+    detailStatusMissing: (n: number) => `Còn thiếu ${String(n).padStart(2, '0')}`,
+    detailStatusOpen: 'Đang mở',
+    detailSubmittedCount: (submitted: number, total: number) =>
+      `${String(submitted).padStart(2, '0')} / ${String(total).padStart(2, '0')} BÀI NỘP`,
+    // Task 2 (ui-redesign): bảng học viên — cột bài chưa nộp + phân trang
+    detailColMissing: 'Bài chưa nộp',
+    detailMissingOk: 'Đủ tiến độ',
+    detailPagePrev: 'Trang trước',
+    detailPageNext: 'Trang sau',
+    detailPageInfo: (from: number, to: number, total: number) =>
+      `${String(from).padStart(2, '0')}–${String(to).padStart(2, '0')} / ${String(total).padStart(2, '0')}`,
     // Báo cáo lớp
     reportTitle: 'Báo cáo lớp',
     reportExportCsv: 'Xuất CSV',
@@ -694,6 +712,18 @@ export const messages = {
     reportLaggingTitle: 'Học viên chậm tiến độ',
     reportLaggingEmpty: 'Không có học viên nào chậm tiến độ',
     reportLaggingMissing: (n: number) => `THIẾU ${String(n).padStart(2, '0')}`,
+    // Task 2 (ui-redesign): hero KPI tối + chart phân bố nộp bài + hành động nhắc nhở
+    reportHeroCompletion: 'Tỷ lệ hoàn thành',
+    reportHeroAvgScore: 'Điểm trung bình',
+    reportChartTitle: 'Phân bố bài nộp',
+    reportChartOnTime: 'Đúng hạn',
+    reportChartLate: 'Nộp trễ',
+    reportChartMissing: 'Chưa nộp',
+    reportLaggingRemind: 'Sao chép lời nhắc',
+    reportLaggingRemindDone: 'Đã sao chép lời nhắc.',
+    reportLaggingRemindFail: 'Không sao chép được lời nhắc.',
+    reportLaggingRemindMsg: (name: string, className: string, missing: number) =>
+      `Chào ${name}, bạn còn thiếu ${missing} bài tập của lớp "${className}" — hoàn thành sớm để không tụt tiến độ nhé!`,
     reportEmptyTitle: 'Không có dữ liệu báo cáo',
     reportEmptyDesc: 'Lớp chưa có dữ liệu học tập — hãy gán lộ trình cho lớp trước.',
     reportBackDetail: 'Về chi tiết lớp',
