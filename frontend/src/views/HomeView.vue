@@ -7,7 +7,17 @@
 // (block-token + index mono, status data-core/resolved/conflict). Icon = lucide-vue-next.
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { ArrowRight, ArrowUpDown, Map, Network, Play, Search, Target } from 'lucide-vue-next';
+import {
+  ArrowRight,
+  ArrowUpDown,
+  Gauge,
+  Layers,
+  Map,
+  Network,
+  Play,
+  Search,
+  Target,
+} from 'lucide-vue-next';
 
 import type { Component } from 'vue';
 import type { InputConfig, Step } from '@/engines/core/types';
@@ -22,6 +32,7 @@ import { CATALOG } from '@/engines/catalog';
 import { getSimulation } from '@/engines/registry';
 import { messages } from '@/i18n/vi';
 import Button from '@/components/ui/Button.vue';
+import BlockToken from '@/components/ui/BlockToken.vue';
 import { buttonVariants } from '@/components/ui/button';
 
 const router = useRouter();
@@ -32,8 +43,6 @@ const DEMO_ICONS: Record<string, Component> = {
   'search.binary': Search,
   'graph.bfs': Network,
 };
-
-const FEATURE_ICONS = [Play, Map, Target];
 
 const demos = computed(() =>
   CATALOG.filter((c) => c.demoAllowed).map((c) => ({
@@ -235,21 +244,32 @@ function blockStatusClass(status: string): string {
       </div>
     </section>
 
-    <!-- Số liệu (SDD Màn 01 — nguồn danh mục nội dung; stat phụ level-1, không shadow) -->
+    <!-- Số liệu (SDD Màn 01 — nguồn danh mục nội dung; 1 hero-stat level-2 = BlockToken,
+         stat phụ level-1 có icon Lucide, không icon tròn đổi màu — DESIGN §6) -->
     <section class="home__stats container" aria-label="Thống kê">
-      <div class="home__stat">
-        <span class="home__stat-value">{{ stats.visuals }}+</span>
-        <span class="home__stat-label">{{ messages.home.statsVisuals }}</span>
+      <div class="home__stats-head">
+        <h2 class="home__section-title">{{ messages.home.statsTitle }}</h2>
+        <p class="home__stats-note">{{ messages.home.statsNote }}</p>
       </div>
-      <div class="home__stat">
-        <span class="home__stat-value">{{ stats.groups }}</span>
-        <span class="home__stat-label">{{ messages.home.statsGroups }}</span>
+
+      <div class="home__stats-grid">
+        <BlockToken
+          class="home__stat-hero"
+          :label="messages.home.statsVisuals"
+          :value="`${stats.visuals}+`"
+          :aria-label="`${stats.visuals}+ ${messages.home.statsVisuals}`"
+        />
+        <div class="home__stat">
+          <Layers class="home__stat-icon" :size="16" aria-hidden="true" />
+          <span class="home__stat-value">{{ stats.groups }}</span>
+          <span class="home__stat-label">{{ messages.home.statsGroups }}</span>
+        </div>
+        <div class="home__stat">
+          <Gauge class="home__stat-icon" :size="16" aria-hidden="true" />
+          <span class="home__stat-value">{{ stats.levels }}</span>
+          <span class="home__stat-label">{{ messages.home.statsLevels }}</span>
+        </div>
       </div>
-      <div class="home__stat">
-        <span class="home__stat-value">{{ stats.levels }}</span>
-        <span class="home__stat-label">{{ messages.home.statsLevels }}</span>
-      </div>
-      <p class="home__stats-note">{{ messages.home.statsNote }}</p>
     </section>
 
     <!-- 3 demo công khai (FR-7.6) — Card shadcn level-1, CTA qua Button -->
@@ -269,10 +289,37 @@ function blockStatusClass(status: string): string {
           class="home__demo"
         >
           <CardHeader>
-            <div class="home__demo-icon" aria-hidden="true">
-              <component :is="demo.icon" :size="18" />
+            <!-- Thumbnail tối — mini illustration khác nhau theo type (sort bars /
+                 search blocks / graph chain), dùng token engine trên canvas-ink -->
+            <div class="home__demo-thumb" aria-hidden="true">
+              <div v-if="demo.key === 'sort.bubble'" class="home__thumb-bars">
+                <span class="home__thumb-bar" />
+                <span class="home__thumb-bar" />
+                <span class="home__thumb-bar" />
+                <span class="home__thumb-bar home__thumb-bar--done" />
+                <span class="home__thumb-bar home__thumb-bar--done" />
+              </div>
+              <div v-else-if="demo.key === 'search.binary'" class="home__thumb-row">
+                <span class="home__thumb-block" />
+                <span class="home__thumb-block" />
+                <span class="home__thumb-block home__thumb-block--found" />
+                <span class="home__thumb-block" />
+                <span class="home__thumb-block" />
+              </div>
+              <div v-else class="home__thumb-graph">
+                <span class="home__thumb-node" />
+                <span class="home__thumb-edge" />
+                <span class="home__thumb-node home__thumb-node--visited" />
+                <span class="home__thumb-edge" />
+                <span class="home__thumb-node" />
+                <span class="home__thumb-edge" />
+                <span class="home__thumb-node" />
+              </div>
             </div>
-            <CardTitle class="home__demo-title">{{ demo.title }}</CardTitle>
+            <CardTitle class="home__demo-title">
+              <component :is="demo.icon" :size="16" class="home__demo-title-icon" aria-hidden="true" />
+              {{ demo.title }}
+            </CardTitle>
             <CardDescription class="home__demo-meta">
               {{ demo.dataStructure }} · Cấp độ {{ demo.level }}
             </CardDescription>
@@ -297,23 +344,39 @@ function blockStatusClass(status: string): string {
       </div>
     </section>
 
-    <!-- Feature highlight (SDD Màn 01 — 3 tính năng chính) -->
+    <!-- Feature highlight (SDD Màn 01 — 3 tính năng chính; Visualizer + Learning Path
+         nổi bậc level-2 (DESIGN §6), Practice là dải gọn level-1) -->
     <section class="home__section container">
       <div class="home__grid home__grid--features">
-        <Card
-          v-for="(feature, idx) in [
-            { title: messages.home.featureVisual.title, desc: messages.home.featureVisual.desc },
-            { title: messages.home.featurePath.title, desc: messages.home.featurePath.desc },
-            { title: messages.home.featurePractice.title, desc: messages.home.featurePractice.desc },
-          ]"
-          :key="feature.title"
-        >
+        <Card class="home__feature home__feature--featured home__feature--visual">
           <CardHeader>
-            <div class="home__demo-icon" aria-hidden="true">
-              <component :is="FEATURE_ICONS[idx]" :size="18" />
+            <div class="home__feature-icon" aria-hidden="true">
+              <Play :size="24" />
             </div>
-            <CardTitle class="home__feature-title">{{ feature.title }}</CardTitle>
-            <CardDescription>{{ feature.desc }}</CardDescription>
+            <CardTitle class="home__feature-title">{{ messages.home.featureVisual.title }}</CardTitle>
+            <CardDescription>{{ messages.home.featureVisual.desc }}</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card class="home__feature home__feature--featured home__feature--path">
+          <CardHeader>
+            <div class="home__feature-icon" aria-hidden="true">
+              <Map :size="24" />
+            </div>
+            <CardTitle class="home__feature-title">{{ messages.home.featurePath.title }}</CardTitle>
+            <CardDescription>{{ messages.home.featurePath.desc }}</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card class="home__feature home__feature--compact">
+          <CardHeader class="home__feature-header-row">
+            <div class="home__feature-icon" aria-hidden="true">
+              <Target :size="20" />
+            </div>
+            <div>
+              <CardTitle class="home__feature-title">{{ messages.home.featurePractice.title }}</CardTitle>
+              <CardDescription>{{ messages.home.featurePractice.desc }}</CardDescription>
+            </div>
           </CardHeader>
         </Card>
       </div>
@@ -387,6 +450,7 @@ function blockStatusClass(status: string): string {
   margin: 0;
   max-width: 18ch;
   font-size: var(--text-4xl);
+  /* DESIGN §3: H1 = 600 — CẤM 700 ở heading (giữ 600 dù bản nháp đề xuất 700) */
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -397,6 +461,7 @@ function blockStatusClass(status: string): string {
   margin: 0;
   max-width: 52ch;
   font-size: var(--text-md);
+  line-height: 1.6;
   color: var(--color-text-secondary);
 }
 
@@ -552,15 +617,41 @@ function blockStatusClass(status: string): string {
   color: rgba(255, 255, 255, 0.95);
 }
 
-/* ── Stats — stat phụ level-1 (1 hero/màn = bench panel; không shadow, không gradient) ── */
+/* ── Stats — band level-2 (DESIGN §6): 1 hero-stat (BlockToken) + stat phụ level-1
+   có icon Lucide trung tính; không shadow, không icon tròn đổi màu ── */
 .home__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-md);
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
-  padding: var(--space-lg);
+  padding: var(--space-xl);
+}
+
+.home__stats-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  text-align: center;
+}
+
+.home__stats-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.home__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.home__stat-hero {
+  grid-column: span 2;
+  width: 100%;
 }
 
 .home__stat {
@@ -568,6 +659,14 @@ function blockStatusClass(status: string): string {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-xs);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.home__stat-icon {
+  color: var(--color-text-tertiary);
 }
 
 .home__stat-value {
@@ -580,16 +679,6 @@ function blockStatusClass(status: string): string {
 .home__stat-label {
   font-size: var(--text-xs);
   color: var(--color-text-tertiary);
-}
-
-.home__stats-note {
-  grid-column: 1 / -1;
-  margin: 0;
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border-subtle);
 }
 
 /* ── Sections chung ── */
@@ -629,7 +718,41 @@ function blockStatusClass(status: string): string {
 }
 
 .home__grid--features {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+/* Feature cards — featured level-2 (DESIGN §6), compact là dải level-1 gọn hơn */
+.home__feature--featured {
+  background: var(--color-card-raised);
+  border-color: var(--color-border-subtle);
+}
+
+.home__feature--visual { grid-column: span 8; }
+.home__feature--path { grid-column: span 4; }
+.home__feature--compact { grid-column: 1 / -1; }
+
+.home__feature-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.home__feature-header-row .home__feature-icon {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.home__feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-sm);
 }
 
 /* Card demo — level-1, hover chỉ đổi border (§4.2), không hover-lift/shadow */
@@ -643,23 +766,94 @@ function blockStatusClass(status: string): string {
   border-color: var(--color-border-strong);
 }
 
-.home__demo-icon {
-  width: 44px;
-  height: 44px;
+/* Thumbnail tối — mini illustration theo type trên canvas-ink (LUÔN tối bất kể theme) */
+.home__demo-thumb {
+  height: 88px;
   border-radius: var(--radius-md);
-  background: var(--color-muted);
-  color: var(--color-text-secondary);
-  display: inline-flex;
+  background: var(--color-canvas-ink);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* Sort — dãy bar tiến trình sắp xếp (data-core → resolved) */
+.home__thumb-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 48px;
+}
+
+.home__thumb-bar {
+  width: 14px;
+  border-radius: var(--radius-sm) var(--radius-sm) 2px 2px;
+  background: var(--color-data-core);
+}
+
+.home__thumb-bar:nth-child(1) { height: 40%; }
+.home__thumb-bar:nth-child(2) { height: 65%; }
+.home__thumb-bar:nth-child(3) { height: 50%; }
+.home__thumb-bar:nth-child(4) { height: 80%; }
+.home__thumb-bar:nth-child(5) { height: 100%; }
+
+.home__thumb-bar--done { background: var(--color-resolved); }
+
+/* Search — block với phần tử tìm thấy ở giữa (resolved + ring) */
+.home__thumb-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home__thumb-block {
+  width: 18px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+.home__thumb-block--found {
+  background: var(--color-resolved);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+/* Graph — chuỗi node-cạnh, node đã duyệt (resolved) */
+.home__thumb-graph {
+  display: flex;
+  align-items: center;
+}
+
+.home__thumb-node {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-data-core);
+}
+
+.home__thumb-node--visited { background: var(--color-resolved); }
+
+.home__thumb-edge {
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-index-muted);
 }
 
 .home__demo-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   font-size: var(--text-md);
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.015em;
+}
+
+.home__demo-title-icon {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
 }
 
 .home__demo-meta {
@@ -703,9 +897,31 @@ function blockStatusClass(status: string): string {
   letter-spacing: -0.015em;
 }
 
+@media (max-width: 900px) {
+  .home__feature--visual,
+  .home__feature--path {
+    grid-column: 1 / -1;
+  }
+
+  .home__feature-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .home__feature-header-row .home__feature-icon {
+    margin-bottom: var(--space-sm);
+  }
+}
+
 @media (max-width: 640px) {
-  .home__stats { grid-template-columns: 1fr; gap: var(--space-md); }
-  .home__stats-note { grid-column: 1; }
+  /* §8: mobile giảm 1 bậc spacing — section gap 32px */
+  .home {
+    gap: var(--space-xl);
+    padding-bottom: var(--space-2xl);
+  }
+
+  .home__stats-grid { grid-template-columns: 1fr; }
+  .home__stat-hero { grid-column: auto; }
   .home__title { font-size: var(--text-3xl); }
 }
 </style>
