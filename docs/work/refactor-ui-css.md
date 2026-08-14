@@ -60,3 +60,48 @@ Sửa thêm (BẮT BUỘC đi kèm Task B):
 
 - `13d4ba7` refactor(admin): adopt shared PageHero and strip components across all admin views (son)
 
+
+## Task C - class views (14/08/2026 - dev-frontend - branch feature/refactor-ui-css)
+
+Refactor 3 man teacher class views dung shared components (Task A): PageHero thay banner
+hero, AdminHeroStrip thay mono strip (ClassesView), StatCard thay hero-stat + 3 KPI phu
+(ClassReportView). KHONG doi logic/i18n/event; xoa CSS scoped trung. DetailSection khong
+dung trong 3 view nay (ClassDetailView khong co drawer/section khop).
+
+| File | CSS scoped truoc -> sau |
+|---|---|
+| `frontend/src/views/ClassesView.vue` | 292 -> 162 |
+| `frontend/src/views/ClassDetailView.vue` | 352 -> 317 |
+| `frontend/src/views/ClassReportView.vue` | 325 -> 225 |
+| **TOTAL** | **969 -> 704** (-27.3% - keep-list cua spec giu hero-badges/chip/actions/link, code-panel, kpis grid + media, table card-stack, lagging...) |
+
+Sua them (bat buoc di kem Task C):
+- `ClassDetailView.vue`: + `:deep(.page-hero__desc) { max-width: 70ch; }` (PageHero 60ch vs cu 70ch);
+  PageHero `border="full" padding="xl"` - slot #title/#description/#side (badges)/#bottom (code panel + report link GIU NGUYEN markup).
+- `ClassReportView.vue`: `.class-report__sub` + `display: block` (tu <p> chuyen thanh <span> trong slot #description de giu ellipsis);
+  import `CardContent/CardDescription/CardHeader` bo vi khong dung nua; KPI = StatCard hero (khong icon -> khong head, panel + value data-core + index = label) + 3 StatCard default.
+- `ClassesView.vue`: bo stripBlocks computed (AdminHeroStrip tu clamp count 1..5, count=0 -> 1 block empty).
+
+### Verify that (chay tai `D:\FPT\neww\trees\refactor-ui-css\frontend`)
+
+- `npm run build` -> vue-tsc 0 loi, vite **"built in 1.63s"**.
+- `npx vitest run` -> **178 passed (178)**, 20 test files (khong them test - khong doi logic).
+- Browser check (Chrome DevTools, session admin san co, dev server 5173): 3 man render dung -
+  Classes (PageHero badge/title/sub + strip 1 block filled khi 1 lop / 1 block empty khi 0 lop + caption "00 LOP · 00 THANH VIEN"),
+  Detail (hero border-full + desc 70ch + badges side + bottom code-panel IPG29T + report link + tabs), Report
+  (sub mono "Lop Refactor Test · ID 1002", StatCard hero value 0/index "Thanh vien" + 3 default, kpis grid 4 cot),
+  mobile 640px: kpis 1 cot, hero padding lg, side flex-basis 100%, strip caption text-align left. Console error = 0, horizontal overflow = 0 (1440 + 640).
+- Khong hex moi; scoped component tu hash khong xung dot.
+
+### Ghi chu quyet dinh Task C
+
+- Giu 100% visual theo keep-list cua spec; total 704 > uoc tinh ~678 cua audit vi cac block GIU
+  (hero-badges/chip/actions/link, code-panel, kpis grid + 2 media, table card-stack, lagging) lon hon
+  uoc tinh - ghi so that theo yeu cau "do va ghi so that".
+- PageHero `align-items: flex-end` (shared) thay `flex-start` (Detail cu) / `center` (Report cu) o hero
+  top-row - chap nhan theo thiet ke shared component (tien le Task B), khong override.
+- StatCard hero bo `aria-hidden` cu cua hero-stat (value la noi dung co nghia - cai thien a11y).
+
+### Commit
+
+- `5e53607` refactor(classes): adopt shared PageHero, AdminHeroStrip and StatCard across teacher class views (son)
