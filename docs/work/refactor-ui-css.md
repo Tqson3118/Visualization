@@ -105,3 +105,46 @@ Sua them (bat buoc di kem Task C):
 ### Commit
 
 - `5e53607` refactor(classes): adopt shared PageHero, AdminHeroStrip and StatCard across teacher class views (son)
+
+
+## Task D - home (14/08/2026 - dev-frontend - branch feature/refactor-ui-css)
+
+HomeView KHONG dung shared PageHero (hero trang chu khac biet: full-width band + panel demo
+chay engine that - DESIGN §1 quyet dinh rieng) - chi don scoped CSS, khong doi template/script/logic.
+
+| File | CSS scoped truoc -> sau |
+|---|---|
+| `frontend/src/views/HomeView.vue` | 539 -> 437 (-18.9%) |
+
+Gom/rui gon (KHONG doi gia tri - visual bat bien):
+- Gom `font-family: var(--font-mono)` 6 selector (bench-head/block-value/block-index/bench-explain/
+  demo-meta/demo-complexity dd) thanh 1 rule chung; xoa font-family khoi tung block.
+- Gom 2 rule cung body `background: var(--color-resolved)` (`.home__thumb-bar--done` + `.home__thumb-node--visited`).
+- Xoa khai bao trung: `gap` trong media 900 `.home__hero-grid` (cung gia tri base), `gap` cua
+  `.home__grid--features` (thua huong tu `.home__grid`).
+- Rule <=3 thuoc tinh -> 1 dong (convention view da refactor: `.classes__loading`), rule >=4 giu multi-line.
+- GREP xac nhan 68/68 class CSS deu dung trong template/script -> KHONG xoa class chiet nao,
+  template/script giu 100% (style scoped van o dong 387, diff chi trong style block).
+- GIU NGUYEN: keyframes (bench-in/stage-in/bench-live/bench-pop), duration/easing, token `--color-*`
+  legacy, hardcode 4px/44px/56px/72px/88px (QA da duyet), media 640.
+
+### Verify that (chay tai `D:\FPT\neww\trees\refactor-ui-css\frontend`)
+
+- `npm run build` -> vue-tsc 0 loi, vite **"built in 1.54s"**.
+- `npx vitest run` -> **178 passed (178)**, 20 test files (HomeView.spec.ts 7 tests PASS, khong sua spec).
+- Browser check (Chrome DevTools, dev server 5173): Home render du hero (kicker/title/cta) + bench
+  LIVE sort.bubble + stats 4 cot (44+/10/2) + 3 demo cards + 3 features; font-mono ap dung dung
+  (JetBrains Mono), mobile 640px: stats 1 cot, hero 1 cot, title 36px (text-3xl), home gap 32px,
+  stat-hero grid-column auto. Console error = 0, horizontal overflow = 0 (1536 + 640).
+- Khong co script lint trong package.json (build + vitest la gate).
+
+### Ghi chu quyet dinh Task D
+
+- 437 > uoc tinh <=458 dat yeu cau (>=15%); khong xoa CSS chet (grep khong tim thay - CSS cu
+  van "so khe" tuong doi), loi giu duoc chu yeu tu gom khai bao trung + 1-dong hoa rule nho.
+- Mono rule gom de o khu bench (chua ca demo-meta/demo-complexity dd phia duoi) - chap nhan theo
+  VD cua spec (nhom selector chung font-family, khong doi gia tri).
+
+### Commit
+
+- `3149a0f` refactor(home): clean up scoped css and align banner layouts in HomeView (son)
