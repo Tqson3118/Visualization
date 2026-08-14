@@ -12,6 +12,7 @@ import { Motion } from 'motion-v';
 import {
   ArrowRight,
   ArrowUpDown,
+  BookOpen,
   GitBranch,
   Hash,
   Layers,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-vue-next';
 
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
+import { getReference } from '@/data/referenceLinks';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -142,6 +144,12 @@ function clearFilters(): void {
 
 function openSimulation(key: string): void {
   void router.push({ name: 'simulator', params: { key } });
+}
+
+/** URL tài liệu cho một mô phỏng — ưu tiên Wikipedia, fallback GeeksforGeeks (undefined → ẩn link). */
+function referenceUrl(key: string): string | undefined {
+  const ref = getReference(key);
+  return ref?.wikipedia ?? ref?.geeksforgeeks;
 }
 </script>
 
@@ -308,10 +316,26 @@ function openSimulation(key: string): void {
                 <dt>{{ messages.explore.complexityLabel }}</dt>
                 <dd>{{ item.complexity.average }} · {{ item.complexity.space }}</dd>
               </dl>
-              <span class="simulations__open">
-                {{ messages.explore.open }}
-                <ArrowRight :size="14" aria-hidden="true" />
-              </span>
+              <div class="simulations__card-links">
+                <a
+                  v-if="referenceUrl(item.key)"
+                  class="simulations__doc-link"
+                  :href="referenceUrl(item.key)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :aria-label="`Đọc tài liệu: ${item.title}`"
+                  @click.stop
+                  @keydown.enter.stop
+                  @keydown.space.stop
+                >
+                  <BookOpen :size="14" aria-hidden="true" />
+                  Đọc tài liệu
+                </a>
+                <span class="simulations__open">
+                  {{ messages.explore.open }}
+                  <ArrowRight :size="14" aria-hidden="true" />
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -605,6 +629,40 @@ function openSimulation(key: string): void {
   font-weight: 500;
   font-size: var(--text-xs);
   white-space: nowrap;
+}
+
+/* Nhóm link phải của thẻ: 'Đọc tài liệu' + 'Mở mô phỏng' */
+.simulations__card-links {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.simulations__doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.simulations__doc-link:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+.simulations__doc-link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 .simulations__pagination {
