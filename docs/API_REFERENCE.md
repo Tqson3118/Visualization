@@ -460,6 +460,18 @@
 | GET | `/exercises/{id}/submissions/me` | Lịch sử bài làm của tôi | Student |
 | GET | `/exercises/{id}/submissions` | Danh sách bài nộp (giảng viên) | Teacher (của mình)/Admin |
 
+**Ví dụ — GET /exercises (danh sách — PagedResponse\<ExerciseSummaryDto\>)**
+
+```json
+{ "items": [
+  { "id": 31, "lessonId": 15, "nodeId": 22, "stage": 1, "title": "Trắc nghiệm Bubble Sort",
+    "description": "...", "type": "MCQ", "durationMinutes": 10, "maxScore": 10, "status": "active",
+    "completedByUserCount": 42 } ],
+  "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+```
+
+`completedByUserCount` — số user distinct đã PASS bài (best score ≥ maxScore; gộp ExerciseSubmissions cho MCQ/LAB + CodeSubmissions cho CODE — 1 user nộp nhiều lần chỉ tính 1).
+
 **Ví dụ — GET /exercises/{id} (KHÔNG chứa đáp án)**
 
 ```json

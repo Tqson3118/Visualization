@@ -47,7 +47,11 @@ async function load(): Promise<void> {
 
 onMounted(load);
 
-const stageLabel: Record<number, string> = { 1: 'Quiz (Bậc 1)', 2: 'Lab (Bậc 2)', 3: 'Code (Bậc 3)' };
+const stageLabel: Record<number, string> = {
+  1: messages.admin.ladder.stage[1],
+  2: messages.admin.ladder.stage[2],
+  3: messages.admin.ladder.stage[3],
+};
 
 const nodeExercises = computed(() => {
   const map = new Map<number, ExerciseSummaryDto | null>();
@@ -58,16 +62,37 @@ const nodeExercises = computed(() => {
   return map;
 });
 
+// Số exercise đã gắn vào từng node (đếm từ list exercises đã fetch — không gọi API mới).
+const nodeExerciseCounts = computed(() => {
+  const counts = new Map<number, number>();
+  for (const node of NODES) counts.set(node.id, 0);
+  for (const ex of exercises.value) {
+    if (ex.nodeId !== null) counts.set(ex.nodeId, (counts.get(ex.nodeId) ?? 0) + 1);
+  }
+  return counts;
+});
+
+// Số user đã qua từng node (tổng completedByUserCount của exercise gắn node — field
+// optional, backend deploy song song; chưa có field thì badge hiển thị 0).
+const nodePassedUserCounts = computed(() => {
+  const counts = new Map<number, number>();
+  for (const node of NODES) counts.set(node.id, 0);
+  for (const ex of exercises.value) {
+    if (ex.nodeId !== null) counts.set(ex.nodeId, (counts.get(ex.nodeId) ?? 0) + (ex.completedByUserCount ?? 0));
+  }
+  return counts;
+});
+
 async function attach(): Promise<void> {
   if (selectedNode.value === null || selectedExercise.value === null) return;
   try {
     // Backend: cập nhật nodeId của exercise (PUT /exercises/{id})
     await exercisesApi.updateExercise(selectedExercise.value, { nodeId: selectedNode.value });
-    ui.showToast(`Đã gắn exercise #${selectedExercise.value} vào Node ${selectedNode.value}.`, 'success');
+    ui.showToast(messages.admin.ladder.attachToast(selectedExercise.value, selectedNode.value), 'success');
     // Reload để map cập nhật
     exercises.value = await exercisesApi.fetchExercises({});
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Gắn thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : messages.admin.ladder.attachFailed, 'error');
   }
 }
 </script>
@@ -115,6 +140,12 @@ async function attach(): Promise<void> {
             >
               <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
               <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
+              <Badge variant="secondary" class="admin-ladder__node-count">
+                {{ messages.admin.ladder.exercisesCount(nodeExerciseCounts.get(node.id) ?? 0) }}
+              </Badge>
+              <Badge variant="secondary" class="admin-ladder__node-passed">
+                {{ messages.admin.ladder.passedUsersCount(nodePassedUserCounts.get(node.id) ?? 0) }}
+              </Badge>
               <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
                 <Check :size="12" /> {{ messages.admin.ladder.attached }}
               </Badge>
@@ -134,7 +165,7 @@ async function attach(): Promise<void> {
         </h2>
 
         <div v-if="loadError" class="admin-ladder__error" role="alert">
-          <p class="admin-ladder__error-text">Không thể tải danh sách bài tập (backend chưa khả dụng).</p>
+          <p class="admin-ladder__error-text">{{ messages.admin.ladder.loadErrorText }}</p>
           <Button size="sm" variant="secondary" @click="load">
             <RefreshCw :size="14" /> {{ messages.admin.ladder.retry }}
           </Button>
@@ -327,6 +358,10 @@ async function attach(): Promise<void> {
 }
 
 .admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Count badges nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
+.admin-ladder__node-count,
+.admin-ladder__node-passed { flex-shrink: 0; }
 
 .admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
 

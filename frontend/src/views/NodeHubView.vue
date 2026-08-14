@@ -6,23 +6,24 @@
 // H1 48px/600/-0.03em; badge muted; bỏ 📖/▶ trong i18n. GIỮ NGUYÊN logic.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, BookOpen, GraduationCap, Play } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, Check, ExternalLink, GraduationCap, Play } from 'lucide-vue-next';
 import { Motion } from 'motion-v';
 
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
-import { CATALOG, getCatalogMeta } from '@/engines/catalog';
+import { getCatalogMeta, type CatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
 import { buildSimOverviewHtml, escapeHtml } from '@/utils/simOverview';
+import { getReference } from '@/data/referenceLinks';
 import { messages } from '@/i18n/vi';
 import LessonDetail from '@/components/lesson/LessonDetail.vue';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 
@@ -61,10 +62,53 @@ const simKey = computed(() => {
   return key && getCatalogMeta(key) ? key : 'sort.bubble';
 });
 
-const nodeTitle = computed(() => {
-  const meta = CATALOG.find((c) => c.key === simKey.value);
-  return meta?.title ?? `Node ${nodeId.value}`;
+/** Metadata catalog của node — key algorithm = simKey (map topic×node, dữ liệu thật) */
+const catalogMeta = computed(() => getCatalogMeta(simKey.value));
+
+/** Chip độ phức tạp (header — dữ liệu thật catalog, mono trên nền canvas-ink §1.5/§6) */
+const COMPLEXITY_LABELS: Record<keyof CatalogMeta['complexity'], string> = {
+  best: 'BEST',
+  average: 'AVG',
+  worst: 'WORST',
+  space: 'SPACE',
+};
+
+/** "Đọc thêm" (tab Cheatsheet) — link thật từ REFERENCE_LINKS theo key algorithm của node */
+const referenceLinks = computed(() => {
+  const ref = getReference(simKey.value);
+  if (!ref) return [];
+  const links: { label: string; url: string }[] = [];
+  if (ref.wikipedia) links.push({ label: 'Wikipedia', url: ref.wikipedia });
+  if (ref.geeksforgeeks) links.push({ label: 'GeeksforGeeks', url: ref.geeksforgeeks });
+  return links;
 });
+
+const nodeTitle = computed(() => catalogMeta.value?.title ?? `Node ${nodeId.value}`);
+
+/**
+ * Progress node — nguồn thật hiện có: LadderShell lưu bậc đã pass ở localStorage
+ * `dsa-ladder-<nodeId>` (cùng storage key). Hoàn thành = pass đủ 3 bậc quiz/lab/code.
+ * TODO(progress): khi backend có API node-completion (submissions/progress) → thay nguồn này.
+ */
+const LADDER_STAGES = ['quiz', 'lab', 'code'] as const;
+type LadderStageKey = (typeof LADDER_STAGES)[number];
+
+const passedStages = ref<Set<LadderStageKey>>(new Set());
+const nodeCompleted = computed(() => LADDER_STAGES.every((s) => passedStages.value.has(s)));
+
+function refreshProgress(): void {
+  try {
+    const raw = localStorage.getItem(`dsa-ladder-${nodeId.value}`);
+    passedStages.value = new Set(raw ? (JSON.parse(raw) as LadderStageKey[]) : []);
+  } catch {
+    passedStages.value = new Set();
+  }
+}
+
+/** LadderShell emit 'passed' khi 1 bậc đạt → đồng bộ badge hoàn thành ngay */
+function onLadderStagePassed(): void {
+  refreshProgress();
+}
 
 /** Fallback lý thuyết: overview từ catalog meta + hướng dẫn (render qua ProseContent). */
 const fallbackHtml = computed(() => {
@@ -99,11 +143,12 @@ async function loadLadderExercises(): Promise<void> {
 }
 
 onMounted(async () => {
+  refreshProgress();
   if (lessonId.value !== null) {
     try {
       await lessonStore.fetchLesson(lessonId.value);
     } catch {
-      ui.showToast('Không thể tải lý thuyết — hiển thị nội dung mẫu.', 'warning');
+      ui.showToast(messages.nodeHub.theoryLoadError, 'warning');
     }
   }
   await loadLadderExercises();
@@ -129,7 +174,7 @@ function openExercise(id: number): void {
       :animate="{ opacity: 1, y: 0 }"
       :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <nav class="node-hub__breadcrumb" aria-label="Breadcrumb">
+      <nav class="node-hub__breadcrumb" :aria-label="messages.common.breadcrumb">
         <RouterLink :to="{ name: 'path-topic', params: { topicId } }">
           {{ messages.nodeHub.breadcrumbPath }}
         </RouterLink>
@@ -146,12 +191,18 @@ function openExercise(id: number): void {
           <GraduationCap :size="20" />
         </span>
         <div class="node-hub__hero-title-wrap">
-          <h1 class="node-hub__title">{{ nodeTitle }}</h1>
+          <div class="node-hub__title-row">
+            <h1 class="node-hub__title">{{ nodeTitle }}</h1>
+            <Badge v-if="nodeCompleted" variant="success" class="node-hub__badge">
+              <Check :size="12" aria-hidden="true" />
+              {{ messages.nodeHub.completedBadge }}
+            </Badge>
+            <Badge v-else variant="muted" class="node-hub__badge">
+              {{ messages.nodeHub.badgeNode(nodeId) }}
+            </Badge>
+          </div>
           <p class="node-hub__sub">{{ messages.nodeHub.subtitle(nodeId) }}</p>
         </div>
-        <Badge variant="muted" class="node-hub__badge">
-          {{ messages.nodeHub.badgeNode(nodeId) }}
-        </Badge>
       </div>
 
       <div class="node-hub__hero-actions">
@@ -159,6 +210,23 @@ function openExercise(id: number): void {
           <Play :size="16" aria-hidden="true" />
           {{ messages.nodeHub.openSimulation }}
         </Button>
+
+        <!-- Chip độ phức tạp — dữ liệu thật catalog, mono trên nền canvas-ink (Data Bench §1.5) -->
+        <div
+          v-if="catalogMeta"
+          class="node-hub__complexity"
+          role="group"
+          :aria-label="messages.nodeHub.complexityAria"
+        >
+          <span
+            v-for="(label, key) in COMPLEXITY_LABELS"
+            :key="key"
+            class="node-hub__complexity-chip"
+          >
+            <span class="node-hub__complexity-label">{{ label }}</span>
+            <code class="node-hub__complexity-value">{{ catalogMeta.complexity[key] }}</code>
+          </span>
+        </div>
       </div>
     </Motion>
 
@@ -194,11 +262,42 @@ function openExercise(id: number): void {
             :quiz-loading="quizLoading"
             :simulation-key="simKey"
             :code-exercise-id="codeExerciseId"
+            @passed="onLadderStagePassed"
           />
         </section>
 
         <section v-else key="cheatsheet" class="node-hub__panel">
           <CheatSheetTable @open-simulation="openSimulation" />
+
+          <!-- Đọc thêm — link thật từ REFERENCE_LINKS theo key algorithm của node (simKey) -->
+          <section
+            v-if="referenceLinks.length > 0"
+            class="node-hub__readmore"
+            aria-labelledby="node-hub-readmore-title"
+          >
+            <h2 id="node-hub-readmore-title" class="node-hub__readmore-title">
+              <BookOpen :size="18" aria-hidden="true" />
+              {{ messages.nodeHub.readMore }}
+            </h2>
+            <p class="node-hub__readmore-desc">
+              {{ messages.nodeHub.readMorePrefix }}
+              <code class="node-hub__readmore-key">{{ simKey }}</code>
+              {{ messages.nodeHub.readMoreSuffix }}
+            </p>
+            <ul class="node-hub__readmore-list">
+              <li v-for="link in referenceLinks" :key="link.url">
+                <a
+                  class="node-hub__readmore-link"
+                  :href="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ link.label }}
+                  <ExternalLink :size="13" aria-hidden="true" />
+                </a>
+              </li>
+            </ul>
+          </section>
         </section>
       </Transition>
     </Tabs>
@@ -270,6 +369,13 @@ function openExercise(id: number): void {
   flex-shrink: 0;
 }
 
+.node-hub__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
 .node-hub__hero-title-wrap {
   display: flex;
   flex-direction: column;
@@ -294,7 +400,7 @@ function openExercise(id: number): void {
   margin: 0;
 }
 
-.node-hub__badge { margin-left: auto; align-self: flex-start; }
+.node-hub__badge { gap: 4px; }
 
 .node-hub__hero-actions {
   display: flex;
@@ -328,18 +434,56 @@ function openExercise(id: number): void {
   transform: translateY(-4px);
 }
 
-/* ── Fallback lý thuyết (node chưa gắn lesson) ── */
-.node-hub__fallback {
+/* ── Chip độ phức tạp — block-token tối (vùng dữ liệu LUÔN tối §6) + mono §3 ── */
+.node-hub__complexity {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-left: auto;
+  align-items: center;
 }
 
-.node-hub__fallback-head {
+.node-hub__complexity-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  background: var(--color-canvas-ink);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.node-hub__complexity-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.node-hub__complexity-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ── "Đọc thêm" (tab Cheatsheet) — chip link ngoài, chuẩn chip §4.3 ── */
+.node-hub__readmore {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.node-hub__readmore-title {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
 }
 
 .node-hub__fallback-icon {
@@ -356,6 +500,50 @@ function openExercise(id: number): void {
 
 .node-hub__fallback-title { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
 
+.node-hub__readmore-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.node-hub__readmore-key {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.node-hub__readmore-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.node-hub__readmore-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 32px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-card-raised);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.node-hub__readmore-link:hover { border-color: var(--color-border-strong); }
+
+.node-hub__readmore-link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
 /* ── Actions (ngoài chrome — nền trang) ── */
 .node-hub__actions {
   display: flex;
@@ -366,8 +554,8 @@ function openExercise(id: number): void {
 
 @media (max-width: 640px) {
   .node-hub__chrome { padding: var(--space-md); }
-  .node-hub__badge { margin-left: 0; }
   .node-hub__hero { align-items: flex-start; }
+  .node-hub__complexity { margin-left: 0; }
   .node-hub__actions { justify-content: flex-start; }
 }
 </style>

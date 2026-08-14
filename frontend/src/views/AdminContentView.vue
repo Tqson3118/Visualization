@@ -10,7 +10,7 @@
 // simulationKeys, luồng kiểm duyệt (Chờ duyệt / Từ chối kèm lý do).
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowRight, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+import { ArrowRight, Eye, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
 import type { LessonSummary, LessonUpsertRequest, Topic } from '@/api/lessons';
@@ -18,6 +18,7 @@ import { getData } from '@/api/client';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { messages } from '@/i18n/vi';
+import ProseContent from '@/components/ui/ProseContent.vue';
 import {
   Card,
   CardDescription,
@@ -32,7 +33,6 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import ProseContent from '@/components/ui/ProseContent.vue';
 import { CATALOG } from '@/engines/catalog';
 
 // ── Kiểu local theo backend v2.15 (lessons.ts chưa theo kịp — không sửa file khác) ──
@@ -99,6 +99,39 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 // Form topic
 const topicFormOpen = ref(false);
 const topicForm = reactive({ name: '', description: '', sortOrder: 0 });
+
+// Preview bài học: reactive theo nội dung đang gõ trong modal form, hoặc nội dung đã lưu (từ list)
+const previewForm = ref(false);
+const previewLesson = ref<{ title: string; contentHtml: string } | null>(null);
+const previewOpen = computed(() => previewForm.value || previewLesson.value !== null);
+const previewTitle = computed(() => {
+  if (previewForm.value) return form.title.trim() || 'Xem trước nội dung';
+  return previewLesson.value?.title.trim() || 'Xem trước nội dung';
+});
+const previewContent = computed(() => (previewForm.value ? form.contentHtml : previewLesson.value?.contentHtml ?? ''));
+
+/** Xem trước nội dung đang gõ trong form (reactive — cập nhật theo textarea). */
+function openFormPreview(): void {
+  previewForm.value = true;
+  previewLesson.value = null;
+}
+
+/** Xem trước nội dung đã lưu của bài học từ danh sách (lấy qua GET /lessons/:id). */
+function openLessonPreview(lesson: LessonSummary): void {
+  previewForm.value = false;
+  previewLesson.value = null;
+  lessonsApi
+    .fetchLesson(lesson.id)
+    .then((detail) => {
+      previewLesson.value = { title: detail.title, contentHtml: detail.contentHtml ?? '' };
+    })
+    .catch(() => ui.showToast('Không tải được nội dung bài học.', 'error'));
+}
+
+function closePreview(): void {
+  previewForm.value = false;
+  previewLesson.value = null;
+}
 
 onMounted(load);
 
@@ -652,6 +685,9 @@ async function saveTopic(): Promise<void> {
                       <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
                       <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
                     </template>
+                    <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)">
+                      <Eye :size="16" /> Xem trước
+                    </Button>
                     <Button size="sm" variant="ghost" @click="openEdit(lesson)">
                       <Pencil :size="16" /> {{ messages.admin.content.edit }}
                     </Button>
@@ -815,6 +851,17 @@ async function saveTopic(): Promise<void> {
           <Button type="submit">{{ messages.admin.content.create }}</Button>
         </div>
       </form>
+    </Modal>
+
+    <!-- Modal xem trước bài học — render HTML như học viên thấy (ProseContent tự escape plain text) -->
+    <Modal :open="previewOpen" :title="previewTitle" width="720px" @close="closePreview">
+      <div class="admin-content__preview">
+        <ProseContent v-if="previewContent.trim()" :content="previewContent" />
+        <p v-else class="admin-content__preview-empty">Chưa có nội dung để xem trước.</p>
+      </div>
+      <template #footer>
+        <Button variant="ghost" @click="closePreview">Đóng</Button>
+      </template>
     </Modal>
   </main>
 </template>
@@ -1070,7 +1117,20 @@ async function saveTopic(): Promise<void> {
 
 .admin-content__row { display: flex; flex-direction: column; gap: var(--space-xs); }
 
-/* Select chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
+.admin-content__row-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+
+/* ── Modal xem trước bài học ── */
+.admin-content__preview { padding: var(--space-xs) 0; }
+
+.admin-content__preview-empty {
+  margin: 0;
+  padding: var(--space-xl) 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--foreground-tertiary);
+}
+
+/* Select/textarea chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
 .admin-content__row .input,
 .admin-content__html {
   background: var(--card);

@@ -15,4 +15,10 @@ public sealed class ExerciseSummaryDto
     public int? DurationMinutes { get; set; }
     public int MaxScore { get; set; }
     public string Status { get; set; } = ExerciseStatus.Draft.ToString();
+
+    /// <summary>
+    /// Số user distinct đã PASS bài này — best score ≥ MaxScore (gộp ExerciseSubmissions
+    /// cho MCQ/SIMULATION_LAB + CodeSubmissions cho CODE; 1 user nộp n lần chỉ tính 1).
+    /// </summary>
+    public int CompletedByUserCount { get; set; }
 }

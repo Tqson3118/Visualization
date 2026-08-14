@@ -1,10 +1,13 @@
 <script setup lang="ts">
 // SimulationsView — Màn 33 "Khám phá": 3 tab (Danh mục / So sánh / CheatSheet).
-// View-quality (nhóm A): bỏ chrome gradient mint + shadow → surface band level-2; thêm strip
-// block-token + index mono trong banner (dữ liệu tuần tự → quyết định 4); stat bỏ gradient/800
-// → Geist 600 text-2xl + label tertiary; card bỏ hover-lift (shadow+ease mặc định) → hover đổi
-// border + Space key; BenchmarkPanel/CheatSheetTable → defineAsyncComponent (lazy theo tab).
-// GIỮ NGUYÊN logic lọc/phân trang + aria-label (selector/e2e hook) + tab key.
+// View-quality (nhóm A): chrome = surface band level-2 + strip block-token/index mono; stat
+// Geist 600 text-2xl + label tertiary; BenchmarkPanel/CheatSheetTable → defineAsyncComponent.
+// Catalog redesign (3.3): card gom nhóm theo prefix key (sort./search./stack./queue./list./
+// tree./heap./hash./graph./structure. — CATALOG chỉ có category algorithm|structure, không đủ
+// chi tiết để phân nhóm visual); mỗi nhóm heading + separator, nhóm rỗng sau filter bị ẩn;
+// chip Big-O mono màu theo tốc độ (n log n → success, n² → warning, n³+ → danger); hover card
+// = scale nhẹ 1.01 + shadow token (tôn trọng prefers-reduced-motion).
+// GIỮ NGUYÊN logic lọc/phân trang + aria-label (selector/e2e hook) + tab key + link "Đọc thêm".
 import { computed, defineAsyncComponent, ref } from 'vue';
 import type { Component } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
@@ -134,12 +137,86 @@ function iconFor(item: CatalogMeta): Component {
   );
 }
 
+// ── Nhóm visual: CATALOG chỉ có category 'algorithm' | 'structure' → gom theo prefix key ──
+type CatalogGroupKey =
+  | 'sort'
+  | 'search'
+  | 'stack'
+  | 'queue'
+  | 'list'
+  | 'tree'
+  | 'heap'
+  | 'hash'
+  | 'graph'
+  | 'structure';
+
+interface CatalogGroup {
+  key: CatalogGroupKey;
+  label: string;
+  icon: Component;
+  items: CatalogMeta[];
+}
+
+const GROUP_DEFS: ReadonlyArray<{ key: CatalogGroupKey; label: string; icon: Component; prefix: string }> = [
+  { key: 'sort', label: 'Sắp xếp (Sorting)', icon: ArrowUpDown, prefix: 'sort.' },
+  { key: 'search', label: 'Tìm kiếm (Searching)', icon: Search, prefix: 'search.' },
+  { key: 'stack', label: 'Ngăn xếp (Stack)', icon: SquareStack, prefix: 'stack.' },
+  { key: 'queue', label: 'Hàng đợi (Queue)', icon: ListOrdered, prefix: 'queue.' },
+  { key: 'list', label: 'Danh sách liên kết (Linked List)', icon: List, prefix: 'list.' },
+  { key: 'tree', label: 'Cây (Tree)', icon: GitBranch, prefix: 'tree.' },
+  { key: 'heap', label: 'Đống nhị phân (Heap)', icon: Layers, prefix: 'heap.' },
+  { key: 'hash', label: 'Bảng băm (Hash Table)', icon: Hash, prefix: 'hash.' },
+  { key: 'graph', label: 'Đồ thị (Graph)', icon: Network, prefix: 'graph.' },
+  { key: 'structure', label: 'Cấu trúc dữ liệu (Data Structures)', icon: Rows3, prefix: 'structure.' },
+];
+
+function groupKeyFor(item: CatalogMeta): CatalogGroupKey {
+  return GROUP_DEFS.find((g) => item.key.startsWith(g.prefix))?.key ?? 'structure';
+}
+
+/** Nhóm theo trang hiện tại — nhóm rỗng sau filter/search bị loại (ẩn heading). */
+const grouped = computed<CatalogGroup[]>(() => {
+  const buckets = new Map<CatalogGroupKey, CatalogMeta[]>();
+  for (const item of paged.value) {
+    const key = groupKeyFor(item);
+    const list = buckets.get(key);
+    if (list) list.push(item);
+    else buckets.set(key, [item]);
+  }
+  return GROUP_DEFS.filter((g) => buckets.has(g.key)).map((g) => ({
+    key: g.key,
+    label: g.label,
+    icon: g.icon,
+    items: buckets.get(g.key) ?? [],
+  }));
+});
+
+// ── Chip Big-O màu theo tốc độ (màu khớp giá trị average đang hiển thị) ──
+type ComplexityTone = 'success' | 'warning' | 'danger';
+
+function complexityTone(value: string): ComplexityTone {
+  const v = value.toLowerCase();
+  if (v.includes('³') || v.includes('n^3') || v.includes('2^n')) return 'danger';
+  if (v.includes('²') || v.includes('n^2')) return 'warning';
+  return 'success';
+}
+
 function clearFilters(): void {
   search.value = '';
   structureFilter.value = '';
   levelFilter.value = '';
   tagFilter.value = '';
   page.value = 1;
+}
+
+/** Link "Đọc thêm" cho 1 key (wikipedia + geeksforgeeks từ REFERENCE_LINKS object) — không có thì trả mảng rỗng. */
+function linksFor(key: string): { label: string; url: string }[] {
+  const ref = getReference(key);
+  if (!ref) return [];
+  const links: { label: string; url: string }[] = [];
+  if (ref.wikipedia) links.push({ label: 'Wikipedia', url: ref.wikipedia });
+  if (ref.geeksforgeeks) links.push({ label: 'GeeksforGeeks', url: ref.geeksforgeeks });
+  return links;
 }
 
 function openSimulation(key: string): void {
@@ -272,72 +349,99 @@ function referenceUrl(key: string): string | undefined {
           @action="clearFilters"
         />
 
-        <div v-else class="simulations__grid">
-          <Card
-            v-for="item in paged"
-            :key="item.key"
-            class="simulations__card shadow-none"
-            role="button"
-            tabindex="0"
-            :aria-label="messages.explore.openSimulation(item.title)"
-            @click="openSimulation(item.key)"
-            @keydown.enter="openSimulation(item.key)"
-            @keydown.space.prevent="openSimulation(item.key)"
+        <div v-else class="simulations__groups">
+          <section
+            v-for="group in grouped"
+            :key="group.key"
+            class="simulations__group"
+            :aria-label="group.label"
           >
-            <CardHeader>
-              <div class="simulations__card-head">
-                <span class="simulations__card-icon" aria-hidden="true">
-                  <component :is="iconFor(item)" :size="20" />
-                </span>
-                <span class="simulations__card-badges">
-                  <Badge :variant="item.demoAllowed ? 'success' : 'muted'">
-                    {{
-                      item.demoAllowed
-                        ? messages.explore.badgeDemo
-                        : item.category === 'algorithm'
-                          ? messages.explore.badgeAlgorithm
-                          : messages.explore.badgeStructure
-                    }}
-                  </Badge>
-                  <Badge :variant="item.level === 'basic' ? 'primary' : 'warning'">
-                    {{
-                      item.level === 'basic'
-                        ? messages.explore.levelBasic
-                        : messages.explore.levelAdvanced
-                    }}
-                  </Badge>
-                </span>
-              </div>
-              <CardTitle class="simulations__card-title">{{ item.title }}</CardTitle>
-              <CardDescription class="simulations__card-key">{{ item.key }}</CardDescription>
-            </CardHeader>
-            <CardContent class="simulations__card-content">
-              <dl class="simulations__complexity">
-                <dt>{{ messages.explore.complexityLabel }}</dt>
-                <dd>{{ item.complexity.average }} · {{ item.complexity.space }}</dd>
-              </dl>
-              <div class="simulations__card-links">
-                <a
-                  v-if="referenceUrl(item.key)"
-                  class="simulations__doc-link"
-                  :href="referenceUrl(item.key)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  :aria-label="`Đọc tài liệu: ${item.title}`"
-                  @click.stop
-                  @keydown.enter.stop
-                  @keydown.space.stop
-                >
-                  <BookOpen :size="14" aria-hidden="true" />
-                  Đọc tài liệu
-                </a>
-                <span class="simulations__open">
-                  {{ messages.explore.open }}
-                  <ArrowRight :size="14" aria-hidden="true" />
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            <h2 class="simulations__group-head">
+              <span class="simulations__group-icon" aria-hidden="true">
+                <component :is="group.icon" :size="16" />
+              </span>
+              <span class="simulations__group-title">{{ group.label }}</span>
+              <span class="simulations__group-count">
+                {{ group.items.length }} {{ messages.explore.statSimulations }}
+              </span>
+            </h2>
+            <div class="simulations__grid">
+              <Card
+                v-for="item in group.items"
+                :key="item.key"
+                class="simulations__card shadow-none"
+                role="button"
+                tabindex="0"
+                :aria-label="messages.explore.openSimulation(item.title)"
+                @click="openSimulation(item.key)"
+                @keydown.enter="openSimulation(item.key)"
+                @keydown.space.prevent="openSimulation(item.key)"
+              >
+              <CardHeader>
+                <div class="simulations__card-head">
+                  <span class="simulations__card-icon" aria-hidden="true">
+                    <component :is="iconFor(item)" :size="20" />
+                  </span>
+                  <span class="simulations__card-badges">
+                    <Badge :variant="item.demoAllowed ? 'success' : 'muted'">
+                      {{
+                        item.demoAllowed
+                          ? messages.explore.badgeDemo
+                          : item.category === 'algorithm'
+                            ? messages.explore.badgeAlgorithm
+                            : messages.explore.badgeStructure
+                      }}
+                    </Badge>
+                    <Badge :variant="item.level === 'basic' ? 'primary' : 'warning'">
+                      {{
+                        item.level === 'basic'
+                          ? messages.explore.levelBasic
+                          : messages.explore.levelAdvanced
+                      }}
+                    </Badge>
+                  </span>
+                </div>
+                <CardTitle class="simulations__card-title">{{ item.title }}</CardTitle>
+                <CardDescription class="simulations__card-key">{{ item.key }}</CardDescription>
+              </CardHeader>
+              <CardContent class="simulations__card-content">
+                <div class="simulations__card-row">
+                  <dl class="simulations__complexity">
+                    <dt>{{ messages.explore.complexityLabel }}</dt>
+                    <dd class="simulations__complexity-value">
+                      <Badge
+                        :variant="complexityTone(item.complexity.average)"
+                        class="simulations__complexity-badge"
+                      >
+                        {{ item.complexity.average }}
+                      </Badge>
+                      <span class="simulations__complexity-sep" aria-hidden="true">·</span>
+                      <span class="simulations__complexity-space">{{ item.complexity.space }}</span>
+                    </dd>
+                  </dl>
+                  <span class="simulations__open">
+                    {{ messages.explore.open }}
+                    <ArrowRight :size="14" aria-hidden="true" />
+                  </span>
+                </div>
+                <div v-if="linksFor(item.key).length > 0" class="simulations__links">
+                  <span class="simulations__links-label">📖 Đọc thêm:</span>
+                  <a
+                    v-for="link in linksFor(item.key)"
+                    :key="link.url"
+                    :href="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="simulations__link"
+                    @click.stop
+                  >
+                    {{ link.label }}
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          </section>
         </div>
 
         <nav
@@ -544,25 +648,86 @@ function referenceUrl(key: string): string | undefined {
 .simulations__search { flex: 1; min-width: 200px; }
 .simulations__select { width: auto; min-width: 160px; }
 
+/* ── Nhóm visual: heading + separator mỏng, nhóm rỗng bị v-if loại ── */
+.simulations__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.simulations__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-lg);
+}
+
+.simulations__group-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-foreground);
+}
+
+.simulations__group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.simulations__group-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .simulations__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--space-md);
 }
 
-/* Card clickable — hover chỉ đổi border (§4.2), không shadow/scale; focus-visible ring */
+/* Card clickable — hover: border mạnh + scale nhẹ 1.01 + shadow token (180ms, không giật layout) */
 .simulations__card {
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.simulations__card:hover { border-color: var(--color-border-strong); }
+.simulations__card:hover {
+  border-color: var(--color-border-strong);
+  transform: scale(1.01);
+  box-shadow: var(--shadow-md);
+}
 
 .simulations__card:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simulations__card { transition: none; }
+  .simulations__card:hover { transform: none; }
 }
 
 .simulations__card-head {
@@ -602,10 +767,57 @@ function referenceUrl(key: string): string | undefined {
 .simulations__card-content {
   margin-top: auto;
   display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+}
+
+.simulations__card-row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-sm);
-  padding-top: var(--space-md);
+}
+
+/* "Đọc thêm" — chip link nhỏ, chỉ hiện khi key có REFERENCE_LINKS (ẩn khi không) */
+.simulations__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-sm);
+}
+
+.simulations__links-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.simulations__link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition:
+    border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.simulations__link:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-muted);
+}
+
+.simulations__link:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 .simulations__complexity {
@@ -620,6 +832,21 @@ function referenceUrl(key: string): string | undefined {
 
 .simulations__complexity dt { font-weight: 500; color: var(--color-foreground); }
 .simulations__complexity dd { font-family: var(--font-mono); }
+
+/* Chip Big-O màu theo tốc độ (complexityTone) + space mono giữ nguyên thông tin cũ */
+.simulations__complexity-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.simulations__complexity-badge { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.simulations__complexity-sep { color: var(--color-text-quaternary); }
+
+.simulations__complexity-space { color: var(--color-text-tertiary); }
 
 .simulations__open {
   display: inline-flex;

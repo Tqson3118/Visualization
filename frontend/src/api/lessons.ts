@@ -31,13 +31,15 @@ export interface LessonProgressDto {
   completed: boolean;
 }
 
+export type LessonStatusValue = 'draft' | 'pendingreview' | 'active' | 'hidden';
+
 export interface LessonSummary {
   id: number;
   title: string;
   description: string;
   topicId: number;
   sortOrder: number;
-  status: 'draft' | 'active' | 'hidden';
+  status: LessonStatusValue;
   simulationCount: number;
   exerciseCount: number;
   progress: LessonProgressDto | null;
@@ -56,7 +58,7 @@ export interface LessonUpsertRequest {
   title: string;
   description?: string;
   contentHtml: string;
-  status: 'draft' | 'active' | 'hidden';
+  status: LessonStatusValue;
   sortOrder?: number;
   simulations?: Array<{ simulationKey: string; title?: string; defaultInput?: unknown }>;
 }

@@ -3,9 +3,9 @@
 // View-quality Phase 1 (Nhóm D): banner = surface band level-2 + mono strip
 // block-token dữ liệu thật (DESIGN §1/#1); card level-1 không shadow (hover chỉ
 // đổi border); mã mời = block-token tối canvas-ink (quyết định #4/#5).
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { GraduationCap, KeyRound, Plus, Users } from 'lucide-vue-next';
+import { GraduationCap, KeyRound, Plus, UserRound, Users } from 'lucide-vue-next';
 
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
@@ -34,6 +34,9 @@ const newClassName = ref('');
 const newClassDesc = ref('');
 const creating = ref(false);
 
+/** Id input mã mời trong Join modal — dùng để tự focus khi mở modal. */
+const joinInputId = 'class-join-code-input';
+
 const isTeacher = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
 /** API list KHÔNG trả `role` (chỉ OwnerId — ClassService.ToDto) → tính từ owner. */
@@ -50,6 +53,17 @@ const stripLabel = computed(() => {
   const total = classStore.classes.length;
   const members = classStore.classes.reduce((sum, cls) => sum + cls.memberCount, 0);
   return messages.classes.stripLabel(total, members);
+});
+
+/** Empty state học viên: nêu rõ mã mời 6 ký tự (ghép từ i18n sẵn có — goal 3.6 #1). */
+const emptyStudentDesc = computed(
+  () => `${messages.classes.emptyStudentDesc} ${messages.classes.joinCodeHint}`,
+);
+
+// Nổi bật input mã mời: tự focus khi mở Join modal (EmptyState → nút "Nhập mã lớp").
+watch(joinOpen, (open) => {
+  if (!open) return;
+  void nextTick(() => document.getElementById(joinInputId)?.focus());
 });
 
 onMounted(async () => {
@@ -158,7 +172,7 @@ async function createClass(): Promise<void> {
       v-else-if="classStore.classes.length === 0"
       icon="user"
       :title="isTeacher ? messages.classes.emptyTeacherTitle : messages.classes.emptyStudentTitle"
-      :description="isTeacher ? messages.classes.emptyTeacherDesc : messages.classes.emptyStudentDesc"
+      :description="isTeacher ? messages.classes.emptyTeacherDesc : emptyStudentDesc"
       :action-label="isTeacher ? messages.classes.createBtn : messages.classes.joinBtn"
       @action="isTeacher ? (createOpen = true) : (joinOpen = true)"
     />
@@ -168,6 +182,7 @@ async function createClass(): Promise<void> {
         v-for="cls in classStore.classes"
         :key="cls.id"
         class="classes__card"
+        :class="{ 'classes__card--manager': isManagerOf(cls) }"
         role="button"
         tabindex="0"
         :aria-label="cls.name"
@@ -176,7 +191,14 @@ async function createClass(): Promise<void> {
         @keydown.space.prevent="goDetail(cls.id)"
       >
         <div class="classes__card-head">
-          <span class="classes__card-icon" aria-hidden="true"><GraduationCap :size="18" /></span>
+          <span
+            class="classes__card-icon"
+            :class="{ 'classes__card-icon--manager': isManagerOf(cls) }"
+            aria-hidden="true"
+          >
+            <GraduationCap v-if="isManagerOf(cls)" :size="18" />
+            <UserRound v-else :size="18" />
+          </span>
           <div class="classes__card-meta">
             <h3 class="classes__card-name">{{ cls.name }}</h3>
             <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
@@ -202,15 +224,20 @@ async function createClass(): Promise<void> {
     <!-- Modal nhập mã -->
     <Modal :open="joinOpen" :title="messages.classes.joinTitle" @close="joinOpen = false">
       <form novalidate @submit.prevent="join">
-        <Input
-          :model-value="inviteCode"
-          :label="messages.classes.joinCodeLabel"
-          :placeholder="messages.classes.joinCodePlaceholder"
-          :hint="messages.classes.joinCodeHint"
-          :maxlength="6"
-          :error="joinError"
-          @update:model-value="onInviteInput"
-        />
+        <div class="classes__join-field">
+          <Input
+            :id="joinInputId"
+            :model-value="inviteCode"
+            :label="messages.classes.joinCodeLabel"
+            :placeholder="messages.classes.joinCodePlaceholder"
+            :hint="messages.classes.joinCodeHint"
+            :icon="KeyRound"
+            :maxlength="6"
+            autocomplete="off"
+            :error="joinError"
+            @update:model-value="onInviteInput"
+          />
+        </div>
         <div class="classes__modal-actions">
           <Button variant="ghost" @click="joinOpen = false">{{ messages.classes.cancel }}</Button>
           <Button type="submit" :disabled="inviteCode.length !== 6">{{ messages.classes.joinSubmit }}</Button>
@@ -376,11 +403,25 @@ async function createClass(): Promise<void> {
 /* ── Loading ── */
 .classes__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-/* ── Grid lớp học ── */
+/* ── Grid lớp học: 1 cột mobile → 2 tablet (≥640) → 3 desktop (≥1024) ──
+   (DESIGN §8 card grid + goal 3.6 #3 — thay auto-fill vì auto-fill cho 4 cột ở 1366) */
 .classes__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-md);
+}
+
+@media (min-width: 640px) {
+  .classes__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .classes__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-lg);
+  }
 }
 
 /* Card level-1: hover chỉ đổi border → strong (DESIGN §6 — cấm shadow) */
@@ -400,6 +441,22 @@ async function createClass(): Promise<void> {
 .classes__card:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Role cue (goal 3.6 #2): card Quản lý = border-left accent semantic info (token §2.2,
+   precedent LeaderboardView) + icon riêng. Khai báo SAU `.classes__card:hover` để
+   accent giữ nguyên khi hover (hover chỉ đổi 3 cạnh còn lại sang border-strong). */
+.classes__card--manager {
+  border-left: 3px solid var(--info);
+}
+
+.classes__card--manager:hover {
+  border-left-color: var(--info);
+}
+
+.classes__card-icon--manager {
+  background: color-mix(in srgb, var(--info) 14%, transparent);
+  color: var(--info);
 }
 
 .classes__card-head { display: flex; align-items: flex-start; gap: var(--space-sm); min-width: 0; }
@@ -472,6 +529,21 @@ async function createClass(): Promise<void> {
   color: var(--resolved);
   white-space: nowrap;
   min-height: 24px;
+}
+
+/* ── Join field (goal 3.6 #1): input mã mời nổi bật — surface level-2
+   (card-raised + border-subtle) + ring khi focus (DESIGN §6, precedent SimulatorView) ── */
+.classes__join-field {
+  border: 1px solid var(--border-subtle);
+  background: var(--card-raised);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.classes__join-field:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent);
 }
 
 /* ── Modal ── */

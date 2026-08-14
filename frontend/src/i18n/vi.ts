@@ -33,6 +33,7 @@ export const messages = {
     success: 'Thành công',
     comingSoon: 'Tính năng đang được xây dựng',
     processing: 'Đang xử lý...',
+    breadcrumb: 'Breadcrumb',
   },
 
   profile: {
@@ -238,6 +239,61 @@ export const messages = {
       call: 'Gọi hàm',
       return: 'Trả về',
     } as const,
+    // ── Chuỗi hardcode còn sót từ đợt fix/redesign — header + hành động ──
+    breadcrumbExplore: 'Khám phá',
+    categoryStructure: 'Cấu trúc dữ liệu',
+    categoryAlgorithm: 'Thuật toán',
+    complexityFull: (best: string, average: string, worst: string, space: string) =>
+      `Tốt nhất ${best} · Trung bình ${average} · Tệ nhất ${worst} · Không gian ${space}`,
+    complexityChip: 'Độ phức tạp TB',
+    descExpand: 'Xem thêm',
+    descCollapse: 'Thu gọn',
+    favoriteAria: 'Yêu thích',
+    unfavoriteAria: 'Bỏ yêu thích',
+    shareAria: 'Chia sẻ',
+    practiceDisabledHint: 'Chạy mô phỏng trước để bật Tự thực hành',
+    practiceEnter: 'Tự thực hành',
+    practiceExit: 'Thoát tự thực hành',
+    docButton: '📖 Tài liệu',
+    docMenuAria: (title: string) => `Tài liệu tham khảo — ${title}`,
+    docTitle: '📖 Đọc thêm',
+    loadingSim: 'Đang dựng mô phỏng...',
+    backToCatalog: 'Về danh mục',
+    canvasMeta: 'Khu vực vẽ — renderer cấu trúc dữ liệu',
+    breakpointHit: (line: number) => `Đã dừng tại breakpoint dòng ${line}`,
+    callStack: 'Call stack',
+    legend: 'Legend',
+    footerShortcuts:
+      'Phím tắt: Space = Phát/Dừng · ←/→ = Bước · Home/End = Về đầu/cuối · [ / ] = Tốc độ',
+    toastCopied: 'Đã sao chép link chia sẻ!',
+    toastFavoriteLogin: 'Đăng nhập để lưu yêu thích.',
+    toastFavoriteAdded: 'Đã thêm vào yêu thích!',
+    toastFavoriteError: 'Không thể cập nhật yêu thích.',
+    toastPracticeDone: (correct: number, wrong: number) => `Kết thúc: ${correct} đúng / ${wrong} sai`,
+  },
+
+  // ── Tự thực hành (ManualPracticePanel) — FR-3.12 ──
+  practice: {
+    ariaLabel: 'Tự thực hành',
+    title: 'Tự thực hành',
+    score: (correct: number, wrong: number) => `Đúng ${correct} · Sai ${wrong}`,
+    finished: (correct: number, wrong: number) =>
+      `Kết thúc luyện tập: ${correct} đúng / ${wrong} sai`,
+    emptyHint: '⏵ Hãy bấm Play để chạy mô phỏng trước, rồi bật Tự thực hành để đoán bước kế tiếp.',
+    prompt: 'Bước kế tiếp của thuật toán là gì?',
+    correct: '✓ Chính xác!',
+    wrong: '✗ Chưa đúng — xem giải thích ở panel bên.',
+    options: {
+      compare: 'So sánh hai phần tử',
+      swap: 'Hoán đổi hai phần tử',
+      assign: 'Gán giá trị',
+      move: 'Di chuyển con trỏ',
+      insert: 'Chèn phần tử',
+      delete: 'Xóa phần tử',
+    } as const,
+    skip: 'Bỏ qua bước',
+    check: 'Kiểm tra',
+    finish: 'Kết thúc',
   },
 
   bottomsheet: {
@@ -316,7 +372,7 @@ export const messages = {
       department: 'Khoa/Bộ môn',
       staffCode: 'Mã giảng viên',
       teacherBio: 'Kinh nghiệm giảng dạy',
-      // Block 2.3 — modal duyệt đầy đủ hồ sơ + drawer chi tiết user
+      // Block 2.3 - modal duyệt đầy đủ hồ sơ + drawer chi tiết user
       academicDegree: 'Học vị',
       profileLink: 'Link hồ sơ',
       rejectReasonRequired: 'Vui lòng nhập lý do từ chối',
@@ -338,6 +394,16 @@ export const messages = {
       roleChanged: (role: string) => `Đã đổi vai trò thành ${role}.`,
       passwordReset: 'Đã đặt lại mật khẩu.',
       detailsHint: 'Bấm vào dòng để xem chi tiết',
+      // Drawer chi tiết user + toast còn sót hardcode (v2.15 - PR #22)
+      detailTitle: 'Chi tiết người dùng',
+      detailDescription: (name: string) => `Thông tin chi tiết - ${name}`,
+      joinDate: 'Ngày tham gia',
+      viewDetailAria: (name: string) => `Xem chi tiết ${name}`,
+      toastUnlocked: 'Đã mở khóa tài khoản.',
+      toastLocked: 'Đã khóa tài khoản.',
+      toastApproved: 'Đã duyệt giảng viên!',
+      toastRejected: 'Đã từ chối - tài khoản về vai học viên.',
+      toastActionFailed: 'Thao tác thất bại.',
     },
     stats: {
       title: 'Thống kê hệ thống',
@@ -440,6 +506,18 @@ export const messages = {
       emptyDesc: 'Tạo bài tập ở backend/admin API (POST /exercises) trước.',
       attachBtn: 'Gắn exercise vào node',
       retry: 'Thử lại',
+      // Chuỗi hardcode còn sót từ đợt fix/redesign
+      exercisesCount: (n: number) => `${n} bài tập`,
+      passedUsersCount: (n: number) => `${n} user đã qua`,
+      stage: {
+        1: 'Quiz (Bậc 1)',
+        2: 'Lab (Bậc 2)',
+        3: 'Code (Bậc 3)',
+      } as const,
+      attachToast: (exerciseId: number, nodeId: number) =>
+        `Đã gắn exercise #${exerciseId} vào Node ${nodeId}.`,
+      attachFailed: 'Gắn thất bại.',
+      loadErrorText: 'Không thể tải danh sách bài tập (backend chưa khả dụng).',
     },
   },
 
@@ -838,6 +916,14 @@ export const messages = {
     fallbackText:
       'Node này chưa được gắn bài học lý thuyết trên backend. Hãy mở mô phỏng để xem thuật toán chạy từng bước, hoặc tra bảng độ phức tạp ở tab Cheatsheet.',
     fallbackCta: (key: string) => `Mở mô phỏng ${key}`,
+    // Chuỗi hardcode còn sót từ đợt fix/redesign
+    completedBadge: 'Đã hoàn thành',
+    complexityAria: 'Độ phức tạp thuật toán',
+    theoryEmptyTitle: 'Bài học đang được biên soạn',
+    readMore: 'Đọc thêm',
+    readMorePrefix: 'Tài liệu tham khảo cho',
+    readMoreSuffix: '— mở tab mới.',
+    theoryLoadError: 'Không thể tải lý thuyết — hiển thị nội dung mẫu.',
   },
 
   finalTest: {

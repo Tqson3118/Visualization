@@ -57,6 +57,8 @@ const kindLabel = computed(() => {
 .explain-panel__text {
   font-size: var(--text-sm);
   color: var(--color-foreground);
+  /* Giữ dòng mới khi explanation nhiều dòng (không phá parseEmojiToSvg — chỉ CSS) */
+  white-space: pre-line;
 }
 
 .explain-fade-enter-active,

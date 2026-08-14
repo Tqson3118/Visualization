@@ -8,6 +8,7 @@ import { Lightbulb } from 'lucide-vue-next';
 
 import type { Step } from '@/engines/core/types';
 import Button from '@/components/ui/Button.vue';
+import { messages } from '@/i18n/vi';
 
 const props = defineProps<{
   steps: Step[];
@@ -25,38 +26,27 @@ const correctCount = ref(0);
 const wrongCount = ref(0);
 const finished = ref(false);
 
-/** Chưa chạy mô phỏng (chưa có bước nào) → hiện hướng dẫn thay cho vùng trống. */
-const hasRun = computed(() => props.steps.length > 0);
+/** Root element - cho SimulatorView scroll tới khi bật practice mode */
+const rootEl = ref<HTMLElement | null>(null);
+defineExpose({ rootEl });
 
-const panelEl = ref<HTMLElement | null>(null);
+/** Chưa chạy mô phỏng → không có trace để đoán bước kế → hiện hint thay vì radio vô nghĩa */
+const isEmpty = computed(() => props.steps.length === 0);
+
+/** Chưa chạy mô phỏng (chưa có bước nào) → hiện hướng dẫn thay cho vòng trống. */
+const hasRun = computed(() => props.steps.length > 0);
 
 /** Auto-scroll: khi panel xuất hiện (bật chế độ Tự thực hành) → cuộn mượt vào view. */
 onMounted(async () => {
   await nextTick();
-  panelEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // jsdom/test không có scrollIntoView → optional-call an toàn.
+  rootEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
 });
 
-/** Timer tự động sang bước kế sau khi trả lời (feedback hiện rõ ~400ms). */
-let advanceTimer: ReturnType<typeof setTimeout> | null = null;
+/** Các thao tác gợi ý (≈ 6) cho bước kế — label i18n theo key (messages.practice.options) */
+type PracticeOptionKey = keyof typeof messages.practice.options;
 
-function clearAdvanceTimer(): void {
-  if (advanceTimer !== null) {
-    clearTimeout(advanceTimer);
-    advanceTimer = null;
-  }
-}
-
-onBeforeUnmount(clearAdvanceTimer);
-
-/** Các thao tác gợi ý (≤ 6) cho bước kế */
-const OPTIONS = [
-  { key: 'compare', label: 'So sánh hai phần tử' },
-  { key: 'swap', label: 'Hoán đổi hai phần tử' },
-  { key: 'assign', label: 'Gán giá trị' },
-  { key: 'move', label: 'Di chuyển con trỏ' },
-  { key: 'insert', label: 'Chèn phần tử' },
-  { key: 'delete', label: 'Xóa phần tử' },
-];
+const OPTIONS: PracticeOptionKey[] = ['compare', 'swap', 'assign', 'move', 'insert', 'delete'];
 
 const nextStep = computed<Step | null>(() => props.steps[props.currentIndex + 1] ?? null);
 
@@ -74,7 +64,7 @@ function inferExpected(): string {
 }
 
 function submit(): void {
-  if (!selected.value || advanceTimer !== null) return;
+  if (!selected.value) return;
   const expected = inferExpected();
   if (selected.value === expected) {
     lastResult.value = 'correct';
@@ -84,34 +74,33 @@ function submit(): void {
     wrongCount.value += 1;
   }
   selected.value = '';
-
-  // Tự sang bước kế sau ~400ms — cùng hàm stepForward mà nút "Bước tới" dùng (parent @skip="stepForward").
-  advanceTimer = setTimeout(() => {
-    advanceTimer = null;
-    lastResult.value = null;
-    emit('skip');
-  }, 400);
+  // UX fix: sau khi kiểm tra (đúng/sai) → tự chuyển bước kế tiếp, không bắt user bấm "Bỏ qua".
+  // Feedback ✓/✗ còn hiển thị (lastResult) + panel giải thích bên phải.
+  emit('skip');
 }
 
 function skip(): void {
-  clearAdvanceTimer();
   lastResult.value = null;
   emit('skip');
 }
 
 function finish(): void {
-  clearAdvanceTimer();
   finished.value = true;
   emit('done', { correct: correctCount.value, wrong: wrongCount.value });
 }
 </script>
 
 <template>
-  <section ref="panelEl" class="practice card" aria-label="Tự thực hành">
+  <section
+    ref="rootEl"
+    class="practice card"
+    :class="{ 'practice--active': !isEmpty }"
+    :aria-label="messages.practice.ariaLabel"
+  >
     <header class="practice__header">
-      <h3 class="practice__title">Tự thực hành</h3>
+      <h3 class="practice__title">{{ messages.practice.title }}</h3>
       <span class="practice__score">
-        Đúng {{ correctCount }} · Sai {{ wrongCount }}
+        {{ messages.practice.score(correctCount, wrongCount) }}
       </span>
     </header>
 
@@ -125,32 +114,36 @@ function finish(): void {
     </div>
 
     <p v-else-if="finished" class="practice__result" role="status">
-      Kết thúc luyện tập: {{ correctCount }} đúng / {{ wrongCount }} sai
+      {{ messages.practice.finished(correctCount, wrongCount) }}
+    </p>
+
+    <p v-else-if="isEmpty" class="practice__empty" role="status">
+      {{ messages.practice.emptyHint }}
     </p>
 
     <template v-else>
       <p class="practice__prompt">
-        Bước kế tiếp của thuật toán là gì?
-        <span v-if="lastResult === 'correct'" class="practice__ok">✓ Chính xác!</span>
-        <span v-else-if="lastResult === 'wrong'" class="practice__bad">✗ Chưa đúng — xem giải thích ở panel bên.</span>
+        {{ messages.practice.prompt }}
+        <span v-if="lastResult === 'correct'" class="practice__ok">{{ messages.practice.correct }}</span>
+        <span v-else-if="lastResult === 'wrong'" class="practice__bad">{{ messages.practice.wrong }}</span>
       </p>
 
       <div class="practice__options" role="radiogroup">
         <label
           v-for="opt in OPTIONS"
-          :key="opt.key"
+          :key="opt"
           class="practice__option"
-          :class="{ 'practice__option--selected': selected === opt.key }"
+          :class="{ 'practice__option--selected': selected === opt }"
         >
-          <input v-model="selected" type="radio" :value="opt.key" class="visually-hidden" />
-          {{ opt.label }}
+          <input v-model="selected" type="radio" :value="opt" class="visually-hidden" />
+          {{ messages.practice.options[opt] }}
         </label>
       </div>
 
       <div class="practice__actions">
-        <Button variant="ghost" size="sm" @click="skip">Bỏ qua bước</Button>
-        <Button size="sm" :disabled="!selected" @click="submit">Kiểm tra</Button>
-        <Button variant="secondary" size="sm" @click="finish">Kết thúc</Button>
+        <Button variant="ghost" size="sm" @click="skip">{{ messages.practice.skip }}</Button>
+        <Button size="sm" :disabled="!selected" @click="submit">{{ messages.practice.check }}</Button>
+        <Button variant="secondary" size="sm" @click="finish">{{ messages.practice.finish }}</Button>
       </div>
     </template>
   </section>
@@ -158,6 +151,24 @@ function finish(): void {
 
 <style scoped>
 .practice { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* Accent khi panel đang hoạt động (có trace thật) — border primary + bg nổi bật, token sẵn có */
+.practice.practice--active {
+  border: 2px solid var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+/* Empty state — lời mời hành động (DESIGN §7.7): chưa chạy sim thì hướng dẫn chứ không hiện radio vô nghĩa */
+.practice__empty {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--color-text-tertiary);
+}
 
 .practice__header { display: flex; justify-content: space-between; align-items: center; }
 
