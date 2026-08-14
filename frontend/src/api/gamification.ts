@@ -42,6 +42,18 @@ export interface QuestDto {
   claimed: boolean;
 }
 
+/** DTO thật từ backend GET /me/quests — trả progress + reward:{gems,xp} (KHÔNG có current/rewardGems/rewardXp). */
+interface RawQuestDto {
+  id: number;
+  questId: number;
+  title: string;
+  type: number;
+  progress: number;
+  target: number;
+  claimed: boolean;
+  reward: { gems: number; xp: number };
+}
+
 export interface ShopItemDto {
   id: number;
   name: string;
@@ -152,11 +164,27 @@ export async function fetchFinalTest(id: number): Promise<unknown> {
 }
 
 export async function fetchQuests(): Promise<QuestDto[]> {
-  return getData<QuestDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests });
+  // Map DTO backend → view: progress→current, reward.{gems,xp}→rewardGems/rewardXp
+  // (fix NaN% — backend KHÔNG trả current/rewardGems/rewardXp/description)
+  const raw = await getData<RawQuestDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.quests });
+  return raw.map((q) => ({
+    id: q.id,
+    title: q.title,
+    description: '',
+    target: q.target,
+    current: q.progress,
+    rewardGems: q.reward?.gems ?? 0,
+    rewardXp: q.reward?.xp ?? 0,
+    claimed: q.claimed,
+  }));
 }
 
 export async function claimQuest(id: number): Promise<{ gems: number; xp: number }> {
-  return getData<{ gems: number; xp: number }>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.claimQuest(id) });
+  const raw = await getData<{ claimed: boolean; reward: { gems: number; xp: number }; gemsTotal: number }>({
+    method: 'POST',
+    url: GAMIFICATION_ENDPOINTS.claimQuest(id),
+  });
+  return { gems: raw.reward?.gems ?? 0, xp: raw.reward?.xp ?? 0 };
 }
 
 export async function fetchStreak(): Promise<StreakDto> {
