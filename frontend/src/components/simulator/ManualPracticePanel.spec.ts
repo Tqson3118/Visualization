@@ -21,7 +21,7 @@ function makeStep(index: number, explanation: string): Step {
   };
 }
 
-const EMPTY_HINT = 'Hãy bấm Play để chạy mô phỏng trước';
+const EMPTY_HINT = 'Chọn nút ▶ trên thanh điều khiển để chạy mô phỏng';
 
 function mountPanel(steps: Step[], currentIndex: number) {
   return mount(ManualPracticePanel, {

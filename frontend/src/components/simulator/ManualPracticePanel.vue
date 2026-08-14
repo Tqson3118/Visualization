@@ -39,7 +39,8 @@ const hasRun = computed(() => props.steps.length > 0);
 /** Auto-scroll: khi panel xuất hiện (bật chế độ Tự thực hành) → cuộn mượt vào view. */
 onMounted(async () => {
   await nextTick();
-  rootEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // jsdom/test không có scrollIntoView → optional-call an toàn.
+  rootEl.value?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
 });
 
 /** Các thao tác gợi ý (≈ 6) cho bước kế — label i18n theo key (messages.practice.options) */

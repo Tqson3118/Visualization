@@ -33,7 +33,6 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import ProseContent from '@/components/ui/ProseContent.vue';
 import { CATALOG } from '@/engines/catalog';
 
 // ── Kiểu local theo backend v2.15 (lessons.ts chưa theo kịp — không sửa file khác) ──

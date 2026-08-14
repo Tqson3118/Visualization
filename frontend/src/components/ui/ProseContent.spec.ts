@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 
 import ProseContent from './ProseContent.vue';
 
-function html(content: string, format?: 'html' | 'markdown' | 'text') {
+function html(content: string, format?: 'html' | 'text') {
   const wrapper = mount(ProseContent, { props: { content, format } });
   return (wrapper.element as HTMLElement).innerHTML;
 }
@@ -56,8 +56,8 @@ describe('ProseContent', () => {
     expect(out).toContain('&lt;p&gt;');
   });
 
-  it('format="markdown" xử lý như text (wrap + escape, không parse)', () => {
-    const out = html('# Tiêu đề\n\nĐoạn văn.', 'markdown');
+  it('markdown thô (# tiêu đề) → xử lý như text (wrap + escape, không parse)', () => {
+    const out = html('# Tiêu đề\n\nĐoạn văn.');
     expect(out).toBe('<p># Tiêu đề</p><p>Đoạn văn.</p>');
   });
 
