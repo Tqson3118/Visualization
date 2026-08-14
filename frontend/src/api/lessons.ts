@@ -71,7 +71,7 @@ export async function fetchTopic(id: number): Promise<Topic> {
   return getData<Topic>({ method: 'GET', url: LESSON_ENDPOINTS.topic(id) });
 }
 
-export async function fetchLessons(params: { topicId?: number; status?: string; q?: string; page?: number } = {}): Promise<PagedResponse<LessonSummary>> {
+export async function fetchLessons(params: { topicId?: number; status?: string; q?: string; page?: number; pageSize?: number } = {}): Promise<PagedResponse<LessonSummary>> {
   return getData<PagedResponse<LessonSummary>>({ method: 'GET', url: LESSON_ENDPOINTS.lessons, params });
 }
 

@@ -215,7 +215,7 @@ async function openEdit(lesson: LessonRow): Promise<void> {
   editingId.value = lesson.id;
   try {
     const detail = await fetchLessonDetail(lesson.id);
-    formRejectionReason.value = detail.status === 'draft' ? detail.rejectionReason : '';
+    formRejectionReason.value = detail.status === 'draft' ? detail.rejectionReason ?? '' : '';
     if (detail.rejectionReason) rejectedReasons[lesson.id] = detail.rejectionReason;
     Object.assign(form, {
       title: detail.title,
