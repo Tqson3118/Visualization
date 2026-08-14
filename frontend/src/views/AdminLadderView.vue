@@ -12,6 +12,7 @@ import type { ExerciseSummaryDto } from '@/api/exercises';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
 import AdminNav from '@/components/admin/AdminNav.vue';
+import AdminHeroStrip from '@/components/admin/AdminHeroStrip.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -106,6 +107,10 @@ async function attach(): Promise<void> {
         <Badge variant="primary">
           <ListOrdered :size="12" /> {{ messages.admin.badge }}
         </Badge>
+      </template>
+      <!-- Mono strip: block-token dữ liệu thật (số bài tập) + index mono — đồng bộ 4 màn admin -->
+      <template #side>
+        <AdminHeroStrip :count="exercises.length" :label="messages.admin.ladder.stripLabel(exercises.length)" />
       </template>
     </PageHero>
 
@@ -315,8 +320,13 @@ async function attach(): Promise<void> {
 .admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Count badges nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
+/* Số liệu "đo được" → mono + tabular-nums (DESIGN §3 — đồng bộ badge mono admin) */
 .admin-ladder__node-count,
-.admin-ladder__node-passed { flex-shrink: 0; }
+.admin-ladder__node-passed {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
 
 .admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
 

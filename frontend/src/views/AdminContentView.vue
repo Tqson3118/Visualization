@@ -10,7 +10,19 @@
 // simulationKeys, luồng kiểm duyệt (Chờ duyệt / Từ chối kèm lý do).
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowRight, Eye, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+import {
+  ArrowRight,
+  ChevronRight,
+  Eye,
+  FileText,
+  Folder,
+  Lock,
+  Network,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
 import type { LessonSummary, LessonUpsertRequest, Topic } from '@/api/lessons';
@@ -19,12 +31,6 @@ import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { messages } from '@/i18n/vi';
 import ProseContent from '@/components/ui/ProseContent.vue';
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import AdminNav from '@/components/admin/AdminNav.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -83,10 +89,20 @@ const form = reactive({
   description: '',
   topicId: 1,
   contentHtml: '',
-  isClassOnly: false,
   simulationKeys: [] as string[],
   sortOrder: 1,
 });
+
+// ── Chế độ xuất bản (Task 3b): segmented control 3 trạng thái.
+// Payload gửi lên GIỮ NGUYÊN (status + isClassOnly) — chỉ nâng visual form.
+type PublishMode = 'draft' | 'public' | 'classonly';
+const publishMode = ref<PublishMode>('public');
+const publishOptions: Array<{ key: PublishMode; label: string; hint: string }> = [
+  { key: 'draft', label: messages.admin.content.publishDraft, hint: messages.admin.content.publishDraftHint },
+  { key: 'public', label: messages.admin.content.publishPublic, hint: messages.admin.content.publishPublicHint },
+  { key: 'classonly', label: messages.admin.content.publishClassOnly, hint: messages.admin.content.publishClassOnlyHint },
+];
+const publishHint = computed(() => publishOptions.find((o) => o.key === publishMode.value)?.hint ?? '');
 
 /** Lý do từ chối của bài đang sửa (backend chỉ trả khi tải chi tiết). */
 const formRejectionReason = ref('');
@@ -188,14 +204,67 @@ async function fetchLessonDetail(id: number): Promise<LessonDetailRow> {
 
 const topicName = computed(() => (id: number) => topics.value.find((t) => t.id === id)?.name ?? `#${id}`);
 
-/** Số bài học mỗi chủ đề (tính từ danh sách lessons đã tải — presentation only). */
-const topicLessonCount = computed(() => {
-  const map = new Map<number, number>();
-  for (const lesson of lessons.value) {
-    map.set(lesson.topicId, (map.get(lesson.topicId) ?? 0) + 1);
-  }
-  return map;
+// ── Cây danh mục Chủ đề → Bài học → Mô phỏng (Task 3b) ──
+// Phân cấp từ dữ liệu THẬT: topics.parentId/children (API §4.3) + lessons.topicId.
+// Mở rộng chỉ là presentation state — không đổi API/store.
+
+const expandedTopics = reactive(new Set<number>());
+const expandedLessons = reactive(new Set<number>());
+
+/** Mô phỏng gắn của từng bài — lazy load qua GET /lessons/:id khi mở nhánh (presentation only). */
+const lessonSims = reactive<Record<number, Array<{ simulationKey: string; title: string }>>>({});
+
+const rootTopics = computed(() => topics.value.filter((t) => t.parentId === null));
+const topicChildren = (id: number): Topic[] => topics.value.filter((t) => t.parentId === id);
+const lessonsByTopic = (topicId: number): LessonRow[] =>
+  lessons.value.filter((l) => l.topicId === topicId).sort((a, b) => a.sortOrder - b.sortOrder);
+
+interface TreeRow {
+  key: string;
+  depth: number;
+  type: 'topic' | 'lesson';
+  topic?: Topic;
+  lesson?: LessonRow;
+}
+
+/** Flatten cây theo trạng thái mở rộng — mỗi dòng kèm depth để thụt lề + dấu nối. */
+const treeRows = computed<TreeRow[]>(() => {
+  const rows: TreeRow[] = [];
+  const visit = (topic: Topic, depth: number): void => {
+    rows.push({ key: `t-${topic.id}`, depth, type: 'topic', topic });
+    if (!expandedTopics.has(topic.id)) return;
+    topicChildren(topic.id).forEach((child) => visit(child, depth + 1));
+    for (const lesson of lessonsByTopic(topic.id)) {
+      rows.push({ key: `l-${lesson.id}`, depth: depth + 1, type: 'lesson', lesson });
+    }
+  };
+  rootTopics.value.forEach((topic) => visit(topic, 0));
+  return rows;
 });
+
+const treeHasChildren = (topic: Topic): boolean =>
+  topicChildren(topic.id).length > 0 || lessonsByTopic(topic.id).length > 0;
+
+function toggleTopic(topic: Topic): void {
+  if (expandedTopics.has(topic.id)) expandedTopics.delete(topic.id);
+  else expandedTopics.add(topic.id);
+}
+
+/** Mở nhánh bài học → lazy load danh sách mô phỏng gắn (cache theo bài, thất bại → trạng thái trống). */
+async function toggleLesson(lesson: LessonRow): Promise<void> {
+  if (expandedLessons.has(lesson.id)) {
+    expandedLessons.delete(lesson.id);
+    return;
+  }
+  expandedLessons.add(lesson.id);
+  if (lessonSims[lesson.id]) return;
+  try {
+    const detail = await fetchLessonDetail(lesson.id);
+    lessonSims[lesson.id] = detail.simulations;
+  } catch {
+    lessonSims[lesson.id] = [];
+  }
+}
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -206,12 +275,9 @@ const contentTabs = computed(() => [
 
 const isAdmin = computed(() => auth.role === 'ADMIN');
 
-/** Trạng thái xuất bản theo checkbox: Class Only → active, Public → pendingreview. */
-const publishStatus = computed<'active' | 'pendingreview'>(() => (form.isClassOnly ? 'active' : 'pendingreview'));
-
 const statusLabel: Record<string, string> = {
   draft: messages.admin.content.statusDraft,
-  pendingreview: 'Chờ duyệt',
+  pendingreview: messages.admin.content.statusPending,
   active: messages.admin.content.statusActive,
   hidden: messages.admin.content.statusHidden,
 };
@@ -231,10 +297,10 @@ function openCreate(): void {
     description: '',
     topicId: topics.value[0]?.id ?? 1,
     contentHtml: '',
-    isClassOnly: false,
     simulationKeys: [],
     sortOrder: lessons.value.length + 1,
   });
+  publishMode.value = 'public';
   editorTab.value = 'write';
   formOpen.value = true;
 }
@@ -250,10 +316,10 @@ async function openEdit(lesson: LessonRow): Promise<void> {
       description: detail.description,
       topicId: detail.topicId,
       contentHtml: detail.contentHtml,
-      isClassOnly: detail.isClassOnly,
       simulationKeys: detail.simulations.map((sim) => sim.simulationKey),
       sortOrder: detail.sortOrder,
     });
+    publishMode.value = detail.status === 'draft' ? 'draft' : detail.isClassOnly ? 'classonly' : 'public';
     editorTab.value = 'write';
     formOpen.value = true;
   } catch (err) {
@@ -274,8 +340,9 @@ async function saveLesson(): Promise<void> {
       title: form.title.trim(),
       description: form.description,
       contentHtml: form.contentHtml || '<p>Đang biên soạn...</p>',
-      status: publishStatus.value,
-      isClassOnly: form.isClassOnly,
+      // Bản nháp → draft; Công khai → pendingreview; Lớp học riêng → active + isClassOnly
+      status: publishMode.value === 'draft' ? 'draft' : publishMode.value === 'classonly' ? 'active' : 'pendingreview',
+      isClassOnly: publishMode.value === 'classonly',
       sortOrder: form.sortOrder,
       simulationKeys: [...form.simulationKeys],
     } as unknown as LessonUpsertRequest;
@@ -648,8 +715,12 @@ async function saveTopic(): Promise<void> {
                 <td :data-label="messages.admin.content.colTopic"><Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge></td>
                 <td :data-label="messages.admin.content.colStatus">
                   <div class="admin-content__status-cell">
-                    <Badge :variant="statusVariant[lesson.status]">{{ statusLabel[lesson.status] ?? lesson.status }}</Badge>
-                    <Badge v-if="lesson.isClassOnly" variant="secondary">Lớp học riêng</Badge>
+                    <Badge :variant="statusVariant[lesson.status]" class="admin-content__status">
+                      {{ statusLabel[lesson.status] ?? lesson.status }}
+                    </Badge>
+                    <Badge v-if="lesson.isClassOnly" variant="secondary" class="admin-content__status admin-content__status--classonly">
+                      <Lock :size="11" aria-hidden="true" /> {{ messages.admin.content.statusClassOnly }}
+                    </Badge>
                   </div>
                 </td>
                 <td :data-label="messages.admin.content.colSim">
@@ -660,11 +731,11 @@ async function saveTopic(): Promise<void> {
                 <td :data-label="messages.admin.content.colActions">
                   <div class="admin-content__actions">
                     <template v-if="isAdmin && lesson.status === 'pendingreview'">
-                      <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
-                      <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
+                      <Button size="sm" variant="secondary" @click="approveLesson(lesson)">{{ messages.admin.content.approve }}</Button>
+                      <Button size="sm" variant="danger" @click="rejectLesson(lesson)">{{ messages.admin.content.reject }}</Button>
                     </template>
                     <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)">
-                      <Eye :size="16" /> Xem trước
+                      <Eye :size="16" /> {{ messages.admin.content.preview }}
                     </Button>
                     <Button size="sm" variant="ghost" @click="openEdit(lesson)">
                       <Pencil :size="16" /> {{ messages.admin.content.edit }}
@@ -681,7 +752,7 @@ async function saveTopic(): Promise<void> {
       </div>
     </template>
 
-    <!-- Danh sách chủ đề -->
+    <!-- Cây danh mục Chủ đề → Bài học → Mô phỏng -->
     <template v-else>
       <div class="admin-content__toolbar">
         <Button size="md" @click="topicFormOpen = true"><Plus :size="16" /> {{ messages.admin.content.addTopic }}</Button>
@@ -696,21 +767,103 @@ async function saveTopic(): Promise<void> {
         @action="topicFormOpen = true"
       />
 
-      <div v-else class="admin-content__topics">
-        <Card v-for="topic in topics" :key="topic.id" class="admin-content__topic">
-          <CardHeader class="admin-content__topic-head">
-            <span class="admin-content__topic-icon" aria-hidden="true"><Layers :size="16" /></span>
-            <div class="admin-content__topic-meta">
-              <CardTitle class="admin-content__topic-name">{{ topic.name }}</CardTitle>
-              <CardDescription class="admin-content__topic-desc">
-                {{ topic.description || '—' }}
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" class="admin-content__topic-count">
-              {{ topicLessonCount.get(topic.id) ?? 0 }} {{ messages.admin.content.lessonsCount }}
+      <!-- Cây: topic (level 0/1) → bài học (level 2/3) → chip mô phỏng — thụt lề theo depth -->
+      <div v-else class="admin-content__tree" role="tree" :aria-label="messages.admin.content.treeAria">
+        <template v-for="row in treeRows" :key="row.key">
+          <!-- Chủ đề: folder + chevron + số bài học -->
+          <button
+            v-if="row.type === 'topic' && row.topic"
+            type="button"
+            role="treeitem"
+            class="admin-content__tree-row"
+            :class="[
+              `admin-content__tree-row--depth-${Math.min(row.depth, 3)}`,
+              { 'admin-content__tree-row--leaf': !treeHasChildren(row.topic) },
+            ]"
+            :aria-expanded="expandedTopics.has(row.topic.id)"
+            @click="toggleTopic(row.topic)"
+          >
+            <ChevronRight
+              :size="16"
+              class="admin-content__tree-chevron"
+              :class="{ 'admin-content__tree-chevron--open': expandedTopics.has(row.topic.id) }"
+              aria-hidden="true"
+            />
+            <Folder :size="16" class="admin-content__tree-folder" aria-hidden="true" />
+            <span class="admin-content__tree-topic-name">{{ row.topic.name }}</span>
+            <span v-if="row.topic.description" class="admin-content__tree-topic-desc">{{ row.topic.description }}</span>
+            <Badge variant="secondary" class="admin-content__tree-count">
+              {{ lessonsByTopic(row.topic.id).length }} {{ messages.admin.content.lessonsCount }}
             </Badge>
-          </CardHeader>
-        </Card>
+          </button>
+
+          <!-- Bài học: file + badge trạng thái mono + số mô phỏng + thao tác -->
+          <div
+            v-else-if="row.lesson"
+            role="treeitem"
+            class="admin-content__tree-lesson"
+            :class="`admin-content__tree-lesson--depth-${Math.min(row.depth + 1, 3)}`"
+          >
+            <div class="admin-content__tree-lesson-main">
+              <button
+                type="button"
+                class="admin-content__tree-lesson-toggle"
+                :aria-expanded="expandedLessons.has(row.lesson.id)"
+                :aria-label="row.lesson.title"
+                @click="toggleLesson(row.lesson)"
+              >
+                <ChevronRight
+                  :size="14"
+                  class="admin-content__tree-chevron"
+                  :class="{ 'admin-content__tree-chevron--open': expandedLessons.has(row.lesson.id) }"
+                  aria-hidden="true"
+                />
+                <FileText :size="14" class="admin-content__tree-file" aria-hidden="true" />
+              </button>
+              <span class="admin-content__tree-lesson-title">{{ row.lesson.title }}</span>
+              <span class="admin-content__tree-status">
+                <Badge :variant="statusVariant[row.lesson.status]" class="admin-content__status">
+                  {{ statusLabel[row.lesson.status] ?? row.lesson.status }}
+                </Badge>
+                <Badge v-if="row.lesson.isClassOnly" variant="secondary" class="admin-content__status admin-content__status--classonly">
+                  <Lock :size="11" aria-hidden="true" /> {{ messages.admin.content.statusClassOnly }}
+                </Badge>
+              </span>
+              <span v-if="row.lesson.simulationCount > 0" class="admin-content__tree-simcount">
+                <Network :size="12" aria-hidden="true" /> {{ row.lesson.simulationCount }}
+              </span>
+              <span class="admin-content__tree-actions">
+                <template v-if="isAdmin && row.lesson.status === 'pendingreview'">
+                  <Button size="sm" variant="secondary" @click="approveLesson(row.lesson)">{{ messages.admin.content.approve }}</Button>
+                  <Button size="sm" variant="danger" @click="rejectLesson(row.lesson)">{{ messages.admin.content.reject }}</Button>
+                </template>
+                <Button size="sm" variant="ghost" @click="openLessonPreview(row.lesson)">
+                  <Eye :size="14" /> {{ messages.admin.content.preview }}
+                </Button>
+                <Button size="sm" variant="ghost" @click="openEdit(row.lesson)">
+                  <Pencil :size="14" /> {{ messages.admin.content.edit }}
+                </Button>
+                <Button size="sm" variant="danger" @click="deleteLesson(row.lesson)">
+                  <Trash2 :size="14" /> {{ messages.admin.content.delete }}
+                </Button>
+              </span>
+            </div>
+
+            <!-- Cấp mô phỏng: chip mono theo lesson detail (lazy) -->
+            <div
+              v-if="expandedLessons.has(row.lesson.id)"
+              class="admin-content__tree-sims"
+              :class="`admin-content__tree-sims--depth-${Math.min(row.depth + 2, 3)}`"
+            >
+              <span v-for="sim in lessonSims[row.lesson.id] ?? []" :key="sim.simulationKey" class="admin-content__tree-sim-chip">
+                {{ sim.simulationKey }}
+              </span>
+              <span v-if="(lessonSims[row.lesson.id]?.length ?? 0) === 0" class="admin-content__tree-sims-empty">
+                {{ messages.admin.content.treeNoSims }}
+              </span>
+            </div>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -720,34 +873,40 @@ async function saveTopic(): Promise<void> {
         <p v-if="formRejectionReason" class="admin-content__reject-banner" role="alert">
           Bài học đã bị từ chối: {{ formRejectionReason }} — sửa nội dung và lưu để gửi lại duyệt.
         </p>
-        <Input v-model="form.title" :label="messages.admin.content.lessonTitle" required />
-        <Input v-model="form.description" :label="messages.admin.content.lessonDesc" />
+        <Input v-model="form.title" :label="messages.admin.content.lessonTitle" required :disabled="saving" />
+        <Input v-model="form.description" :label="messages.admin.content.lessonDesc" :disabled="saving" />
         <div class="admin-content__row">
           <label class="label" for="lesson-topic">{{ messages.admin.content.lessonTopic }}</label>
-          <select id="lesson-topic" v-model="form.topicId" class="input">
+          <select id="lesson-topic" v-model="form.topicId" class="input" :disabled="saving">
             <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
           </select>
         </div>
-        <!-- Xuất bản: Class Only → active; Public → pendingreview (backend v2.15) -->
+        <!-- Chế độ xuất bản (Task 3b): segmented control — payload giữ nguyên (status + isClassOnly) -->
         <div class="admin-content__row">
-          <label class="admin-content__publish" for="lesson-class-only">
-            <input id="lesson-class-only" v-model="form.isClassOnly" type="checkbox" class="admin-content__checkbox" />
-            <span class="admin-content__publish-text">
-              <span class="admin-content__publish-label">
-                {{ form.isClassOnly ? 'Chỉ dùng trong Lớp học riêng (Class Only)' : 'Gửi yêu cầu xuất bản toàn hệ thống (Public)' }}
-              </span>
-              <span class="admin-content__publish-hint">
-                {{ form.isClassOnly ? 'Sẽ lưu trạng thái Kích hoạt — chỉ hiển thị trong lớp học riêng.' : 'Sẽ lưu trạng thái Chờ duyệt — Admin kiểm duyệt trước khi công khai.' }}
-              </span>
-            </span>
-          </label>
+          <span class="label" id="lesson-publish-label">{{ messages.admin.content.publishMode }}</span>
+          <div class="admin-content__publish" role="radiogroup" aria-labelledby="lesson-publish-label">
+            <button
+              v-for="opt in publishOptions"
+              :key="opt.key"
+              type="button"
+              role="radio"
+              :aria-checked="publishMode === opt.key"
+              class="admin-content__publish-option"
+              :class="{ 'admin-content__publish-option--active': publishMode === opt.key }"
+              :disabled="saving"
+              @click="publishMode = opt.key"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+          <p class="admin-content__publish-hint" aria-live="polite">{{ publishHint }}</p>
         </div>
         <!-- Mô phỏng multi-select → simulationKeys -->
         <div class="admin-content__row">
           <span class="label">{{ messages.admin.content.simAttach }}</span>
           <div class="admin-content__sims" role="group" aria-label="Danh sách mô phỏng">
             <label v-for="sim in CATALOG" :key="sim.key" class="admin-content__sim-option">
-              <input v-model="form.simulationKeys" type="checkbox" :value="sim.key" />
+              <input v-model="form.simulationKeys" type="checkbox" :value="sim.key" :disabled="saving" />
               <span class="admin-content__sim-title">{{ sim.title }}</span>
               <code class="admin-content__sim-key">{{ sim.key }}</code>
             </label>
@@ -801,6 +960,7 @@ async function saveTopic(): Promise<void> {
                 v-model="form.contentHtml"
                 class="admin-content__html"
                 rows="14"
+                :disabled="saving"
                 :placeholder="messages.admin.content.htmlPlaceholder"
               />
             </div>
@@ -813,7 +973,7 @@ async function saveTopic(): Promise<void> {
           </div>
         </div>
         <div class="admin-content__actions">
-          <Button variant="ghost" @click="formOpen = false">{{ messages.admin.content.cancel }}</Button>
+          <Button variant="ghost" :disabled="saving" @click="formOpen = false">{{ messages.admin.content.cancel }}</Button>
           <Button type="submit" :loading="saving">{{ messages.admin.content.save }}</Button>
         </div>
       </form>
@@ -940,39 +1100,175 @@ async function saveTopic(): Promise<void> {
 
 .admin-content__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
-/* ── Topic grid ── */
-.admin-content__topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-md); }
+/* ── Badge trạng thái mono semantic (Task 3b — DESIGN §4.3) ── */
+.admin-content__status {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
 
-.admin-content__topic { min-width: 0; border-color: var(--border); transition: border-color 150ms; }
+.admin-content__status--classonly { color: var(--foreground-secondary); }
 
-.admin-content__topic:hover { border-color: var(--border-strong); }
+/* ── Cây danh mục Chủ đề → Bài học → Mô phỏng (Task 3b) ── */
+.admin-content__tree {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
 
-.admin-content__topic-head { display: flex; flex-direction: row; align-items: flex-start; gap: var(--space-sm); }
+/* Topic row: thụt lề theo depth + chevron xoay khi mở */
+.admin-content__tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--foreground);
+  transition: background-color 150ms;
+}
 
-.admin-content__topic-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-  color: var(--foreground-secondary);
+.admin-content__tree-row:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
+
+.admin-content__tree-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.admin-content__tree-row--leaf .admin-content__tree-chevron { visibility: hidden; }
+
+.admin-content__tree-row--depth-0 { padding-left: var(--space-md); }
+.admin-content__tree-row--depth-1 { padding-left: calc(var(--space-md) + 24px); }
+.admin-content__tree-row--depth-2 { padding-left: calc(var(--space-md) + 48px); }
+.admin-content__tree-row--depth-3 { padding-left: calc(var(--space-md) + 72px); }
+
+.admin-content__tree-chevron {
+  color: var(--foreground-tertiary);
+  flex-shrink: 0;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-content__tree-chevron--open { transform: rotate(90deg); }
+
+.admin-content__tree-folder { color: var(--foreground-secondary); flex-shrink: 0; }
+
+.admin-content__tree-topic-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-content__tree-topic-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+}
+
+.admin-content__tree-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+/* Lesson row: file + toggle mở chip mô phỏng */
+.admin-content__tree-lesson { border-bottom: 1px solid var(--border); }
+
+.admin-content__tree-lesson:last-child { border-bottom: none; }
+
+.admin-content__tree-lesson-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  transition: background-color 150ms;
+}
+
+.admin-content__tree-lesson-main:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
+
+.admin-content__tree-lesson--depth-1 { padding-left: 24px; }
+.admin-content__tree-lesson--depth-2 { padding-left: 48px; }
+.admin-content__tree-lesson--depth-3 { padding-left: 72px; }
+
+.admin-content__tree-lesson-toggle {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-xs);
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--foreground-tertiary);
+  transition: background-color 150ms;
+}
+
+.admin-content__tree-lesson-toggle:hover { background: var(--muted); }
+
+.admin-content__tree-lesson-toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+.admin-content__tree-file { color: var(--foreground-tertiary); flex-shrink: 0; }
+
+.admin-content__tree-lesson-title {
+  flex: 1;
+  font-size: var(--text-sm);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-content__tree-status { display: inline-flex; align-items: center; gap: var(--space-xs); flex-shrink: 0; }
+
+.admin-content__tree-simcount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
-.admin-content__topic-meta { min-width: 0; flex: 1; }
-
-.admin-content__topic-name {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
+.admin-content__tree-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
 }
 
-.admin-content__topic-desc { font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Cấp mô phỏng: chip mono key */
+.admin-content__tree-sims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+}
 
-.admin-content__topic-count { flex-shrink: 0; }
+.admin-content__tree-sims--depth-2 { padding-left: 72px; }
+.admin-content__tree-sims--depth-3 { padding-left: 96px; }
+
+.admin-content__tree-sim-chip {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+  border: 1px solid var(--border-subtle);
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+
+.admin-content__tree-sims-empty { font-size: var(--text-xs); color: var(--foreground-quaternary); padding: var(--space-xs) 0; }
 
 /* ── Modal form ── */
 .admin-content__form { display: flex; flex-direction: column; gap: var(--space-md); }
@@ -1091,16 +1387,46 @@ async function saveTopic(): Promise<void> {
 .admin-content__preview :deep(blockquote[data-callout='warning']) { border-left-color: var(--color-warning); }
 .admin-content__preview :deep(blockquote[data-callout='warning'])::before { content: 'Cảnh báo'; color: var(--color-warning); }
 
-/* ── Xuất bản + mô phỏng (v2.15) ── */
-.admin-content__publish { display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer; }
+/* ── Chế độ xuất bản: segmented control 3 trạng thái (Task 3b) ── */
+.admin-content__publish {
+  display: inline-flex;
+  gap: 2px;
+  width: fit-content;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+}
 
-.admin-content__publish .admin-content__checkbox { margin-top: 3px; accent-color: var(--data-core); }
+.admin-content__publish-option {
+  min-height: 32px;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
 
-.admin-content__publish-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.admin-content__publish-option:hover {
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+  color: var(--foreground);
+}
 
-.admin-content__publish-label { font-size: var(--text-sm); font-weight: 500; color: var(--foreground); }
+.admin-content__publish-option:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 
-.admin-content__publish-hint { font-size: var(--text-xs); color: var(--foreground-tertiary); }
+.admin-content__publish-option:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.admin-content__publish-option--active,
+.admin-content__publish-option--active:hover {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.admin-content__publish-hint { font-size: var(--text-xs); color: var(--foreground-tertiary); margin: 0; }
 
 .admin-content__reject-banner {
   padding: var(--space-sm) var(--space-md);
@@ -1179,5 +1505,12 @@ async function saveTopic(): Promise<void> {
 
   .admin-content__title-text,
   .admin-content__title-desc { max-width: 100%; white-space: normal; }
+
+  /* Tree trên mobile: ẩn mô tả chủ đề, action xuống dòng riêng */
+  .admin-content__tree-topic-desc { display: none; }
+
+  .admin-content__tree-lesson-main { flex-wrap: wrap; }
+
+  .admin-content__tree-actions { margin-left: 0; width: 100%; }
 }
 </style>

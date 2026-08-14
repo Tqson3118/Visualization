@@ -502,6 +502,23 @@ export const messages = {
       loadError: 'Không thể tải cấu hình (backend chưa khả dụng — hiển thị mặc định).',
       saved: 'Đã lưu cấu hình hệ thống.',
       retry: 'Thử lại',
+      // Task 3b (ui-redesign) — nhóm cài đặt theo card + switch + chuỗi báo cáo
+      groupSecurity: 'Bảo mật',
+      groupSecurityDesc: 'Chính sách mật khẩu và danh sách domain email được phép đăng ký.',
+      groupSystem: 'Hệ thống',
+      groupSystemDesc: 'Tên hệ thống và giới hạn upload/sandbox cho trình chạy mã.',
+      sectionReports: 'Báo cáo lỗi & vi phạm',
+      reportsSub:
+        'Báo cáo lỗi từ người dùng và báo cáo vi phạm bài học (CONTENT_VIOLATION). Chọn trạng thái và nhập phản hồi (AdminNote) để xử lý.',
+      reportsEmpty: 'Chưa có báo cáo nào.',
+      reportNotePlaceholder: 'Phản hồi của Admin (tùy chọn)...',
+      reportSave: 'Lưu',
+      reportsRetry: 'Thử lại',
+      reportsLoadError: 'Không thể tải báo cáo lỗi & vi phạm.',
+      reportStatusNew: 'Mới',
+      reportStatusProcessing: 'Đang xử lý',
+      reportStatusResolved: 'Đã xử lý',
+      reportStatusClosed: 'Đã đóng',
     },
     content: {
       title: 'Quản trị nội dung',
@@ -547,6 +564,21 @@ export const messages = {
       stripLabel: (lessons: number, topics: number) =>
         `${String(lessons).padStart(2, '0')} BÀI · ${String(topics).padStart(2, '0')} CHỦ ĐỀ`,
       retry: 'Thử lại',
+      // Task 3b (ui-redesign) — cây danh mục + chế độ xuất bản + badge trạng thái
+      statusPending: 'Chờ duyệt',
+      statusClassOnly: 'Lớp học riêng',
+      approve: 'Duyệt',
+      reject: 'Từ chối',
+      preview: 'Xem trước',
+      publishMode: 'Chế độ xuất bản',
+      publishDraft: 'Bản nháp',
+      publishPublic: 'Công khai',
+      publishClassOnly: 'Lớp học riêng',
+      publishDraftHint: 'Chưa hiển thị cho người học — lưu để gửi lại duyệt.',
+      publishPublicHint: 'Sẽ lưu trạng thái Chờ duyệt — Admin kiểm duyệt trước khi công khai.',
+      publishClassOnlyHint: 'Sẽ lưu trạng thái Kích hoạt — chỉ hiển thị trong lớp học riêng.',
+      treeAria: 'Cây danh mục: chủ đề, bài học, mô phỏng',
+      treeNoSims: 'Chưa gắn mô phỏng.',
     },
     ladder: {
       title: 'Soạn Ladder (node)',
@@ -576,6 +608,8 @@ export const messages = {
         `Đã gắn exercise #${exerciseId} vào Node ${nodeId}.`,
       attachFailed: 'Gắn thất bại.',
       loadErrorText: 'Không thể tải danh sách bài tập (backend chưa khả dụng).',
+      // Task 3b (ui-redesign) — strip banner mono
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} BÀI TẬP`,
     },
   },
 

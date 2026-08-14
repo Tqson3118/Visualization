@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // AdminSettingsView — Màn N-5: cấu hình hệ thống (GET/PUT /settings)
-// View-quality 14/08 (Nhóm D): banner surface band level-2; section title
-// không dùng accent (chỉ interactive); error alert semantic + nút Thử lại;
-// panel form không shadow (DESIGN §6).
+// View-quality 14/08 (Nhóm D): banner surface band level-2; error alert semantic + nút Thử lại.
+// Task 3b (ui-redesign): cài đặt nhóm thành card level-1 (Bảo mật / Hệ thống) theo
+// DESIGN §6 — mỗi card có icon + mô tả ngắn; checkbox chính sách mật khẩu → switch
+// toggle mượt (role="switch", knob translate, focus ring); GIỮ NGUYÊN API/save hiện có.
 import { onMounted, reactive, ref } from 'vue';
-import { AlertTriangle, Bug, Cpu, Globe, KeyRound, RefreshCw, Save, Settings, ShieldCheck } from 'lucide-vue-next';
+import { AlertTriangle, Bug, Cpu, RefreshCw, Save, ShieldCheck } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
 import type { BugReportDto } from '@/api/admin';
@@ -16,6 +17,7 @@ import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PageHero from '@/components/ui/PageHero.vue';
 
 const ui = useUiStore();
@@ -46,7 +48,7 @@ async function loadReports(): Promise<void> {
   try {
     reports.value = await adminApi.fetchBugReports();
   } catch {
-    reportsError.value = 'Không thể tải báo cáo lỗi & vi phạm.';
+    reportsError.value = messages.admin.settings.reportsLoadError;
   } finally {
     reportsLoading.value = false;
   }
@@ -67,10 +69,10 @@ async function saveReport(report: BugReportDto): Promise<void> {
 }
 
 const reportStatusLabel: Record<BugReportDto['status'], string> = {
-  NEW: 'Mới',
-  PROCESSING: 'Đang xử lý',
-  RESOLVED: 'Đã xử lý',
-  CLOSED: 'Đã đóng',
+  NEW: messages.admin.settings.reportStatusNew,
+  PROCESSING: messages.admin.settings.reportStatusProcessing,
+  RESOLVED: messages.admin.settings.reportStatusResolved,
+  CLOSED: messages.admin.settings.reportStatusClosed,
 };
 
 async function load(): Promise<void> {
@@ -136,58 +138,106 @@ async function save(): Promise<void> {
         </Button>
       </div>
 
-      <!-- Chung -->
-      <section class="admin-settings__section">
-        <h2 class="admin-settings__section-title">
-          <Globe :size="16" aria-hidden="true" /> {{ messages.admin.settings.sectionGeneral }}
-        </h2>
-        <Input v-model="form.siteName" :label="messages.admin.settings.siteName" />
-        <Input
-          :model-value="domainsText"
-          :label="messages.admin.settings.domains"
-          :placeholder="messages.admin.settings.domainsPlaceholder"
-          @update:model-value="domainsText = $event"
-        />
-      </section>
+      <div class="admin-settings__grid">
+        <!-- Bảo mật: domain cho phép + chính sách mật khẩu -->
+        <Card class="admin-settings__group">
+          <CardHeader class="admin-settings__group-head">
+            <span class="admin-settings__group-icon" aria-hidden="true"><ShieldCheck :size="18" /></span>
+            <div class="admin-settings__group-meta">
+              <CardTitle class="admin-settings__group-title">{{ messages.admin.settings.groupSecurity }}</CardTitle>
+              <CardDescription class="admin-settings__group-desc">{{ messages.admin.settings.groupSecurityDesc }}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent class="admin-settings__group-body">
+            <Input
+              :model-value="domainsText"
+              :label="messages.admin.settings.domains"
+              :placeholder="messages.admin.settings.domainsPlaceholder"
+              :disabled="saving"
+              @update:model-value="domainsText = $event"
+            />
+            <div class="admin-settings__subgroup">
+              <p class="admin-settings__subgroup-title">{{ messages.admin.settings.sectionPassword }}</p>
+              <Input
+                v-model.number="form.passwordPolicy.minLength"
+                :label="messages.admin.settings.minLength"
+                type="number"
+                min="6"
+                max="32"
+                :disabled="saving"
+              />
+              <div class="admin-settings__switches">
+                <div class="admin-settings__switch-row">
+                  <span class="admin-settings__switch-label">{{ messages.admin.settings.requireUpper }}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="form.passwordPolicy.requireUppercase"
+                    :aria-label="messages.admin.settings.requireUpper"
+                    class="admin-settings__switch"
+                    :class="{ 'admin-settings__switch--on': form.passwordPolicy.requireUppercase }"
+                    :disabled="saving"
+                    @click="form.passwordPolicy.requireUppercase = !form.passwordPolicy.requireUppercase"
+                  >
+                    <span class="admin-settings__switch-knob" aria-hidden="true" />
+                  </button>
+                </div>
+                <div class="admin-settings__switch-row">
+                  <span class="admin-settings__switch-label">{{ messages.admin.settings.requireDigit }}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="form.passwordPolicy.requireDigit"
+                    :aria-label="messages.admin.settings.requireDigit"
+                    class="admin-settings__switch"
+                    :class="{ 'admin-settings__switch--on': form.passwordPolicy.requireDigit }"
+                    :disabled="saving"
+                    @click="form.passwordPolicy.requireDigit = !form.passwordPolicy.requireDigit"
+                  >
+                    <span class="admin-settings__switch-knob" aria-hidden="true" />
+                  </button>
+                </div>
+                <div class="admin-settings__switch-row">
+                  <span class="admin-settings__switch-label">{{ messages.admin.settings.requireSpecial }}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="form.passwordPolicy.requireSpecial"
+                    :aria-label="messages.admin.settings.requireSpecial"
+                    class="admin-settings__switch"
+                    :class="{ 'admin-settings__switch--on': form.passwordPolicy.requireSpecial }"
+                    :disabled="saving"
+                    @click="form.passwordPolicy.requireSpecial = !form.passwordPolicy.requireSpecial"
+                  >
+                    <span class="admin-settings__switch-knob" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <!-- Chính sách mật khẩu -->
-      <section class="admin-settings__section">
-        <h2 class="admin-settings__section-title">
-          <KeyRound :size="16" aria-hidden="true" /> {{ messages.admin.settings.sectionPassword }}
-        </h2>
-        <div class="admin-settings__row">
-          <Input v-model.number="form.passwordPolicy.minLength" :label="messages.admin.settings.minLength" type="number" min="6" max="32" />
-        </div>
-        <fieldset class="admin-settings__checks">
-          <legend class="visually-hidden">{{ messages.admin.settings.sectionPassword }}</legend>
-          <label class="admin-settings__check">
-            <input v-model="form.passwordPolicy.requireUppercase" type="checkbox" class="admin-settings__checkbox" />
-            <span>{{ messages.admin.settings.requireUpper }}</span>
-          </label>
-          <label class="admin-settings__check">
-            <input v-model="form.passwordPolicy.requireDigit" type="checkbox" class="admin-settings__checkbox" />
-            <span>{{ messages.admin.settings.requireDigit }}</span>
-          </label>
-          <label class="admin-settings__check">
-            <input v-model="form.passwordPolicy.requireSpecial" type="checkbox" class="admin-settings__checkbox" />
-            <span>{{ messages.admin.settings.requireSpecial }}</span>
-          </label>
-        </fieldset>
-      </section>
-
-      <!-- Sandbox & Upload -->
-      <section class="admin-settings__section">
-        <h2 class="admin-settings__section-title">
-          <Cpu :size="16" aria-hidden="true" /> {{ messages.admin.settings.sectionSandbox }}
-        </h2>
-        <div class="admin-settings__row">
-          <Input v-model.number="form.uploadMaxMb" :label="messages.admin.settings.uploadMax" type="number" min="1" max="50" />
-          <Input v-model.number="form.sandboxSeconds" :label="messages.admin.settings.sandboxSeconds" type="number" min="1" max="30" />
-        </div>
-        <div class="admin-settings__row">
-          <Input v-model.number="form.sandboxMemoryMb" :label="messages.admin.settings.sandboxMemory" type="number" min="16" max="256" />
-        </div>
-      </section>
+        <!-- Hệ thống: tên hệ thống + sandbox/upload -->
+        <Card class="admin-settings__group">
+          <CardHeader class="admin-settings__group-head">
+            <span class="admin-settings__group-icon" aria-hidden="true"><Cpu :size="18" /></span>
+            <div class="admin-settings__group-meta">
+              <CardTitle class="admin-settings__group-title">{{ messages.admin.settings.groupSystem }}</CardTitle>
+              <CardDescription class="admin-settings__group-desc">{{ messages.admin.settings.groupSystemDesc }}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent class="admin-settings__group-body">
+            <Input v-model="form.siteName" :label="messages.admin.settings.siteName" :disabled="saving" />
+            <div class="admin-settings__row">
+              <Input v-model.number="form.uploadMaxMb" :label="messages.admin.settings.uploadMax" type="number" min="1" max="50" :disabled="saving" />
+              <Input v-model.number="form.sandboxSeconds" :label="messages.admin.settings.sandboxSeconds" type="number" min="1" max="30" :disabled="saving" />
+            </div>
+            <div class="admin-settings__row">
+              <Input v-model.number="form.sandboxMemoryMb" :label="messages.admin.settings.sandboxMemory" type="number" min="16" max="256" :disabled="saving" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div class="admin-settings__actions">
         <Button type="submit" :loading="saving" class="admin-settings__save">
@@ -196,63 +246,65 @@ async function save(): Promise<void> {
       </div>
     </form>
 
-    <!-- Báo cáo lỗi & vi phạm (v2.15) -->
-    <section class="admin-settings__reports">
-      <h2 class="admin-settings__section-title">
-        <Bug :size="16" aria-hidden="true" /> Báo cáo lỗi &amp; vi phạm
-      </h2>
-      <p class="admin-settings__reports-sub">
-        Báo cáo lỗi từ người dùng và báo cáo vi phạm bài học (CONTENT_VIOLATION). Chọn trạng thái và
-        nhập phản hồi (AdminNote) để xử lý.
-      </p>
+    <!-- Báo cáo lỗi & vi phạm (v2.15) — card level-1 cùng hệ nhóm -->
+    <Card class="admin-settings__reports">
+      <CardHeader class="admin-settings__group-head">
+        <span class="admin-settings__group-icon" aria-hidden="true"><Bug :size="18" /></span>
+        <div class="admin-settings__group-meta">
+          <CardTitle class="admin-settings__group-title">{{ messages.admin.settings.sectionReports }}</CardTitle>
+          <CardDescription class="admin-settings__group-desc">{{ messages.admin.settings.reportsSub }}</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent class="admin-settings__group-body">
+        <div v-if="reportsLoading" class="admin-settings__loading" aria-busy="true">
+          <Skeleton v-for="i in 3" :key="i" height="64px" />
+        </div>
 
-      <div v-if="reportsLoading" class="admin-settings__loading" aria-busy="true">
-        <Skeleton v-for="i in 3" :key="i" height="64px" />
-      </div>
+        <div v-else-if="reportsError" class="admin-settings__error" role="alert">
+          <AlertTriangle :size="16" aria-hidden="true" />
+          <span class="admin-settings__error-text">{{ reportsError }}</span>
+          <Button size="sm" variant="secondary" @click="loadReports">
+            <RefreshCw :size="14" /> {{ messages.admin.settings.reportsRetry }}
+          </Button>
+        </div>
 
-      <div v-else-if="reportsError" class="admin-settings__error" role="alert">
-        <AlertTriangle :size="16" aria-hidden="true" />
-        <span class="admin-settings__error-text">{{ reportsError }}</span>
-        <Button size="sm" variant="secondary" @click="loadReports">
-          <RefreshCw :size="14" /> Thử lại
-        </Button>
-      </div>
+        <div v-else-if="reports.length === 0" class="admin-settings__reports-empty text-muted">
+          {{ messages.admin.settings.reportsEmpty }}
+        </div>
 
-      <div v-else-if="reports.length === 0" class="admin-settings__reports-empty text-muted">
-        Chưa có báo cáo nào.
-      </div>
-
-      <div v-else class="admin-settings__reports-list">
-        <article v-for="report in reports" :key="report.id" class="admin-settings__report">
-          <div class="admin-settings__report-head">
-            <Badge :variant="report.status === 'NEW' ? 'primary' : report.status === 'PROCESSING' ? 'warning' : 'success'">
-              {{ reportStatusLabel[report.status] }}
-            </Badge>
-            <span class="admin-settings__report-date text-muted">
-              {{ new Date(report.createdAt).toLocaleString('vi-VN') }}
-            </span>
-          </div>
-          <p class="admin-settings__report-desc">{{ report.description }}</p>
-          <p v-if="report.context" class="admin-settings__report-context text-muted">
-            <code>{{ report.context }}</code>
-          </p>
-          <p v-if="report.adminNote" class="admin-settings__report-note">
-            <strong>Phản hồi:</strong> {{ report.adminNote }}
-          </p>
-          <div class="admin-settings__report-actions">
-            <select v-model="report.status" class="admin-settings__report-status">
-              <option v-for="(label, key) in reportStatusLabel" :key="key" :value="key">{{ label }}</option>
-            </select>
-            <input
-              v-model="adminNotes[report.id]"
-              class="admin-settings__report-note-input"
-              placeholder="Phản hồi của Admin (tùy chọn)..."
-            />
-            <Button size="sm" @click="saveReport(report)">Lưu</Button>
-          </div>
-        </article>
-      </div>
-    </section>
+        <div v-else class="admin-settings__reports-list">
+          <article v-for="report in reports" :key="report.id" class="admin-settings__report">
+            <div class="admin-settings__report-head">
+              <Badge :variant="report.status === 'NEW' ? 'primary' : report.status === 'PROCESSING' ? 'warning' : 'success'">
+                {{ reportStatusLabel[report.status] }}
+              </Badge>
+              <span class="admin-settings__report-date text-muted">
+                {{ new Date(report.createdAt).toLocaleString('vi-VN') }}
+              </span>
+            </div>
+            <p class="admin-settings__report-desc">{{ report.description }}</p>
+            <p v-if="report.context" class="admin-settings__report-context text-muted">
+              <code>{{ report.context }}</code>
+            </p>
+            <p v-if="report.adminNote" class="admin-settings__report-note">
+              <strong>Phản hồi:</strong> {{ report.adminNote }}
+            </p>
+            <div class="admin-settings__report-actions">
+              <select v-model="report.status" class="admin-settings__report-status" :disabled="saving">
+                <option v-for="(label, key) in reportStatusLabel" :key="key" :value="key">{{ label }}</option>
+              </select>
+              <input
+                v-model="adminNotes[report.id]"
+                class="admin-settings__report-note-input"
+                :placeholder="messages.admin.settings.reportNotePlaceholder"
+                :disabled="saving"
+              />
+              <Button size="sm" @click="saveReport(report)">{{ messages.admin.settings.reportSave }}</Button>
+            </div>
+          </article>
+        </div>
+      </CardContent>
+    </Card>
   </main>
 </template>
 
@@ -262,7 +314,7 @@ async function save(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  max-width: 760px;
+  max-width: 960px;
 }
 
 .admin-settings__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
@@ -271,11 +323,7 @@ async function save(): Promise<void> {
 .admin-settings__form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
-  padding: var(--space-xl);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: var(--space-lg);
 }
 
 .admin-settings__error {
@@ -293,57 +341,119 @@ async function save(): Promise<void> {
 
 .admin-settings__error-text { flex: 1; min-width: 200px; }
 
-.admin-settings__section { display: flex; flex-direction: column; gap: var(--space-md); }
+/* ── Nhóm cài đặt: card level-1, mô tả ngắn dưới tiêu đề (Task 3b) ── */
+.admin-settings__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  align-items: start;
+}
 
-.admin-settings__section + .admin-settings__section { border-top: 1px solid var(--border); padding-top: var(--space-xl); }
+.admin-settings__group { min-width: 0; }
 
-.admin-settings__section-title {
-  display: flex;
+.admin-settings__group-head { display: flex; flex-direction: row; align-items: flex-start; gap: var(--space-sm); padding-bottom: var(--space-sm); }
+
+.admin-settings__group-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  color: var(--foreground-secondary);
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-settings__group-meta { min-width: 0; }
+
+.admin-settings__group-title {
   font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: var(--foreground);
+  line-height: 1.25;
 }
 
-.admin-settings__section-title :deep(svg) { color: var(--foreground-secondary); }
+.admin-settings__group-desc { font-size: var(--text-sm); color: var(--foreground-secondary); }
+
+.admin-settings__group-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.admin-settings__subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+.admin-settings__subgroup-title {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--foreground-tertiary);
+}
 
 .admin-settings__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
 
-.admin-settings__checks { border: none; display: flex; flex-direction: column; gap: var(--space-sm); margin: 0; padding: 0; }
+/* ── Switch toggle (Task 3b): knob translate mượt + focus ring ── */
+.admin-settings__switches { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.admin-settings__check {
-  display: inline-flex;
+.admin-settings__switch-row {
+  display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  width: fit-content;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
-.admin-settings__checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
+.admin-settings__switch-label { font-size: var(--text-sm); color: var(--foreground); }
+
+.admin-settings__switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--muted);
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 150ms, border-color 150ms;
 }
+
+.admin-settings__switch:hover { border-color: var(--primary); }
+
+.admin-settings__switch:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.admin-settings__switch:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.admin-settings__switch--on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.admin-settings__switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--card-raised);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-settings__switch--on .admin-settings__switch-knob { transform: translateX(16px); }
 
 .admin-settings__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: var(--space-lg); }
 
 /* ── Báo cáo lỗi & vi phạm ── */
-.admin-settings__reports {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-xl);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.admin-settings__reports-sub { color: var(--foreground-secondary); font-size: var(--text-sm); margin: 0; }
+.admin-settings__reports { min-width: 0; }
 
 .admin-settings__reports-empty { font-size: var(--text-sm); padding: var(--space-md) 0; }
 
@@ -360,7 +470,11 @@ async function save(): Promise<void> {
 
 .admin-settings__report-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 
-.admin-settings__report-date { font-size: var(--text-xs); }
+.admin-settings__report-date {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
 
 .admin-settings__report-desc { margin: 0; font-size: var(--text-sm); }
 
@@ -377,29 +491,44 @@ async function save(): Promise<void> {
 
 .admin-settings__report-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
 
+/* Input/select báo cáo: padding chữ-viền ≥ 8px + chiều cao ≥ 36px (DESIGN §4.4) */
 .admin-settings__report-status {
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--card);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-}
-
-.admin-settings__report-note-input {
-  flex: 1;
-  min-width: 180px;
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--card);
   color: var(--foreground);
   font-size: var(--text-sm);
   font-family: inherit;
+  transition: border-color 150ms;
+}
+
+.admin-settings__report-status:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; border-color: var(--primary); }
+
+.admin-settings__report-note-input {
+  flex: 1;
+  min-width: 180px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  transition: border-color 150ms;
+}
+
+.admin-settings__report-note-input::placeholder { color: var(--foreground-quaternary); }
+
+.admin-settings__report-note-input:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; border-color: var(--primary); }
+
+@media (max-width: 800px) {
+  .admin-settings__grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .admin-settings__form { padding: var(--space-lg); }
   .admin-settings__row { grid-template-columns: 1fr; }
 }
 </style>
