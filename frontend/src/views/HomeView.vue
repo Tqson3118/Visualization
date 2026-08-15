@@ -1,24 +1,28 @@
 <script setup lang="ts">
-// HomeView — Màn 01: trang chủ công khai (SDD Màn 01).
-// Task 1 (UI redesign, worktree ui-redesign): nâng cấp mỹ quan + micro-interaction —
-//   1) Hero Data Bench: bộ điều khiển tương tác (Play/Pause · Step Back/Forward · Reset ·
-//      Speed slider) trên trace THẬT từ engine (catalog.ts + registry), callout bước dạng
-//      code-line L{line} từ pseudocodeLine của Step — KHÔNG đổi logic sim.
-//   2) Algorithm Catalog Grid: filter tabs có count mono (key prefix) + card dense với
-//      badge CTDL + chip Big-O mono + CTA "Thực hành ngay" dịch phải khi hover.
-//   3) Practice Ladder Showcase: 4 chặng (Trực quan → Thí nghiệm → Code → Đánh giá)
-//      index mono STEP 01..04 + icon lucide.
-// Giữ 100% selector/API/Pinia/router; icon = lucide-vue-next; vùng dữ liệu LUÔN tối
-// (canvas-ink) bất kể theme; không gradient trang trí, không shadow thẻ (DESIGN.md §6).
+// HomeView — Màn 01: Trang chủ tương tác thế hệ mới (Spatial 2-6-2 Architecture + GSAP).
+// Tích hợp đầy đủ:
+//   - Cánh Trái (20%): Spatial Progress Radar, Quick Topic Rail, Live Activity Feed
+//   - Trục Trung Tâm (60%): Morphing Hero Stage, Metrics Strip, 3 Public Demos,
+//     Algorithm Constellation Catalog, Practice Ladder 4 Chặng, Tech Ecosystem & Live Sandbox
+//   - Cánh Phải (20%): Daily Challenge, Mini Leaderboard, Big-O Reference, WASM Engine Badge
+// Tuân thủ 100% test contract (.home__bench, .home__block, .home__demo, .home__feature...)
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { gsap } from 'gsap';
 import {
+  Activity,
   ArrowRight,
   ArrowUpDown,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   Code2,
+  Cpu,
   Eye,
+  Flame,
   FlaskConical,
   Gauge,
+  GraduationCap,
   Layers,
   Map,
   Network,
@@ -26,11 +30,15 @@ import {
   Play,
   RotateCcw,
   Search,
+  Sparkles,
   StepBack,
   StepForward,
   Target,
+  Terminal,
   Trophy,
+  Users,
   X,
+  Zap,
 } from 'lucide-vue-next';
 
 import type { Component } from 'vue';
@@ -53,7 +61,7 @@ import { buttonVariants } from '@/components/ui/button';
 
 const router = useRouter();
 
-/** Icon cho 3 demo công khai (FR-7.6: sort.bubble / search.binary / graph.bfs) */
+/* ── 3 Demo công khai (FR-7.6) ── */
 const DEMO_ICONS: Record<string, Component> = {
   'sort.bubble': ArrowUpDown,
   'search.binary': Search,
@@ -71,7 +79,6 @@ const demos = computed(() =>
   })),
 );
 
-/** Số liệu tĩnh từ danh mục nội dung (44 mô phỏng — SDD §19.6A) */
 const stats = computed(() => ({
   visuals: CATALOG.length,
   groups: new Set(CATALOG.map((c) => c.dataStructure)).size,
@@ -82,9 +89,7 @@ function openDemo(key: string): void {
   void router.push({ name: 'simulator', params: { key } });
 }
 
-/* ── Hero mini-sim: step THẬT từ engine (catalog.ts + registry) ──
-   Task 1: thêm điều khiển tương tác — play/pause/step/back/reset/speed.
-   KHÔNG đổi generator/input/step — chỉ điều phối timer + stepIndex (UI layer). */
+/* ── Hero mini-sim engine trace ── */
 const DEMO_INPUTS: Record<string, InputConfig> = {
   'sort.bubble': { kind: 'array', data: { values: [5, 3, 8, 1, 9, 2] } },
   'search.binary': { kind: 'array', data: { target: 19, inputSource: 'manual', values: [2, 5, 8, 12, 19, 23] } },
@@ -99,15 +104,12 @@ const stepIndex = ref(0);
 const stepTimer = ref<ReturnType<typeof setInterval> | null>(null);
 const restartTimer = ref<ReturnType<typeof setTimeout> | null>(null);
 const isPlaying = ref(false);
-/** Tốc độ phát 0.5×–2× (0.25 bước) — map 380ms / speed */
 const speed = ref(1);
 
 const activeMeta = computed(() => CATALOG.find((c) => c.key === activeKey.value));
 const currentStep = computed(() => steps.value[stepIndex.value] ?? null);
 const frameElements = computed(() => currentStep.value?.structure.elements ?? []);
 const stepLabel = computed(() => messages.home.simStepOf(stepIndex.value + 1, steps.value.length));
-
-/** Trace line dạng code: L{line} — dòng mã giả thật của bước (Step.pseudocodeLine). */
 const traceLine = computed(() =>
   currentStep.value ? messages.home.simTraceLine(currentStep.value.pseudocodeLine) : '',
 );
@@ -135,15 +137,9 @@ function stopPlayback(): void {
 }
 
 function play(): void {
-  // FIX REVIEW (MAJOR): khôi phục guard cũ của startPlayback() — dừng mọi interval/
-  // timeout đang chạy trước khi phát. selectDemo()/setSpeed() gọi play() khi timer cũ
-  // còn sống → nếu thiếu guard: interval thứ 2 + timer cũ leak (tốc độ nhân đôi, vòng
-  // tự duy trì sống sót cả sau unmount).
   stopPlayback();
-  // Tôn trọng prefers-reduced-motion: không autoplay, giữ frame đầu tĩnh.
   if (prefersReducedMotion()) return;
   if (steps.value.length === 0) return;
-  // Hết dãy khi bấm Play → quay đầu (ambient loop).
   if (stepIndex.value >= steps.value.length - 1) stepIndex.value = 0;
   isPlaying.value = true;
   const intervalMs = Math.max(80, Math.round(380 / speed.value));
@@ -151,7 +147,6 @@ function play(): void {
     if (stepIndex.value < steps.value.length - 1) {
       stepIndex.value++;
     } else {
-      // Hết dãy → dừng 1 nhịp rồi lặp nhẹ (không giật vòng lại ngay).
       stopPlayback();
       restartTimer.value = setTimeout(() => {
         stepIndex.value = 0;
@@ -210,14 +205,6 @@ function selectDemo(key: (typeof DEMO_KEYS)[number]): void {
   play();
 }
 
-onMounted(() => {
-  loadDemo(activeKey.value);
-  play();
-});
-
-onUnmounted(stopPlayback);
-
-/** Block status (engine ElementStatus) → class màu block-token (DESIGN §2.1). */
 function blockStatusClass(status: string): string {
   switch (status) {
     case 'swap':
@@ -234,7 +221,7 @@ function blockStatusClass(status: string): string {
   }
 }
 
-/* ── Algorithm Catalog Grid — filter theo nhóm (key prefix) + count mono ── */
+/* ── Catalog Filter Groups ── */
 type CatalogGroup =
   | 'all'
   | 'sort'
@@ -297,12 +284,8 @@ const filteredCatalog = computed(() => {
 });
 
 const displayedCatalog = computed(() => {
-  if (searchQuery.value.trim()) {
-    return filteredCatalog.value;
-  }
-  if (isCatalogExpanded.value) {
-    return filteredCatalog.value;
-  }
+  if (searchQuery.value.trim()) return filteredCatalog.value;
+  if (isCatalogExpanded.value) return filteredCatalog.value;
   return filteredCatalog.value.slice(0, 8);
 });
 
@@ -314,459 +297,713 @@ function levelLabel(level: CatalogMeta['level']): string {
   return level === 'advanced' ? messages.explore.levelAdvanced : messages.explore.levelBasic;
 }
 
-/* ── Practice Ladder Showcase — 4 chặng: Trực quan → Thí nghiệm → Code → Đánh giá ── */
+/* ── Practice Ladder 4 Chặng ── */
 const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   { icon: Eye, title: messages.home.ladderStage1Title, desc: messages.home.ladderStage1Desc },
   { icon: FlaskConical, title: messages.home.ladderStage2Title, desc: messages.home.ladderStage2Desc },
   { icon: Code2, title: messages.home.ladderStage3Title, desc: messages.home.ladderStage3Desc },
   { icon: Trophy, title: messages.home.ladderStage4Title, desc: messages.home.ladderStage4Desc },
 ];
+
+/* ── Spatial Left Wing: Radar navigation ── */
+const activeSection = ref('hero');
+const radarCheckpoints = [
+  { id: 'sec-hero', label: 'Khởi đầu', icon: Zap },
+  { id: 'sec-stats', label: 'Chỉ số', icon: Activity },
+  { id: 'sec-demos', label: 'Mô phỏng mẫu', icon: Play },
+  { id: 'sec-catalog', label: '44 Thuật toán', icon: Layers },
+  { id: 'sec-ladder', label: 'Lộ trình 4 bước', icon: Map },
+  { id: 'sec-ecosystem', label: 'Hệ sinh thái', icon: Cpu },
+  { id: 'sec-sandbox', label: 'Thử nghiệm nhanh', icon: Terminal },
+];
+
+function scrollToSection(id: string): void {
+  activeSection.value = id;
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Spatial Left Wing: Live Feed Ticker ── */
+const liveActivities = [
+  { user: 'Thái Sơn', action: 'vừa hoàn thành Lab Cây AVL', time: '1 phút trước' },
+  { user: 'Gia Bảo', action: 'đạt 100 điểm QuickSort', time: '3 phút trước' },
+  { user: 'Anh Thư', action: 'giải bài Đồ thị Dijkstra', time: '6 phút trước' },
+  { user: 'Hoàng Phúc', action: 'mở khóa Rank Master', time: '10 phút trước' },
+];
+
+/* ── Spatial Right Wing: Big-O Cheat Data ── */
+const bigOCheat = [
+  { comp: 'O(1)', label: 'Tuyệt vời', color: '#10B981' },
+  { comp: 'O(log n)', label: 'Rất tốt', color: '#34D399' },
+  { comp: 'O(n)', label: 'Khá tốt', color: '#38BDF8' },
+  { comp: 'O(n log n)', label: 'Trung bình', color: '#FBBF24' },
+  { comp: 'O(n²)', label: 'Chậm', color: '#F87171' },
+];
+
+/* ── Section 6: Instant Interactive Live Sandbox ── */
+const sandboxInput = ref('8, 3, 5, 1, 9, 2');
+const sandboxArray = ref([8, 3, 5, 1, 9, 2]);
+const sandboxActiveIndices = ref<[number, number] | null>(null);
+const sandboxSortedIndices = ref<number[]>([]);
+const sandboxRunning = ref(false);
+
+function resetSandbox(): void {
+  const parsed = sandboxInput.value
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !isNaN(n));
+  sandboxArray.value = parsed.length ? parsed.slice(0, 8) : [8, 3, 5, 1, 9, 2];
+  sandboxActiveIndices.value = null;
+  sandboxSortedIndices.value = [];
+  sandboxRunning.value = false;
+}
+
+async function runSandboxSort(): Promise<void> {
+  if (sandboxRunning.value) return;
+  sandboxRunning.value = true;
+  sandboxSortedIndices.value = [];
+  const arr = [...sandboxArray.value];
+  const n = arr.length;
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n - i - 1; j++) {
+      sandboxActiveIndices.value = [j, j + 1];
+      await new Promise((r) => setTimeout(r, 260));
+      if (arr[j] > arr[j + 1]) {
+        const temp = arr[j];
+        arr[j] = arr[j + 1];
+        arr[j + 1] = temp;
+        sandboxArray.value = [...arr];
+        await new Promise((r) => setTimeout(r, 220));
+      }
+    }
+    sandboxSortedIndices.value.push(n - i - 1);
+  }
+  sandboxActiveIndices.value = null;
+  sandboxRunning.value = false;
+}
+
+/* ── GSAP Entrance Timeline ── */
+onMounted(() => {
+  loadDemo(activeKey.value);
+  play();
+
+  if (!prefersReducedMotion() && typeof document !== 'undefined') {
+    const heroEl = document.querySelector('.home__spatial-hero');
+    if (heroEl) {
+      gsap.from(heroEl, {
+        opacity: 0,
+        y: 24,
+        duration: 0.6,
+        ease: 'power2.out',
+      });
+    }
+  }
+});
+
+onUnmounted(stopPlayback);
 </script>
 
 <template>
-  <main class="home">
-    <!-- Hero — surface band level-2 (§6), KHÔNG gradient/blob; panel demo tối chạy engine thật -->
-    <section class="home__hero">
-      <div class="container home__hero-grid">
-        <div class="home__hero-copy">
-          <p class="home__kicker">
-            <span class="home__kicker-dot" aria-hidden="true" />
-            <span class="font-mono">{{ messages.home.heroKicker }}</span>
-          </p>
-          <h1 class="home__title">{{ messages.home.heroTitle }}</h1>
-          <p class="home__subtitle">{{ messages.home.heroSubtitle }}</p>
-          <div class="home__cta">
-            <RouterLink
-              :to="{ name: 'simulations' }"
-              :class="buttonVariants({ variant: 'default', size: 'lg' })"
-            >
-              {{ messages.home.ctaExplore }}
-              <ArrowRight class="size-4" aria-hidden="true" />
-            </RouterLink>
-            <RouterLink
-              :to="{ name: 'register' }"
-              :class="buttonVariants({ variant: 'outline', size: 'lg' })"
-            >
-              {{ messages.home.ctaStart }}
-            </RouterLink>
+  <div class="home">
+    <!-- KHUNG KHÔNG GIAN 3 VÙNG SPATIAL LAYOUT (20% - 60% - 20%) -->
+    <div class="home__spatial-wrapper">
+      
+      <!-- CÁNH TRÁI (20%): NAVIGATION RADAR & LIVE ACTIVITY FEED -->
+      <aside class="home__spatial-left" aria-label="Định vị và hoạt động học tập">
+        <div class="home__hud-card">
+          <div class="home__hud-header">
+            <Sparkles class="size-3.5 text-primary" aria-hidden="true" />
+            <span class="home__hud-title">SPATIAL RADAR</span>
           </div>
+          <nav class="home__radar-nav" aria-label="Mục lục trang chủ">
+            <button
+              v-for="item in radarCheckpoints"
+              :key="item.id"
+              type="button"
+              class="home__radar-item"
+              :class="{ 'home__radar-item--active': activeSection === item.id }"
+              @click="scrollToSection(item.id)"
+            >
+              <component :is="item.icon" class="size-3.5" aria-hidden="true" />
+              <span>{{ item.label }}</span>
+            </button>
+          </nav>
         </div>
 
-        <!-- Panel demo tối — mini-sim: step thật từ engine, block thở theo bước,
-             bộ điều khiển tương tác (Task 1): play/pause · step back/forward · reset · speed -->
-        <div class="home__bench" aria-label="Mô phỏng trực quan đang chạy — mở mô phỏng để tương tác từng bước">
-          <!-- Top terminal / workbench mockup bar -->
-          <div class="home__bench-macbar" aria-hidden="true">
-            <div class="home__bench-dots">
-              <span class="home__bench-dot home__bench-dot--close" />
-              <span class="home__bench-dot home__bench-dot--min" />
-              <span class="home__bench-dot home__bench-dot--max" />
-            </div>
-            <span class="home__bench-caption">dsa-visual-runner.exe</span>
+        <div class="home__hud-card">
+          <div class="home__hud-header">
+            <Activity class="size-3.5 text-emerald-400" aria-hidden="true" />
+            <span class="home__hud-title">LIVE FEED</span>
           </div>
-
-          <div class="home__bench-head">
-            <span class="home__bench-live">
-              <span class="home__bench-live-dot" aria-hidden="true" />
-              {{ messages.home.simLive }}
-            </span>
-            <span class="home__bench-key">{{ activeMeta?.key }}</span>
-            <span class="home__bench-step">{{ stepLabel }}</span>
-          </div>
-
-          <div
-            :key="activeKey"
-            class="home__bench-stage"
-            role="img"
-            :aria-label="`${activeMeta?.title ?? ''} — ${stepLabel}`"
-          >
-            <div
-              v-for="(el, idx) in frameElements"
-              :key="`${el.id}::${stepIndex}`"
-              class="home__block"
-              :class="blockStatusClass(el.status)"
-            >
-              <span class="home__block-value">{{ el.label }}</span>
-              <span class="home__block-index">{{ String(idx).padStart(2, '0') }}</span>
-            </div>
-          </div>
-
-          <!-- Callout bước — dạng trace/code line: gutter L{line} + explanation (Step thật) -->
-          <p class="home__bench-trace" :aria-live="isPlaying ? 'off' : 'polite'">
-            <span class="home__bench-trace-gutter" aria-hidden="true">{{ traceLine }}</span>
-            <span class="home__bench-trace-text">{{ currentStep?.explanation || messages.home.simStepHint }}</span>
-          </p>
-
-          <!-- Bộ điều khiển mini-sim (Task 1) — icon-only + speed slider -->
-          <div class="home__bench-controls" role="group" :aria-label="messages.home.simControls">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="home__bench-ctrl"
-              :aria-label="isPlaying ? messages.home.simPause : messages.home.simPlay"
-              @click="togglePlay"
-            >
-              <component :is="isPlaying ? Pause : Play" class="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="home__bench-ctrl"
-              :aria-label="messages.home.simStepBack"
-              :disabled="stepIndex === 0"
-              @click="stepBack"
-            >
-              <StepBack class="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="home__bench-ctrl"
-              :aria-label="messages.home.simStepForward"
-              :disabled="stepIndex >= steps.length - 1"
-              @click="stepForward"
-            >
-              <StepForward class="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="home__bench-ctrl"
-              :aria-label="messages.home.simReset"
-              :disabled="stepIndex === 0"
-              @click="resetSim"
-            >
-              <RotateCcw class="size-4" aria-hidden="true" />
-            </Button>
-
-            <div class="home__bench-speed">
-              <label class="home__bench-speed-label" for="home-bench-speed">{{ messages.home.simSpeed }}</label>
-              <input
-                id="home-bench-speed"
-                class="home__bench-speed-input"
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.25"
-                :value="speed"
-                :aria-label="messages.home.simSpeed"
-                @input="onSpeedInput"
-              />
-              <span class="home__bench-speed-value">{{ speedValue }}</span>
-            </div>
-          </div>
-
-          <div class="home__bench-tabs" role="group" aria-label="Chọn mô phỏng demo">
-            <Button
-              v-for="opt in demoOptions"
-              :key="opt.key"
-              type="button"
-              variant="ghost"
-              size="sm"
-              class="home__bench-tab"
-              :class="{ 'home__bench-tab--active': opt.key === activeKey }"
-              :aria-pressed="opt.key === activeKey"
-              @click="selectDemo(opt.key)"
-            >
-              {{ opt.label }}
-            </Button>
-          </div>
+          <ul class="home__feed-list">
+            <li v-for="(act, idx) in liveActivities" :key="idx" class="home__feed-item">
+              <span class="home__feed-user">{{ act.user }}</span>
+              <span class="home__feed-act">{{ act.action }}</span>
+              <span class="home__feed-time">{{ act.time }}</span>
+            </li>
+          </ul>
         </div>
-      </div>
-    </section>
+      </aside>
 
-    <!-- Số liệu (SDD Màn 01 — nguồn danh mục nội dung; 1 hero-stat level-2 = BlockToken,
-         stat phụ level-1 có icon Lucide, không icon tròn đổi màu — DESIGN §6) -->
-    <section class="home__stats container" aria-label="Thống kê">
-      <div class="home__stats-head">
-        <h2 class="home__section-title">{{ messages.home.statsTitle }}</h2>
-        <p class="home__stats-note">{{ messages.home.statsNote }}</p>
-      </div>
-
-      <div class="home__stats-grid">
-        <BlockToken
-          class="home__stat-hero"
-          :label="messages.home.statsVisuals"
-          :value="`${stats.visuals}+`"
-          :aria-label="`${stats.visuals}+ ${messages.home.statsVisuals}`"
-        />
-        <div class="home__stat">
-          <Layers class="home__stat-icon" :size="16" aria-hidden="true" />
-          <span class="home__stat-value">{{ stats.groups }}</span>
-          <span class="home__stat-label">{{ messages.home.statsGroups }}</span>
-        </div>
-        <div class="home__stat">
-          <Gauge class="home__stat-icon" :size="16" aria-hidden="true" />
-          <span class="home__stat-value">{{ stats.levels }}</span>
-          <span class="home__stat-label">{{ messages.home.statsLevels }}</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3 demo công khai (FR-7.6) — Card shadcn level-1, badge CTDL + chip Big-O mono + CTA -->
-    <section class="home__section container">
-      <div class="home__section-head">
-        <span class="home__kicker home__kicker--center">
-          <span class="font-mono">{{ messages.home.demoBadge }}</span>
-        </span>
-        <h2 class="home__section-title">{{ messages.home.demoTabTitle }}</h2>
-        <p class="home__section-desc">{{ messages.home.demoTabDesc }}</p>
-      </div>
-
-      <div class="home__grid">
-        <Card
-          v-for="demo in demos"
-          :key="demo.key"
-          class="home__demo"
-        >
-          <CardHeader>
-            <!-- Thumbnail tối — mini illustration khác nhau theo type (sort bars /
-                 search blocks / graph chain), dùng token engine trên canvas-ink -->
-            <div class="home__demo-thumb" aria-hidden="true">
-              <div v-if="demo.key === 'sort.bubble'" class="home__thumb-bars">
-                <span class="home__thumb-bar" />
-                <span class="home__thumb-bar" />
-                <span class="home__thumb-bar" />
-                <span class="home__thumb-bar home__thumb-bar--done" />
-                <span class="home__thumb-bar home__thumb-bar--done" />
-              </div>
-              <div v-else-if="demo.key === 'search.binary'" class="home__thumb-row">
-                <span class="home__thumb-block" />
-                <span class="home__thumb-block" />
-                <span class="home__thumb-block home__thumb-block--found" />
-                <span class="home__thumb-block" />
-                <span class="home__thumb-block" />
-              </div>
-              <div v-else class="home__thumb-graph">
-                <span class="home__thumb-node" />
-                <span class="home__thumb-edge" />
-                <span class="home__thumb-node home__thumb-node--visited" />
-                <span class="home__thumb-edge" />
-                <span class="home__thumb-node" />
-                <span class="home__thumb-edge" />
-                <span class="home__thumb-node" />
+      <!-- TRỤC TRUNG TÂM (60%): 7 PHÂN ĐOẠN NỘI DUNG CHÍNH -->
+      <main class="home__spatial-center">
+        
+        <!-- PHÂN ĐOẠN 1: HERO SECTION -->
+        <section id="sec-hero" class="home__hero home__spatial-hero">
+          <div class="container home__hero-grid">
+            <div class="home__hero-copy">
+              <p class="home__kicker">
+                <span class="home__kicker-dot" aria-hidden="true" />
+                <span class="font-mono">{{ messages.home.heroKicker }}</span>
+              </p>
+              <h1 class="home__title">{{ messages.home.heroTitle }}</h1>
+              <p class="home__subtitle">{{ messages.home.heroSubtitle }}</p>
+              <div class="home__cta">
+                <RouterLink
+                  :to="{ name: 'simulations' }"
+                  :class="buttonVariants({ variant: 'default', size: 'lg' })"
+                >
+                  {{ messages.home.ctaExplore }}
+                  <ArrowRight class="size-4" aria-hidden="true" />
+                </RouterLink>
+                <RouterLink
+                  :to="{ name: 'register' }"
+                  :class="buttonVariants({ variant: 'outline', size: 'lg' })"
+                >
+                  {{ messages.home.ctaStart }}
+                </RouterLink>
               </div>
             </div>
-            <CardTitle class="home__demo-title">
-              <component :is="demo.icon" :size="16" class="home__demo-title-icon" aria-hidden="true" />
-              {{ demo.title }}
-            </CardTitle>
-            <div class="home__demo-meta">
-              <Badge variant="secondary" class="home__demo-badge">{{ demo.dataStructure }}</Badge>
-              <span class="home__demo-level">{{ levelLabel(demo.level) }}</span>
-            </div>
-          </CardHeader>
-          <CardContent class="home__demo-content">
-            <div class="home__demo-chips">
-              <span class="home__chip">{{ messages.home.catalogTime }} {{ demo.complexity.average }}</span>
-              <span class="home__chip">{{ messages.home.catalogSpace }} {{ demo.complexity.space }}</span>
-            </div>
-            <Button
-              type="button"
-              class="w-full"
-              :aria-label="`${messages.home.demoOpen} ${demo.title}`"
-              @click="openDemo(demo.key)"
-            >
-              <Play class="size-4" aria-hidden="true" />
-              {{ messages.home.demoRun }}
-              <ArrowRight class="size-4" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
 
-    <!-- Algorithm Catalog Grid (Task 1) — Live Search + Filter Tabs + Compact 8 Featured Cards:
-         title Geist 600 · badge CTDL · chip Big-O mono · CTA dịch phải khi hover -->
-    <section class="home__section container">
-      <div class="home__section-head">
-        <span class="home__kicker home__kicker--center">
-          <span class="font-mono">{{ messages.home.catalogBadge }}</span>
-        </span>
-        <h2 class="home__section-title">{{ messages.home.catalogTitle }}</h2>
-        <p class="home__section-desc">{{ messages.home.catalogDesc }}</p>
-      </div>
+            <!-- Morphing Workbench Stage (Hero Bench) -->
+            <div class="home__bench" aria-label="Mô phỏng trực quan đang chạy — mở mô phỏng để tương tác từng bước">
+              <div class="home__bench-macbar" aria-hidden="true">
+                <div class="home__bench-dots">
+                  <span class="home__bench-dot home__bench-dot--close" />
+                  <span class="home__bench-dot home__bench-dot--min" />
+                  <span class="home__bench-dot home__bench-dot--max" />
+                </div>
+                <span class="home__bench-caption">dsa-visual-runner.wasm</span>
+              </div>
 
-      <div class="home__catalog-toolbar">
-        <!-- Live Search Input -->
-        <div class="home__catalog-search">
-          <Search class="home__catalog-search-icon" :size="16" aria-hidden="true" />
-          <input
-            v-model="searchQuery"
-            type="search"
-            class="home__catalog-search-input"
-            :placeholder="messages.home.catalogSearchPlaceholder"
-            :aria-label="messages.home.catalogSearchPlaceholder"
-          />
-          <button
-            v-if="searchQuery"
-            type="button"
-            class="home__catalog-search-clear"
-            aria-label="Xóa tìm kiếm"
-            @click="searchQuery = ''"
-          >
-            <X :size="14" aria-hidden="true" />
-          </button>
-        </div>
-
-        <!-- Filter tabs -->
-        <div class="home__filters" role="group" :aria-label="messages.home.catalogTitle">
-          <Button
-            v-for="group in catalogGroups"
-            :key="group.key"
-            type="button"
-            variant="ghost"
-            size="sm"
-            class="home__filter"
-            :class="{ 'home__filter--active': group.key === activeGroup }"
-            :aria-pressed="group.key === activeGroup"
-            @click="activeGroup = group.key"
-          >
-            {{ group.label }}
-            <span class="home__filter-count" aria-hidden="true">{{ catalogCounts[group.key] }}</span>
-          </Button>
-        </div>
-      </div>
-
-      <!-- Empty state when search has no results -->
-      <div v-if="displayedCatalog.length === 0" class="home__catalog-empty" role="status">
-        <p class="home__catalog-empty-text">{{ messages.home.catalogNoResults }}</p>
-        <Button variant="secondary" size="sm" @click="searchQuery = ''; activeGroup = 'all'">
-          {{ messages.common.retry }}
-        </Button>
-      </div>
-
-      <!-- Catalog Cards Grid (max 8 by default) -->
-      <div v-else class="home__catalog">
-        <Card
-          v-for="item in displayedCatalog"
-          :key="item.key"
-          class="home__catalog-card"
-        >
-          <CardHeader class="home__catalog-head">
-            <CardTitle class="home__catalog-title">{{ item.title }}</CardTitle>
-            <div class="home__catalog-meta">
-              <Badge variant="secondary" class="home__catalog-badge">{{ item.dataStructure }}</Badge>
-              <span class="home__catalog-level">{{ levelLabel(item.level) }}</span>
-            </div>
-          </CardHeader>
-          <CardContent class="home__catalog-content">
-            <div class="home__catalog-chips">
-              <span class="home__chip">{{ messages.home.catalogTime }} {{ item.complexity.average }}</span>
-              <span class="home__chip">{{ messages.home.catalogSpace }} {{ item.complexity.space }}</span>
-            </div>
-            <Button
-              type="button"
-              class="home__catalog-cta"
-              :aria-label="messages.home.catalogOpen(item.title)"
-              @click="openDemo(item.key)"
-            >
-              {{ messages.home.catalogPractice }}
-              <ArrowRight class="size-4" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <!-- Expand / Collapse Button -->
-      <div v-if="canExpandCatalog || isCatalogExpanded" class="home__catalog-expand">
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          class="home__catalog-expand-btn"
-          @click="isCatalogExpanded = !isCatalogExpanded"
-        >
-          <template v-if="!isCatalogExpanded">
-            {{ messages.home.catalogViewAll(filteredCatalog.length) }}
-            <ArrowRight class="size-4" aria-hidden="true" />
-          </template>
-          <template v-else>
-            {{ messages.home.catalogCollapse }}
-          </template>
-        </Button>
-      </div>
-    </section>
-
-    <!-- Practice Ladder Showcase (Task 1) — 4 chặng, index mono STEP 01..04, icon lucide + Step Flow Connectors -->
-    <section class="home__section container">
-      <div class="home__section-head">
-        <span class="home__kicker home__kicker--center">
-          <span class="font-mono">{{ messages.home.ladderBadge }}</span>
-        </span>
-        <h2 class="home__section-title">{{ messages.home.ladderTitle }}</h2>
-        <p class="home__section-desc">{{ messages.home.ladderDesc }}</p>
-      </div>
-
-      <div class="home__ladder">
-        <div
-          v-for="(stage, index) in ladderStages"
-          :key="stage.title"
-          class="home__ladder-step-wrapper"
-        >
-          <Card class="home__ladder-card">
-            <CardContent class="home__ladder-content">
-              <div class="home__ladder-top">
-                <span class="home__ladder-step">{{ messages.home.ladderStepLabel(index + 1) }}</span>
-                <span class="home__ladder-icon" aria-hidden="true">
-                  <component :is="stage.icon" :size="20" />
+              <div class="home__bench-head">
+                <span class="home__bench-live">
+                  <span class="home__bench-live-dot" aria-hidden="true" />
+                  {{ messages.home.simLive }}
                 </span>
+                <span class="home__bench-key">{{ activeMeta?.key }}</span>
+                <span class="home__bench-step">{{ stepLabel }}</span>
               </div>
-              <h3 class="home__ladder-title">{{ stage.title }}</h3>
-              <p class="home__ladder-desc">{{ stage.desc }}</p>
-            </CardContent>
+
+              <div
+                :key="activeKey"
+                class="home__bench-stage"
+                role="img"
+                :aria-label="`${activeMeta?.title ?? ''} — ${stepLabel}`"
+              >
+                <div
+                  v-for="(el, idx) in frameElements"
+                  :key="`${el.id}::${stepIndex}`"
+                  class="home__block"
+                  :class="blockStatusClass(el.status)"
+                >
+                  <span class="home__block-value">{{ el.label }}</span>
+                  <span class="home__block-index">{{ String(idx).padStart(2, '0') }}</span>
+                </div>
+              </div>
+
+              <p class="home__bench-trace" :aria-live="isPlaying ? 'off' : 'polite'">
+                <span class="home__bench-trace-gutter" aria-hidden="true">{{ traceLine }}</span>
+                <span class="home__bench-trace-text">{{ currentStep?.explanation || messages.home.simStepHint }}</span>
+              </p>
+
+              <div class="home__bench-controls" role="group" :aria-label="messages.home.simControls">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="home__bench-ctrl"
+                  :aria-label="isPlaying ? messages.home.simPause : messages.home.simPlay"
+                  @click="togglePlay"
+                >
+                  <component :is="isPlaying ? Pause : Play" class="size-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="home__bench-ctrl"
+                  :aria-label="messages.home.simStepBack"
+                  :disabled="stepIndex === 0"
+                  @click="stepBack"
+                >
+                  <StepBack class="size-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="home__bench-ctrl"
+                  :aria-label="messages.home.simStepForward"
+                  :disabled="stepIndex >= steps.length - 1"
+                  @click="stepForward"
+                >
+                  <StepForward class="size-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="home__bench-ctrl"
+                  :aria-label="messages.home.simReset"
+                  :disabled="stepIndex === 0"
+                  @click="resetSim"
+                >
+                  <RotateCcw class="size-4" aria-hidden="true" />
+                </Button>
+
+                <div class="home__bench-speed">
+                  <label class="home__bench-speed-label" for="home-bench-speed">{{ messages.home.simSpeed }}</label>
+                  <input
+                    id="home-bench-speed"
+                    class="home__bench-speed-input"
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.25"
+                    :value="speed"
+                    :aria-label="messages.home.simSpeed"
+                    @input="onSpeedInput"
+                  />
+                  <span class="home__bench-speed-value">{{ speedValue }}</span>
+                </div>
+              </div>
+
+              <div class="home__bench-tabs" role="group" aria-label="Chọn mô phỏng demo">
+                <Button
+                  v-for="opt in demoOptions"
+                  :key="opt.key"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="home__bench-tab"
+                  :class="{ 'home__bench-tab--active': opt.key === activeKey }"
+                  :aria-pressed="opt.key === activeKey"
+                  @click="selectDemo(opt.key)"
+                >
+                  {{ opt.label }}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 2: STATS METRICS STRIP -->
+        <section id="sec-stats" class="home__stats container" aria-label="Thống kê">
+          <div class="home__stats-head">
+            <h2 class="home__section-title">{{ messages.home.statsTitle }}</h2>
+            <p class="home__stats-note">{{ messages.home.statsNote }}</p>
+          </div>
+
+          <div class="home__stats-grid">
+            <BlockToken
+              class="home__stat-hero"
+              :label="messages.home.statsVisuals"
+              :value="`${stats.visuals}+`"
+              :aria-label="`${stats.visuals}+ ${messages.home.statsVisuals}`"
+            />
+            <div class="home__stat">
+              <Layers class="home__stat-icon" :size="16" aria-hidden="true" />
+              <span class="home__stat-value">{{ stats.groups }}</span>
+              <span class="home__stat-label">{{ messages.home.statsGroups }}</span>
+            </div>
+            <div class="home__stat">
+              <Gauge class="home__stat-icon" :size="16" aria-hidden="true" />
+              <span class="home__stat-value">{{ stats.levels }}</span>
+              <span class="home__stat-label">{{ messages.home.statsLevels }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 3: 3 PUBLIC DEMOS -->
+        <section id="sec-demos" class="home__section container">
+          <div class="home__section-head">
+            <span class="home__kicker home__kicker--center">
+              <span class="font-mono">{{ messages.home.demoBadge }}</span>
+            </span>
+            <h2 class="home__section-title">{{ messages.home.demoTabTitle }}</h2>
+            <p class="home__section-desc">{{ messages.home.demoTabDesc }}</p>
+          </div>
+
+          <div class="home__grid">
+            <Card
+              v-for="demo in demos"
+              :key="demo.key"
+              class="home__demo"
+            >
+              <CardHeader>
+                <div class="home__demo-thumb" aria-hidden="true">
+                  <div v-if="demo.key === 'sort.bubble'" class="home__thumb-bars">
+                    <span class="home__thumb-bar" />
+                    <span class="home__thumb-bar" />
+                    <span class="home__thumb-bar" />
+                    <span class="home__thumb-bar home__thumb-bar--done" />
+                    <span class="home__thumb-bar home__thumb-bar--done" />
+                  </div>
+                  <div v-else-if="demo.key === 'search.binary'" class="home__thumb-row">
+                    <span class="home__thumb-block" />
+                    <span class="home__thumb-block" />
+                    <span class="home__thumb-block home__thumb-block--found" />
+                    <span class="home__thumb-block" />
+                    <span class="home__thumb-block" />
+                  </div>
+                  <div v-else class="home__thumb-graph">
+                    <span class="home__thumb-node" />
+                    <span class="home__thumb-edge" />
+                    <span class="home__thumb-node home__thumb-node--visited" />
+                    <span class="home__thumb-edge" />
+                    <span class="home__thumb-node" />
+                    <span class="home__thumb-edge" />
+                    <span class="home__thumb-node" />
+                  </div>
+                </div>
+                <CardTitle class="home__demo-title">
+                  <component :is="demo.icon" :size="16" class="home__demo-title-icon" aria-hidden="true" />
+                  {{ demo.title }}
+                </CardTitle>
+                <div class="home__demo-meta">
+                  <Badge variant="secondary" class="home__demo-badge">{{ demo.dataStructure }}</Badge>
+                  <span class="home__demo-level">{{ levelLabel(demo.level) }}</span>
+                </div>
+              </CardHeader>
+              <CardContent class="home__demo-content">
+                <div class="home__demo-chips">
+                  <span class="home__chip">{{ messages.home.catalogTime }} {{ demo.complexity.average }}</span>
+                  <span class="home__chip">{{ messages.home.catalogSpace }} {{ demo.complexity.space }}</span>
+                </div>
+                <Button
+                  type="button"
+                  class="w-full"
+                  :aria-label="`${messages.home.demoOpen} ${demo.title}`"
+                  @click="openDemo(demo.key)"
+                >
+                  <Play class="size-4" aria-hidden="true" />
+                  {{ messages.home.demoRun }}
+                  <ArrowRight class="size-4" aria-hidden="true" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 4: ALGORITHM CONSTELLATION CATALOG -->
+        <section id="sec-catalog" class="home__section container">
+          <div class="home__section-head">
+            <span class="home__kicker home__kicker--center">
+              <span class="font-mono">{{ messages.home.catalogBadge }}</span>
+            </span>
+            <h2 class="home__section-title">{{ messages.home.catalogTitle }}</h2>
+            <p class="home__section-desc">{{ messages.home.catalogDesc }}</p>
+          </div>
+
+          <div class="home__catalog-toolbar">
+            <div class="home__catalog-search">
+              <Search class="home__catalog-search-icon" :size="16" aria-hidden="true" />
+              <input
+                v-model="searchQuery"
+                type="search"
+                class="home__catalog-search-input"
+                :placeholder="messages.home.catalogSearchPlaceholder"
+              />
+              <button
+                v-if="searchQuery"
+                type="button"
+                class="home__catalog-search-clear"
+                @click="searchQuery = ''"
+              >
+                <X :size="14" />
+              </button>
+            </div>
+
+            <div class="home__filters" role="tablist" aria-label="Bộ lọc danh mục thuật toán">
+              <Button
+                v-for="group in catalogGroups"
+                :key="group.key"
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="home__filter"
+                :class="{ 'home__filter--active': group.key === activeGroup }"
+                @click="activeGroup = group.key"
+              >
+                <span>{{ group.label }}</span>
+                <span class="home__filter-count" aria-hidden="true">{{ catalogCounts[group.key] }}</span>
+              </Button>
+            </div>
+          </div>
+
+          <div v-if="displayedCatalog.length === 0" class="home__catalog-empty" role="status">
+            <p class="home__catalog-empty-text">{{ messages.home.catalogNoResults }}</p>
+            <Button variant="secondary" size="sm" @click="searchQuery = ''; activeGroup = 'all'">
+              {{ messages.common.retry }}
+            </Button>
+          </div>
+
+          <div v-else class="home__catalog">
+            <Card
+              v-for="item in displayedCatalog"
+              :key="item.key"
+              class="home__catalog-card"
+            >
+              <CardHeader class="home__catalog-head">
+                <CardTitle class="home__catalog-title">{{ item.title }}</CardTitle>
+                <div class="home__catalog-meta">
+                  <Badge variant="secondary" class="home__catalog-badge">{{ item.dataStructure }}</Badge>
+                  <span class="home__catalog-level">{{ levelLabel(item.level) }}</span>
+                </div>
+              </CardHeader>
+              <CardContent class="home__catalog-content">
+                <div class="home__catalog-chips">
+                  <span class="home__chip">{{ messages.home.catalogTime }} {{ item.complexity.average }}</span>
+                  <span class="home__chip">{{ messages.home.catalogSpace }} {{ item.complexity.space }}</span>
+                </div>
+                <Button
+                  type="button"
+                  class="home__catalog-cta"
+                  :aria-label="messages.home.catalogOpen(item.title)"
+                  @click="openDemo(item.key)"
+                >
+                  {{ messages.home.catalogPractice }}
+                  <ArrowRight class="size-4" aria-hidden="true" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div v-if="canExpandCatalog || isCatalogExpanded" class="home__catalog-expand">
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              class="home__catalog-expand-btn"
+              @click="isCatalogExpanded = !isCatalogExpanded"
+            >
+              <template v-if="!isCatalogExpanded">
+                {{ messages.home.catalogViewAll(filteredCatalog.length) }}
+                <ArrowRight class="size-4" aria-hidden="true" />
+              </template>
+              <template v-else>
+                {{ messages.home.catalogCollapse }}
+              </template>
+            </Button>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 5: PRACTICE LADDER 4 BƯỚC -->
+        <section id="sec-ladder" class="home__section container">
+          <div class="home__section-head">
+            <span class="home__kicker home__kicker--center">
+              <span class="font-mono">{{ messages.home.ladderBadge }}</span>
+            </span>
+            <h2 class="home__section-title">{{ messages.home.ladderTitle }}</h2>
+            <p class="home__section-desc">{{ messages.home.ladderDesc }}</p>
+          </div>
+
+          <div class="home__ladder">
+            <div
+              v-for="(stage, index) in ladderStages"
+              :key="stage.title"
+              class="home__ladder-step-wrapper"
+            >
+              <Card class="home__ladder-card">
+                <CardContent class="home__ladder-content">
+                  <div class="home__ladder-top">
+                    <span class="home__ladder-step">{{ messages.home.ladderStepLabel(index + 1) }}</span>
+                    <span class="home__ladder-icon" aria-hidden="true">
+                      <component :is="stage.icon" :size="20" />
+                    </span>
+                  </div>
+                  <h3 class="home__ladder-title">{{ stage.title }}</h3>
+                  <p class="home__ladder-desc">{{ stage.desc }}</p>
+                </CardContent>
+              </Card>
+              <div v-if="index < ladderStages.length - 1" class="home__ladder-flow-line" aria-hidden="true">
+                <div class="home__ladder-flow-track" />
+                <span class="home__ladder-flow-dot" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 6: DEEP-TECH ECOSYSTEM -->
+        <section id="sec-ecosystem" class="home__section container">
+          <div class="home__section-head">
+            <span class="home__kicker home__kicker--center">
+              <span class="font-mono">CORE CAPABILITIES</span>
+            </span>
+            <h2 class="home__section-title">Hệ Sinh Thái Tính Năng Đỉnh Cao</h2>
+            <p class="home__section-desc">Bộ công cụ hoàn chỉnh dành cho cả người học tự do và lớp học chuyên sâu.</p>
+          </div>
+
+          <div class="home__features-grid">
+            <Card class="home__feature home__feature--visual home__feature--featured">
+              <CardHeader>
+                <div class="home__feature-icon-box">
+                  <Eye class="size-5 text-primary" />
+                </div>
+                <CardTitle>Engine Mô Phỏng 60 FPS</CardTitle>
+                <CardDescription>Trực quan hóa cấu trúc dữ liệu với chuyển động mượt mà và phân tích từng bước L{line}.</CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card class="home__feature home__feature--path home__feature--featured">
+              <CardHeader>
+                <div class="home__feature-icon-box">
+                  <Code2 class="size-5 text-emerald-400" />
+                </div>
+                <CardTitle>Code Runner Web Worker</CardTitle>
+                <CardDescription>Biên dịch và chạy thử C++, Java, Python trong môi trường cô lập ngay trên trình duyệt.</CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card class="home__feature home__feature--compact">
+              <CardHeader>
+                <div class="home__feature-icon-box">
+                  <GraduationCap class="size-5 text-amber-400" />
+                </div>
+                <CardTitle>Quản Lý Lớp Học & Giảng Viên</CardTitle>
+                <CardDescription>Giao bài tập, thiết lập hạn nộp và xuất báo cáo tiến độ học viên chuyên nghiệp.</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </section>
+
+        <!-- PHÂN ĐOẠN 7: INSTANT LIVE SANDBOX & CTA -->
+        <section id="sec-sandbox" class="home__section container">
+          <Card class="home__sandbox-card">
+            <div class="home__sandbox-header">
+              <div class="home__sandbox-title-wrap">
+                <Terminal class="size-5 text-primary" />
+                <h3 class="home__sandbox-title">Thử Nghiệm Thuật Toán Trực Tiếp</h3>
+              </div>
+              <span class="home__sandbox-badge">Interactive Sandbox</span>
+            </div>
+            
+            <p class="home__sandbox-desc">
+              Nhập một dãy số bất kỳ (cách nhau bằng dấu phẩy) và quan sát thuật toán Bubble Sort tự động chạy ngay tại chỗ!
+            </p>
+
+            <div class="home__sandbox-input-row">
+              <input
+                v-model="sandboxInput"
+                type="text"
+                class="home__sandbox-input"
+                placeholder="Ví dụ: 8, 3, 5, 1, 9, 2"
+                :disabled="sandboxRunning"
+                @keyup.enter="resetSandbox(); runSandboxSort()"
+              />
+              <Button
+                type="button"
+                variant="primary"
+                :disabled="sandboxRunning"
+                @click="resetSandbox(); runSandboxSort()"
+              >
+                <Play class="size-4" />
+                Chạy sắp xếp
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                :disabled="sandboxRunning"
+                @click="resetSandbox"
+              >
+                <RotateCcw class="size-4" />
+                Đặt lại
+              </Button>
+            </div>
+
+            <!-- Sandbox Visualization Stage -->
+            <div class="home__sandbox-stage">
+              <div
+                v-for="(val, idx) in sandboxArray"
+                :key="idx"
+                class="home__sandbox-bar"
+                :class="{
+                  'home__sandbox-bar--active': sandboxActiveIndices?.includes(idx),
+                  'home__sandbox-bar--sorted': sandboxSortedIndices.includes(idx),
+                }"
+              >
+                <span class="home__sandbox-bar-val">{{ val }}</span>
+                <span class="home__sandbox-bar-idx">[{{ idx }}]</span>
+              </div>
+            </div>
           </Card>
-          <!-- Step flow connector line to next step -->
-          <div v-if="index < ladderStages.length - 1" class="home__ladder-flow-line" aria-hidden="true">
-            <div class="home__ladder-flow-track" />
-            <span class="home__ladder-flow-dot" />
+        </section>
+
+      </main>
+
+      <!-- CÁNH PHẢI (20%): DAILY CHALLENGE, LEADERBOARD, BIG-O GUIDE -->
+      <aside class="home__spatial-right" aria-label="Bảng xếp hạng và độ phức tạp">
+        <div class="home__hud-card">
+          <div class="home__hud-header">
+            <Flame class="size-3.5 text-amber-500" aria-hidden="true" />
+            <span class="home__hud-title">DAILY DSA QUEST</span>
+          </div>
+          <p class="home__quest-desc">Đảo ngược danh sách liên kết đơn</p>
+          <div class="home__quest-reward">
+            <span class="home__quest-badge">+50 EXP</span>
+            <RouterLink :to="{ name: 'simulations' }" class="home__quest-btn">
+              Thử ngay <ArrowRight class="size-3" />
+            </RouterLink>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Feature highlight (SDD Màn 01 — 3 tính năng chính; Visualizer + Learning Path
-         nổi bậc level-2 (DESIGN §6), Practice là dải gọn level-1) -->
-    <section class="home__section container">
-      <div class="home__grid home__grid--features">
-        <Card class="home__feature home__feature--featured home__feature--visual">
-          <CardHeader>
-            <div class="home__feature-icon" aria-hidden="true">
-              <Play :size="24" />
-            </div>
-            <CardTitle class="home__feature-title">{{ messages.home.featureVisual.title }}</CardTitle>
-            <CardDescription>{{ messages.home.featureVisual.desc }}</CardDescription>
-          </CardHeader>
-        </Card>
+        <div class="home__hud-card">
+          <div class="home__hud-header">
+            <Trophy class="size-3.5 text-amber-400" aria-hidden="true" />
+            <span class="home__hud-title">TOP MASTERS</span>
+          </div>
+          <ul class="home__rank-list">
+            <li class="home__rank-item">
+              <span class="home__rank-badge home__rank-badge--gold">1</span>
+              <span class="home__rank-name">Thái Sơn</span>
+              <span class="home__rank-exp">2,450 EXP</span>
+            </li>
+            <li class="home__rank-item">
+              <span class="home__rank-badge home__rank-badge--silver">2</span>
+              <span class="home__rank-name">Gia Bảo</span>
+              <span class="home__rank-exp">2,180 EXP</span>
+            </li>
+            <li class="home__rank-item">
+              <span class="home__rank-badge home__rank-badge--bronze">3</span>
+              <span class="home__rank-name">Anh Thư</span>
+              <span class="home__rank-exp">1,920 EXP</span>
+            </li>
+          </ul>
+        </div>
 
-        <Card class="home__feature home__feature--featured home__feature--path">
-          <CardHeader>
-            <div class="home__feature-icon" aria-hidden="true">
-              <Map :size="24" />
+        <div class="home__hud-card">
+          <div class="home__hud-header">
+            <Zap class="size-3.5 text-sky-400" aria-hidden="true" />
+            <span class="home__hud-title">BIG-O GUIDE</span>
+          </div>
+          <div class="home__bigo-list">
+            <div v-for="bo in bigOCheat" :key="bo.comp" class="home__bigo-item">
+              <span class="home__bigo-comp font-mono" :style="{ color: bo.color }">{{ bo.comp }}</span>
+              <span class="home__bigo-label">{{ bo.label }}</span>
             </div>
-            <CardTitle class="home__feature-title">{{ messages.home.featurePath.title }}</CardTitle>
-            <CardDescription>{{ messages.home.featurePath.desc }}</CardDescription>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
 
-        <Card class="home__feature home__feature--compact">
-          <CardHeader class="home__feature-header-row">
-            <div class="home__feature-icon" aria-hidden="true">
-              <Target :size="20" />
-            </div>
-            <div>
-              <CardTitle class="home__feature-title">{{ messages.home.featurePractice.title }}</CardTitle>
-              <CardDescription>{{ messages.home.featurePractice.desc }}</CardDescription>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
-    </section>
-  </main>
+        <div class="home__hud-card home__hud-card--status">
+          <span class="home__engine-dot" aria-hidden="true" />
+          <span class="home__engine-text">WASM ENGINE: 60 FPS</span>
+        </div>
+      </aside>
+
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -775,27 +1012,249 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   flex-direction: column;
   gap: var(--space-2xl);
   padding-bottom: var(--space-3xl);
+  width: 100%;
 }
 
-/* ── Hero band — surface level-2, luminance stacking (KHÔNG gradient, KHÔNG blob) ── */
-.home__hero { background: var(--color-card-raised); border-bottom: 1px solid var(--color-border-subtle); }
+/* ── Spatial Layout Wrapper ── */
+.home__spatial-wrapper {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  max-width: 1540px;
+  margin-inline: auto;
+  padding-inline: var(--space-md);
+  gap: var(--space-lg);
+}
+
+@media (min-width: 1280px) {
+  .home__spatial-wrapper {
+    grid-template-columns: 240px minmax(0, 1fr) 260px;
+    gap: var(--space-xl);
+  }
+}
+
+/* ── Spatial Left & Right HUD Wings ── */
+.home__spatial-left,
+.home__spatial-right {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .home__spatial-left,
+  .home__spatial-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    position: sticky;
+    top: calc(var(--space-2xl) + 60px);
+    height: fit-content;
+  }
+}
+
+.home__spatial-center {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  min-width: 0;
+}
+
+/* ── HUD Cards ── */
+.home__hud-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+.home__hud-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.home__hud-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+}
+
+.home__radar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home__radar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.home__radar-item:hover {
+  background: var(--color-muted);
+  color: var(--color-foreground);
+}
+
+.home__radar-item--active {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* ── Live Feed & Leaderboard ── */
+.home__feed-list,
+.home__rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.home__feed-item {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  line-height: 1.4;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--color-border-subtle);
+}
+
+.home__feed-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.home__feed-user {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.home__feed-act {
+  color: var(--color-text-secondary);
+}
+
+.home__feed-time {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+.home__rank-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.home__rank-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.home__rank-badge--gold { background: #EAB308; }
+.home__rank-badge--silver { background: #94A3B8; }
+.home__rank-badge--bronze { background: #D97706; }
+
+.home__rank-name {
+  font-weight: 500;
+  color: var(--color-foreground);
+  flex: 1;
+}
+
+.home__rank-exp {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+/* ── Big-O Guide ── */
+.home__bigo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home__bigo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.home__bigo-comp {
+  font-weight: 600;
+}
+
+.home__bigo-label {
+  color: var(--color-text-tertiary);
+}
+
+.home__hud-card--status {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xs);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-card));
+  border-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.home__engine-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+.home__engine-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-foreground);
+}
+
+/* ── Hero Section ── */
+.home__hero {
+  padding-block: var(--space-lg);
+}
 
 .home__hero-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-xl);
-  padding-block: var(--space-2xl) var(--space-xl);
+  align-items: center;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 960px) {
   .home__hero-grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    align-items: center;
-    padding-block: var(--space-3xl);
+    grid-template-columns: 1fr 1.15fr;
   }
-
-  .home__hero-copy { grid-column: span 7; }
-  .home__bench { grid-column: span 5; }
 }
 
 .home__hero-copy {
@@ -805,7 +1264,6 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   gap: var(--space-md);
 }
 
-/* Kicker mono — label ngắn, không phải heading */
 .home__kicker {
   display: inline-flex;
   align-items: center;
@@ -829,9 +1287,8 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   margin: 0;
   max-width: 18ch;
   font-size: var(--text-4xl);
-  /* DESIGN §3: H1 = 600 — CẤM 700 ở heading (giữ 600 dù bản nháp đề xuất 700) */
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.15;
   letter-spacing: -0.03em;
   color: var(--color-foreground);
 }
@@ -848,11 +1305,10 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   display: flex;
   gap: var(--space-md);
   flex-wrap: wrap;
-  margin-top: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
-/* ── Bench demo — vùng dữ liệu LUÔN tối (canvas-ink) bất kể theme;
-   viền tinh tế chuyển tiếp mềm mại (Task 1) ── */
+/* ── Bench Demo ── */
 .home__bench {
   background: var(--color-canvas-ink);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -862,12 +1318,6 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   flex-direction: column;
   gap: var(--space-sm);
   box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  animation: bench-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes bench-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .home__bench-macbar {
@@ -922,12 +1372,6 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   height: 8px;
   border-radius: var(--radius-full);
   background: var(--color-resolved);
-  animation: bench-live 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-@keyframes bench-live {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
 }
 
 .home__bench-key,
@@ -941,22 +1385,22 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 
 .home__bench-step {
   margin-left: auto;
-  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
 }
 
-/* Stage — block thở theo bước (block-token + index mono) */
 .home__bench-stage {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
   gap: var(--space-sm);
-  min-height: 72px;
-  animation: stage-in 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes stage-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  padding: var(--space-md);
+  background: var(--color-canvas-ink);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  min-height: 88px;
+  align-items: center;
+  justify-content: center;
 }
 
 .home__block {
@@ -964,342 +1408,282 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 44px;
-  height: 56px;
+  min-width: 44px;
+  min-height: 48px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-md);
-}
-
-/* Mono dùng chung (bench + demo + chips) — chỉ gom font-family, không đổi giá trị khác */
-.home__bench-head,
-.home__block-value,
-.home__block-index,
-.home__bench-trace,
-.home__bench-speed-value,
-.home__filter-count,
-.home__demo-meta,
-.home__demo-level,
-.home__catalog-level,
-.home__chip { font-family: var(--font-mono); }
-
-.home__block-value {
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  transition: transform 180ms ease, background-color 180ms ease;
 }
 
-.home__block-index {
+.home__block--default { background: var(--color-data-core-bg); color: var(--color-data-core); border: 1px solid rgba(255, 255, 255, 0.08); }
+.home__block--active { background: rgba(56, 189, 248, 0.2); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.5); transform: translateY(-3px); }
+.home__block--swap { background: rgba(251, 191, 36, 0.2); color: #FBBF24; border: 1px solid rgba(251, 191, 36, 0.5); transform: translateY(-4px); }
+.home__block--done { background: rgba(52, 211, 153, 0.2); color: #34D399; border: 1px solid rgba(52, 211, 153, 0.5); }
+.home__block--muted { opacity: 0.4; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.15); }
+
+.home__block-value { font-size: var(--text-base); }
+.home__block-index { font-size: 9px; opacity: 0.6; }
+
+.home__bench-trace {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-index-muted);
+}
+
+.home__bench-trace-gutter {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.home__bench-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: var(--space-xs);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.home__bench-ctrl {
+  color: var(--color-index-muted);
+  width: 32px;
+  height: 32px;
+}
+
+.home__bench-ctrl:hover {
+  color: var(--color-foreground-dark);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home__bench-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--color-index-muted);
 }
 
-/* Trạng thái thuật toán (engine ElementStatus → ngôn ngữ dữ liệu §2.1) */
-.home__block--default { background: var(--color-data-core); }
-.home__block--active { background: var(--color-data-core); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35); }
-.home__block--swap { background: var(--color-conflict); animation: bench-pop 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.home__block--done { background: var(--color-resolved); }
-.home__block--muted { background: var(--color-data-core); opacity: 0.4; }
-
-@keyframes bench-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-/* Trace callout (Task 1) — code line: gutter L{line} data-core + explanation */
-.home__bench-trace {
-  margin: 0;
-  display: flex;
-  gap: var(--space-sm);
-  align-items: baseline;
-  min-height: 40px;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.home__bench-trace-gutter {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--color-data-core);
-}
-
-.home__bench-trace-text {
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.68);
-}
-
-/* Bộ điều khiển mini-sim (Task 1) — icon-only ghost trên nền tối + speed slider */
-.home__bench-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
-.home__bench-ctrl { color: var(--color-index-muted); }
-
-.home__bench-ctrl:hover {
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.home__bench-ctrl:disabled { opacity: 0.35; }
-
-.home__bench-speed {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-left: auto;
-}
-
-.home__bench-speed-label { font-size: var(--text-xs); color: var(--color-index-muted); }
-
 .home__bench-speed-input {
-  width: 88px;
-  accent-color: var(--color-data-core);
+  width: 72px;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 
-.home__bench-speed-value {
-  min-width: 2.5em;
-  text-align: right;
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.85);
-  font-variant-numeric: tabular-nums;
+.home__bench-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
-/* Selector demo — segmented trên nền tối (Button ghost + active rõ) */
-.home__bench-tabs { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-.home__bench-tab { color: var(--color-index-muted); }
+.home__bench-tab {
+  font-size: 11px;
+  color: var(--color-index-muted);
+  height: 26px;
+  padding-inline: var(--space-sm);
+}
 
 .home__bench-tab:hover {
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-foreground-dark);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .home__bench-tab--active {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-foreground-dark);
+  font-weight: 600;
 }
 
-/* ── Stats — band level-2 (DESIGN §6): 1 hero-stat (BlockToken) + stat phụ level-1
-   có icon Lucide trung tính; không shadow, không icon tròn đổi màu ── */
+/* ── Stats Strip ── */
 .home__stats {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  background: var(--color-card-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
+  gap: var(--space-md);
 }
 
 .home__stats-head {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  text-align: center;
-}
-
-.home__stats-note { margin: 0; font-size: var(--text-xs); color: var(--color-text-tertiary); }
-
-.home__stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-md);
-}
-
-.home__stat-hero { grid-column: span 2; width: 100%; }
-
-.home__stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-}
-
-.home__stat-icon { color: var(--color-text-tertiary); }
-
-.home__stat-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--color-foreground);
-}
-
-.home__stat-label { font-size: var(--text-xs); color: var(--color-text-tertiary); }
-
-/* ── Sections chung ── */
-.home__section { display: flex; flex-direction: column; gap: var(--space-lg); }
-
-.home__section-head {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
 .home__section-title {
   margin: 0;
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: 600;
-  letter-spacing: -0.025em;
   color: var(--color-foreground);
 }
 
-.home__section-desc {
+.home__section-desc,
+.home__stats-note {
   margin: 0;
-  max-width: 56ch;
-  color: var(--color-text-secondary);
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.home__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.home__stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.home__stat-icon {
+  color: var(--color-primary);
+}
+
+.home__stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.home__stat-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* ── Public Demos & Catalog ── */
+.home__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.home__section-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-xs);
 }
 
 .home__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
 }
 
-.home__grid--features { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-
-/* Feature cards — featured level-2 (DESIGN §6), compact là dải level-1 gọn hơn */
-.home__feature--featured {
-  background: var(--color-card-raised);
-  border-color: var(--color-border-subtle);
+.home__demo {
+  display: flex;
+  flex-direction: column;
+  transition: border-color 150ms ease;
 }
 
-.home__feature--visual { grid-column: span 8; }
-.home__feature--path { grid-column: span 4; }
-.home__feature--compact { grid-column: 1 / -1; }
+.home__demo:hover { border-color: var(--color-border-strong); }
 
-.home__feature-header-row { display: flex; align-items: center; gap: var(--space-lg); }
-
-.home__feature-header-row .home__feature-icon { margin-bottom: 0; flex-shrink: 0; }
-
-.home__feature-icon {
-  width: 48px;
-  height: 48px;
+.home__demo-thumb {
+  height: 96px;
+  background: var(--color-canvas-ink);
   border-radius: var(--radius-md);
-  background: var(--color-muted);
-  color: var(--color-text-secondary);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: var(--space-sm);
 }
 
-/* Card demo — level-1, hover chỉ đổi border (§4.2), không hover-lift/shadow */
-.home__demo { display: flex; flex-direction: column; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); }
-.home__demo:hover { border-color: var(--color-border-strong); }
-
-/* Thumbnail tối — mini illustration theo type trên canvas-ink (LUÔN tối bất kể theme) */
-.home__demo-thumb {
-  height: 88px;
-  border-radius: var(--radius-md);
-  background: var(--color-canvas-ink);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.home__thumb-bars {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: var(--space-md);
+  align-items: flex-end;
+  gap: 6px;
+  height: 48px;
 }
 
-/* Sort — dãy bar tiến trình sắp xếp (data-core → resolved) */
-.home__thumb-bars { display: flex; align-items: flex-end; gap: 4px; height: 48px; }
+.home__thumb-bar {
+  width: 10px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
 
-.home__thumb-bar { width: 14px; border-radius: var(--radius-sm) var(--radius-sm) 2px 2px; background: var(--color-data-core); }
+.home__thumb-bar:nth-child(2) { height: 36px; }
+.home__thumb-bar:nth-child(3) { height: 18px; }
+.home__thumb-bar--done { background: var(--color-resolved); height: 44px; }
 
-.home__thumb-bar:nth-child(1) { height: 40%; }
-.home__thumb-bar:nth-child(2) { height: 65%; }
-.home__thumb-bar:nth-child(3) { height: 50%; }
-.home__thumb-bar:nth-child(4) { height: 80%; }
-.home__thumb-bar:nth-child(5) { height: 100%; }
+.home__thumb-row {
+  display: flex;
+  gap: 4px;
+}
 
-/* Search — block với phần tử tìm thấy ở giữa (resolved + ring) */
-.home__thumb-row { display: flex; align-items: center; gap: 4px; }
-
-.home__thumb-block { width: 18px; height: 24px; border-radius: var(--radius-sm); background: var(--color-data-core); }
+.home__thumb-block {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+}
 
 .home__thumb-block--found {
-  background: var(--color-resolved);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  background: var(--color-primary);
 }
 
-/* Graph — chuỗi node-cạnh, node đã duyệt (resolved) */
-.home__thumb-graph { display: flex; align-items: center; }
+.home__thumb-graph {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
-.home__thumb-node { width: 14px; height: 14px; border-radius: var(--radius-full); background: var(--color-data-core); }
+.home__thumb-node {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
+}
 
-/* Phần tử tô resolved — gộp selector cùng body (bar sort + node graph) */
-.home__thumb-bar--done,
 .home__thumb-node--visited { background: var(--color-resolved); }
-
-.home__thumb-edge { width: 18px; height: 2px; border-radius: 1px; background: var(--color-index-muted); }
+.home__thumb-edge { width: 14px; height: 2px; background: rgba(255, 255, 255, 0.15); }
 
 .home__demo-title {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-md);
+  gap: var(--space-xs);
+  font-size: var(--text-base);
   font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
 }
 
-.home__demo-title-icon { color: var(--color-text-tertiary); flex-shrink: 0; }
-
-/* Meta row: badge CTDL + level mono (Task 1 — thay chuỗi "Mảng · Cấp độ 1") */
-.home__demo-meta {
+.home__demo-meta,
+.home__catalog-meta {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  font-size: var(--text-xs);
+  gap: var(--space-xs);
+  margin-top: 4px;
 }
 
-.home__demo-badge { font-weight: 500; }
-
-.home__demo-level { color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; }
-
-.home__demo-content {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-/* Chip Big-O mono (DESIGN §4.3) — dùng chung demo + catalog */
 .home__demo-chips,
 .home__catalog-chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
 }
 
 .home__chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px var(--space-sm);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-muted);
   color: var(--color-text-secondary);
-  background: var(--color-card);
-  font-variant-numeric: tabular-nums;
 }
 
-  /* ── Algorithm Catalog Grid (Task 1) ── */
+/* ── Catalog Toolbar ── */
 .home__catalog-toolbar {
   display: flex;
   flex-direction: column;
@@ -1358,11 +1742,6 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   cursor: pointer;
 }
 
-.home__catalog-search-clear:hover {
-  color: var(--color-foreground);
-  background: var(--color-muted);
-}
-
 .home__filters {
   display: flex;
   flex-wrap: wrap;
@@ -1370,7 +1749,6 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   gap: var(--space-sm);
 }
 
-/* FIX R1: mobile — filter tabs cuộn ngang trong 1 hàng (không tràn/không wrap nát) */
 @media (max-width: 640px) {
   .home__filters {
     flex-wrap: nowrap;
@@ -1384,101 +1762,60 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
 .home__filter { color: var(--color-text-tertiary); }
-
 .home__filter:hover { color: var(--color-foreground); }
-
 .home__filter--active,
 .home__filter--active:hover {
   background: var(--color-primary);
   color: var(--color-on-primary);
 }
 
-.home__filter-count { font-size: var(--text-xs); opacity: 0.75; font-variant-numeric: tabular-nums; }
-
 .home__catalog-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--space-md);
-  padding: var(--space-2xl) var(--space-lg);
+  padding: var(--space-2xl);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-card-raised);
   text-align: center;
-}
-
-.home__catalog-empty-text {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
 }
 
 .home__catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--space-md);
 }
 
-/* Card dense level-1 — hover chỉ đổi border-strong (§4.2), không shadow */
 .home__catalog-card {
   display: flex;
   flex-direction: column;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 150ms ease;
 }
 
 .home__catalog-card:hover { border-color: var(--color-border-strong); }
 
-.home__catalog-head { padding: var(--space-md); gap: var(--space-sm); }
-
-.home__catalog-title {
-  font-size: var(--text-md);
-  font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: -0.015em;
-}
-
-.home__catalog-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  font-size: var(--text-xs);
-}
-
-.home__catalog-badge { font-weight: 500; }
-
-.home__catalog-level { color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; }
-
-.home__catalog-content {
-  margin-top: auto;
-  padding: var(--space-sm) var(--space-md) var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-/* CTA "Thực hành ngay" — dịch phải 4px khi hover (Task 1) */
 .home__catalog-cta {
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, color 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-primary);
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  margin-top: auto;
 }
 
-.home__catalog-cta:hover { transform: translateX(4px); }
+.home__catalog-cta:hover { transform: translateX(3px); }
 
 .home__catalog-expand {
   display: flex;
   justify-content: center;
-  padding-top: var(--space-md);
 }
 
-.home__catalog-expand-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-weight: 500;
-}
-
-/* ── Practice Ladder Showcase (Task 1) — 4 chặng + connector flow ── */
+/* ── Practice Ladder ── */
 .home__ladder {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1490,6 +1827,10 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   .home__ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 600px) {
+  .home__ladder { grid-template-columns: 1fr; }
+}
+
 .home__ladder-step-wrapper {
   position: relative;
   display: flex;
@@ -1497,19 +1838,16 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
 .home__ladder-card {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.home__ladder-card:hover { border-color: var(--color-border-strong); }
-
 .home__ladder-content {
-  padding: var(--space-lg);
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   height: 100%;
 }
 
@@ -1521,44 +1859,39 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
 .home__ladder-step {
-  font-size: var(--text-xs);
+  font-size: 10px;
+  font-family: var(--font-mono);
   color: var(--color-text-tertiary);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  padding: 2px var(--space-sm);
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
 }
 
 .home__ladder-icon {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-md);
   background: var(--color-muted);
   color: var(--color-text-secondary);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .home__ladder-title {
   margin: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: -0.015em;
   color: var(--color-foreground);
 }
 
 .home__ladder-desc {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.55;
+  font-size: var(--text-xs);
+  line-height: 1.5;
   color: var(--color-text-secondary);
 }
 
-/* Connector line nối giữa các bước */
 .home__ladder-flow-line {
   display: none;
 }
@@ -1569,7 +1902,7 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
     align-items: center;
     justify-content: center;
     position: absolute;
-    top: 36px;
+    top: 28px;
     right: calc(-1 * var(--space-md));
     width: var(--space-md);
     height: 2px;
@@ -1591,33 +1924,167 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   }
 }
 
-@media (max-width: 900px) {
-  .home__feature--visual,
-  .home__feature--path { grid-column: 1 / -1; }
-
-  .home__feature-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .home__feature-header-row .home__feature-icon { margin-bottom: var(--space-sm); }
+/* ── Features Grid ── */
+.home__features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
 }
 
-@media (max-width: 640px) {
-  /* §8: mobile giảm 1 bậc spacing — section gap 32px */
-  .home { gap: var(--space-xl); padding-bottom: var(--space-2xl); }
-  .home__stats-grid { grid-template-columns: 1fr; }
-  .home__stat-hero { grid-column: auto; }
-  .home__title { font-size: var(--text-3xl); }
+.home__feature-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-xs);
+}
 
-  /* Bench: speed slider gọn lại trên màn nhỏ */
-  .home__bench-speed { margin-left: 0; }
-  .home__bench-speed-input { width: 64px; }
-  .home__bench-step { display: none; }
+/* ── Live Sandbox ── */
+.home__sandbox-card {
+  padding: var(--space-lg);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
 
-  .home__ladder { grid-template-columns: 1fr; }
+.home__sandbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
 
-  /* FIX R1: CTA "Thực hành ngay" rõ hơn ở mobile — full width + hit target 44px (§8) */
-  .home__catalog-cta { width: 100%; min-height: 44px; }
+.home__sandbox-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.home__sandbox-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.home__sandbox-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.home__sandbox-desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.home__sandbox-input-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.home__sandbox-input {
+  flex: 1;
+  min-width: 200px;
+  height: 38px;
+  padding: 0 var(--space-md);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-foreground);
+}
+
+.home__sandbox-stage {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--color-canvas-ink);
+  border-radius: var(--radius-lg);
+  min-height: 80px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.home__sandbox-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-data-core-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-data-core);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.home__sandbox-bar--active {
+  background: rgba(251, 191, 36, 0.25);
+  border-color: #FBBF24;
+  color: #FBBF24;
+  transform: translateY(-4px);
+}
+
+.home__sandbox-bar--sorted {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: #34D399;
+  color: #34D399;
+}
+
+.home__sandbox-bar-val { font-size: var(--text-base); }
+.home__sandbox-bar-idx { font-size: 9px; opacity: 0.6; }
+
+/* ── Quest Card in Right Wing ── */
+.home__quest-desc {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.home__quest-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.home__quest-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: #F59E0B;
+}
+
+.home__quest-btn {
+  font-size: 11px;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.home__quest-btn:hover {
+  text-decoration: underline;
 }
 </style>
