@@ -1,7 +1,8 @@
 // Tests for HomeView — verifying merged Guest Landing & Authenticated Dashboard with Source 2 Layout.
-import { flushPromises, mount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { messages } from '@/i18n/vi';
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -83,12 +84,10 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
     });
   });
 
-  describe('1. Chế độ Khách (Guest / Landing Layout — 8 Tầng Source 2)', () => {
-    it('Tầng 1: Hero Section có badge pulse, tiêu đề gradient, 2 CTA và 4 chỉ số trust', () => {
+  describe('1. Chế độ Khách (Guest / Landing Layout — Source 2)', () => {
+    it('Tầng 1: Hero Section có tiêu đề gradient, 2 CTA và 4 chỉ số trust', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.hero').exists()).toBe(true);
-      expect(wrapper.find('.hero__badge').exists()).toBe(true);
-      expect(wrapper.find('.pulse-dot').exists()).toBe(true);
       expect(wrapper.find('h1.hero__title').exists()).toBe(true);
       expect(wrapper.find('p.hero__sub').exists()).toBe(true);
       expect(wrapper.findAll('.hero__actions a').length).toBe(2);
@@ -97,16 +96,31 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       wrapper.unmount();
     });
 
-    it('Tầng 1: Hero Terminal Preview có macOS dots, nút điều khiển và cột bar hoạt ảnh', () => {
+    it('Tầng 1: Hero Algorithmic Stage có tiêu đề Quick Sort, chip complexity, nút điều khiển, speed slider và status badge', () => {
       const wrapper = mount(HomeView);
-      expect(wrapper.find('.preview-window').exists()).toBe(true);
-      expect(wrapper.find('.terminal-dots').exists()).toBe(true);
-      expect(wrapper.find('.bars-container').exists()).toBe(true);
+      expect(wrapper.find('.stage-panel').exists()).toBe(true);
+      expect(wrapper.find('.stage-title').text()).toContain('Quick Sort');
+      expect(wrapper.find('.stage-complexity').text()).toContain('O(N log N)');
+      expect(wrapper.findAll('.stage-btn').length).toBe(3);
+      expect(wrapper.find('.stage-speed__input').exists()).toBe(true);
+      expect(wrapper.find('.stage-speed__label').text()).toContain('1×');
       expect(wrapper.findAll('.preview-bar').length).toBe(6);
+      expect(wrapper.find('.stage-status__badge').text()).toBe(messages.home.previewPhase[0]);
       wrapper.unmount();
     });
 
-    it('Tầng 2: Bento Grid 4 cột hiển thị đủ 7 modules (Sorting, Graph, Gamification, OOP, SOLID, Patterns, DI)', () => {
+    it('Tầng 1: nút Step bước tới phase và speed slider cập nhật nhãn tốc độ', async () => {
+      const wrapper = mount(HomeView);
+      const stepBtn = wrapper.findAll('.stage-btn')[1];
+      await stepBtn.trigger('click');
+      expect(wrapper.find('.stage-status__badge').text()).toBe(messages.home.previewPhase[1]);
+
+      await wrapper.find('.stage-speed__input').setValue('2');
+      expect(wrapper.find('.stage-speed__label').text()).toContain('2×');
+      wrapper.unmount();
+    });
+
+    it('Tầng 2: Bento Grid 4 cột hiển thị đủ 7 modules và large card có live mini visualizer 7 cột', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.bento-grid').exists()).toBe(true);
       const bentoCards = wrapper.findAll('.bento-card');
@@ -117,13 +131,42 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       expect(wrapper.text()).toContain('Thuật Toán Sắp Xếp Trực Quan');
       expect(wrapper.text()).toContain('Sân Chơi Đồ Thị');
       expect(wrapper.text()).toContain('Gamification Học Mà Chơi');
+
+      const miniBars = wrapper.findAll('.mini-bar');
+      expect(miniBars.length).toBe(7);
+      expect(miniBars[0].attributes('data-value')).toBe('7');
       wrapper.unmount();
     });
 
-    it('Tầng 3: Thư viện thuật toán có thanh tìm kiếm, bộ lọc nhóm và lưới thẻ', () => {
+    it('Tầng 2: Mini visualizer tự hoán đổi cột theo chu kỳ (compare → swap)', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount(HomeView);
+      const read = () =>
+        wrapper.findAll('.mini-bar').map((b) => b.attributes('data-value') ?? '?');
+      expect(read()).toEqual(['7', '2', '9', '4', '5', '1', '8']);
+
+      // tick 1: so sánh cặp (7, 2) → 7 > 2 nên hoán đổi
+      vi.advanceTimersByTime(800);
+      await nextTick();
+      expect(read()).toEqual(['2', '7', '9', '4', '5', '1', '8']);
+
+      // tick 2: so sánh cặp (7, 9) → giữ nguyên thứ tự
+      vi.advanceTimersByTime(800);
+      await nextTick();
+      expect(read()).toEqual(['2', '7', '9', '4', '5', '1', '8']);
+
+      // tick 3: so sánh cặp (9, 4) → hoán đổi
+      vi.advanceTimersByTime(800);
+      await nextTick();
+      expect(read()).toEqual(['2', '7', '4', '9', '5', '1', '8']);
+
+      vi.useRealTimers();
+      wrapper.unmount();
+    });
+
+    it('Tầng 3: Thư viện thuật toán có bộ lọc nhóm và lưới thẻ', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.algogrid-section').exists()).toBe(true);
-      expect(wrapper.find('.home__catalog-search-input').exists()).toBe(true);
       expect(wrapper.findAll('.home__filter').length).toBeGreaterThan(5);
       expect(wrapper.find('.home__catalog').exists()).toBe(true);
       wrapper.unmount();
@@ -152,36 +195,18 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       wrapper.unmount();
     });
 
-    it('Tầng 5: Bố cục So le 2 cột Deep-Dives (Roadmap, Codelab, AI Mentor)', () => {
+    it('Tầng 5: Bố cục So le 2 cột Deep-Dives (Roadmap, Codelab)', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.roadmap-mockup').exists()).toBe(true);
       expect(wrapper.find('.codelab-mockup').exists()).toBe(true);
       expect(wrapper.find('.codelab-output').text()).toContain('All 15/15 Test Cases Passed!');
-      expect(wrapper.find('.ai-mockup').exists()).toBe(true);
-      expect(wrapper.text()).toContain('AI Assistant - Người Mentor Tận Tụy');
       wrapper.unmount();
     });
 
-    it('Tầng 6: Testimonials Carousel có chấm sao, trích dẫn quote và nút chuyển slide', async () => {
-      const wrapper = mount(HomeView);
-      expect(wrapper.find('.testimonials-carousel').exists()).toBe(true);
-      expect(wrapper.find('.testimonial-quote').exists()).toBe(true);
-      expect(wrapper.find('.testimonial-rating').exists()).toBe(true);
-      expect(wrapper.findAll('.carousel-btn').length).toBe(2);
-      wrapper.unmount();
-    });
-
-    it('Tầng 7: Sandbox tương tác có input mảng và nút Chạy sắp xếp / Đặt lại', () => {
-      const wrapper = mount(HomeView);
-      expect(wrapper.find('.home__sandbox-input').exists()).toBe(true);
-      expect(wrapper.findAll('.home__sandbox-bar').length).toBe(6);
-      wrapper.unmount();
-    });
-
-    it('Tầng 8: CTA Section & Footer có nút Tạo tài khoản và các link điều hướng', () => {
+    it('Tầng 6: CTA Section có nút Tạo tài khoản miễn phí', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.cta-card').exists()).toBe(true);
-      expect(wrapper.find('.landing-footer').exists()).toBe(true);
+      expect(wrapper.find('.landing-footer').exists()).toBe(false);
       wrapper.unmount();
     });
   });

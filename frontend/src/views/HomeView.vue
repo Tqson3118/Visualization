@@ -2,17 +2,15 @@
 // HomeView — Trang chủ tích hợp trọn vẹn UI & Hệ thống Animation của Source 2 (VisualizationDSA1).
 // Bao gồm:
 // 1. Mesh Blobs động đa tầng & Glow Pulse xoay chuyển mượt mà
-// 2. QuickSort Preview Animation 9 phases với transition & glow màu sắc Pivot/Compare/Swap/Sorted
-// 3. Bento Grid 4 cột với 3D Tilt, Icon bounce & Visual Sorting Bars Wave Animation
+// 2. Hero Algorithmic Stage — QuickSort Preview 9 phases (Pivot/Compare/Swap/Sorted)
+//    + điều khiển Play/Pause/Step/Reset + speed slider 0.5×–2×
+// 3. Bento Grid 4 cột với 3D Tilt, Icon glow & Live Mini Visualizer (bubble cycle)
 // 4. GSAP Animated Numbers (XP Counter, Streak Counter, Trust Indicators)
 // 5. Codelab Monaco syntax highlight & Testcases Pass Glow
-// 6. AI Mentor Chat Bubbles & Floating Sparkles
-// 7. Roadmap Nodes Pulse & Hover slide
-// 8. Testimonials Slider với Dot glow
-// 9. Interactive Live Sandbox với Active / Sorted Bar Jumping Animations
-// 10. Dashboard Animated XP Wheel SVG & Ambient Floating Trophy
+// 6. Roadmap Nodes Pulse & Hover slide
+// 7. Dashboard Animated XP Wheel SVG & Ambient Floating Trophy
 
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -26,15 +24,10 @@ import {
   Boxes,
   Check,
   CheckCircle2,
-  ChevronLeft,
   ChevronRight,
-  Code2,
   Compass,
   Crown,
-  Eye,
   Flame,
-  FlaskConical,
-  Gauge,
   Gem,
   GitFork,
   Heart,
@@ -47,13 +40,9 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
-  Star,
   StepForward,
   Target,
-  Terminal,
   Trophy,
-  User,
-  X,
   Zap,
 } from 'lucide-vue-next';
 
@@ -62,7 +51,6 @@ import type { InputConfig, Step } from '@/engines/core/types';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -154,6 +142,7 @@ const QUICK_SORT_PHASES: PreviewBar[][] = [
 
 const phaseIndex = ref(0);
 const isPreviewPlaying = ref(true);
+const previewSpeed = ref(1); // tốc độ sân khấu: 0.5× – 2×
 let previewTimer: ReturnType<typeof setInterval> | null = null;
 
 const currentPhase = computed(() => QUICK_SORT_PHASES[phaseIndex.value] ?? QUICK_SORT_PHASES[0]);
@@ -164,7 +153,7 @@ function advancePreview(): void {
 
 function startPreview(): void {
   if (previewTimer) clearInterval(previewTimer);
-  previewTimer = setInterval(advancePreview, 1200);
+  previewTimer = setInterval(advancePreview, 1200 / previewSpeed.value);
   isPreviewPlaying.value = true;
 }
 
@@ -191,6 +180,13 @@ function resetPreview(): void {
   phaseIndex.value = 0;
   startPreview();
 }
+
+/* Khi đổi tốc độ mà stage đang chạy — khởi động lại chu kỳ với nhịp mới */
+watch(previewSpeed, (speed) => {
+  if (!isPreviewPlaying.value || speed <= 0) return;
+  if (previewTimer) clearInterval(previewTimer);
+  previewTimer = setInterval(advancePreview, 1200 / speed);
+});
 
 /* ── Bento Grid Module Definitions (4 Cột) ── */
 interface BentoFeature {
@@ -321,7 +317,6 @@ const catalogGroups: CatalogGroupDef[] = [
 ];
 
 const activeGroup = ref<CatalogGroup>('all');
-const searchQuery = ref('');
 const isCatalogExpanded = ref(false);
 
 const catalogCounts = computed<Record<CatalogGroup, number>>(() => {
@@ -332,125 +327,18 @@ const catalogCounts = computed<Record<CatalogGroup, number>>(() => {
 
 const filteredCatalog = computed(() => {
   const group = catalogGroups.find((g) => g.key === activeGroup.value);
-  let list = group ? CATALOG.filter(group.match) : CATALOG;
-  const q = searchQuery.value.trim().toLowerCase();
-  if (q) {
-    list = list.filter(
-      (m) =>
-        m.title.toLowerCase().includes(q) ||
-        m.key.toLowerCase().includes(q) ||
-        m.dataStructure.toLowerCase().includes(q) ||
-        m.complexity.average.toLowerCase().includes(q) ||
-        m.complexity.space.toLowerCase().includes(q),
-    );
-  }
-  return list;
+  return group ? CATALOG.filter(group.match) : CATALOG;
 });
 
 const displayedCatalog = computed(() => {
-  if (searchQuery.value.trim()) return filteredCatalog.value;
   if (isCatalogExpanded.value) return filteredCatalog.value;
   return filteredCatalog.value.slice(0, 8);
 });
 
-const canExpandCatalog = computed(() => {
-  return !searchQuery.value.trim() && filteredCatalog.value.length > 8;
-});
+const canExpandCatalog = computed(() => filteredCatalog.value.length > 8);
 
 function levelLabel(level: CatalogMeta['level']): string {
   return level === 'advanced' ? messages.explore.levelAdvanced : messages.explore.levelBasic;
-}
-
-/* ── Testimonials Carousel ── */
-interface Testimonial {
-  name: string;
-  role: string;
-  quote: string;
-  initials: string;
-  rating: number;
-}
-
-const testimonials: Testimonial[] = [
-  {
-    name: 'Trần Hoàng Long',
-    role: 'Sinh viên Kỹ thuật Phần mềm (FPT University)',
-    quote: 'Việc nhìn thấy từng bước biến đổi của con trỏ và mảng giúp em hiểu bản chất thuật toán nhanh hơn 10 lần so với chỉ đọc code chay.',
-    initials: 'TL',
-    rating: 5,
-  },
-  {
-    name: 'Nguyễn Thu Trang',
-    role: 'Frontend Developer @ Tech Solutions',
-    quote: 'Giao diện trực quan, mô phỏng mượt mà và hệ thống Practice Ladder giúp mình tự tin vượt qua các vòng phỏng vấn Coding Interview.',
-    initials: 'TT',
-    rating: 5,
-  },
-  {
-    name: 'Vũ Đức Minh',
-    role: 'Sinh viên năm 2 ĐH Bách Khoa',
-    quote: 'Phần Sandbox thực hành và Codelab chấm tự động cực kỳ tiện lợi. Đồ thị và Tree trực quan hóa rất đẹp mắt và dễ hiểu.',
-    initials: 'DM',
-    rating: 5,
-  },
-];
-
-const currentTestimonial = ref(0);
-let testimonialTimer: ReturnType<typeof setInterval> | null = null;
-
-function nextTestimonial(): void {
-  currentTestimonial.value = (currentTestimonial.value + 1) % testimonials.length;
-}
-
-function prevTestimonial(): void {
-  currentTestimonial.value =
-    (currentTestimonial.value - 1 + testimonials.length) % testimonials.length;
-}
-
-function goToTestimonial(index: number): void {
-  currentTestimonial.value = index;
-}
-
-/* ── Interactive Live Sandbox ── */
-const sandboxInput = ref('8, 3, 5, 1, 9, 2');
-const sandboxArray = ref([8, 3, 5, 1, 9, 2]);
-const sandboxActiveIndices = ref<[number, number] | null>(null);
-const sandboxSortedIndices = ref<number[]>([]);
-const sandboxRunning = ref(false);
-
-function resetSandbox(): void {
-  const parsed = sandboxInput.value
-    .split(',')
-    .map((s) => parseInt(s.trim(), 10))
-    .filter((n) => !isNaN(n));
-  sandboxArray.value = parsed.length ? parsed.slice(0, 8) : [8, 3, 5, 1, 9, 2];
-  sandboxActiveIndices.value = null;
-  sandboxSortedIndices.value = [];
-  sandboxRunning.value = false;
-}
-
-async function runSandboxSort(): Promise<void> {
-  if (sandboxRunning.value) return;
-  sandboxRunning.value = true;
-  sandboxSortedIndices.value = [];
-  const arr = [...sandboxArray.value];
-  const n = arr.length;
-
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n - i - 1; j++) {
-      sandboxActiveIndices.value = [j, j + 1];
-      await new Promise((r) => setTimeout(r, 260));
-      if (arr[j] > arr[j + 1]) {
-        const temp = arr[j];
-        arr[j] = arr[j + 1];
-        arr[j + 1] = temp;
-        sandboxArray.value = [...arr];
-        await new Promise((r) => setTimeout(r, 220));
-      }
-    }
-    sandboxSortedIndices.value.push(n - i - 1);
-  }
-  sandboxActiveIndices.value = null;
-  sandboxRunning.value = false;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -552,22 +440,93 @@ function handleTiltReset(e: MouseEvent): void {
   card.style.removeProperty('--ry');
 }
 
-/* ── Bento Sorting Wave — cột thật (không gradient trang trí) ── */
-interface BentoWaveBar {
-  height: number;
-  opacity: number;
+/* ── Bento Live Mini Visualizer — vòng lặp bubble thuần component ──
+   KHÔNG đụng engines: tự hoán đổi vị trí + đổi màu theo chu kỳ.
+   Bar keyed theo id ổn định, vị trí qua transform translateX → CSS
+   transition chạy mượt khi hoán đổi. */
+interface MiniBar {
+  id: number;
+  value: number;
 }
 
-const BENTO_WAVE_BARS: BentoWaveBar[] = [
-  { height: 30, opacity: 0.4 },
-  { height: 55, opacity: 0.6 },
-  { height: 40, opacity: 0.45 },
-  { height: 70, opacity: 0.55 },
-  { height: 50, opacity: 0.35 },
-  { height: 85, opacity: 0.6 },
-  { height: 62, opacity: 0.5 },
-  { height: 45, opacity: 0.42 },
-];
+const MINI_VIZ_VALUES = [7, 2, 9, 4, 5, 1, 8];
+const MINI_VIZ_PITCH = 32; // bước ngang mỗi cột (px) — khớp .mini-bar width 26 + gap 6
+
+const miniBars = ref<MiniBar[]>(MINI_VIZ_VALUES.map((value, id) => ({ id, value })));
+const miniActive = ref<number[]>([]);
+const miniSwapping = ref<number[]>([]);
+const miniSorted = ref<number[]>([]);
+let miniVizTimer: ReturnType<typeof setInterval> | null = null;
+let miniPass = 0;
+let miniCursor = 0;
+let miniFinished = false;
+
+function miniBarTransform(index: number): string {
+  return `translateX(${index * MINI_VIZ_PITCH}px)`;
+}
+
+function miniBarClass(index: number): string {
+  if (miniSwapping.value.includes(index)) return 'mini-bar--swap';
+  if (miniActive.value.includes(index)) return 'mini-bar--compare';
+  if (miniSorted.value.includes(index)) return 'mini-bar--sorted';
+  return '';
+}
+
+function stepMiniViz(): void {
+  const n = miniBars.value.length;
+  if (miniFinished) {
+    miniBars.value = MINI_VIZ_VALUES.map((value, id) => ({ id, value }));
+    miniActive.value = [];
+    miniSwapping.value = [];
+    miniSorted.value = [];
+    miniPass = 0;
+    miniCursor = 0;
+    miniFinished = false;
+    return;
+  }
+
+  const limit = n - miniPass - 1;
+  if (miniCursor >= limit) {
+    miniSorted.value = [...miniSorted.value, limit];
+    if (limit === 0) {
+      miniFinished = true;
+      miniActive.value = [];
+      miniSwapping.value = [];
+    } else {
+      miniPass += 1;
+      miniCursor = 0;
+      miniActive.value = [];
+      miniSwapping.value = [];
+    }
+    return;
+  }
+
+  const i = miniCursor;
+  const a = miniBars.value[i];
+  const b = miniBars.value[i + 1];
+  if (a.value > b.value) {
+    miniActive.value = [];
+    miniSwapping.value = [i, i + 1];
+    const bars = [...miniBars.value];
+    bars[i] = b;
+    bars[i + 1] = a;
+    miniBars.value = bars;
+  } else {
+    miniSwapping.value = [];
+    miniActive.value = [i, i + 1];
+  }
+  miniCursor += 1;
+}
+
+function startMiniViz(): void {
+  if (miniVizTimer) clearInterval(miniVizTimer);
+  miniVizTimer = setInterval(stepMiniViz, 800);
+}
+
+function stopMiniViz(): void {
+  if (miniVizTimer) clearInterval(miniVizTimer);
+  miniVizTimer = null;
+}
 
 /* ── GSAP Master Animations ── */
 let splitInstance: InstanceType<typeof SplitText> | null = null;
@@ -602,13 +561,14 @@ function initAnimations(): void {
       y: 40, opacity: 0, scale: 0.96, duration: 0.8, ease: 'power2.out', delay: 0.3,
     });
 
-    // 3. Bento Grid Stagger Animation on Scroll
+    // 3. Bento Grid Stagger Animation on Scroll — blur → clear
     gsap.from('.bento-card', {
       y: 40,
       opacity: 0,
-      stagger: 0.08,
+      filter: 'blur(8px)',
+      stagger: 0.1,
       duration: 0.6,
-      ease: 'power2.out',
+      ease: 'power3.out',
       scrollTrigger: { trigger: '.bento-grid', start: 'top 85%', once: true },
     });
 
@@ -623,6 +583,28 @@ function initAnimations(): void {
       gsap.from('.extended-visual', {
         x: 40, opacity: 0, duration: 0.7, ease: 'power2.out',
         scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
+      });
+
+      // Section headers marketing — reveal blur → clear
+      gsap.from(['.features-header', '.home__section-head', '.algogrid-header', '.freemium-header'], {
+        y: 40,
+        opacity: 0,
+        filter: 'blur(8px)',
+        stagger: 0.1,
+        duration: 0.6,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '.features-header', start: 'top 90%', once: true },
+      });
+
+      // 3 Demo cards — reveal blur → clear
+      gsap.from('.home__demo', {
+        y: 40,
+        opacity: 0,
+        filter: 'blur(8px)',
+        stagger: 0.1,
+        duration: 0.6,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '.home__demos-grid', start: 'top 85%', once: true },
       });
     }
 
@@ -650,6 +632,10 @@ function initAnimations(): void {
 onMounted(async () => {
   startPreview();
 
+  if (!authStore.isAuthenticated && !prefersReducedMotion()) {
+    startMiniViz();
+  }
+
   if (authStore.isAuthenticated) {
     void gamificationStore.fetchAll();
     void gamificationStore.fetchQuests();
@@ -657,14 +643,13 @@ onMounted(async () => {
     void progressStore.fetchOverview();
   }
 
-  testimonialTimer = setInterval(nextTestimonial, 5000);
   await nextTick();
   initAnimations();
 });
 
 onUnmounted(() => {
   stopPreview();
-  if (testimonialTimer) clearInterval(testimonialTimer);
+  stopMiniViz();
   splitInstance?.revert();
   gsapCtx?.revert();
 });
@@ -926,15 +911,8 @@ onUnmounted(() => {
       <div class="hero__particles z-0" aria-hidden="true"></div>
 
       <div class="hero__content" data-aos="fade-up">
-        <!-- Pulse Badge -->
-        <div class="hero__badge spring-hover">
-          <span class="pulse-dot"></span>
-          <span>Nền tảng học thuật chuẩn bị ra mắt</span>
-        </div>
-
         <!-- Hero Title -->
         <h1 class="hero__title font-display" ref="heroTitleRef">
-          <span class="hero__prefix text-primary drop-shadow-md">~/</span>
           Khám phá thuật toán theo cách <span class="text-gradient">sống động nhất</span>
         </h1>
 
@@ -996,31 +974,61 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Hero Terminal Preview Window with Smooth QuickSort Animation -->
-      <div class="hero__preview z-10" aria-hidden="true" data-aos="fade-up" data-aos-delay="400">
-        <div class="glass-panel preview-window spring-hover">
-          <div class="preview-header">
-            <div class="terminal-dots">
-              <span class="terminal-dot terminal-dot--close"></span>
-              <span class="terminal-dot terminal-dot--min"></span>
-              <span class="terminal-dot terminal-dot--max"></span>
+      <!-- Hero Algorithmic Stage — QuickSort live preview -->
+      <div class="hero__preview z-10" data-aos="fade-up" data-aos-delay="400">
+        <div class="glass-panel stage-panel glow-subtle">
+          <div class="stage-header">
+            <div class="stage-header__left">
+              <h2 class="stage-title font-display text-sm font-bold">{{ messages.home.heroStageTitle }}</h2>
+              <span class="stage-complexity font-mono text-[10px]">{{ messages.home.heroStageComplexity }}</span>
             </div>
-            <div class="preview-title font-mono text-xs text-muted-foreground">quick-sort.ts</div>
-            <div class="preview-actions flex items-center gap-1">
-              <button class="preview-btn" aria-label="Run/Pause" :title="isPreviewPlaying ? 'Tạm dừng' : 'Chạy'" @click="togglePreviewPlay">
-                <Pause v-if="isPreviewPlaying" class="w-3.5 h-3.5" aria-hidden="true" />
-                <Play v-else class="w-3.5 h-3.5" aria-hidden="true" />
+            <div class="stage-controls">
+              <button
+                class="stage-btn"
+                type="button"
+                :aria-label="isPreviewPlaying ? messages.home.heroStagePause : messages.home.heroStageRun"
+                :title="isPreviewPlaying ? messages.home.heroStagePause : messages.home.heroStageRun"
+                @click="togglePreviewPlay"
+              >
+                <Pause v-if="isPreviewPlaying" class="w-4 h-4" aria-hidden="true" />
+                <Play v-else class="w-4 h-4" aria-hidden="true" />
               </button>
-              <button class="preview-btn" aria-label="Step" title="Bước tới" @click="stepPreview">
-                <StepForward class="w-3.5 h-3.5" aria-hidden="true" />
+              <button
+                class="stage-btn"
+                type="button"
+                :aria-label="messages.home.heroStageStep"
+                :title="messages.home.heroStageStep"
+                @click="stepPreview"
+              >
+                <StepForward class="w-4 h-4" aria-hidden="true" />
               </button>
-              <button class="preview-btn" aria-label="Reset" title="Đặt lại" @click="resetPreview">
-                <RotateCcw class="w-3.5 h-3.5" aria-hidden="true" />
+              <button
+                class="stage-btn"
+                type="button"
+                :aria-label="messages.home.heroStageReset"
+                :title="messages.home.heroStageReset"
+                @click="resetPreview"
+              >
+                <RotateCcw class="w-4 h-4" aria-hidden="true" />
               </button>
+              <label class="stage-speed">
+                <span class="stage-speed__label font-mono text-[10px]">
+                  {{ messages.home.heroStageSpeed }} {{ previewSpeed }}×
+                </span>
+                <input
+                  v-model.number="previewSpeed"
+                  class="stage-speed__input"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.25"
+                  :aria-label="messages.home.heroStageSpeed"
+                />
+              </label>
             </div>
           </div>
 
-          <div class="preview-body">
+          <div class="stage-body">
             <div class="bars-container">
               <div
                 v-for="(bar, i) in currentPhase"
@@ -1032,7 +1040,9 @@ onUnmounted(() => {
                 <span class="preview-bar-label">{{ bar.label }}</span>
               </div>
             </div>
-            <p class="preview-phase-label" aria-live="polite">{{ messages.home.previewPhase[phaseIndex] }}</p>
+            <div class="stage-status" role="status" aria-live="polite">
+              <span class="stage-status__badge font-mono text-xs">{{ messages.home.previewPhase[phaseIndex] }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1062,14 +1072,23 @@ onUnmounted(() => {
             <p class="text-muted-foreground text-xs leading-relaxed">{{ feat.description }}</p>
           </div>
           
-          <!-- Animated Sorting Wave Bars Graphic for Large Card -->
-          <div v-if="feat.id === 'sort'" class="bento-visual visual-sorting mt-4" aria-hidden="true">
-            <div
-              v-for="(bar, i) in BENTO_WAVE_BARS"
-              :key="i"
-              class="bento-wave-bar"
-              :style="{ height: bar.height + '%', opacity: bar.opacity, animationDelay: i * 0.1 + 's' }"
-            ></div>
+          <!-- Live Mini Visualizer Graphic for Large Card -->
+          <div v-if="feat.id === 'sort'" class="bento-visual mini-viz-wrap mt-4" aria-hidden="true">
+            <div class="mini-viz">
+              <div
+                v-for="(bar, index) in miniBars"
+                :key="bar.id"
+                class="mini-bar"
+                :class="miniBarClass(index)"
+                :data-value="bar.value"
+                :style="{
+                  height: (bar.value / 9) * 100 + '%',
+                  transform: miniBarTransform(index),
+                }"
+              >
+                <span class="mini-bar__value font-mono">{{ bar.value }}</span>
+              </div>
+            </div>
           </div>
 
           <div class="bento-footer mt-3">
@@ -1085,10 +1104,10 @@ onUnmounted(() => {
     <section id="sec-demos" class="home__section home__demos">
       <div class="container">
         <div class="home__section-head">
-          <span class="home__kicker home__kicker--center">
+          <span class="home__kicker">
             <span class="font-mono">{{ messages.home.demoBadge }}</span>
           </span>
-          <h2 class="home__section-title">{{ messages.home.demoTabTitle }}</h2>
+          <h2 class="home__section-title font-display">{{ messages.home.demoTabTitle }}</h2>
           <p class="home__section-desc">{{ messages.home.demoTabDesc }}</p>
         </div>
 
@@ -1096,7 +1115,7 @@ onUnmounted(() => {
           <Card
             v-for="demo in demos"
             :key="demo.key"
-            class="home__demo tilt-card"
+            class="home__demo rounded-xl tilt-card"
             @mousemove="handleTilt"
             @mouseleave="handleTiltReset"
           >
@@ -1126,7 +1145,7 @@ onUnmounted(() => {
                   <span class="home__thumb-node" />
                 </div>
               </div>
-              <CardTitle class="home__demo-title">
+              <CardTitle class="home__demo-title font-display">
                 <component :is="demo.icon" :size="16" class="home__demo-title-icon" aria-hidden="true" />
                 {{ demo.title }}
               </CardTitle>
@@ -1165,25 +1184,7 @@ onUnmounted(() => {
         </div>
 
         <div class="home__catalog-toolbar mb-8">
-          <div class="home__catalog-search">
-            <Search class="home__catalog-search-icon" :size="16" aria-hidden="true" />
-            <input
-              v-model="searchQuery"
-              type="search"
-              class="home__catalog-search-input"
-              :placeholder="messages.home.catalogSearchPlaceholder"
-            />
-            <button
-              v-if="searchQuery"
-              type="button"
-              class="home__catalog-search-clear"
-              @click="searchQuery = ''"
-            >
-              <X :size="14" />
-            </button>
-          </div>
-
-          <div class="home__filters mt-4" role="tablist" aria-label="Bộ lọc danh mục thuật toán">
+          <div class="home__filters" role="tablist" aria-label="Bộ lọc danh mục thuật toán">
             <Button
               v-for="group in catalogGroups"
               :key="group.key"
@@ -1202,7 +1203,7 @@ onUnmounted(() => {
 
         <div v-if="displayedCatalog.length === 0" class="home__catalog-empty" role="status">
           <p class="home__catalog-empty-text">{{ messages.home.catalogNoResults }}</p>
-          <Button variant="secondary" size="sm" @click="searchQuery = ''; activeGroup = 'all'">
+          <Button variant="secondary" size="sm" @click="activeGroup = 'all'">
             {{ messages.common.retry }}
           </Button>
         </div>
@@ -1379,139 +1380,7 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- Deep-dive 3: AI Assistant Mentor -->
-    <section v-if="!authStore.isAuthenticated" class="extended-section ai-section">
-      <div class="extended-container">
-        <div class="extended-text" data-aos="fade-right">
-          <h2 class="font-display text-3xl mb-4 text-heading">AI Assistant - Người Mentor Tận Tụy</h2>
-          <p class="text-muted-foreground mb-6 text-sm">Mắc kẹt ở một bài toán khó? Trợ lý ảo AI luôn túc trực 24/7 để gợi ý hướng giải quyết, giải thích lỗi sai (Bug) và tối ưu hóa đoạn code của bạn mà không hề tiết lộ đáp án.</p>
-        </div>
-        <div class="extended-visual" aria-hidden="true" data-aos="fade-left">
-          <div class="ai-mockup glass-panel spring-hover">
-            <div class="ai-chat user">Tại sao Quick Sort bị O(N²) ở TH xấu nhất?</div>
-            <div class="ai-chat bot">
-              <span class="ai-avatar" aria-hidden="true">AI</span>
-              <div class="ai-msg text-xs leading-relaxed">
-                Trường hợp xấu nhất <strong>O(N²)</strong> xảy ra khi mảng đã được sắp xếp sẵn và bạn luôn chọn pivot là phần tử cuối/đầu. Khi đó, mảng bị chia thành 1 phần có N-1 phần tử và 1 phần có 0 phần tử.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── TẦNG 6: TESTIMONIALS CAROUSEL ── -->
-    <section v-if="!authStore.isAuthenticated" id="sec-testimonials" class="testimonials-section">
-      <div class="testimonials-header text-center mb-12" data-aos="fade-up">
-        <h2 class="font-display text-3xl mb-3 text-heading">Người học nói gì về VisualizationDSA?</h2>
-        <p class="text-muted-foreground max-w-2xl mx-auto text-sm">Trải nghiệm của những người đã học thuật toán theo cách trực quan.</p>
-      </div>
-
-      <div class="testimonials-carousel" data-aos="fade-up">
-        <Transition name="fade-slide" mode="out-in">
-          <div :key="currentTestimonial" class="testimonial-card glass-panel">
-            <div class="testimonial-rating flex justify-center gap-1 mb-3">
-              <Star v-for="i in testimonials[currentTestimonial].rating" :key="i" class="w-5 h-5 text-amber-400 fill-current" />
-            </div>
-            <blockquote class="testimonial-quote text-base italic text-center max-w-xl mx-auto mb-6">
-              "{{ testimonials[currentTestimonial].quote }}"
-            </blockquote>
-            <div class="testimonial-author flex flex-col items-center">
-              <div class="testimonial-avatar w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm mb-2 shadow-md">
-                {{ testimonials[currentTestimonial].initials }}
-              </div>
-              <cite class="testimonial-name font-bold text-sm not-italic">{{ testimonials[currentTestimonial].name }}</cite>
-              <p class="testimonial-role text-muted-foreground text-xs">{{ testimonials[currentTestimonial].role }}</p>
-            </div>
-          </div>
-        </Transition>
-
-        <div class="testimonial-controls flex items-center justify-center gap-4 mt-6">
-          <button class="carousel-btn p-2 rounded-full border border-border hover:bg-muted transition-colors" @click="prevTestimonial" aria-label="Previous testimonial">
-            <ChevronLeft class="w-5 h-5" />
-          </button>
-          <div class="testimonial-dots flex gap-1.5">
-            <button
-              v-for="(_, index) in testimonials"
-              :key="index"
-              class="testimonial-dot w-2.5 h-2.5 rounded-full transition-all"
-              :class="currentTestimonial === index ? 'bg-primary w-6 shadow-[0_0_12px_rgba(0,126,114,0.6)]' : 'bg-border'"
-              @click="goToTestimonial(index)"
-              :aria-label="`Go to testimonial ${index + 1}`"
-            />
-          </div>
-          <button class="carousel-btn p-2 rounded-full border border-border hover:bg-muted transition-colors" @click="nextTestimonial" aria-label="Next testimonial">
-            <ChevronRight class="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── TẦNG 7: SANDBOX TƯƠNG TÁC ── -->
-    <section id="sec-sandbox" class="home__section home__sandbox-section">
-      <div class="container">
-        <Card class="home__sandbox-card glass-panel">
-          <div class="home__sandbox-header flex items-center justify-between flex-wrap gap-2 mb-3">
-            <div class="home__sandbox-title-wrap flex items-center gap-2">
-              <Terminal class="size-5 text-primary" />
-              <h3 class="home__sandbox-title font-bold text-lg">Thử Nghiệm Thuật Toán Trực Tiếp</h3>
-            </div>
-            <span class="home__sandbox-badge px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono">Interactive Sandbox</span>
-          </div>
-
-          <p class="home__sandbox-desc text-xs text-muted-foreground mb-4">
-            Nhập một dãy số bất kỳ (cách nhau bằng dấu phẩy) và quan sát thuật toán Bubble Sort tự động chạy ngay tại chỗ!
-          </p>
-
-          <div class="home__sandbox-input-row flex gap-2 flex-wrap mb-4">
-            <input
-              v-model="sandboxInput"
-              type="text"
-              class="home__sandbox-input flex-1 min-w-[200px] h-10 px-3 rounded-lg border border-border bg-card font-mono text-sm"
-              placeholder="Ví dụ: 8, 3, 5, 1, 9, 2"
-              :disabled="sandboxRunning"
-              @keyup.enter="resetSandbox(); runSandboxSort()"
-            />
-            <Button
-              type="button"
-              variant="primary"
-              :disabled="sandboxRunning"
-              @click="resetSandbox(); runSandboxSort()"
-            >
-              <Play class="size-4 mr-1" />
-              Chạy sắp xếp
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              :disabled="sandboxRunning"
-              @click="resetSandbox"
-            >
-              <RotateCcw class="size-4 mr-1" />
-              Đặt lại
-            </Button>
-          </div>
-
-          <div class="home__sandbox-stage flex gap-2 p-6 rounded-xl bg-canvas-ink border border-border-subtle min-h-[90px] items-center justify-center flex-wrap">
-            <span class="home__sandbox-live font-mono" aria-hidden="true">{{ messages.home.sandboxLiveBadge }}</span>
-            <div
-              v-for="(val, idx) in sandboxArray"
-              :key="idx"
-              class="home__sandbox-bar flex flex-col items-center justify-center w-12 h-14 rounded-lg bg-data-core text-white font-mono font-bold transition-all duration-300"
-              :class="{
-                'home__sandbox-bar--active': sandboxActiveIndices?.includes(idx),
-                'home__sandbox-bar--sorted': sandboxSortedIndices.includes(idx),
-              }"
-            >
-              <span class="home__sandbox-bar-val text-base">{{ val }}</span>
-              <span class="home__sandbox-bar-idx text-[9px] opacity-60">[{{ idx }}]</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </section>
-
-    <!-- ── TẦNG 8: CTA SECTION & FOOTER ── -->
+    <!-- ── TẦNG 6: CTA SECTION ── -->
     <section v-if="!authStore.isAuthenticated" id="sec-cta" class="cta-section">
       <div class="cta-card glass-panel spring-hover">
         <h2 class="font-display text-3xl mb-3 text-heading font-bold">Sẵn sàng nâng cao trình độ?</h2>
@@ -1534,18 +1403,6 @@ onUnmounted(() => {
         </RouterLink>
       </div>
     </section>
-
-    <!-- Landing Footer -->
-    <footer class="landing-footer border-t border-border mt-16 py-8 px-6 text-center text-xs text-muted-foreground">
-      <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>&copy; 2026 VisualizationDSA. Nền tảng học tập thuật toán.</div>
-        <div class="flex gap-4">
-          <RouterLink :to="{ name: 'help' }" class="hover:text-primary transition-colors">Tài liệu</RouterLink>
-          <RouterLink :to="{ name: 'path' }" class="hover:text-primary transition-colors">Thư viện Lộ trình</RouterLink>
-          <RouterLink :to="{ name: 'premium' }" class="hover:text-primary transition-colors">Nâng cấp Premium</RouterLink>
-        </div>
-      </div>
-    </footer>
 
   </div>
 </template>
@@ -1832,35 +1689,6 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.hero__badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--color-primary);
-  margin-bottom: 1.5rem;
-}
-
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--color-primary);
-  border-radius: 50%;
-  box-shadow: 0 0 0 0 var(--color-primary);
-  animation: dotPulse 2s infinite;
-}
-
-@keyframes dotPulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 60%, transparent); }
-  70% { box-shadow: 0 0 0 10px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
 .hero__title {
   font-size: clamp(2.25rem, 5.5vw, 4.25rem);
   font-weight: 700;
@@ -1964,7 +1792,7 @@ onUnmounted(() => {
   background: var(--color-border);
 }
 
-/* ── PREVIEW GRAPHIC & 3D TILT ── */
+/* ── HERO ALGORITHMIC STAGE ── */
 .hero__preview {
   margin-top: 3rem;
   width: 100%;
@@ -1972,45 +1800,72 @@ onUnmounted(() => {
   perspective: 1000px;
 }
 
-.preview-window {
+/* Stage luôn nền tối (canvas-ink) bất kể theme — vùng data giữ dark motif */
+.stage-panel {
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.25), 0 0 40px color-mix(in srgb, var(--color-primary) 15%, transparent);
   background: var(--color-canvas-ink);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35);
   transform: rotateX(5deg) translateY(0);
   transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.5s ease;
 }
 
-.hero__preview:hover .preview-window {
+/* Viền glow nhẹ cho stage (decision log: glow-subtle) — đặt SAU .stage-panel
+   để thắng khi cùng specificity */
+.glow-subtle {
+  border-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35), 0 0 24px rgba(0, 126, 114, 0.15);
+}
+
+.hero__preview:hover .stage-panel {
   transform: rotateX(0deg) translateY(-8px);
   box-shadow: 0 32px 64px -12px rgba(15, 23, 42, 0.35), 0 0 60px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
-.preview-header {
+.stage-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  gap: 1rem;
+  padding: 12px 16px;
   background: rgba(0, 0, 0, 0.35);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
 }
 
-.terminal-dots {
+.stage-header__left {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.terminal-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+.stage-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  margin: 0;
 }
-.terminal-dot--close { background: #f87171; }
-.terminal-dot--min { background: #fbbf24; }
-.terminal-dot--max { background: #34d399; }
 
-.preview-btn {
+.stage-complexity {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.stage-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2023,26 +1878,44 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.preview-btn:hover {
+.stage-btn:hover {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: white;
   box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 30%, transparent);
   transform: scale(1.06);
 }
-.preview-btn:focus-visible {
+.stage-btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-.preview-body {
-  height: 200px;
-  padding: 1.5rem;
+.stage-speed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+.stage-speed__label {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.stage-speed__input {
+  width: 84px;
+  accent-color: #2dd4bf;
+  cursor: pointer;
+}
+
+.stage-body {
+  padding: 1.5rem 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 14px;
 }
 
 .bars-container {
@@ -2054,15 +1927,15 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.preview-phase-label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.4;
-  color: #d9dde8;
-  opacity: 0.85;
+.stage-status__badge {
+  font-size: 12px;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  color: #99f6e4;
   text-align: center;
-  min-height: 16px;
-  margin: 0;
+  line-height: 1.5;
 }
 
 .preview-bar {
@@ -2124,11 +1997,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  height: 100%;
 }
 
 .bento-large { grid-column: span 2; grid-row: span 2; }
 .bento-medium { grid-column: span 2; grid-row: span 1; }
 .bento-small { grid-column: span 1; grid-row: span 1; }
+
+.bento-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
 
 .bento-icon {
   width: 44px;
@@ -2146,35 +2026,62 @@ onUnmounted(() => {
   height: 22px;
 }
 
+/* Icon glow khi hover (decision log: rotate 6deg + scale 1.1 + shadow primary/30) */
 .bento-card:hover .bento-icon {
-  transform: scale(1.1) rotate(4deg);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  transform: scale(1.1) rotate(6deg);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
-/* Sorting Wave Animation on Large Bento Card — các cột thật, stagger theo delay */
-.bento-visual.visual-sorting {
+/* Bento Live Mini Visualizer — bar keyed theo id, hoán đổi bằng translateX */
+.bento-visual.mini-viz-wrap {
   position: relative;
-  height: 90px;
+  height: 96px;
+  background: var(--color-canvas-ink);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+  overflow: hidden;
+}
+
+.mini-viz {
+  position: relative;
+  width: 218px; /* 7 cột × pitch 32px − gap cuối 6px */
+  height: 100%;
+  margin-inline: auto;
+}
+
+.mini-bar {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  width: 26px;
+  border-radius: 4px 4px 0 0;
+  background: var(--color-data-core);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 6px;
-  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
-  border-radius: var(--radius-lg);
-  padding: 10px;
+  padding-bottom: 3px;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), height 0.45s ease, background 0.3s ease, box-shadow 0.3s ease;
 }
 
-.bento-wave-bar {
-  width: 12px;
-  background: var(--color-primary);
-  border-radius: 3px 3px 0 0;
-  animation: barsWave 2.4s ease-in-out infinite;
-  transform-origin: bottom;
+.mini-bar__value {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
 }
 
-@keyframes barsWave {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(1.25); }
+.mini-bar--compare {
+  background: #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+}
+
+.mini-bar--swap {
+  background: #f43f5e;
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.55);
+}
+
+.mini-bar--sorted {
+  background: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
 }
 
 /* ━━ ALGORITHM GRID ━━ */
@@ -2188,36 +2095,9 @@ onUnmounted(() => {
   gap: 1.25rem;
 }
 
-.home__catalog-search {
-  position: relative;
-  max-width: 480px;
-  margin: 0 auto;
-}
-.home__catalog-search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-tertiary);
-}
-.home__catalog-search-input {
-  width: 100%;
-  height: 42px;
-  padding: 0 2.5rem 0 2.75rem;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  font-size: var(--text-sm);
-}
-.home__catalog-search-clear {
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--color-text-tertiary);
+.home__catalog-toolbar {
+  display: flex;
+  justify-content: center;
 }
 
 .home__filters {
@@ -2225,6 +2105,17 @@ onUnmounted(() => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
+}
+
+.home__catalog-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.home__catalog-empty-text {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: 1rem;
 }
 
 .home__filter--active {
@@ -2265,6 +2156,48 @@ onUnmounted(() => {
 }
 
 /* ━━ 3 DEMOS SECTION ━━ */
+.home__section {
+  padding-block: 4rem;
+}
+
+/* Header section — kicker mono, title bold sắc nét, desc muted (fix contrast) */
+.home__section-head {
+  text-align: center;
+  max-width: 640px;
+  margin-inline: auto;
+  margin-bottom: 2.5rem;
+}
+
+.home__kicker {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.75rem;
+}
+
+.home__section-title {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.home__section-desc {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
 .home__demos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -2274,6 +2207,7 @@ onUnmounted(() => {
 .home__demo {
   display: flex;
   flex-direction: column;
+  border-radius: var(--radius-xl);
 }
 
 .home__demo-thumb {
@@ -2284,6 +2218,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   margin-bottom: var(--space-sm);
+  /* Bóng đổ NHẸ cho thumbnail mô phỏng (decision log) */
+  box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.45);
 }
 
 .home__thumb-bars {
@@ -2448,118 +2384,6 @@ onUnmounted(() => {
   width: 100%;
   border-radius: var(--radius-xl);
   overflow: hidden;
-}
-
-/* AI Mockup */
-.ai-mockup {
-  width: 100%;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.ai-chat {
-  max-width: 88%;
-  padding: 0.875rem 1rem;
-  border-radius: var(--radius-lg);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.ai-chat.user {
-  align-self: flex-end;
-  background: var(--color-muted);
-  border-bottom-right-radius: 0;
-}
-
-.ai-chat.bot {
-  align-self: flex-start;
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  border: 1px solid var(--color-border-strong);
-  border-bottom-left-radius: 0;
-  display: flex;
-  gap: 0.75rem;
-}
-
-.ai-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
-  color: var(--color-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* ━━ TESTIMONIALS CAROUSEL ━━ */
-.testimonials-section {
-  padding: 5rem 1.5rem;
-}
-
-.testimonials-carousel {
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-.testimonial-card {
-  padding: 2.5rem 2rem;
-  text-align: center;
-}
-
-/* Transition đổi testimonial — fade + slide nhẹ */
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateY(12px);
-}
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-12px);
-}
-
-/* ━━ SANDBOX SECTION ━━ */
-.home__sandbox-section {
-  padding-block: 4rem;
-}
-
-.home__sandbox-card {
-  padding: 2rem;
-}
-
-.home__sandbox-stage {
-  position: relative;
-}
-
-.home__sandbox-live {
-  position: absolute;
-  top: 8px;
-  left: 12px;
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.home__sandbox-bar--active {
-  background: #fbbf24 !important;
-  color: #000 !important;
-  transform: translateY(-8px) scale(1.05);
-  box-shadow: 0 0 16px rgba(251, 191, 36, 0.6);
-}
-
-.home__sandbox-bar--sorted {
-  background: #10b981 !important;
-  color: #fff !important;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
 }
 
 /* ━━ CTA SECTION ━━ */

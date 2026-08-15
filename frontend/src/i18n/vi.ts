@@ -142,6 +142,14 @@ export const messages = {
     freemiumHeartsCta: 'Tìm hiểu cơ chế',
     freemiumGemsCta: 'Vào cửa hàng Gems',
     sandboxLiveBadge: 'Bubble Sort · live',
+    // Task 15A (ui-redesign) — hero algorithmic stage + bento live visualizer
+    heroStageTitle: 'Quick Sort (Lomuto Partition)',
+    heroStageComplexity: 'O(N log N)',
+    heroStageRun: 'Chạy',
+    heroStagePause: 'Tạm dừng',
+    heroStageStep: 'Bước tới',
+    heroStageReset: 'Đặt lại',
+    heroStageSpeed: 'Tốc độ',
   },
 
   auth: {
