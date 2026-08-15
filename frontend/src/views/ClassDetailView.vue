@@ -11,18 +11,25 @@ import {
   BookOpen,
   CalendarClock,
   Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCopy,
+  Clock,
   KeyRound,
   Pencil,
   Puzzle,
+  Timer,
   Trash2,
   UserPlus,
   Users,
 } from 'lucide-vue-next';
+import type { Component } from 'vue';
 
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import * as classesApi from '@/api/classes';
 import * as lessonsApi from '@/api/lessons';
 import * as exercisesApi from '@/api/exercises';
 import { formatDate } from '@/utils/format';
@@ -37,6 +44,7 @@ import Input from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Select, { type SelectOption } from '@/components/ui/Select.vue';
+import ProgressBar from '@/components/ui/ProgressBar.vue';
 import PageHero from '@/components/ui/PageHero.vue';
 
 const route = useRoute();
@@ -70,6 +78,102 @@ const editLate = ref(true);
 const editSaving = ref(false);
 
 const confirmAssignDelete = ref<number | null>(null);
+
+// ── Task 2: thống kê nộp bài thật từ GET /classes/{id}/report (chỉ manager, không
+// chặn màn nếu báo cáo lỗi) — dùng cho thanh tiến độ + badge hạn nộp của bài gán
+// và cột "Bài chưa nộp" của bảng học viên. API KHÔNG có progress/avgScore từng
+// thành viên → cột tiến độ hiển thị số bài thiếu (LaggingLearnerDto — dữ liệu thật).
+const assignmentStats = ref<Record<number, { onTime: number; late: number; notSubmitted: number }>>({});
+const reportTotalMembers = ref(0);
+const laggingMap = ref<Record<number, number>>({});
+const reportLoaded = ref(false);
+
+/** Bảng học viên phân trang client-side (dữ liệu thật từ classStore.members). */
+const MEMBER_PAGE_SIZE = 8;
+const memberPage = ref(1);
+const memberPageCount = computed(() => Math.max(1, Math.ceil(classStore.members.length / MEMBER_PAGE_SIZE)));
+const pagedMembers = computed(() => {
+  const start = (memberPage.value - 1) * MEMBER_PAGE_SIZE;
+  return classStore.members.slice(start, start + MEMBER_PAGE_SIZE);
+});
+const memberPageRange = computed(() => {
+  const total = classStore.members.length;
+  if (total === 0) return { from: 0, to: 0 };
+  const from = (memberPage.value - 1) * MEMBER_PAGE_SIZE + 1;
+  return { from, to: Math.min(memberPage.value * MEMBER_PAGE_SIZE, total) };
+});
+
+function goMemberPage(page: number): void {
+  memberPage.value = Math.min(Math.max(1, page), memberPageCount.value);
+}
+
+// Thành viên thay đổi (thêm/gỡ) → về trang đầu.
+watch(
+  () => classStore.members.length,
+  () => {
+    memberPage.value = 1;
+  },
+);
+
+async function loadReport(): Promise<void> {
+  try {
+    const report = await classesApi.fetchClassReport(classId.value);
+    reportTotalMembers.value = report.totalMembers;
+    const stats: Record<number, { onTime: number; late: number; notSubmitted: number }> = {};
+    for (const a of report.assignments) {
+      stats[a.assignmentId] = { onTime: a.onTime, late: a.late, notSubmitted: a.notSubmitted };
+    }
+    assignmentStats.value = stats;
+    const lagging: Record<number, number> = {};
+    for (const l of report.laggingLearners) lagging[l.userId] = l.missingCount;
+    laggingMap.value = lagging;
+    reportLoaded.value = true;
+  } catch {
+    // Báo cáo là quyền giảng viên — lỗi không chặn chi tiết lớp (giữ hành vi cũ).
+  }
+}
+
+/** % nộp bài của 1 bài gán (submitted/totalMembers — dữ liệu thật từ report). */
+function submissionPct(assign: ClassAssignmentDto): number {
+  const stats = assignmentStats.value[assign.id];
+  if (!stats || reportTotalMembers.value === 0) return 0;
+  return Math.round(((stats.onTime + stats.late) / reportTotalMembers.value) * 100);
+}
+
+/** Badge hạn nộp semantic (Task 2): Đang mở (muted) / Còn thiếu (destructive) /
+    Nộp trễ (warning) / Đúng hạn (success) — từ dueAt + thống kê report thật. */
+function deadlineBadge(
+  assign: ClassAssignmentDto,
+): { label: string; tone: 'success' | 'warning' | 'destructive' | 'muted' } | null {
+  const stats = assignmentStats.value[assign.id];
+  const due = assign.dueAt ? new Date(assign.dueAt).getTime() : null;
+  const isOpen = due === null || due > Date.now();
+  if (isOpen) return { label: messages.classes.detailStatusOpen, tone: 'muted' };
+  if (!stats) return null;
+  if (stats.notSubmitted > 0) return { label: messages.classes.detailStatusMissing(stats.notSubmitted), tone: 'destructive' };
+  if (stats.late > 0) return { label: messages.classes.detailStatusLate(stats.late), tone: 'warning' };
+  return { label: messages.classes.detailStatusOnTime, tone: 'success' };
+}
+
+/** FIX R1: icon lucide nhỏ cho badge hạn nộp theo tone (visual + semantic, không đổi logic). */
+function deadlineIcon(tone: 'success' | 'warning' | 'destructive' | 'muted'): Component {
+  switch (tone) {
+    case 'success':
+      return CheckCircle2;
+    case 'warning':
+      return Timer;
+    case 'destructive':
+      return AlertTriangle;
+    default:
+      return Clock;
+  }
+}
+
+/** Số bài thiếu của 1 học viên (0 = không trong danh sách chậm tiến độ của report). */
+const missingOf = (userId: number): number => laggingMap.value[userId] ?? 0;
+
+/** Thống kê nộp bài của 1 bài gán (null khi report chưa tải / không có quyền). */
+const assignStatsOf = (assign: ClassAssignmentDto) => assignmentStats.value[assign.id] ?? null;
 
 const assignOptions = computed<SelectOption[]>(() => (assignType.value === 'lesson' ? lessonOptions.value : exerciseOptions.value));
 
@@ -113,6 +217,8 @@ async function load(): Promise<void> {
   loading.value = true;
   try {
     await classStore.fetchClass(classId.value);
+    // Task 2: manager → nạp kèm báo cáo để vẽ tiến độ nộp bài + badge hạn nộp (không chặn).
+    if (isManager.value) void loadReport();
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.classes.detailLoadError, 'error');
     void router.push({ name: 'classes' });
@@ -367,13 +473,14 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                 <tr>
                   <th scope="col">{{ messages.classes.detailColMember }}</th>
                   <th scope="col">{{ messages.classes.detailColRole }}</th>
+                  <th v-if="isManager && reportLoaded" scope="col">{{ messages.classes.detailColMissing }}</th>
                   <th scope="col">{{ messages.classes.detailColJoined }}</th>
                   <th v-if="isManager" scope="col">{{ messages.classes.detailColActions }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="member in classStore.members"
+                  v-for="member in pagedMembers"
                   :key="member.userId"
                   class="hover:bg-muted/50"
                 >
@@ -391,6 +498,17 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                       {{ isMemberTeacher(member) ? messages.classes.roleTeacher : messages.classes.roleStudent }}
                     </Badge>
                   </td>
+                  <td v-if="isManager && reportLoaded" :data-label="messages.classes.detailColMissing">
+                    <span class="class-detail__missing" :class="{ 'class-detail__missing--ok': missingOf(member.userId) === 0 }">
+                      <template v-if="missingOf(member.userId) > 0">
+                        <span class="class-detail__missing-badge">{{ messages.classes.reportLaggingMissing(missingOf(member.userId)) }}</span>
+                      </template>
+                      <template v-else>
+                        <Check :size="14" aria-hidden="true" />
+                        <span class="class-detail__missing-text">{{ messages.classes.detailMissingOk }}</span>
+                      </template>
+                    </span>
+                  </td>
                   <td class="class-detail__date" :data-label="messages.classes.detailColJoined">
                     {{ formatDate(member.joinedAt) }}
                   </td>
@@ -403,10 +521,36 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
               </tbody>
             </table>
           </div>
+          <!-- Phân trang (Task 2): counter mono + prev/next icon button (DESIGN §4.1) -->
+          <div class="class-detail__pager">
+            <span class="class-detail__pager-info">
+              {{ messages.classes.detailPageInfo(memberPageRange.from, memberPageRange.to, classStore.members.length) }}
+            </span>
+            <div class="class-detail__pager-buttons">
+              <Button
+                size="icon"
+                variant="secondary"
+                :disabled="memberPage <= 1"
+                :aria-label="messages.classes.detailPagePrev"
+                @click="goMemberPage(memberPage - 1)"
+              >
+                <ChevronLeft :size="16" aria-hidden="true" />
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                :disabled="memberPage >= memberPageCount"
+                :aria-label="messages.classes.detailPageNext"
+                @click="goMemberPage(memberPage + 1)"
+              >
+                <ChevronRight :size="16" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
         </Card>
       </section>
 
-      <!-- Tab Lộ trình đã gán -->
+      <!-- Tab Bài tập -->
       <section v-else-if="tab === 'assignments'" class="class-detail__panel">
         <div v-if="isManager" class="class-detail__toolbar">
           <Button size="md" @click="openAssign">
@@ -437,12 +581,36 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
               <Puzzle v-if="assign.exerciseId !== null" :size="18" />
               <BookOpen v-else :size="18" />
             </span>
-            <div class="class-detail__assign-info">
-              <p class="class-detail__assign-title">{{ assignmentTitle(assign) }}</p>
-              <p class="class-detail__assign-due">
-                <CalendarClock :size="13" aria-hidden="true" />
-                {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
-              </p>
+            <div class="class-detail__assign-main">
+              <div class="class-detail__assign-info">
+                <p class="class-detail__assign-title">{{ assignmentTitle(assign) }}</p>
+                <p class="class-detail__assign-due">
+                  <CalendarClock :size="13" aria-hidden="true" />
+                  {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
+                </p>
+              </div>
+              <!-- Task 2: tiến độ nộp bài (dữ liệu thật từ report) + badge hạn nộp semantic -->
+              <div v-if="assignStatsOf(assign)" class="class-detail__assign-progress">
+                <div class="class-detail__assign-progress-row">
+                  <span class="class-detail__assign-progress-count">
+                    {{
+                      messages.classes.detailSubmittedCount(
+                        assignStatsOf(assign)!.onTime + assignStatsOf(assign)!.late,
+                        reportTotalMembers,
+                      )
+                    }}
+                  </span>
+                  <span
+                    v-if="deadlineBadge(assign) !== null"
+                    class="class-detail__deadline"
+                    :class="`class-detail__deadline--${deadlineBadge(assign)!.tone}`"
+                  >
+                    <component :is="deadlineIcon(deadlineBadge(assign)!.tone)" :size="12" aria-hidden="true" />
+                    {{ deadlineBadge(assign)!.label }}
+                  </span>
+                </div>
+                <ProgressBar :value="submissionPct(assign)" variant="success" size="sm" />
+              </div>
             </div>
             <div class="class-detail__assign-actions">
               <Badge v-if="assign.allowLateSubmission" variant="muted">
@@ -695,13 +863,15 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__table-scroll { overflow-x: auto; border-radius: inherit; }
 
-.class-detail__table table { width: 100%; border-collapse: collapse; }
+/* FIX R1: min-width bảng → tablet/desktop cuộn ngang TRONG card thay vì cột chật;
+   mobile (≤640) bỏ min-width vì chuyển card-stack (media bên dưới). */
+.class-detail__table table { width: 100%; min-width: 680px; border-collapse: collapse; }
 
 .class-detail__table th {
   text-align: left;
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   padding: 0 var(--space-md);
   border-bottom: 1px solid var(--border);
   background: var(--muted);
@@ -747,7 +917,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__email {
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -794,7 +964,15 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   flex-shrink: 0;
 }
 
-.class-detail__assign-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.class-detail__assign-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.class-detail__assign-info { min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 
 .class-detail__assign-title {
   font-weight: 500;
@@ -811,8 +989,127 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   gap: var(--space-xs);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
+  color: var(--foreground-secondary);
   white-space: nowrap;
+}
+
+/* ── Task 2: tiến độ nộp bài của bài gán (dữ liệu report thật) ── */
+.class-detail__assign-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 420px;
+}
+
+.class-detail__assign-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.class-detail__assign-progress-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* Badge hạn nộp: outline mono + semantic (Task 2 — DESIGN §4.3) + icon lucide (FIX R1) */
+.class-detail__deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.class-detail__deadline--success {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.class-detail__deadline--warning {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+}
+
+.class-detail__deadline--destructive {
+  border-color: color-mix(in srgb, var(--destructive) 45%, transparent);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.class-detail__deadline--muted {
+  color: var(--foreground-secondary);
+}
+
+/* FIX R1: progress bar nộp bài — animated width (transform transition, easing chủ đích) */
+.class-detail__assign-progress :deep([data-value]) {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Task 2: cột "Bài chưa nộp" (dữ liệu thật từ report.laggingLearners) ── */
+.class-detail__missing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.class-detail__missing--ok { color: var(--resolved); }
+
+.class-detail__missing-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+}
+
+.class-detail__missing-text {
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+}
+
+/* ── Task 2: phân trang bảng học viên ── */
+.class-detail__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.class-detail__pager-info {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.class-detail__pager-buttons {
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .class-detail__assign-actions {
@@ -869,11 +1166,18 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
 
 .class-detail__modal-actions { display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-md); }
 
-.class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-tertiary); margin-top: var(--space-sm); }
+.class-detail__modal-note { font-size: var(--text-xs); color: var(--foreground-secondary); margin-top: var(--space-sm); }
+
+/* FIX R1: tab active rõ hơn — thêm weight 600 cho tab đang chọn (bên dưới border primary) */
+.class-detail :deep([role="tab"][data-state="active"]) {
+  font-weight: 600;
+}
 
 @media (max-width: 640px) {
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .class-detail__table-scroll { overflow-x: visible; }
+
+  .class-detail__table table { min-width: 0; }
 
   .class-detail__table thead { display: none; }
 
@@ -898,7 +1202,7 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
   .class-detail__table td::before {
     content: attr(data-label);
     font-size: var(--text-xs);
-    color: var(--foreground-tertiary);
+    color: var(--foreground-secondary);
   }
 
   .class-detail__table td:first-child { grid-column: 1 / -1; }

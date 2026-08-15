@@ -73,34 +73,34 @@ const weekOption = computed(() => {
   void ui.theme;
   const ink = cssVar('--canvas-ink', '#0D1020');
   const block = cssVar('--data-core', '#4255FF');
-  const muted = cssVar('--index-muted', '#6B7385');
-  const text = '#d9dde8'; // text engine canvasTheme.ts (decision log 14/08)
+  const text = '#d9dde8'; // text engine canvasTheme.ts (decision log 14/08) — nhãn nền tối ≥ #D9DDE8
   const axis = 'rgba(66, 85, 255, 0.25)';
+  const gridLine = 'rgba(217, 221, 232, 0.12)';
 
   return {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis' as const,
       backgroundColor: ink,
-      borderColor: axis,
+      borderColor: 'rgba(66, 85, 255, 0.45)',
       textStyle: { color: text, fontSize: 12 },
       formatter: (params: Array<{ name: string; value: number }>) => {
         const item = params[0];
-        return item ? `${item.name}: <b>${item.value}</b> lượt` : '';
+        return item ? `${item.name}: <b>${item.value}</b> ${messages.admin.stats.weekUnit}` : '';
       },
     },
-    grid: { left: 8, right: 8, top: 28, bottom: 8, containLabel: true },
+    grid: { left: 8, right: 8, top: 32, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category' as const,
       data: WEEK.map((d) => d.day),
-      axisLabel: { color: muted, fontSize: 11 },
+      axisLabel: { color: text, fontSize: 12 },
       axisLine: { lineStyle: { color: axis } },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value' as const,
-      axisLabel: { color: muted, fontSize: 11 },
-      splitLine: { lineStyle: { color: axis } },
+      axisLabel: { color: text, fontSize: 12 },
+      splitLine: { lineStyle: { color: gridLine } },
     },
     series: [
       {
@@ -108,7 +108,7 @@ const weekOption = computed(() => {
         data: WEEK.map((d) => d.value),
         barWidth: 22,
         itemStyle: { color: block, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top' as const, color: muted, fontSize: 10 },
+        label: { show: true, position: 'top' as const, color: text, fontSize: 11 },
       },
     ],
   };
@@ -178,7 +178,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
     <div v-else-if="loadError" class="admin-stats__error" role="alert">
       <p class="admin-stats__error-text">{{ messages.admin.stats.loadError }}</p>
-      <Button size="sm" variant="secondary" @click="load">
+      <Button size="md" variant="secondary" @click="load">
         <RefreshCw :size="14" /> {{ messages.admin.stats.retry }}
       </Button>
     </div>
@@ -216,7 +216,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
         <div class="admin-stats__chart">
           <div class="admin-stats__chart-head">
             <h2 class="admin-stats__chart-title">{{ messages.admin.stats.weekTitle }}</h2>
-            <span class="admin-stats__chart-tag">7 ngày</span>
+            <span class="admin-stats__chart-tag">{{ messages.admin.stats.weekTag }}</span>
           </div>
           <VChartLazy :option="weekOption" height="260px" />
         </div>
@@ -225,9 +225,17 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
         <div class="admin-stats__chart">
           <h2 class="admin-stats__chart-title">{{ messages.admin.stats.roleTitle }}</h2>
           <svg :viewBox="`0 0 ${DONUT_C * 2} ${DONUT_C * 2}`" class="admin-stats__donut" role="img" :aria-label="messages.admin.stats.roleAria">
-            <path v-for="seg in donutSegments()" :key="seg.d" :d="seg.d" :fill="seg.color" />
+            <path
+              v-for="(seg, idx) in donutSegments()"
+              :key="seg.d"
+              :d="seg.d"
+              :fill="seg.color"
+            >
+              <!-- Tooltip native khi hover segment: tên vai trò + tỷ lệ (nền tối, text #d9dde8) -->
+              <title>{{ messages.admin.stats.roleTooltip(ROLES[idx].label, ROLES[idx].value) }}</title>
+            </path>
             <text x="80" y="72" font-size="16" font-weight="600" text-anchor="middle" fill="#d9dde8">{{ ROLES[0].value }}%</text>
-            <text x="80" y="92" font-size="12" text-anchor="middle" fill="var(--index-muted)">{{ ROLES[0].label }}</text>
+            <text x="80" y="92" font-size="12" text-anchor="middle" fill="#d9dde8">{{ ROLES[0].label }}</text>
           </svg>
           <ul class="admin-stats__legend">
             <li v-for="(role, idx) in ROLES" :key="role.label">
@@ -249,6 +257,11 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
         </p>
         <p class="admin-stats__note admin-stats__note--muted">
           <span>{{ messages.admin.stats.noteMock }}</span>
+        </p>
+        <!-- FIX R1: microcopy ngắn — nguồn số liệu + cách làm mới (i18n) -->
+        <p class="admin-stats__note admin-stats__note--muted">
+          <RefreshCw :size="14" class="admin-stats__note-icon admin-stats__note-icon--muted" aria-hidden="true" />
+          <span>{{ messages.admin.stats.noteRefresh }}</span>
         </p>
       </div>
     </template>
@@ -332,11 +345,15 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 .admin-stats__chart-tag {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--index-muted);
+  color: #d9dde8;
   white-space: nowrap;
 }
 
 .admin-stats__donut { width: 100%; height: auto; max-height: 220px; }
+
+.admin-stats__donut path { transition: opacity 150ms; }
+
+.admin-stats__donut path:hover { opacity: 0.82; }
 
 .admin-stats__legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); font-size: var(--text-sm); }
 
@@ -344,7 +361,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
 .admin-stats__legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-.admin-stats__legend-label { color: var(--index-muted); }
+.admin-stats__legend-label { color: #d9dde8; }
 
 .admin-stats__legend-value {
   margin-left: auto;
@@ -369,16 +386,20 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 
 .admin-stats__note { display: flex; align-items: flex-start; gap: var(--space-sm); color: var(--foreground); margin: 0; }
 
-.admin-stats__note--muted { color: var(--foreground-tertiary); font-size: var(--text-xs); }
+/* FIX R1: text phụ nâng 1 tầng (tertiary 3.4:1 → secondary ≥ 4.5:1 trên nền light) */
+.admin-stats__note--muted { color: var(--foreground-secondary); font-size: var(--text-xs); }
 
 .admin-stats__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--info); }
 
+.admin-stats__note-icon--muted { color: var(--foreground-secondary); }
+
+/* FIX R1: tablet (≤900) giữ chart 2 cột cho gọn luồng thao tác; chỉ xếp 1 cột ở mobile */
 @media (max-width: 900px) {
-  .admin-stats__charts { grid-template-columns: 1fr; }
   .admin-stats__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
+  .admin-stats__charts { grid-template-columns: 1fr; }
   .admin-stats__kpis { grid-template-columns: 1fr; }
   .admin-stats__kpi-hero { grid-column: span 1; }
 }

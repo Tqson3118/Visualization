@@ -80,6 +80,48 @@ export const messages = {
     statsGroups: 'nhóm CTDL & Giải thuật',
     statsLevels: 'cấp độ từ cơ bản đến nâng cao',
     statsNote: 'Số liệu từ danh mục nội dung — cập nhật theo từng phiên bản.',
+    // Task 1 (UI redesign) — hero bench: bộ điều khiển tương tác trên trace thật
+    simControls: 'Điều khiển mô phỏng',
+    simPlay: 'Chạy',
+    simPause: 'Tạm dừng',
+    simStepForward: 'Bước tới',
+    simStepBack: 'Bước lùi',
+    simReset: 'Đặt lại',
+    simSpeed: 'Tốc độ',
+    simSpeedValue: (x: number) => `${x}×`,
+    simTraceLine: (line: number) => `L${String(line).padStart(2, '0')}`,
+    // FIX R1 — hint thay thế khi bước không có explanation (callout luôn có 1 dòng mô tả)
+    simStepHint: 'Bấm Tạm dừng để đọc từng bước — hoặc dùng Bước tới/lùi để tua.',
+    // Task 1 — catalog grid: filter tabs + Big-O chips
+    catalogBadge: 'Danh mục thuật toán',
+    catalogTitle: 'Khám phá toàn bộ danh mục',
+    catalogDesc: 'Lọc theo nhóm — mỗi thẻ hiện độ phức tạp trung bình và bộ nhớ bằng Big-O.',
+    catalogFilterAll: 'Tất cả',
+    catalogFilterSort: 'Sắp xếp',
+    catalogFilterSearch: 'Tìm kiếm',
+    catalogFilterGraph: 'Đồ thị',
+    catalogFilterTree: 'Cây',
+    catalogFilterHeap: 'Heap',
+    catalogFilterHash: 'Bảng băm',
+    catalogFilterLinear: 'Tuyến tính',
+    catalogFilterStructure: 'CTDL',
+    catalogTime: 'TB',
+    catalogSpace: 'Bộ nhớ',
+    catalogPractice: 'Thực hành ngay',
+    catalogOpen: (title: string) => `Mở mô phỏng ${title}`,
+    // Task 1 — practice ladder showcase (4 chặng)
+    ladderBadge: 'Practice Ladder',
+    ladderTitle: 'Bốn chặng của một bài học',
+    ladderDesc: 'Từ quan sát đến đánh giá — mỗi chặng rèn một kỹ năng trên cùng một dữ liệu.',
+    ladderStepLabel: (n: number) => `STEP ${String(n).padStart(2, '0')}`,
+    ladderStage1Title: 'Trực quan',
+    ladderStage1Desc: 'Xem thuật toán chạy thật từng bước — block số thở theo trace.',
+    ladderStage2Title: 'Thí nghiệm',
+    ladderStage2Desc: 'Tự thao tác dữ liệu và đoán bước kế tiếp trước khi máy chạy.',
+    ladderStage3Title: 'Viết code',
+    ladderStage3Desc: 'Làm bài code trong sandbox — chấm điểm tự động tức thì.',
+    ladderStage4Title: 'Đánh giá',
+    ladderStage4Desc: 'Benchmark, độ phức tạp và nhận xét cho từng đáp án.',
   },
 
   auth: {
@@ -395,6 +437,19 @@ export const messages = {
       roleChanged: (role: string) => `Đã đổi vai trò thành ${role}.`,
       passwordReset: 'Đã đặt lại mật khẩu.',
       detailsHint: 'Bấm vào dòng để xem chi tiết',
+      // Task 3a (ui-redesign) — xác nhận hành động tài khoản trong drawer
+      lockConfirmTitle: 'Khóa tài khoản?',
+      lockConfirmMessage: (name: string) =>
+        `Khóa tài khoản "${name}" — người dùng sẽ không đăng nhập được cho tới khi được mở khóa.`,
+      unlockConfirmTitle: 'Mở khóa tài khoản?',
+      unlockConfirmMessage: (name: string) =>
+        `Mở khóa tài khoản "${name}" — người dùng đăng nhập lại bình thường.`,
+      resetConfirmTitle: 'Đặt lại mật khẩu?',
+      resetConfirmMessage: (name: string) =>
+        `Đặt lại mật khẩu cho "${name}" — mật khẩu cũ sẽ hết hiệu lực ngay sau khi đặt lại.`,
+      confirmLock: 'Khóa tài khoản',
+      confirmUnlock: 'Mở khóa',
+      confirmReset: 'Đặt lại mật khẩu',
       // Drawer chi tiết user + toast còn sót hardcode (v2.15 - PR #22)
       detailTitle: 'Chi tiết người dùng',
       detailDescription: (name: string) => `Thông tin chi tiết - ${name}`,
@@ -421,6 +476,12 @@ export const messages = {
       noteSimsPrefix: 'Tổng mô phỏng trong danh mục:',
       noteSimsSuffix: '(engines/catalog)',
       noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
+      // FIX R1 — microcopy nguồn số liệu + cách làm mới
+      noteRefresh: 'Số liệu KPI lấy tại thời điểm mở trang — tải lại để xem giá trị mới.',
+      // Task 3a (ui-redesign) — nhãn biểu đồ vùng tối
+      weekTag: '7 NGÀY',
+      weekUnit: 'lượt',
+      roleTooltip: (label: string, pct: number) => `${label} — ${pct}%`,
       loadError: 'Không thể tải thống kê.',
       stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỈ SỐ THEO DÕI`,
       retry: 'Thử lại',
@@ -445,6 +506,23 @@ export const messages = {
       loadError: 'Không thể tải cấu hình (backend chưa khả dụng — hiển thị mặc định).',
       saved: 'Đã lưu cấu hình hệ thống.',
       retry: 'Thử lại',
+      // Task 3b (ui-redesign) — nhóm cài đặt theo card + switch + chuỗi báo cáo
+      groupSecurity: 'Bảo mật',
+      groupSecurityDesc: 'Chính sách mật khẩu và danh sách domain email được phép đăng ký.',
+      groupSystem: 'Hệ thống',
+      groupSystemDesc: 'Tên hệ thống và giới hạn upload/sandbox cho trình chạy mã.',
+      sectionReports: 'Báo cáo lỗi & vi phạm',
+      reportsSub:
+        'Báo cáo lỗi từ người dùng và báo cáo vi phạm bài học (CONTENT_VIOLATION). Chọn trạng thái và nhập phản hồi (AdminNote) để xử lý.',
+      reportsEmpty: 'Chưa có báo cáo nào.',
+      reportNotePlaceholder: 'Phản hồi của Admin (tùy chọn)...',
+      reportSave: 'Lưu',
+      reportsRetry: 'Thử lại',
+      reportsLoadError: 'Không thể tải báo cáo lỗi & vi phạm.',
+      reportStatusNew: 'Mới',
+      reportStatusProcessing: 'Đang xử lý',
+      reportStatusResolved: 'Đã xử lý',
+      reportStatusClosed: 'Đã đóng',
     },
     content: {
       title: 'Quản trị nội dung',
@@ -490,6 +568,21 @@ export const messages = {
       stripLabel: (lessons: number, topics: number) =>
         `${String(lessons).padStart(2, '0')} BÀI · ${String(topics).padStart(2, '0')} CHỦ ĐỀ`,
       retry: 'Thử lại',
+      // Task 3b (ui-redesign) — cây danh mục + chế độ xuất bản + badge trạng thái
+      statusPending: 'Chờ duyệt',
+      statusClassOnly: 'Lớp học riêng',
+      approve: 'Duyệt',
+      reject: 'Từ chối',
+      preview: 'Xem trước',
+      publishMode: 'Chế độ xuất bản',
+      publishDraft: 'Bản nháp',
+      publishPublic: 'Công khai',
+      publishClassOnly: 'Lớp học riêng',
+      publishDraftHint: 'Chưa hiển thị cho người học — lưu để gửi lại duyệt.',
+      publishPublicHint: 'Sẽ lưu trạng thái Chờ duyệt — Admin kiểm duyệt trước khi công khai.',
+      publishClassOnlyHint: 'Sẽ lưu trạng thái Kích hoạt — chỉ hiển thị trong lớp học riêng.',
+      treeAria: 'Cây danh mục: chủ đề, bài học, mô phỏng',
+      treeNoSims: 'Chưa gắn mô phỏng.',
     },
     ladder: {
       title: 'Soạn Ladder (node)',
@@ -519,6 +612,8 @@ export const messages = {
         `Đã gắn exercise #${exerciseId} vào Node ${nodeId}.`,
       attachFailed: 'Gắn thất bại.',
       loadErrorText: 'Không thể tải danh sách bài tập (backend chưa khả dụng).',
+      // Task 3b (ui-redesign) — strip banner mono
+      stripLabel: (n: number) => `${String(n).padStart(2, '0')} BÀI TẬP`,
     },
   },
 
@@ -539,6 +634,10 @@ export const messages = {
     noDescription: 'Chưa có mô tả',
     members: (n: number) => `${n} thành viên`,
     inviteLabel: 'Mã mời',
+    // Task 2 (ui-redesign): mã mời block-token 1-click copy + stat mini trên card
+    inviteCopyHint: 'Sao chép mã mời',
+    inviteCopied: 'Đã sao chép!',
+    statMembers: 'Thành viên',
     // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
     stripLabel: (total: number, members: number) =>
       `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,
@@ -569,8 +668,8 @@ export const messages = {
     detailCopy: 'Sao chép',
     detailCopied: 'Đã sao chép mã mời!',
     detailReportBtn: 'Báo cáo lớp',
-    detailTabMembers: 'Thành viên',
-    detailTabAssignments: 'Lộ trình đã gán',
+    detailTabMembers: 'Học viên',
+    detailTabAssignments: 'Bài tập',
     detailTabSettings: 'Cài đặt',
     detailAddMember: 'Thêm thành viên',
     detailEmptyMembers: 'Chưa có thành viên',
@@ -636,6 +735,20 @@ export const messages = {
     detailDeleteAssignConfirm: 'Xóa bài gán này? Học viên sẽ không còn thấy nội dung này.',
     detailDeleteAssignSuccess: 'Đã xóa bài gán.',
     detailDeleteAssignFailed: 'Xóa bài gán thất bại.',
+    // Task 2 (ui-redesign): trạng thái hạn nộp bài gán (semantic badge outline mono)
+    detailStatusOnTime: 'Đúng hạn',
+    detailStatusLate: (n: number) => `Nộp trễ ${String(n).padStart(2, '0')}`,
+    detailStatusMissing: (n: number) => `Còn thiếu ${String(n).padStart(2, '0')}`,
+    detailStatusOpen: 'Đang mở',
+    detailSubmittedCount: (submitted: number, total: number) =>
+      `${String(submitted).padStart(2, '0')} / ${String(total).padStart(2, '0')} BÀI NỘP`,
+    // Task 2 (ui-redesign): bảng học viên — cột bài chưa nộp + phân trang
+    detailColMissing: 'Bài chưa nộp',
+    detailMissingOk: 'Đủ tiến độ',
+    detailPagePrev: 'Trang trước',
+    detailPageNext: 'Trang sau',
+    detailPageInfo: (from: number, to: number, total: number) =>
+      `${String(from).padStart(2, '0')}–${String(to).padStart(2, '0')} / ${String(total).padStart(2, '0')}`,
     // Báo cáo lớp
     reportTitle: 'Báo cáo lớp',
     reportExportCsv: 'Xuất CSV',
@@ -654,6 +767,22 @@ export const messages = {
     reportLaggingTitle: 'Học viên chậm tiến độ',
     reportLaggingEmpty: 'Không có học viên nào chậm tiến độ',
     reportLaggingMissing: (n: number) => `THIẾU ${String(n).padStart(2, '0')}`,
+    // Task 2 (ui-redesign): hero KPI tối + chart phân bố nộp bài + hành động nhắc nhở
+    reportHeroCompletion: 'Tỷ lệ hoàn thành',
+    reportHeroAvgScore: 'Điểm trung bình',
+    // FIX REVIEW: thay 3 chuỗi hardcode còn sót ở ClassReportView (scale / tổng bài nộp / số học viên)
+    reportHeroScale: '0.0 – 10.0 THANG ĐIỂM',
+    reportChartTotal: (total: string) => `TỔNG ${total} BÀI NỘP`,
+    reportLaggingCount: (n: number) => `${String(n).padStart(2, '0')} HỌC VIÊN`,
+    reportChartTitle: 'Phân bố bài nộp',
+    reportChartOnTime: 'Đúng hạn',
+    reportChartLate: 'Nộp trễ',
+    reportChartMissing: 'Chưa nộp',
+    reportLaggingRemind: 'Sao chép lời nhắc',
+    reportLaggingRemindDone: 'Đã sao chép lời nhắc.',
+    reportLaggingRemindFail: 'Không sao chép được lời nhắc.',
+    reportLaggingRemindMsg: (name: string, className: string, missing: number) =>
+      `Chào ${name}, bạn còn thiếu ${missing} bài tập của lớp "${className}" — hoàn thành sớm để không tụt tiến độ nhé!`,
     reportEmptyTitle: 'Không có dữ liệu báo cáo',
     reportEmptyDesc: 'Lớp chưa có dữ liệu học tập — hãy gán lộ trình cho lớp trước.',
     reportBackDetail: 'Về chi tiết lớp',

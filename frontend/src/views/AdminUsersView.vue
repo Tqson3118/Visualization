@@ -20,7 +20,7 @@ import {
 } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
-import type { AdminUserDto } from '@/api/admin';
+import type { AdminRole, AdminUserDto } from '@/api/admin';
 import { useUiStore } from '@/stores/ui';
 import { formatDate } from '@/utils/format';
 import { messages } from '@/i18n/vi';
@@ -31,6 +31,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Drawer from '@/components/ui/Drawer.vue';
 import Input from '@/components/ui/Input.vue';
+import Select, { type SelectOption } from '@/components/ui/Select.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import PageHero from '@/components/ui/PageHero.vue';
 import DetailSection from '@/components/ui/DetailSection.vue';
@@ -44,8 +45,26 @@ const users = ref<AdminUserDto[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
 const search = ref('');
-const roleFilter = ref('');
-const statusFilter = ref('');
+// Lọc client-side trên trang hiện tại. Sentinel 'ALL' = không lọc — reka-ui
+// SelectItem CẤM value '' (ném Error lúc render), nên dùng sentinel thay option trống.
+const ROLE_ALL = 'ALL';
+const STATUS_ALL = 'ALL';
+const roleFilter = ref(ROLE_ALL);
+const statusFilter = ref(STATUS_ALL);
+
+const roleOptions: SelectOption[] = [
+  { label: messages.admin.users.roleAll, value: ROLE_ALL },
+  { label: messages.admin.users.roleStudent, value: 'STUDENT' },
+  { label: messages.admin.users.roleTeacher, value: 'TEACHER' },
+  { label: messages.admin.users.rolePending, value: 'TEACHER_PENDING' },
+  { label: messages.admin.users.roleAdmin, value: 'ADMIN' },
+];
+
+const statusOptions: SelectOption[] = [
+  { label: messages.admin.users.statusAll, value: STATUS_ALL },
+  { label: messages.admin.users.statusActive, value: 'active' },
+  { label: messages.admin.users.statusLocked, value: 'locked' },
+];
 
 // Modal duyệt/từ chối teacher
 const reviewTarget = ref<AdminUserDto | null>(null);
@@ -95,7 +114,7 @@ const userTabs = computed(() => [
 
 const filtered = computed(() => {
   let list = users.value;
-  if (roleFilter.value) list = list.filter((u) => u.role === roleFilter.value);
+  if (roleFilter.value !== ROLE_ALL) list = list.filter((u) => u.role === roleFilter.value);
   if (statusFilter.value === 'active') list = list.filter((u) => u.isActive);
   if (statusFilter.value === 'locked') list = list.filter((u) => !u.isActive);
   return list;
@@ -108,7 +127,30 @@ const roleLabel: Record<string, string> = {
   ADMIN: messages.admin.users.roleAdmin,
 };
 
-const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).toUpperCase() : '?');
+/** 2 chữ cái đầu: chữ cái đầu của 2 từ, hoặc 2 ký tự đầu khi tên 1 từ (Task 3a). */
+const initials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase() || '?';
+};
+
+// Vai trò → badge/avatar: 1 ngôn ngữ màu xuyên 2 màn (donut AdminStats dùng
+// data-core/resolved/index-muted; badge dùng variant shadcn tương phản cả 2 theme).
+const roleBadgeVariant: Record<AdminRole, 'primary' | 'secondary' | 'warning' | 'muted'> = {
+  STUDENT: 'muted',
+  TEACHER: 'primary',
+  TEACHER_PENDING: 'warning',
+  ADMIN: 'secondary',
+};
+
+const avatarRoleClass = (role: AdminRole): string =>
+  role === 'TEACHER'
+    ? 'admin-users__role-avatar--teacher'
+    : role === 'TEACHER_PENDING'
+      ? 'admin-users__role-avatar--pending'
+      : role === 'ADMIN'
+        ? 'admin-users__role-avatar--admin'
+        : '';
 
 async function toggleLock(user: AdminUserDto): Promise<void> {
   try {
@@ -200,6 +242,53 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
     ui.showToast(err instanceof Error ? err.message : 'Thao tác thất bại.', 'error');
   }
 }
+
+// ── Task 3a — xác nhận hành động tài khoản (drawer): khóa/mở khóa + đặt lại mật khẩu ──
+type ConfirmAction = 'lock' | 'unlock' | 'resetPassword';
+
+const confirmAction = ref<{ user: AdminUserDto; action: ConfirmAction } | null>(null);
+
+function askConfirm(user: AdminUserDto, action: ConfirmAction): void {
+  confirmAction.value = { user, action };
+}
+
+const confirmTitle = computed(() => {
+  const c = confirmAction.value;
+  if (!c) return '';
+  if (c.action === 'lock') return messages.admin.users.lockConfirmTitle;
+  if (c.action === 'unlock') return messages.admin.users.unlockConfirmTitle;
+  return messages.admin.users.resetConfirmTitle;
+});
+
+const confirmMessage = computed(() => {
+  const c = confirmAction.value;
+  if (!c) return '';
+  const name = c.user.displayName || c.user.email;
+  if (c.action === 'lock') return messages.admin.users.lockConfirmMessage(name);
+  if (c.action === 'unlock') return messages.admin.users.unlockConfirmMessage(name);
+  return messages.admin.users.resetConfirmMessage(name);
+});
+
+const confirmButtonLabel = computed(() => {
+  const c = confirmAction.value;
+  if (!c) return '';
+  if (c.action === 'lock') return messages.admin.users.confirmLock;
+  if (c.action === 'unlock') return messages.admin.users.confirmUnlock;
+  return messages.admin.users.confirmReset;
+});
+
+const confirmVariant = computed(() =>
+  confirmAction.value?.action === 'lock' ? 'danger' : 'primary',
+);
+
+async function runConfirm(): Promise<void> {
+  const c = confirmAction.value;
+  if (!c) return;
+  confirmAction.value = null;
+  // Giữ NGUYÊN API hiện có — chỉ thêm bước xác nhận trực quan.
+  if (c.action === 'resetPassword') await resetPassword(c.user);
+  else await toggleLock(c.user);
+}
 </script>
 
 <template>
@@ -233,19 +322,24 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
           @keyup.enter="load"
         />
       </div>
-      <select v-model="roleFilter" class="admin-users__select" :aria-label="messages.admin.users.roleFilterLabel">
-        <option value="">{{ messages.admin.users.roleAll }}</option>
-        <option value="STUDENT">{{ messages.admin.users.roleStudent }}</option>
-        <option value="TEACHER">{{ messages.admin.users.roleTeacher }}</option>
-        <option value="TEACHER_PENDING">{{ messages.admin.users.rolePending }}</option>
-        <option value="ADMIN">{{ messages.admin.users.roleAdmin }}</option>
-      </select>
-      <select v-model="statusFilter" class="admin-users__select" :aria-label="messages.admin.users.statusFilterLabel">
-        <option value="">{{ messages.admin.users.statusAll }}</option>
-        <option value="active">{{ messages.admin.users.statusActive }}</option>
-        <option value="locked">{{ messages.admin.users.statusLocked }}</option>
-      </select>
-      <Button size="sm" variant="secondary" class="admin-users__search-btn" @click="load">
+      <!-- Select shadcn (reka-ui) — nhất quán ClassDetailView; label ẩn sr-only qua :deep -->
+      <div class="admin-users__select-group">
+        <Select
+          v-model="roleFilter"
+          :label="messages.admin.users.roleFilterLabel"
+          :options="roleOptions"
+          :placeholder="messages.admin.users.roleAll"
+        />
+      </div>
+      <div class="admin-users__select-group">
+        <Select
+          v-model="statusFilter"
+          :label="messages.admin.users.statusFilterLabel"
+          :options="statusOptions"
+          :placeholder="messages.admin.users.statusAll"
+        />
+      </div>
+      <Button variant="secondary" @click="load">
         <Search :size="16" /> {{ messages.admin.users.search }}
       </Button>
     </div>
@@ -294,7 +388,11 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
             >
               <td :data-label="messages.admin.users.colUser">
                 <div class="admin-users__user">
-                  <span class="admin-users__avatar" aria-hidden="true">{{ initial(user.displayName) }}</span>
+                  <span
+                    class="admin-users__avatar"
+                    :class="avatarRoleClass(user.role)"
+                    aria-hidden="true"
+                  >{{ initials(user.displayName) }}</span>
                   <div class="admin-users__user-meta">
                     <p class="admin-users__name">{{ user.displayName }}</p>
                     <p class="admin-users__email">{{ user.email }}</p>
@@ -302,10 +400,10 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
                 </div>
               </td>
               <td :data-label="messages.admin.users.colRole">
-                <Badge :variant="user.role === 'TEACHER_PENDING' ? 'warning' : 'primary'">{{ roleLabel[user.role] }}</Badge>
+                <Badge :variant="roleBadgeVariant[user.role]" class="rounded-md!">{{ roleLabel[user.role] }}</Badge>
               </td>
               <td :data-label="messages.admin.users.colStatus">
-                <Badge :variant="user.isActive ? 'success' : 'danger'">
+                <Badge :variant="user.isActive ? 'success' : 'danger'" class="rounded-md!">
                   {{ user.isActive ? messages.admin.users.active : messages.admin.users.locked }}
                 </Badge>
               </td>
@@ -399,8 +497,23 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
       </template>
     </Modal>
 
+    <!-- Task 3a — xác nhận khóa/mở khóa + đặt lại mật khẩu (giữ nguyên API hiện có) -->
+    <Modal :open="confirmAction !== null" :title="confirmTitle" @close="confirmAction = null">
+      <p class="admin-users__confirm-message">{{ confirmMessage }}</p>
+      <template #footer>
+        <Button variant="ghost" @click="confirmAction = null">{{ messages.admin.users.cancel }}</Button>
+        <Button :variant="confirmVariant" @click="runConfirm">{{ confirmButtonLabel }}</Button>
+      </template>
+    </Modal>
+
     <!-- Block 2.3 — Drawer chi tiết user: stats thật qua GET /users/{id} -->
-    <Drawer :open="drawerUser !== null" :title="messages.admin.users.drawerTitle" :width="'440px'" @close="closeDrawer">
+    <Drawer
+      :open="drawerUser !== null"
+      :title="messages.admin.users.drawerTitle"
+      :description="drawerUser ? messages.admin.users.detailDescription(drawerUser.displayName) : ''"
+      :width="'440px'"
+      @close="closeDrawer"
+    >
       <div v-if="drawerLoading" class="admin-users__drawer-loading" aria-busy="true">
         <Skeleton v-for="i in 4" :key="i" height="48px" />
       </div>
@@ -414,15 +527,19 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
 
       <div v-else-if="drawerDetail" class="admin-users__drawer">
         <div class="admin-users__drawer-head">
-          <span class="admin-users__drawer-avatar" aria-hidden="true">{{ initial(drawerDetail.displayName) }}</span>
+          <span
+            class="admin-users__drawer-avatar"
+            :class="avatarRoleClass(drawerDetail.role)"
+            aria-hidden="true"
+          >{{ initials(drawerDetail.displayName) }}</span>
           <div class="admin-users__drawer-head-meta">
             <p class="admin-users__drawer-name">{{ drawerDetail.displayName }}</p>
             <p class="admin-users__drawer-email">{{ drawerDetail.email }}</p>
             <div class="admin-users__drawer-badges">
-              <Badge :variant="drawerDetail.role === 'TEACHER_PENDING' ? 'warning' : 'primary'">
+              <Badge :variant="roleBadgeVariant[drawerDetail.role]" class="rounded-md!">
                 {{ roleLabel[drawerDetail.role] }}
               </Badge>
-              <Badge :variant="drawerDetail.isActive ? 'success' : 'danger'">
+              <Badge :variant="drawerDetail.isActive ? 'success' : 'danger'" class="rounded-md!">
                 {{ drawerDetail.isActive ? messages.admin.users.active : messages.admin.users.locked }}
               </Badge>
             </div>
@@ -506,20 +623,24 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
 
         <DetailSection :title="messages.admin.users.colActions">
           <div class="admin-users__drawer-actions">
-            <Button size="sm" :variant="drawerDetail.isActive ? 'secondary' : 'primary'" @click="toggleLock(drawerDetail)">
+            <Button
+              block
+              :variant="drawerDetail.isActive ? 'secondary' : 'primary'"
+              @click="askConfirm(drawerDetail, drawerDetail.isActive ? 'lock' : 'unlock')"
+            >
               <LockOpen v-if="!drawerDetail.isActive" :size="16" />
               <Lock v-else :size="16" />
               {{ drawerDetail.isActive ? messages.admin.users.lock : messages.admin.users.unlock }}
             </Button>
             <Button
               v-if="drawerDetail.role === 'TEACHER' || drawerDetail.role === 'STUDENT'"
-              size="sm"
+              block
               variant="secondary"
               @click="changeRole(drawerDetail)"
             >
               <UserCog :size="16" /> {{ messages.admin.users.changeRole }}
             </Button>
-            <Button size="sm" variant="secondary" @click="resetPassword(drawerDetail)">
+            <Button block variant="secondary" @click="askConfirm(drawerDetail, 'resetPassword')">
               <KeyRound :size="16" /> {{ messages.admin.users.resetPassword }}
             </Button>
           </div>
@@ -560,23 +681,40 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
   pointer-events: none;
 }
 
-.admin-users__search,
-.admin-users__select {
+.admin-users__search {
   height: 40px;
+  width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--card);
   color: var(--foreground);
   font-size: var(--text-sm);
-  padding: 0 var(--space-md);
+  padding: 0 var(--space-md) 0 var(--space-xl);
   transition: border-color 150ms;
 }
 
-.admin-users__search { padding-left: var(--space-xl); }
-
 .admin-users__search::placeholder { color: var(--foreground-quaternary); }
 
-.admin-users__select { width: auto; }
+.admin-users__search:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 0;
+  border-color: var(--primary);
+}
+
+/* Select shadcn trong toolbar — label sr-only (a11y), trigger h-10 chuẩn §4.4 */
+.admin-users__select-group { flex: 1 1 180px; min-width: 170px; max-width: 250px; }
+
+.admin-users__select-group :deep(label) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ── Loading / Error ── */
 .admin-users__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
@@ -647,6 +785,23 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
   font-weight: 600;
   font-size: var(--text-sm);
   flex-shrink: 0;
+}
+
+/* Avatar theo vai trò (Task 3a) — tint + text foreground, tương phản cả 2 theme */
+.admin-users__role-avatar--teacher {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--foreground);
+}
+
+.admin-users__role-avatar--pending {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--foreground);
+}
+
+.admin-users__role-avatar--admin {
+  background: var(--muted);
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
 }
 
 .admin-users__user-meta { min-width: 0; }
@@ -857,9 +1012,18 @@ async function resetPassword(user: AdminUserDto): Promise<void> {
   color: var(--foreground-tertiary);
 }
 
-.admin-users__drawer-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.admin-users__drawer-actions { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.admin-users__confirm-message {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--foreground-secondary);
+}
 
 @media (max-width: 640px) {
+  .admin-users__select-group { flex: 1 1 100%; max-width: none; }
+
   /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
   .admin-users__table-scroll { overflow-x: visible; }
 
