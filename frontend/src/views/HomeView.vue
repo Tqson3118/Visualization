@@ -535,6 +535,7 @@ const tiltSupported =
   typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
 
 function handleTilt(e: MouseEvent): void {
+  if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return;
   if (!tiltSupported) return;
   const card = e.currentTarget as HTMLElement;
   const rect = card.getBoundingClientRect();
@@ -612,14 +613,18 @@ function initAnimations(): void {
     });
 
     // 4. Extended Sections Reveal on Scroll
-    gsap.from('.extended-text', {
-      x: -40, opacity: 0, duration: 0.7, ease: 'power2.out',
-      scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
-    });
-    gsap.from('.extended-visual', {
-      x: 40, opacity: 0, duration: 0.7, ease: 'power2.out',
-      scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
-    });
+    // (Chỉ chạy cho guest — khi authed 4 section marketing bị v-if ẩn khỏi
+    // DOM, tránh ScrollTrigger log "target not found" trên console.)
+    if (!authStore.isAuthenticated) {
+      gsap.from('.extended-text', {
+        x: -40, opacity: 0, duration: 0.7, ease: 'power2.out',
+        scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
+      });
+      gsap.from('.extended-visual', {
+        x: 40, opacity: 0, duration: 0.7, ease: 'power2.out',
+        scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
+      });
+    }
 
     // 5. Dashboard Stagger & Number Counters
     if (authStore.isAuthenticated) {
@@ -1258,7 +1263,7 @@ onUnmounted(() => {
     </section>
 
     <!-- ── TẦNG 4: FREEMIUM SECTION ── -->
-    <section id="sec-freemium" class="freemium-section">
+    <section v-if="!authStore.isAuthenticated" id="sec-freemium" class="freemium-section">
       <div class="container">
         <div class="freemium-header text-center mb-10" data-aos="fade-up">
           <h2 class="font-display text-3xl mb-3 text-heading">Miễn phí để bắt đầu, Premium để bứt phá</h2>
@@ -1302,7 +1307,7 @@ onUnmounted(() => {
     <!-- ── TẦNG 5: BỐ CỤC SO LE 2 CỘT (EXTENDED SECTIONS) ── -->
 
     <!-- Deep-dive 1: Roadmap Lộ trình -->
-    <section class="extended-section roadmap-section">
+    <section v-if="!authStore.isAuthenticated" class="extended-section roadmap-section">
       <div class="extended-container">
         <div class="extended-text" data-aos="fade-right">
           <h2 class="font-display text-3xl mb-4 text-heading">Học tập qua Lộ trình (Roadmap) thay vì Mò mẫm</h2>
@@ -1336,7 +1341,7 @@ onUnmounted(() => {
     </section>
 
     <!-- Deep-dive 2: Codelab Thực hành Trực tiếp (Reverse 2 cột) -->
-    <section class="extended-section codelab-section reverse">
+    <section v-if="!authStore.isAuthenticated" class="extended-section codelab-section reverse">
       <div class="extended-container">
         <div class="extended-text" data-aos="fade-right">
           <h2 class="font-display text-3xl mb-4 text-heading">Thực hành Code Trực tiếp (Codelab)</h2>
@@ -1375,7 +1380,7 @@ onUnmounted(() => {
     </section>
 
     <!-- Deep-dive 3: AI Assistant Mentor -->
-    <section class="extended-section ai-section">
+    <section v-if="!authStore.isAuthenticated" class="extended-section ai-section">
       <div class="extended-container">
         <div class="extended-text" data-aos="fade-right">
           <h2 class="font-display text-3xl mb-4 text-heading">AI Assistant - Người Mentor Tận Tụy</h2>
@@ -1404,7 +1409,7 @@ onUnmounted(() => {
 
       <div class="testimonials-carousel" data-aos="fade-up">
         <Transition name="fade-slide" mode="out-in">
-          <div :key="currentTestimonial" class="testimonial-card glass-panel spring-hover">
+          <div :key="currentTestimonial" class="testimonial-card glass-panel">
             <div class="testimonial-rating flex justify-center gap-1 mb-3">
               <Star v-for="i in testimonials[currentTestimonial].rating" :key="i" class="w-5 h-5 text-amber-400 fill-current" />
             </div>
@@ -1862,6 +1867,12 @@ onUnmounted(() => {
   line-height: 1.15;
   margin-bottom: 1.25rem;
   letter-spacing: -0.02em;
+}
+
+/* Dark mode: tiêu đề hero bị chìm trên nền #042F2E — dùng --color-foreground
+   (dark = #CCFBF1, token dự án) cho phần chữ thường; span .text-gradient giữ nguyên. */
+:global(.dark) .hero__title {
+  color: var(--color-foreground);
 }
 
 .text-gradient {
