@@ -193,7 +193,7 @@ const radarOption = computed(() => {
   void ui.theme;
   const indexMuted = cssVar('--color-index-muted', '#6B7385');
   const dataCore = cssVar('--color-data-core', '#4255FF');
-  const ink = cssVar('--color-canvas-ink', '#0D1020');
+  const ink = cssVar('--color-canvas-ink', '#0F172A');
 
   return {
     tooltip: {

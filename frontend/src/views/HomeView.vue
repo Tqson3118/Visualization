@@ -30,6 +30,7 @@ import {
   StepForward,
   Target,
   Trophy,
+  X,
 } from 'lucide-vue-next';
 
 import type { Component } from 'vue';
@@ -269,6 +270,8 @@ const catalogGroups: CatalogGroupDef[] = [
 ];
 
 const activeGroup = ref<CatalogGroup>('all');
+const searchQuery = ref('');
+const isCatalogExpanded = ref(false);
 
 const catalogCounts = computed<Record<CatalogGroup, number>>(() => {
   const counts = {} as Record<CatalogGroup, number>;
@@ -278,7 +281,33 @@ const catalogCounts = computed<Record<CatalogGroup, number>>(() => {
 
 const filteredCatalog = computed(() => {
   const group = catalogGroups.find((g) => g.key === activeGroup.value);
-  return group ? CATALOG.filter(group.match) : [];
+  let list = group ? CATALOG.filter(group.match) : CATALOG;
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q) {
+    list = list.filter(
+      (m) =>
+        m.title.toLowerCase().includes(q) ||
+        m.key.toLowerCase().includes(q) ||
+        m.dataStructure.toLowerCase().includes(q) ||
+        m.complexity.average.toLowerCase().includes(q) ||
+        m.complexity.space.toLowerCase().includes(q),
+    );
+  }
+  return list;
+});
+
+const displayedCatalog = computed(() => {
+  if (searchQuery.value.trim()) {
+    return filteredCatalog.value;
+  }
+  if (isCatalogExpanded.value) {
+    return filteredCatalog.value;
+  }
+  return filteredCatalog.value.slice(0, 8);
+});
+
+const canExpandCatalog = computed(() => {
+  return !searchQuery.value.trim() && filteredCatalog.value.length > 8;
 });
 
 function levelLabel(level: CatalogMeta['level']): string {
@@ -326,6 +355,16 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
         <!-- Panel demo tối — mini-sim: step thật từ engine, block thở theo bước,
              bộ điều khiển tương tác (Task 1): play/pause · step back/forward · reset · speed -->
         <div class="home__bench" aria-label="Mô phỏng trực quan đang chạy — mở mô phỏng để tương tác từng bước">
+          <!-- Top terminal / workbench mockup bar -->
+          <div class="home__bench-macbar" aria-hidden="true">
+            <div class="home__bench-dots">
+              <span class="home__bench-dot home__bench-dot--close" />
+              <span class="home__bench-dot home__bench-dot--min" />
+              <span class="home__bench-dot home__bench-dot--max" />
+            </div>
+            <span class="home__bench-caption">dsa-visual-runner.exe</span>
+          </div>
+
           <div class="home__bench-head">
             <span class="home__bench-live">
               <span class="home__bench-live-dot" aria-hidden="true" />
@@ -541,7 +580,7 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
       </div>
     </section>
 
-    <!-- Algorithm Catalog Grid (Task 1) — filter tabs count mono + card dense:
+    <!-- Algorithm Catalog Grid (Task 1) — Live Search + Filter Tabs + Compact 8 Featured Cards:
          title Geist 600 · badge CTDL · chip Big-O mono · CTA dịch phải khi hover -->
     <section class="home__section container">
       <div class="home__section-head">
@@ -552,26 +591,59 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
         <p class="home__section-desc">{{ messages.home.catalogDesc }}</p>
       </div>
 
-      <div class="home__filters" role="group" :aria-label="messages.home.catalogTitle">
-        <Button
-          v-for="group in catalogGroups"
-          :key="group.key"
-          type="button"
-          variant="ghost"
-          size="sm"
-          class="home__filter"
-          :class="{ 'home__filter--active': group.key === activeGroup }"
-          :aria-pressed="group.key === activeGroup"
-          @click="activeGroup = group.key"
-        >
-          {{ group.label }}
-          <span class="home__filter-count" aria-hidden="true">{{ catalogCounts[group.key] }}</span>
+      <div class="home__catalog-toolbar">
+        <!-- Live Search Input -->
+        <div class="home__catalog-search">
+          <Search class="home__catalog-search-icon" :size="16" aria-hidden="true" />
+          <input
+            v-model="searchQuery"
+            type="search"
+            class="home__catalog-search-input"
+            :placeholder="messages.home.catalogSearchPlaceholder"
+            :aria-label="messages.home.catalogSearchPlaceholder"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="home__catalog-search-clear"
+            aria-label="Xóa tìm kiếm"
+            @click="searchQuery = ''"
+          >
+            <X :size="14" aria-hidden="true" />
+          </button>
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="home__filters" role="group" :aria-label="messages.home.catalogTitle">
+          <Button
+            v-for="group in catalogGroups"
+            :key="group.key"
+            type="button"
+            variant="ghost"
+            size="sm"
+            class="home__filter"
+            :class="{ 'home__filter--active': group.key === activeGroup }"
+            :aria-pressed="group.key === activeGroup"
+            @click="activeGroup = group.key"
+          >
+            {{ group.label }}
+            <span class="home__filter-count" aria-hidden="true">{{ catalogCounts[group.key] }}</span>
+          </Button>
+        </div>
+      </div>
+
+      <!-- Empty state when search has no results -->
+      <div v-if="displayedCatalog.length === 0" class="home__catalog-empty" role="status">
+        <p class="home__catalog-empty-text">{{ messages.home.catalogNoResults }}</p>
+        <Button variant="secondary" size="sm" @click="searchQuery = ''; activeGroup = 'all'">
+          {{ messages.common.retry }}
         </Button>
       </div>
 
-      <div class="home__catalog">
+      <!-- Catalog Cards Grid (max 8 by default) -->
+      <div v-else class="home__catalog">
         <Card
-          v-for="item in filteredCatalog"
+          v-for="item in displayedCatalog"
           :key="item.key"
           class="home__catalog-card"
         >
@@ -599,9 +671,28 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
           </CardContent>
         </Card>
       </div>
+
+      <!-- Expand / Collapse Button -->
+      <div v-if="canExpandCatalog || isCatalogExpanded" class="home__catalog-expand">
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          class="home__catalog-expand-btn"
+          @click="isCatalogExpanded = !isCatalogExpanded"
+        >
+          <template v-if="!isCatalogExpanded">
+            {{ messages.home.catalogViewAll(filteredCatalog.length) }}
+            <ArrowRight class="size-4" aria-hidden="true" />
+          </template>
+          <template v-else>
+            {{ messages.home.catalogCollapse }}
+          </template>
+        </Button>
+      </div>
     </section>
 
-    <!-- Practice Ladder Showcase (Task 1) — 4 chặng, index mono STEP 01..04, icon lucide -->
+    <!-- Practice Ladder Showcase (Task 1) — 4 chặng, index mono STEP 01..04, icon lucide + Step Flow Connectors -->
     <section class="home__section container">
       <div class="home__section-head">
         <span class="home__kicker home__kicker--center">
@@ -612,22 +703,29 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
       </div>
 
       <div class="home__ladder">
-        <Card
+        <div
           v-for="(stage, index) in ladderStages"
           :key="stage.title"
-          class="home__ladder-card"
+          class="home__ladder-step-wrapper"
         >
-          <CardContent class="home__ladder-content">
-            <div class="home__ladder-top">
-              <span class="home__ladder-step">{{ messages.home.ladderStepLabel(index + 1) }}</span>
-              <span class="home__ladder-icon" aria-hidden="true">
-                <component :is="stage.icon" :size="20" />
-              </span>
-            </div>
-            <h3 class="home__ladder-title">{{ stage.title }}</h3>
-            <p class="home__ladder-desc">{{ stage.desc }}</p>
-          </CardContent>
-        </Card>
+          <Card class="home__ladder-card">
+            <CardContent class="home__ladder-content">
+              <div class="home__ladder-top">
+                <span class="home__ladder-step">{{ messages.home.ladderStepLabel(index + 1) }}</span>
+                <span class="home__ladder-icon" aria-hidden="true">
+                  <component :is="stage.icon" :size="20" />
+                </span>
+              </div>
+              <h3 class="home__ladder-title">{{ stage.title }}</h3>
+              <p class="home__ladder-desc">{{ stage.desc }}</p>
+            </CardContent>
+          </Card>
+          <!-- Step flow connector line to next step -->
+          <div v-if="index < ladderStages.length - 1" class="home__ladder-flow-line" aria-hidden="true">
+            <div class="home__ladder-flow-track" />
+            <span class="home__ladder-flow-dot" />
+          </div>
+        </div>
       </div>
     </section>
 
@@ -754,21 +852,53 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
 /* ── Bench demo — vùng dữ liệu LUÔN tối (canvas-ink) bất kể theme;
-   viền data-core 25% — "console" bench (Task 1) ── */
+   viền tinh tế chuyển tiếp mềm mại (Task 1) ── */
 .home__bench {
   background: var(--color-canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
   animation: bench-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes bench-in {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.home__bench-macbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.home__bench-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home__bench-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+}
+
+.home__bench-dot--close { background: rgba(248, 113, 113, 0.8); }
+.home__bench-dot--min { background: rgba(251, 191, 36, 0.8); }
+.home__bench-dot--max { background: rgba(52, 211, 153, 0.8); }
+
+.home__bench-caption {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-index-muted);
+  letter-spacing: 0.04em;
 }
 
 .home__bench-head {
@@ -1170,6 +1300,69 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
   /* ── Algorithm Catalog Grid (Task 1) ── */
+.home__catalog-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.home__catalog-search {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+}
+
+.home__catalog-search-icon {
+  position: absolute;
+  left: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.home__catalog-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--space-xl) 0 calc(var(--space-md) + 24px);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  color: var(--color-foreground);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.home__catalog-search-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.home__catalog-search-clear {
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.home__catalog-search-clear:hover {
+  color: var(--color-foreground);
+  background: var(--color-muted);
+}
+
 .home__filters {
   display: flex;
   flex-wrap: wrap;
@@ -1183,6 +1376,7 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
     flex-wrap: nowrap;
     justify-content: flex-start;
     overflow-x: auto;
+    width: 100%;
     padding-bottom: var(--space-xs);
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
@@ -1200,6 +1394,25 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 }
 
 .home__filter-count { font-size: var(--text-xs); opacity: 0.75; font-variant-numeric: tabular-nums; }
+
+.home__catalog-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl) var(--space-lg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+  text-align: center;
+}
+
+.home__catalog-empty-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
 
 .home__catalog {
   display: grid;
@@ -1252,20 +1465,41 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
 
 .home__catalog-cta:hover { transform: translateX(4px); }
 
-/* ── Practice Ladder Showcase (Task 1) — 4 chặng, index mono STEP 01..04 ── */
+.home__catalog-expand {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-md);
+}
+
+.home__catalog-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 500;
+}
+
+/* ── Practice Ladder Showcase (Task 1) — 4 chặng + connector flow ── */
 .home__ladder {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-md);
+  position: relative;
 }
 
 @media (max-width: 900px) {
   .home__ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.home__ladder-step-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .home__ladder-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1276,6 +1510,7 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  height: 100%;
 }
 
 .home__ladder-top {
@@ -1321,6 +1556,39 @@ const ladderStages: Array<{ icon: Component; title: string; desc: string }> = [
   font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--color-text-secondary);
+}
+
+/* Connector line nối giữa các bước */
+.home__ladder-flow-line {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .home__ladder-flow-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 36px;
+    right: calc(-1 * var(--space-md));
+    width: var(--space-md);
+    height: 2px;
+    z-index: 2;
+  }
+
+  .home__ladder-flow-track {
+    width: 100%;
+    height: 2px;
+    background: var(--color-border);
+  }
+
+  .home__ladder-flow-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+  }
 }
 
 @media (max-width: 900px) {

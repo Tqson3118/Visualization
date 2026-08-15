@@ -109,6 +109,10 @@ export const messages = {
     catalogSpace: 'Bộ nhớ',
     catalogPractice: 'Thực hành ngay',
     catalogOpen: (title: string) => `Mở mô phỏng ${title}`,
+    catalogSearchPlaceholder: 'Tìm nhanh thuật toán, cấu trúc dữ liệu...',
+    catalogViewAll: (count: number) => `Xem toàn bộ ${count} mô phỏng (${count})`,
+    catalogCollapse: 'Thu gọn danh sách',
+    catalogNoResults: 'Không tìm thấy thuật toán nào khớp với từ khóa tìm kiếm.',
     // Task 1 — practice ladder showcase (4 chặng)
     ladderBadge: 'Practice Ladder',
     ladderTitle: 'Bốn chặng của một bài học',
@@ -451,7 +455,8 @@ export const messages = {
       confirmUnlock: 'Mở khóa',
       confirmReset: 'Đặt lại mật khẩu',
       // Drawer chi tiết user + toast còn sót hardcode (v2.15 - PR #22)
-      detailTitle: 'Chi tiết người dùng',
+      drawerTabProfile: 'Hồ sơ & Chỉ số',
+      drawerTabActivity: 'Hoạt động học tập',
       detailDescription: (name: string) => `Thông tin chi tiết - ${name}`,
       joinDate: 'Ngày tham gia',
       viewDetailAria: (name: string) => `Xem chi tiết ${name}`,
@@ -638,6 +643,9 @@ export const messages = {
     inviteCopyHint: 'Sao chép mã mời',
     inviteCopied: 'Đã sao chép!',
     statMembers: 'Thành viên',
+    summaryTotalClasses: 'Tổng số lớp',
+    summaryActiveLearners: 'Học viên',
+    summaryManagedClasses: 'Lớp quản lý',
     // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
     stripLabel: (total: number, members: number) =>
       `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,

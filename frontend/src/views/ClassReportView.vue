@@ -447,9 +447,10 @@ function printReport(): void {
   align-items: stretch;
   gap: var(--space-xl);
   background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: var(--space-lg) var(--space-xl);
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.35);
   opacity: 0;
   transform: translateY(6px);
   animation: report-hero-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -516,7 +517,7 @@ function printReport(): void {
   }
 }
 
-/* ── Grid 12: chart 8 cột + lagging 4 cột (DESIGN §5) ── */
+/* ── Grid 12: chart 7 cột + lagging 5 cột (~60/40) ── */
 .class-report__grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -524,9 +525,9 @@ function printReport(): void {
   align-items: stretch;
 }
 
-.class-report__chart-card { grid-column: span 8; }
+.class-report__chart-card { grid-column: span 7; }
 
-.class-report__lagging { grid-column: span 4; }
+.class-report__lagging { grid-column: span 5; }
 
 /* Không có bài gán (chưa có chart) → lagging full width.
    FIX REVIEW: thay :not(:has(...)) (Chrome<105/FF<121 không chạy → card lagging kẹt
@@ -565,9 +566,10 @@ function printReport(): void {
 
 .class-report__chart {
   background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: var(--space-md) var(--space-md) var(--space-sm);
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.35);
   min-width: 0;
 }
 

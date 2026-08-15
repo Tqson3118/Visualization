@@ -322,14 +322,15 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
 .admin-stats__charts { display: grid; grid-template-columns: 7fr 5fr; gap: var(--space-md); }
 
 .admin-stats__chart {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
+  background: var(--color-canvas-ink);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 320px;
 }
 
 .admin-stats__chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }

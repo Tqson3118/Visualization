@@ -221,7 +221,7 @@ const chartOption = computed(() => {
   void ui.theme;
   const textColor = cssVar('--color-index-muted', '#6B7385');
   const axisColor = cssVar('--color-index-muted', '#6B7385');
-  const tooltipBg = cssVar('--color-canvas-ink', '#0D1020');
+  const tooltipBg = cssVar('--color-canvas-ink', '#0F172A');
 
   const series = selectedKeys.value.map((key, idx) => ({
     name: BENCHMARK_ALGORITHMS[key].title,
