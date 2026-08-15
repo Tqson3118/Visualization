@@ -126,6 +126,22 @@ export const messages = {
     ladderStage3Desc: 'Làm bài code trong sandbox — chấm điểm tự động tức thì.',
     ladderStage4Title: 'Đánh giá',
     ladderStage4Desc: 'Benchmark, độ phức tạp và nhận xét cho từng đáp án.',
+    // Task 12 (ui-redesign) — home: guest/member split, preview phase labels, freemium CTA, sandbox badge
+    continueLearning: 'Tiếp tục học lộ trình',
+    previewPhase: [
+      'Khởi tạo — chọn pivot 5 ở cuối mảng',
+      'Đang so sánh cặp (8, 3)',
+      'Hoán đổi 8 và 3',
+      'Đang so sánh cặp (9, 4)',
+      'Hoán đổi 9 và 4',
+      'Pivot 5 đã vào đúng vị trí',
+      'Đang so sánh cặp (4, 5)',
+      'Hoán đổi 5 và 4',
+      'Đã sắp xếp xong toàn bộ mảng',
+    ] as const,
+    freemiumHeartsCta: 'Tìm hiểu cơ chế',
+    freemiumGemsCta: 'Vào cửa hàng Gems',
+    sandboxLiveBadge: 'Bubble Sort · live',
   },
 
   auth: {
