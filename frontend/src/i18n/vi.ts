@@ -34,6 +34,10 @@ export const messages = {
     comingSoon: 'Tính năng đang được xây dựng',
     processing: 'Đang xử lý...',
     breadcrumb: 'Breadcrumb',
+    // Task 15C — nút đổi màu nền (theme toggle) trên AppHeader
+    toggleTheme: 'Đổi giao diện sáng/tối',
+    toLightTheme: 'Chuyển sang giao diện sáng',
+    toDarkTheme: 'Chuyển sang giao diện tối',
   },
 
   profile: {
