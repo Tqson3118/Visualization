@@ -21,7 +21,7 @@ const mockGamification = {
   gems: 100,
   questDone: 0,
   quests: [] as Array<{ id: number; title: string; claimed: boolean; rewardXp: number; rewardGems: number }>,
-  achievements: [] as Array<{ id: number; title: string; name: string }>,
+  achievements: [] as Array<{ id: number; code: string; name: string; description: string | null; iconUrl: string | null; earnedAt: string | null }>,
   fetchAll: vi.fn(),
   fetchQuests: vi.fn(),
   fetchAchievements: vi.fn(),
@@ -195,11 +195,59 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       wrapper.unmount();
     });
 
-    it('Tầng 5: Bố cục So le 2 cột Deep-Dives (Roadmap, Codelab)', () => {
+    it('Tầng 5: Roadmap 4 node dọc — line phát sáng, node active và mô tả 4 bước', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.roadmap-mockup').exists()).toBe(true);
+      expect(wrapper.find('.road-line').exists()).toBe(true);
+      const nodes = wrapper.findAll('.rm-node');
+      expect(nodes.length).toBe(4);
+      expect(wrapper.find('.rm-node--active').exists()).toBe(true);
+      expect(wrapper.text()).toContain('Lý thuyết nền tảng');
+      expect(wrapper.text()).toContain('Mô phỏng trực quan');
+      expect(wrapper.text()).toContain('Thực hành Codelab');
+      expect(wrapper.text()).toContain('Trắc nghiệm củng cố');
+      wrapper.unmount();
+    });
+
+    it('Tầng 5: Codelab auto-typing — gõ dần từng ký tự rồi 3 Testcase PASSED tuần tự', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount(HomeView);
       expect(wrapper.find('.codelab-mockup').exists()).toBe(true);
-      expect(wrapper.find('.codelab-output').text()).toContain('All 15/15 Test Cases Passed!');
+      expect(wrapper.find('.codelab-run').exists()).toBe(true);
+      // Đang gõ: nút Chạy bị khóa, code chưa đầy đủ
+      expect(wrapper.find('.codelab-run').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.codelab-caret').exists()).toBe(true);
+
+      // Gõ xong (~252 ký tự × 22ms ≈ 5.5s) → 900ms tự chạy → chấm → 3 testcase
+      vi.advanceTimersByTime(9500);
+      await nextTick();
+      expect(wrapper.findAll('.codelab-testcase__badge').length).toBe(3);
+      expect(wrapper.find('.codelab-testcase__badge').text()).toContain('PASSED');
+      expect(wrapper.find('.codelab-run--done').exists()).toBe(true);
+      expect(wrapper.find('.codelab-testcase__meta').text()).toContain('ms · Beats');
+
+      // Vòng lặp: sau 2.5s reset — nút quay về trạng thái gõ
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(wrapper.find('.codelab-caret').exists()).toBe(true);
+
+      vi.useRealTimers();
+      wrapper.unmount();
+    });
+
+    it('Tầng 5C: Rank Ladder 5 bậc — highlight rank hiện tại, huy hiệu empty state và 3 thống kê', () => {
+      const wrapper = mount(HomeView);
+      expect(wrapper.find('.rank-section').exists()).toBe(true);
+      const tiers = wrapper.findAll('.rank-tier');
+      expect(tiers.length).toBe(5);
+      expect(wrapper.find('.rank-tier--current').exists()).toBe(true);
+      expect(wrapper.find('.rank-tier--current').text()).toContain('Rank hiện tại');
+      // Guest Lv 1 → bậc "Tập sự" được highlight + CTA đăng ký
+      expect(wrapper.find('.rank-tier--current').text()).toContain('Tập sự');
+      expect(wrapper.find('.rank-foot__cta').text()).toContain('Đăng ký để leo hạng');
+      // Huy hiệu: guest chưa có → empty state; thống kê 3 mục
+      expect(wrapper.find('.rank-empty').exists()).toBe(true);
+      expect(wrapper.findAll('.rank-stat').length).toBe(3);
       wrapper.unmount();
     });
 
@@ -240,6 +288,25 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
           { id: 2, name: 'Sắp xếp & Tìm kiếm', progressPct: 40 },
         ],
       };
+
+      mockGamification.achievements = [
+        {
+          id: 1,
+          code: 'first-lesson',
+          name: 'Bước chân đầu tiên',
+          description: null,
+          iconUrl: null,
+          earnedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          code: 'streak-7',
+          name: 'Tuần lửa',
+          description: null,
+          iconUrl: null,
+          earnedAt: null,
+        },
+      ];
     });
 
     it('hiển thị Greeting Banner với tên người dùng, Lv.4, 650 XP và tag Sinh viên', () => {
@@ -280,6 +347,19 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       expect(wrapper.find('.recent-activity-card').exists()).toBe(true);
       expect(wrapper.find('.quicklinks-card').exists()).toBe(true);
       expect(wrapper.findAll('.quicklink-btn').length).toBe(4);
+      wrapper.unmount();
+    });
+
+    it('Rank Ladder: highlight đúng cấp bậc thật (Lv.4 → Chiến binh), huy hiệu đã mở và CTA leaderboard', () => {
+      const wrapper = mount(HomeView);
+      expect(wrapper.find('.rank-tier--current').text()).toContain('Chiến binh');
+      expect(wrapper.find('.rank-foot__cta').text()).toContain('Xem bảng xếp hạng');
+      // Chỉ huy hiệu đã mở (earnedAt) được hiển thị — bỏ huy hiệu khóa
+      expect(wrapper.findAll('.rank-badge').length).toBe(1);
+      expect(wrapper.find('.rank-badge__name').text()).toBe('Bước chân đầu tiên');
+      expect(wrapper.find('.rank-empty').exists()).toBe(false);
+      // Thống kê có dữ liệu lessonsTotal thật (20)
+      expect(wrapper.find('.rank-stat__value').text()).toBe('44+');
       wrapper.unmount();
     });
   });

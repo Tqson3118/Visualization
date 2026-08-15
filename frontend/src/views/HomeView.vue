@@ -25,25 +25,28 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Code2,
   Compass,
   Crown,
+  Eye,
   Flame,
   Gem,
   GitFork,
   Heart,
   Layers,
-  Lock,
+  Loader2,
+  Medal,
   Network,
   Pause,
   Play,
   RotateCcw,
   Search,
+  Shield,
   ShieldCheck,
   Sparkles,
   StepForward,
   Target,
   Trophy,
-  Zap,
 } from 'lucide-vue-next';
 
 import type { Component } from 'vue';
@@ -91,6 +94,9 @@ const DEMO_ICONS: Record<string, Component> = {
   'graph.bfs': Network,
 };
 
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const demos = computed(() =>
   CATALOG.filter((c) => c.demoAllowed).map((c) => ({
     key: c.key,
@@ -107,6 +113,213 @@ const stats = computed(() => ({
   groups: new Set(CATALOG.map((c) => c.dataStructure)).size,
   levels: new Set(CATALOG.map((c) => c.level)).size,
 }));
+
+/* ── Roadmap — 4 node dọc (chuẩn sư phạm 4 bước) ── */
+interface RoadmapStep {
+  id: number;
+  icon: Component;
+  title: string;
+  desc: string;
+}
+
+const roadmapSteps: RoadmapStep[] = [
+  { id: 1, icon: BookOpen, title: messages.home.roadmapStep1Title, desc: messages.home.roadmapStep1Desc },
+  { id: 2, icon: Eye, title: messages.home.roadmapStep2Title, desc: messages.home.roadmapStep2Desc },
+  { id: 3, icon: Code2, title: messages.home.roadmapStep3Title, desc: messages.home.roadmapStep3Desc },
+  { id: 4, icon: Target, title: messages.home.roadmapStep4Title, desc: messages.home.roadmapStep4Desc },
+];
+
+/** Bước đang được nhấn mạnh (bước 2 — Mô phỏng trực quan) */
+const ACTIVE_ROADMAP_STEP = 2;
+
+/* ── Codelab auto-typing demo — máy gõ code + 3 testcase PASSED ──
+   Thuần trình diễn: gõ từng ký tự theo interval, sau đó nút Chạy tự kích
+   hoạt, 3 testcase hiện dần rồi reset vòng lặp. Tôn trọng prefers-reduced-motion. */
+type CodeToken = { t: string; c: string };
+
+const CODELAB_CODE: CodeToken[][] = [
+  [{ t: 'function ', c: '' }, { t: 'twoSum', c: 'tok-fn' }, { t: '(nums: ', c: '' }, { t: 'number[]', c: 'tok-type' }, { t: ', target: ', c: '' }, { t: 'number', c: 'tok-type' }, { t: ') {', c: '' }],
+  [{ t: '  const ', c: '' }, { t: 'map', c: 'tok-var' }, { t: ' = ', c: '' }, { t: 'new', c: 'tok-key' }, { t: ' ', c: '' }, { t: 'Map', c: 'tok-type' }, { t: '<', c: '' }, { t: 'number', c: 'tok-type' }, { t: ', ', c: '' }, { t: 'number', c: 'tok-type' }, { t: '>();', c: '' }],
+  [{ t: '  ', c: '' }, { t: 'for', c: 'tok-key' }, { t: ' (let i = ', c: '' }, { t: '0', c: 'tok-num' }, { t: '; i < nums.length; i++) {', c: '' }],
+  [{ t: '    const diff = target - nums[i];', c: '' }],
+  [{ t: '    ', c: '' }, { t: 'if', c: 'tok-key' }, { t: ' (map.has(diff)) ', c: '' }, { t: 'return', c: 'tok-key' }, { t: ' [map.get(diff), i];', c: '' }],
+  [{ t: '    map.set(nums[i], i);', c: '' }],
+  [{ t: '  }', c: '' }],
+  [{ t: '  ', c: '' }, { t: 'return', c: 'tok-key' }, { t: ' [];', c: '' }],
+  [{ t: '}', c: '' }],
+];
+
+const codelabLineLength = (line: number): number =>
+  CODELAB_CODE[line].reduce((sum, tok) => sum + tok.t.length, 0);
+
+const CODELAB_TOTAL_CHARS = CODELAB_CODE.reduce((sum, _, li) => sum + codelabLineLength(li), 0);
+
+const CODELAB_LINE_STARTS: number[] = (() => {
+  const starts: number[] = [];
+  let acc = 0;
+  for (let li = 0; li < CODELAB_CODE.length; li += 1) {
+    starts.push(acc);
+    acc += codelabLineLength(li);
+  }
+  return starts;
+})();
+
+const CODELAB_TESTCASES = [
+  { name: messages.home.codelabTestcaseSample, ms: 1, pct: 99 },
+  { name: messages.home.codelabTestcaseCorner, ms: 3, pct: 98 },
+  { name: messages.home.codelabTestcaseLarge, ms: 12, pct: 99 },
+];
+
+const CODELAB_TYPE_MS = 22; // nhịp gõ từng ký tự
+const CODELAB_RUN_DELAY_MS = 900; // sau khi gõ xong → tự Chạy
+const CODELAB_JUDGE_MS = 700; // chấm → testcase 1
+const CODELAB_TEST_GAP_MS = 900; // giữa các testcase
+const CODELAB_RESET_DELAY_MS = 2500; // chờ rồi gõ lại
+
+type CodelabPhase = 'typing' | 'ready' | 'running' | 'done';
+
+const codelabTyped = ref(0);
+const codelabPhase = ref<CodelabPhase>('typing');
+const codelabPassed = ref(0);
+const codelabReduced = prefersReducedMotion();
+
+let codelabTypeTimer: ReturnType<typeof setInterval> | null = null;
+const codelabTimers: Array<ReturnType<typeof setTimeout>> = [];
+
+const codelabVisibleLines = computed<CodeToken[][]>(() => {
+  const typed = codelabTyped.value;
+  return CODELAB_CODE.map((line, li) => {
+    const lineStart = CODELAB_LINE_STARTS[li];
+    const lineEnd = lineStart + codelabLineLength(li);
+    if (typed <= lineStart) return [];
+    if (typed >= lineEnd) return line;
+    let budget = typed - lineStart;
+    const visible: CodeToken[] = [];
+    for (const tok of line) {
+      if (budget <= 0) break;
+      if (tok.t.length <= budget) {
+        visible.push(tok);
+        budget -= tok.t.length;
+      } else {
+        visible.push({ t: tok.t.slice(0, budget), c: tok.c });
+        break;
+      }
+    }
+    return visible;
+  });
+});
+
+/** Dòng chứa caret — caret hiển thị cuối dòng đang gõ dở */
+const caretLine = computed<number>(() => {
+  const typed = codelabTyped.value;
+  for (let li = 0; li < CODELAB_CODE.length; li += 1) {
+    if (typed < CODELAB_LINE_STARTS[li] + codelabLineLength(li)) return li;
+  }
+  return CODELAB_CODE.length;
+});
+
+const codelabShowCaret = computed(
+  () => codelabPhase.value === 'typing' && caretLine.value < CODELAB_CODE.length,
+);
+
+function clearCodelabTimers(): void {
+  if (codelabTypeTimer) {
+    clearInterval(codelabTypeTimer);
+    codelabTypeTimer = null;
+  }
+  codelabTimers.forEach((t) => clearTimeout(t));
+  codelabTimers.length = 0;
+}
+
+function startCodelab(): void {
+  clearCodelabTimers();
+  codelabTyped.value = 0;
+  codelabPassed.value = 0;
+  if (codelabReduced) {
+    // Giảm chuyển động: hiện nguyên đoạn code, không tự chạy
+    codelabTyped.value = CODELAB_TOTAL_CHARS;
+    codelabPhase.value = 'ready';
+    return;
+  }
+  codelabPhase.value = 'typing';
+  codelabTypeTimer = setInterval(() => {
+    if (codelabTyped.value < CODELAB_TOTAL_CHARS) {
+      codelabTyped.value += 1;
+      return;
+    }
+    if (codelabTypeTimer) {
+      clearInterval(codelabTypeTimer);
+      codelabTypeTimer = null;
+    }
+    codelabPhase.value = 'ready';
+    codelabTimers.push(setTimeout(runCodelab, CODELAB_RUN_DELAY_MS));
+  }, CODELAB_TYPE_MS);
+}
+
+function runCodelab(): void {
+  if (codelabPhase.value === 'running' || codelabPhase.value === 'done') return;
+  codelabPhase.value = 'running';
+  codelabPassed.value = 0;
+  codelabTimers.push(
+    setTimeout(() => {
+      codelabPassed.value = 1;
+      codelabTimers.push(
+        setTimeout(() => {
+          codelabPassed.value = 2;
+          codelabTimers.push(
+            setTimeout(() => {
+              codelabPassed.value = 3;
+              codelabPhase.value = 'done';
+              codelabTimers.push(
+                setTimeout(() => {
+                  startCodelab();
+                }, CODELAB_RESET_DELAY_MS),
+              );
+            }, CODELAB_TEST_GAP_MS),
+          );
+        }, CODELAB_TEST_GAP_MS),
+      );
+    }, CODELAB_JUDGE_MS),
+  );
+}
+
+/* ── Rank Ladder + Gamification ── */
+interface RankTier {
+  min: number;
+  max: number;
+  icon: Component;
+  name: string;
+  desc: string;
+  range: string;
+  cls: string;
+}
+
+const RANK_TIERS: RankTier[] = [
+  { min: 1, max: 2, icon: Medal, name: messages.home.rankTier1Name, desc: messages.home.rankTier1Desc, range: 'Lv 1–2', cls: 'rank-tier--t1' },
+  { min: 3, max: 4, icon: Shield, name: messages.home.rankTier2Name, desc: messages.home.rankTier2Desc, range: 'Lv 3–4', cls: 'rank-tier--t2' },
+  { min: 5, max: 6, icon: Crown, name: messages.home.rankTier3Name, desc: messages.home.rankTier3Desc, range: 'Lv 5–6', cls: 'rank-tier--t3' },
+  { min: 7, max: 8, icon: Gem, name: messages.home.rankTier4Name, desc: messages.home.rankTier4Desc, range: 'Lv 7–8', cls: 'rank-tier--t4' },
+  { min: 9, max: 9999, icon: Trophy, name: messages.home.rankTier5Name, desc: messages.home.rankTier5Desc, range: 'Lv 9+', cls: 'rank-tier--t5' },
+];
+
+const currentRankIndex = computed(() => {
+  const lvl = Math.max(1, userLevel.value);
+  const idx = RANK_TIERS.findIndex((t) => lvl >= t.min && lvl <= t.max);
+  return idx === -1 ? RANK_TIERS.length - 1 : idx;
+});
+
+const earnedAchievements = computed(() =>
+  (gamificationStore.achievements ?? []).filter((a) => a.earnedAt),
+);
+
+/** Số bài học theo lộ trình — dữ liệu thật từ overview (guest: chưa có → '—') */
+const platformLessons = computed<number | null>(() => progressStore.overview?.lessonsTotal ?? null);
+
+const platformStats = computed(() => [
+  { value: `${stats.value.visuals}+`, label: messages.home.statsAlgorithms },
+  { value: String(stats.value.groups), label: messages.home.statsGroups },
+  { value: platformLessons.value === null ? '—' : String(platformLessons.value), label: messages.home.statsLessons },
+]);
 
 function openDemo(key: string): void {
   void router.push({ name: 'simulator', params: { key } });
@@ -532,9 +745,6 @@ function stopMiniViz(): void {
 let splitInstance: InstanceType<typeof SplitText> | null = null;
 let gsapCtx: gsap.Context | null = null;
 
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 function initAnimations(): void {
   if (prefersReducedMotion() || !homeRef.value) return;
 
@@ -586,7 +796,7 @@ function initAnimations(): void {
       });
 
       // Section headers marketing — reveal blur → clear
-      gsap.from(['.features-header', '.home__section-head', '.algogrid-header', '.freemium-header'], {
+      gsap.from(['.features-header', '.home__section-head', '.algogrid-header', '.freemium-header', '.rank-header'], {
         y: 40,
         opacity: 0,
         filter: 'blur(8px)',
@@ -605,6 +815,26 @@ function initAnimations(): void {
         duration: 0.6,
         ease: 'power3.out',
         scrollTrigger: { trigger: '.home__demos-grid', start: 'top 85%', once: true },
+      });
+
+      // Roadmap — đường nối dọc phát sáng cuộn dần từ trên xuống
+      gsap.from('.road-line', {
+        scaleY: 0,
+        transformOrigin: 'top',
+        duration: 1.4,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '.roadmap-mockup', start: 'top 80%', once: true },
+      });
+
+      // Rank Ladder — các cột gamification reveal blur → clear
+      gsap.from('.rank-card', {
+        y: 40,
+        opacity: 0,
+        filter: 'blur(8px)',
+        stagger: 0.12,
+        duration: 0.6,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: '.rank-grid', start: 'top 85%', once: true },
       });
     }
 
@@ -636,6 +866,10 @@ onMounted(async () => {
     startMiniViz();
   }
 
+  if (!authStore.isAuthenticated) {
+    startCodelab();
+  }
+
   if (authStore.isAuthenticated) {
     void gamificationStore.fetchAll();
     void gamificationStore.fetchQuests();
@@ -650,6 +884,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopPreview();
   stopMiniViz();
+  clearCodelabTimers();
   splitInstance?.revert();
   gsapCtx?.revert();
 });
@@ -1311,30 +1546,32 @@ onUnmounted(() => {
     <section v-if="!authStore.isAuthenticated" class="extended-section roadmap-section">
       <div class="extended-container">
         <div class="extended-text" data-aos="fade-right">
-          <h2 class="font-display text-3xl mb-4 text-heading">Học tập qua Lộ trình (Roadmap) thay vì Mò mẫm</h2>
-          <p class="text-muted-foreground mb-6 text-sm">Hệ thống bài học được thiết kế chuẩn sư phạm, dẫn dắt bạn qua 4 bước vững chắc: Lý thuyết ➔ Trực quan hoá ➔ Thực hành Code ➔ Trắc nghiệm.</p>
+          <h2 class="font-display text-3xl mb-4 text-heading">{{ messages.home.roadmapTitle }}</h2>
+          <p class="text-muted-foreground mb-6 text-sm">{{ messages.home.roadmapDesc }}</p>
           <ul class="feature-list text-muted-foreground text-xs space-y-2">
-            <li><span class="text-primary font-bold">●</span> Lộ trình từ cơ bản đến nâng cao (Mảng, Cây, Đồ thị, Quy hoạch động).</li>
-            <li><span class="text-primary font-bold">●</span> Theo dõi tiến độ học tập chi tiết theo từng chủ đề.</li>
-            <li><span class="text-primary font-bold">●</span> Nhận chứng nhận khi hoàn thành khóa học.</li>
+            <li><span class="text-primary font-bold">●</span> {{ messages.home.roadmapFeature1 }}</li>
+            <li><span class="text-primary font-bold">●</span> {{ messages.home.roadmapFeature2 }}</li>
+            <li><span class="text-primary font-bold">●</span> {{ messages.home.roadmapFeature3 }}</li>
           </ul>
         </div>
         <div class="extended-visual" aria-hidden="true" data-aos="fade-left">
-          <div class="roadmap-mockup glass-panel spring-hover">
-            <div class="rm-node completed">
-              <div class="rm-icon"><Check class="w-3.5 h-3.5 text-emerald-500" /></div>
-              <div class="rm-label font-sans font-medium text-xs">Mảng & Chuỗi (Arrays & Strings)</div>
-            </div>
-            <div class="rm-line completed"></div>
-            <div class="rm-node active">
-              <div class="rm-icon"><Zap class="w-3.5 h-3.5 text-primary" /></div>
-              <div class="rm-label font-sans font-medium text-xs">Đồ Thị BFS & DFS</div>
-              <span class="rm-pulse-dot" aria-hidden="true"></span>
-            </div>
-            <div class="rm-line"></div>
-            <div class="rm-node">
-              <div class="rm-icon"><Lock class="w-3.5 h-3.5 text-muted-foreground" /></div>
-              <div class="rm-label font-sans font-medium text-xs">Quy Hoạch Động (DP)</div>
+          <div class="roadmap-mockup glass-panel">
+            <div class="road-line" aria-hidden="true"></div>
+            <div
+              v-for="step in roadmapSteps"
+              :key="step.id"
+              class="rm-node"
+              :class="{ 'rm-node--active': step.id === ACTIVE_ROADMAP_STEP }"
+            >
+              <div class="rm-icon" :class="`rm-icon--s${step.id}`">
+                <component :is="step.icon" class="w-4 h-4" />
+              </div>
+              <div class="rm-step">
+                <span class="rm-step__label font-mono">{{ messages.home.roadmapStepLabel(step.id) }}</span>
+                <span class="rm-step__title font-sans font-semibold">{{ step.title }}</span>
+                <span class="rm-step__desc">{{ step.desc }}</span>
+              </div>
+              <span v-if="step.id === ACTIVE_ROADMAP_STEP" class="rm-pulse-dot" aria-hidden="true"></span>
             </div>
           </div>
         </div>
@@ -1345,36 +1582,183 @@ onUnmounted(() => {
     <section v-if="!authStore.isAuthenticated" class="extended-section codelab-section reverse">
       <div class="extended-container">
         <div class="extended-text" data-aos="fade-right">
-          <h2 class="font-display text-3xl mb-4 text-heading">Thực hành Code Trực tiếp (Codelab)</h2>
-          <p class="text-muted-foreground mb-6 text-sm">Không chỉ dừng lại ở việc xem animation. Bạn sẽ được cấp ngay một trình soạn thảo Monaco chuyên nghiệp và hệ thống chấm điểm tự động đa ngôn ngữ ngay trên trình duyệt.</p>
+          <h2 class="font-display text-3xl mb-4 text-heading">{{ messages.home.codelabTitle }}</h2>
+          <p class="text-muted-foreground mb-6 text-sm">{{ messages.home.codelabDesc }}</p>
           <ul class="feature-list text-muted-foreground text-xs space-y-2">
-            <li><span class="text-emerald-500 font-bold">●</span> Chấm code tự động chuẩn LeetCode (Judge0 API).</li>
-            <li><span class="text-emerald-500 font-bold">●</span> Hỗ trợ TypeScript, Python, C++, Java.</li>
-            <li><span class="text-emerald-500 font-bold">●</span> Đánh giá Time & Space Complexity thực tế.</li>
+            <li><span class="text-emerald-500 font-bold">●</span> {{ messages.home.codelabFeature1 }}</li>
+            <li><span class="text-emerald-500 font-bold">●</span> {{ messages.home.codelabFeature2 }}</li>
+            <li><span class="text-emerald-500 font-bold">●</span> {{ messages.home.codelabFeature3 }}</li>
           </ul>
         </div>
         <div class="extended-visual" aria-hidden="true" data-aos="fade-left">
-          <div class="codelab-mockup glass-panel spring-hover">
-            <div class="terminal-header flex items-center justify-between px-4 py-2 bg-black/40 border-b border-border/40">
-              <div class="terminal-dots flex gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          <div class="codelab-mockup glass-panel">
+            <div class="codelab-header">
+              <div class="codelab-dots" aria-hidden="true">
+                <span class="codelab-dot codelab-dot--red"></span>
+                <span class="codelab-dot codelab-dot--amber"></span>
+                <span class="codelab-dot codelab-dot--green"></span>
               </div>
-              <div class="terminal-title font-mono text-foreground-secondary text-xs">two-sum.ts</div>
+              <span class="codelab-file font-mono">{{ messages.home.codelabFile }}</span>
+              <span class="codelab-badge font-mono">{{ messages.home.codelabBadge }}</span>
             </div>
-            <div class="terminal-body font-mono text-xs p-4 bg-canvas-ink text-gray-200">
-              <div class="code-line"><span class="text-purple-400">function</span> <span class="text-blue-400">twoSum</span>(nums: <span class="text-amber-400">number[]</span>, target: <span class="text-amber-400">number</span>) {</div>
-              <div class="code-line pl-4">  <span class="text-purple-400">const</span> map = <span class="text-purple-400">new</span> <span class="text-amber-400">Map</span>();</div>
-              <div class="code-line pl-4">  <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> i = <span class="text-emerald-400">0</span>; i &lt; nums.length; i++) {</div>
-              <div class="code-line pl-8 text-gray-400">    // Logic tra cứu bù trừ O(N)...</div>
-              <div class="code-line pl-4">  }</div>
-              <div class="code-line">}</div>
-              <div class="codelab-output mt-4 text-emerald-400 flex items-center gap-1.5 font-bold animate-pulse">
-                <CheckCircle2 class="w-3.5 h-3.5 inline-block" />
-                <span>All 15/15 Test Cases Passed! (12ms · Beats 98%)</span>
+            <div class="codelab-body font-mono">
+              <div class="codelab-code" role="img" :aria-label="messages.home.codelabFile">
+                <div v-for="(line, li) in codelabVisibleLines" :key="li" class="codelab-code__line">
+                  <span v-for="(tok, ti) in line" :key="ti" :class="tok.c">{{ tok.t }}</span>
+                  <span v-if="codelabShowCaret && li === caretLine" class="codelab-caret" aria-hidden="true"></span>
+                </div>
+              </div>
+
+              <div class="codelab-actions">
+                <button
+                  type="button"
+                  class="codelab-run"
+                  :class="{
+                    'codelab-run--ready': codelabPhase === 'ready',
+                    'codelab-run--done': codelabPhase === 'done',
+                  }"
+                  :disabled="codelabPhase === 'typing' || codelabPhase === 'running'"
+                  @click="runCodelab"
+                >
+                  <Loader2 v-if="codelabPhase === 'running'" class="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                  <Check v-else-if="codelabPhase === 'done'" class="w-3.5 h-3.5" aria-hidden="true" />
+                  <Play v-else class="w-3.5 h-3.5" aria-hidden="true" />
+                  {{
+                    codelabPhase === 'running'
+                      ? messages.home.codelabRunning
+                      : codelabPhase === 'done'
+                        ? messages.home.codelabDone
+                        : messages.home.codelabRun
+                  }}
+                </button>
+              </div>
+
+              <div v-if="codelabPassed > 0" class="codelab-results" role="status" aria-live="polite">
+                <div
+                  v-for="tc in 3"
+                  :key="tc"
+                  class="codelab-testcase"
+                  :class="{ 'codelab-testcase--pending': codelabPassed < tc }"
+                >
+                  <span class="codelab-testcase__name">
+                    {{ messages.home.codelabTestcase(tc) }} · {{ CODELAB_TESTCASES[tc - 1].name }}
+                  </span>
+                  <span v-if="codelabPassed >= tc" class="codelab-testcase__badge">
+                    <Check class="w-3 h-3" aria-hidden="true" />
+                    {{ messages.home.codelabPassed }}
+                  </span>
+                  <span v-if="codelabPassed >= tc" class="codelab-testcase__meta font-mono">
+                    {{ messages.home.codelabBenchmark(CODELAB_TESTCASES[tc - 1].ms, CODELAB_TESTCASES[tc - 1].pct) }}
+                  </span>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TẦNG 5C: RANK LADDER + GAMIFICATION ── -->
+    <section id="sec-rank" class="rank-section">
+      <div class="container">
+        <div class="rank-header text-center mb-10" data-aos="fade-up">
+          <span class="home__kicker mb-3">
+            <span class="font-mono">{{ messages.home.rankKicker }}</span>
+          </span>
+          <h2 class="font-display text-3xl mb-3 text-heading">{{ messages.home.rankTitle }}</h2>
+          <p class="text-muted-foreground max-w-2xl mx-auto text-sm">{{ messages.home.rankDesc }}</p>
+        </div>
+
+        <div class="rank-grid">
+          <!-- Cột 1: Thang bậc (Rank Ladder) -->
+          <div class="rank-card glass-panel">
+            <div class="rank-card__head">
+              <Trophy class="w-4 h-4 text-amber-500" aria-hidden="true" />
+              <h3 class="rank-card__title font-bold text-sm">{{ messages.home.rankSectionLadder }}</h3>
+            </div>
+            <div class="rank-tiers">
+              <div
+                v-for="(tier, i) in RANK_TIERS"
+                :key="tier.min"
+                class="rank-tier"
+                :class="[
+                  tier.cls,
+                  {
+                    'rank-tier--current': i === currentRankIndex,
+                    'rank-tier--near': Math.abs(i - currentRankIndex) === 1,
+                    'rank-tier--far': Math.abs(i - currentRankIndex) >= 2,
+                  },
+                ]"
+              >
+                <div class="rank-tier__icon">
+                  <component :is="tier.icon" class="w-4 h-4" aria-hidden="true" />
+                </div>
+                <div class="rank-tier__info">
+                  <span class="rank-tier__name">{{ tier.name }}</span>
+                  <span class="rank-tier__desc">{{ tier.desc }}</span>
+                </div>
+                <div class="rank-tier__side">
+                  <span class="rank-tier__range font-mono">{{ tier.range }}</span>
+                  <span v-if="i === currentRankIndex" class="rank-tier__badge">{{ messages.home.rankCurrent }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="rank-foot">
+              <template v-if="!authStore.isAuthenticated">
+                <span class="rank-foot__hint text-xs">{{ messages.home.rankYourLevel(userLevel) }}</span>
+                <RouterLink :to="{ name: 'register' }" class="rank-foot__cta">
+                  {{ messages.home.rankRegisterCta }}
+                  <ArrowRight class="w-3.5 h-3.5" aria-hidden="true" />
+                </RouterLink>
+              </template>
+              <RouterLink v-else :to="{ name: 'leaderboard' }" class="rank-foot__cta">
+                {{ messages.home.rankLeaderboardCta }}
+                <ArrowRight class="w-3.5 h-3.5" aria-hidden="true" />
+              </RouterLink>
+            </div>
+          </div>
+
+          <!-- Cột 2: Huy hiệu vinh danh + Streak -->
+          <div class="rank-card glass-panel">
+            <div class="rank-card__head">
+              <Award class="w-4 h-4 text-amber-500" aria-hidden="true" />
+              <h3 class="rank-card__title font-bold text-sm">{{ messages.home.rankSectionBadges }}</h3>
+            </div>
+            <div v-if="earnedAchievements.length === 0" class="rank-empty">
+              <Award class="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" aria-hidden="true" />
+              <span class="text-xs text-muted-foreground">{{ messages.home.rankBadgesEmpty }}</span>
+            </div>
+            <div v-else class="rank-badges">
+              <div v-for="badge in earnedAchievements.slice(0, 6)" :key="badge.id" class="rank-badge">
+                <Award class="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+                <span class="rank-badge__name text-xs font-semibold">{{ badge.name }}</span>
+              </div>
+            </div>
+            <div class="rank-streak">
+              <Flame class="w-7 h-7 text-orange-500 flame-animated" aria-hidden="true" />
+              <div class="rank-streak__text">
+                <span class="rank-streak__num font-mono">{{ gamificationStore.streakDays || 0 }}</span>
+                <span class="rank-streak__unit text-xs">{{ messages.home.rankStreakUnit }}</span>
+                <span class="rank-streak__label text-xs text-muted-foreground">{{ messages.home.rankStreakLabel }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cột 3: Thống kê tổng quan nền tảng -->
+          <div class="rank-card glass-panel">
+            <div class="rank-card__head">
+              <Activity class="w-4 h-4 text-primary" aria-hidden="true" />
+              <h3 class="rank-card__title font-bold text-sm">{{ messages.home.rankStatsTitle }}</h3>
+            </div>
+            <div class="rank-stats">
+              <div v-for="(stat, si) in platformStats" :key="si" class="rank-stat">
+                <span class="rank-stat__value font-mono">{{ stat.value }}</span>
+                <span class="rank-stat__label text-xs text-muted-foreground">{{ stat.label }}</span>
+              </div>
+            </div>
+            <p class="rank-stats__note text-[11px] text-muted-foreground">
+              {{ messages.home.statsNote }}
+            </p>
           </div>
         </div>
       </div>
@@ -1605,7 +1989,7 @@ onUnmounted(() => {
   position: absolute;
   border-radius: 50%;
   filter: blur(100px);
-  opacity: 0.45;
+  opacity: 0.35;
 }
 
 .mesh-blob--1 {
@@ -1622,7 +2006,7 @@ onUnmounted(() => {
   height: 380px;
   bottom: -60px;
   right: -60px;
-  background: radial-gradient(circle, #06b6d4 0%, rgba(6, 182, 212, 0.2) 70%, transparent 100%);
+  background: radial-gradient(circle, #10b981 0%, rgba(16, 185, 129, 0.2) 70%, transparent 100%);
   animation: meshFloat2 15s ease-in-out infinite alternate;
 }
 
@@ -1632,8 +2016,21 @@ onUnmounted(() => {
   top: 45%;
   left: 45%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, #a855f7 0%, rgba(168, 85, 247, 0.2) 70%, transparent 100%);
+  background: radial-gradient(circle, var(--color-primary) 0%, rgba(0, 126, 114, 0.2) 70%, transparent 100%);
   animation: meshFloat3 14s ease-in-out infinite alternate;
+}
+
+/* Dark mode: mesh sáng hơn, giữ dải màu cyan/tím để có chiều sâu */
+.dark .mesh-blob {
+  opacity: 0.55;
+}
+
+.dark .mesh-blob--2 {
+  background: radial-gradient(circle, #06b6d4 0%, rgba(6, 182, 212, 0.3) 70%, transparent 100%);
+}
+
+.dark .mesh-blob--3 {
+  background: radial-gradient(circle, #a855f7 0%, rgba(168, 85, 247, 0.32) 70%, transparent 100%);
 }
 
 @keyframes meshFloat1 {
@@ -1699,7 +2096,7 @@ onUnmounted(() => {
 
 /* Dark mode: tiêu đề hero bị chìm trên nền #042F2E — dùng --color-foreground
    (dark = #CCFBF1, token dự án) cho phần chữ thường; span .text-gradient giữ nguyên. */
-:global(.dark) .hero__title {
+.dark .hero__title {
   color: var(--color-foreground);
 }
 
@@ -2026,6 +2423,11 @@ onUnmounted(() => {
   height: 22px;
 }
 
+/* Card hover micro-interaction (decision log): viền glow nhẹ primary/20 — chỉ card interactive */
+.bento-card:hover {
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
+}
+
 /* Icon glow khi hover (decision log: rotate 6deg + scale 1.1 + shadow primary/30) */
 .bento-card:hover .bento-icon {
   transform: scale(1.1) rotate(6deg);
@@ -2126,6 +2528,11 @@ onUnmounted(() => {
 .home__catalog-card {
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.3s ease;
+}
+
+.home__catalog-card:hover {
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
 }
 
 .home__catalog-chips {
@@ -2208,6 +2615,19 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-xl);
+  transition: box-shadow 0.3s ease;
+}
+
+.home__demo:hover {
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
+}
+
+.home__demo-title-icon {
+  transition: transform 0.3s ease;
+}
+
+.home__demo:hover .home__demo-title-icon {
+  transform: rotate(6deg) scale(1.1);
 }
 
 .home__demo-thumb {
@@ -2303,41 +2723,50 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Roadmap Mockup */
+/* Roadmap Mockup — 4 node dọc, đường phát sáng nối liền */
 .roadmap-mockup {
+  position: relative;
   width: 100%;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
+  overflow: hidden;
+}
+
+/* Đường dọc gradient phát sáng — GSAP scaleY 0→1 khi cuộn tới */
+.road-line {
+  position: absolute;
+  left: 52px;
+  top: 50px;
+  bottom: 50px;
+  width: 2px;
+  z-index: 0;
+  background: linear-gradient(180deg, var(--color-primary), #10b981 78%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 55%, transparent);
 }
 
 .rm-node {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 0.875rem;
   background: var(--color-card-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .rm-node:hover {
   transform: translateX(6px);
   border-color: var(--color-primary);
-  box-shadow: 0 4px 20px rgba(0, 126, 114, 0.2);
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
 }
 
-.rm-node.completed {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.05);
-}
-
-.rm-node.active {
-  position: relative;
+.rm-node--active {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   box-shadow: 0 0 16px color-mix(in srgb, var(--color-primary) 30%, transparent);
@@ -2345,7 +2774,7 @@ onUnmounted(() => {
 
 .rm-pulse-dot {
   position: absolute;
-  top: 10px;
+  top: 12px;
   right: 12px;
   width: 7px;
   height: 7px;
@@ -2367,23 +2796,490 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   background: var(--color-muted);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-primary);
+  transition: transform 0.3s ease;
 }
 
-.rm-line {
-  width: 2px;
-  height: 24px;
-  background: var(--color-border);
-}
-.rm-line.completed {
-  background: #10b981;
+.rm-node:hover .rm-icon {
+  transform: rotate(6deg) scale(1.1);
 }
 
-/* Codelab Mockup */
+.rm-icon--s1 { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+.rm-icon--s2 { color: #10b981; border-color: rgba(16, 185, 129, 0.35); }
+.rm-icon--s3 { color: #0ea5e9; border-color: rgba(14, 165, 233, 0.35); }
+.rm-icon--s4 { color: #f59e0b; border-color: rgba(245, 158, 11, 0.35); }
+
+.rm-step {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.rm-step__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 1px;
+}
+
+.rm-step__title {
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.rm-step__desc {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+/* Codelab Mockup — cửa sổ code auto-typing (dark motif canvas-ink) */
 .codelab-mockup {
   width: 100%;
   border-radius: var(--radius-xl);
   overflow: hidden;
+  background: var(--color-canvas-ink);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.dark .codelab-mockup {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.codelab-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.codelab-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.codelab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.codelab-dot--red { background: #f87171; }
+.codelab-dot--amber { background: #fbbf24; }
+.codelab-dot--green { background: #34d399; }
+
+.codelab-file {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.codelab-badge {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(45, 212, 191, 0.9);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.codelab-body {
+  padding: 1rem 1rem 1.125rem;
+  min-height: 272px;
+  display: flex;
+  flex-direction: column;
+}
+
+.codelab-code {
+  flex: 1;
+  min-height: 150px;
+  font-size: 0.75rem;
+  line-height: 1.65;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.codelab-code__line {
+  white-space: pre;
+  min-height: 1.65em;
+}
+
+.codelab-caret {
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #2dd4bf;
+  animation: codelabBlink 1s steps(2, start) infinite;
+}
+
+@keyframes codelabBlink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+
+/* Syntax tokens (bảng màu tối chuẩn editor) */
+.tok-fn { color: #60a5fa; }
+.tok-type { color: #fbbf24; }
+.tok-key { color: #c084fc; }
+.tok-var { color: #7dd3fc; }
+.tok-num { color: #34d399; }
+
+.codelab-actions {
+  margin-top: 0.875rem;
+}
+
+.codelab-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.codelab-run:disabled {
+  cursor: not-allowed;
+}
+
+.codelab-run--ready {
+  color: #042f2e;
+  background: linear-gradient(135deg, #2dd4bf, #34d399);
+  border-color: transparent;
+  animation: codelabGlow 2.2s ease-in-out infinite;
+}
+
+.codelab-run--ready:hover {
+  transform: translateY(-1px);
+}
+
+.codelab-run--done {
+  color: #042f2e;
+  background: #34d399;
+  border-color: transparent;
+}
+
+@keyframes codelabGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(45, 212, 191, 0.35); }
+  50% { box-shadow: 0 0 22px rgba(45, 212, 191, 0.6); }
+}
+
+.codelab-results {
+  margin-top: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.codelab-testcase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: opacity 0.4s ease;
+}
+
+.codelab-testcase--pending {
+  opacity: 0.35;
+}
+
+.codelab-testcase__name {
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.codelab-testcase__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #052e1c;
+  background: var(--color-success);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.codelab-testcase__meta {
+  margin-left: auto;
+  font-size: 0.625rem;
+  color: rgba(45, 212, 191, 0.85);
+}
+
+/* ━━ RANK LADDER + GAMIFICATION ━━ */
+.rank-section {
+  padding: 5rem 1.5rem;
+}
+
+.rank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.rank-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.rank-card:hover {
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
+}
+
+.rank-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rank-card__title {
+  color: var(--color-text-primary);
+}
+
+.rank-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rank-tier {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+  border: 1px solid var(--color-border);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.4s ease;
+}
+
+.rank-tier--near { opacity: 0.72; }
+.rank-tier--far { opacity: 0.42; }
+
+.rank-tier:hover {
+  transform: translateX(6px);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 25px rgba(0, 126, 114, 0.2);
+}
+
+.rank-tier--current {
+  opacity: 1;
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.rank-tier__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border-subtle);
+  transition: transform 0.3s ease;
+}
+
+.rank-tier:hover .rank-tier__icon {
+  transform: rotate(6deg) scale(1.1);
+}
+
+.rank-tier--t1 .rank-tier__icon { color: #64748b; }
+.rank-tier--t2 .rank-tier__icon { color: #0ea5e9; }
+.rank-tier--t3 .rank-tier__icon { color: #f59e0b; }
+.rank-tier--t4 .rank-tier__icon { color: #a855f7; }
+.rank-tier--t5 .rank-tier__icon { color: #fbbf24; }
+
+.rank-tier__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.rank-tier__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.rank-tier__desc {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.rank-tier__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.rank-tier__range {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+}
+
+.rank-tier__badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: var(--color-primary);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.dark .rank-tier__badge {
+  color: #042f2e;
+}
+
+.rank-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.rank-foot__hint {
+  color: var(--color-text-muted);
+}
+
+.rank-foot__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  padding: 0.4375rem 0.875rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.rank-foot__cta:hover {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  transform: translateY(-1px);
+}
+
+.rank-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.25rem 0.5rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.rank-badges {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.rank-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.625rem;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.rank-badge__name {
+  color: var(--color-text-primary);
+  min-width: 0;
+}
+
+.rank-streak {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.rank-streak__text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.rank-streak__num {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #f97316;
+}
+
+.rank-streak__unit {
+  color: #f97316;
+  font-weight: 600;
+}
+
+.rank-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  flex: 1;
+}
+
+.rank-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.625rem;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.rank-stat__value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-stats__note {
+  margin-top: auto;
 }
 
 /* ━━ CTA SECTION ━━ */
@@ -2407,6 +3303,10 @@ onUnmounted(() => {
 /* ━━ RESPONSIVE ━━ */
 @media (max-width: 1024px) {
   .bento-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 960px) {
+  .rank-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
