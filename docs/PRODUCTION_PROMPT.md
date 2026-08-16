@@ -139,7 +139,7 @@ Hệ thống DSA-Visual giải quyết bằng: (a) mô phỏng hoạt ảnh từ
 
 ## 1.5 Bối cảnh học thuật (đồ án)
 
-- Loại hình: đồ án môn học / khóa luận cử nhân (4 thành viên). Lịch chi tiết mở rộng thành **20 tuần** (bảng sprint 20.1 ghi đè Phần 2.6 gốc 16 tuần — lý do: scope Phần 19 thêm Code Runner/Learning Path/Ladder/Gamification); thời gian thực tùy giảng viên duyệt.
+- Loại hình: đồ án môn học / khóa luận cử nhân (4 thành viên). Lịch chi tiết chính thức **13 tuần** (10 sprint ~1 tuần/sprint, 12/05 → 11/08/2026 — chuẩn đề cương; bảng sprint 20.1 ghi đè Phần 2.6 gốc 16 tuần — lý do: scope Phần 19 thêm Code Runner/Learning Path/Ladder/Gamification); thời gian thực tùy giảng viên duyệt.
 - Phân chia công việc gợi ý (đưa vào SDD mục "Phân công"):
   - TV1: Backend ASP.NET Core + CSDL.
   - TV2: Frontend Vue 3 + giao diện trang quản trị.
@@ -153,7 +153,7 @@ Hệ thống DSA-Visual giải quyết bằng: (a) mô phỏng hoạt ảnh từ
 |---|---|
 | Công nghệ | Frontend: Vue.js 3 (Composition API, `<script setup>`), Pinia, Vite, TypeScript (khuyến nghị); Backend: C# .NET 8+, ASP.NET Core Web API; DB: SQL Server 2019+ (hoặc SQLite ở môi trường dev nếu thiếu SQL Server, ghi rõ trong DEPLOY); EF Core 8; JWT |
 | Nhân sự | 4 thành viên sinh viên; không có DevOps chuyên trách |
-| Thời gian | 20 tuần (bảng sprint 20.1 — ghi đè bản 16 tuần gốc; ưu tiên chức năng mức Cao trước) |
+| Thời gian | 13 tuần (10 sprint; ưu tiên chức năng mức Cao trước) |
 | Hạ tầng | Máy chủ thử nghiệm cấu hình tối thiểu: 2 CPU, 4GB RAM, 50GB SSD |
 | Ngân sách | Không chi phí phần mềm bản quyền (dùng thư viện mã nguồn mở) |
 | Ngôn ngữ giao diện | Tiếng Việt (bắt buộc); chuẩn bị cơ chế i18n để mở rộng tiếng Anh |
@@ -310,7 +310,7 @@ Hệ thống DSA-Visual giải quyết bằng: (a) mô phỏng hoạt ảnh từ
 
 ---
 
-## 2.6 Kế hoạch sprint chi tiết (bắt buộc trong SDD mục Phân công — ⚠ BẢNG CHÍNH THỨC LÀ 20.1: 20 tuần, 10 sprint; bảng 16 tuần dưới đây chỉ giữ làm lịch sử)
+## 2.6 Kế hoạch sprint chi tiết (bắt buộc trong SDD mục Phân công — ⚠ BẢNG CHÍNH THỨC LÀ 20.1: 13 tuần, 10 sprint; bảng 16 tuần dưới đây chỉ giữ làm lịch sử)
 
 | Sprint | Tuần | Mục tiêu | Công việc chính | Kết quả bàn giao |
 |---|---|---|---|---|
@@ -5113,9 +5113,9 @@ Kiểm tra cuối: mỗi FR phải trả lời được "người dùng làm gì
 
 ---
 
-## 20.1 Sprint plan cập nhật (ghi đè Phần 2.6 — 16 tuần KHÔNG đủ, mở rộng thành 20 tuần)
+## 20.1 Sprint plan cập nhật (ghi đè Phần 2.6 — 16 tuần KHÔNG đủ, chốt 13 tuần theo đề cương chính thức)
 
-> Lý do: Phần 19 thêm 4 hệ thống lớn (Code Runner + sandbox, Learning Path, Practice Ladder 3 bậc, Gamification + Premium) mà bản 16 tuần gốc không hề tính đến. Giữ nguyên 16 tuần trong khi giữ nguyên toàn bộ scope Phần 19 là bất khả thi — PHẢI chọn 1 trong 2: kéo dài lịch hoặc cắt bớt. Quyết định: **kéo dài lịch lên 20 tuần**, giữ nguyên scope.
+> Lý do: Phần 19 thêm 4 hệ thống lớn (Code Runner + sandbox, Learning Path, Practice Ladder 3 bậc, Gamification + Premium) mà bản 16 tuần gốc không hề tính đến. Giữ nguyên 16 tuần trong khi giữ nguyên toàn bộ scope Phần 19 là bất khả thi — PHẢI chọn 1 trong 2: kéo dài lịch hoặc cắt bớt. Quyết định: **chốt lịch 13 tuần chính thức** (10 sprint ~1 tuần/sprint), giữ nguyên scope.
 
 | Sprint | Tuần | Mục tiêu | Công việc chính | Kết quả bàn giao |
 |---|---|---|---|---|

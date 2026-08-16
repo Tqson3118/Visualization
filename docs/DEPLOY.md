@@ -97,7 +97,7 @@ VITE_API_BASE_URL=https://api.dsa-visual.example.edu.vn/api/v1
 
 | Môi trường | URL (ví dụ) | Mục đích |
 |---|---|---|
-| Development | `localhost:5173` (Vite) + `localhost:5000` (API) | lập trình hằng ngày |
+| Development | `localhost:5173` (Vite — dev local) + `localhost:5000` (API) — demo container: `localhost:8081` | lập trình hằng ngày |
 | Staging | `staging.dsa-visual.example.edu.vn` | kiểm thử trước khi lên prod |
 | Production | `dsa-visual.example.edu.vn` | người dùng thật |
 
@@ -138,7 +138,7 @@ dotnet run --project src/DsaVisual.Api --seed    # seed idempotent (chạy lại
 ```powershell
 cd frontend
 npm install
-npm run dev        # Vite dev server :5173, proxy /api → localhost:5000
+npm run dev        # Vite dev server :5173 (dev local), proxy /api → localhost:5000 — bản demo container: docker compose (FE :8081)
 ```
 
 ## 3.3 Docker dev (tùy chọn — SQL Server + MailHog)

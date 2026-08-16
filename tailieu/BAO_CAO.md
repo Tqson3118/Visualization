@@ -1,4 +1,4 @@
-﻿<!-- Khu vực logo trường: chèn logo Trường Cao Đẳng Thực Hành FPT tại đây -->
+<!-- Khu vực logo trường: chèn logo Trường Cao Đẳng Thực Hành FPT tại đây -->
 
 TRƯỜNG CAO ĐẲNG THỰC HÀNH FPT
 
@@ -255,7 +255,7 @@ Hệ thống phục vụ **3 tác nhân chính**:
 - **Giảng viên (Teacher)** — biên soạn bài học/bài tập, xem báo cáo giảng dạy và quản lý lớp học phần;
 - **Quản trị viên (Admin)** — quản lý người dùng và cấu hình hệ thống.
 
-Bên cạnh đó còn tác nhân **Khách (chưa đăng nhập)** với các chức năng tạo tài khoản, đăng nhập, xem demo công khai và khôi phục mật khẩu. Sơ đồ use case tổng thể gồm đủ 32 use case (UC-01 → UC-32):
+Bên cạnh đó còn tác nhân **Khách (chưa đăng nhập)** với các chức năng tạo tài khoản, đăng nhập, xem demo công khai và khôi phục mật khẩu. Sơ đồ use case tổng thể gồm đủ 33 use case (UC-01 → UC-33):
 
 ```mermaid
 graph TD
@@ -292,6 +292,7 @@ graph TD
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
         AF[UC-32 Nâng cấp Premium]
+        AG[UC-33 Xác thực hai yếu tố (2FA)]
     end
     Khach["Khách (chưa đăng nhập)"] --> B
     Khach --> C
@@ -319,6 +320,7 @@ graph TD
     NguoiHoc --> AD
     NguoiHoc --> AE
     NguoiHoc --> AF
+    NguoiHoc --> AG
     NguoiDay["Giảng viên (Teacher)"] --> D
     NguoiDay --> E
     NguoiDay --> I
@@ -368,6 +370,7 @@ graph TD
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
         AF[UC-32 Nâng cấp Premium]
+        AG[UC-33 Xác thực hai yếu tố (2FA)]
     end
     NguoiHoc["Người học (Student)"] --> A
     NguoiHoc --> B
@@ -393,6 +396,7 @@ graph TD
     NguoiHoc --> AD
     NguoiHoc --> AE
     NguoiHoc --> AF
+    NguoiHoc --> AG
 ```
 
 ![Hình 3.2 - Sơ đồ use case nhóm người học](diagrams/02-usecase-hoc-vien.png)
@@ -849,14 +853,15 @@ Trang hồ sơ trả lời câu hỏi "Tôi đang ở đâu?": tổng quan level
 
 ### 4.3.1 Sơ đồ quan hệ thực thể (ERD)
 
-Cơ sở dữ liệu gồm 32 bảng chia 2 nhóm: lõi học tập 24 bảng (tài khoản, nội dung bài học, bài tập, tiến độ, lớp học, lộ trình) và gamification/code 8 bảng (nhiệm vụ, shop, đá quý, Premium, code runner). Users xuất hiện ở cả 2 sơ đồ để vẽ quan hệ, không đếm thêm.
+Cơ sở dữ liệu gồm 33 bảng chia 2 nhóm: lõi học tập 25 bảng (tài khoản, mã OTP 2FA, nội dung bài học, bài tập, tiến độ, lớp học, lộ trình) và gamification/code 8 bảng (nhiệm vụ, shop, đá quý, Premium, code runner). Users xuất hiện ở cả 2 sơ đồ để vẽ quan hệ, không đếm thêm.
 
-(a) ERD lõi học tập (24 bảng):
+(a) ERD lõi học tập (25 bảng):
 
 ```mermaid
 erDiagram
     Users ||--o{ RefreshTokens : has
     Users ||--o{ PasswordResetTokens : has
+    Users ||--o{ OtpCodes : "2FA email"
     Users ||--o{ UserProgress : has
     Users ||--o{ Favorites : has
     Users ||--o{ ExerciseSubmissions : submits
@@ -890,6 +895,7 @@ erDiagram
     Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     RefreshTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; datetime? RevokedAt; string? CreatedByIp; datetime CreatedAt }
     PasswordResetTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; bool Used; datetime CreatedAt }
+    OtpCodes { int Id PK; int UserId FK; string CodeHash; string Purpose; datetime ExpiresAt; bool Used; datetime CreatedAt }
     Topics { int Id PK; int? ParentId FK; string Name; string Description; int SortOrder; int CreatedBy FK; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     Lessons { int Id PK; int TopicId FK; string Title; string Description; string ContentHtml; int SortOrder; int Status; int CreatedBy FK; int? UpdatedBy; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     LessonSimulations { int Id PK; int LessonId FK; string SimulationKey; string Title; string? DefaultInputJson; int SortOrder }
@@ -1813,32 +1819,32 @@ Dữ liệu kiểm thử dùng TestSeed riêng (20 user 3 vai trò, 5 topic, 12 
 
 ## 6.2 Kết quả kiểm thử
 
-Tại thời điểm viết báo cáo (12/08/2026), TEST_PLAN là kế hoạch đã đặc tả đầy đủ test case nhưng **chưa chạy** — bảng PASS/FAIL được điền sau khi thực thi ở giai đoạn hoàn thiện, kết quả thật sẽ được cập nhật vào báo cáo sau:
+Tại thời điểm 16/08/2026, các nhóm kiểm thử tự động của TEST_PLAN đã được thực thi và đạt kết quả thật: FE Vitest **207/207 PASS**; BE `dotnet test` Unit **155 PASS** + Integration **78 PASS**; E2E Playwright **13/13 PASS**; FE build **PASS**; BE build **PASS**. Chi tiết theo nhóm trong các bảng dưới đây:
 
-**Bảng 6.2: Báo cáo tổng hợp theo nhóm test (TEST_PLAN §10 — chưa thực thi)**
+**Bảng 6.2: Báo cáo tổng hợp theo nhóm test (TEST_PLAN §10 — đã thực thi 16/08/2026)**
 
 | Nhóm test | Tổng số | PASS | FAIL | Ghi chú |
 |---|---|---|---|---|
-| Backend (TEST-B) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
-| Engine (TEST-E) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
-| API (TEST-API) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
-| E2E (TEST-UI) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
+| Backend (TEST-B) | 155 | 155 | 0 | Unit 155 PASS (16/08/2026) |
+| Engine (TEST-E) | 207 | 207 | 0 | Vitest 207/207 PASS (engine + store/composable, 16/08/2026) |
+| API (TEST-API) | 78 | 78 | 0 | Integration 78 PASS — Testcontainers SQL Server (16/08/2026) |
+| E2E (TEST-UI) | 13 | 13 | 0 | Playwright 13/13 PASS (16/08/2026) |
 | Bảo mật (TEST-SEC) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
 | Hiệu năng (TEST-PERF) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
 | UX (TEST-UX) | chưa chạy | chưa chạy | chưa chạy | chờ hoàn tất kiểm thử (tuần 19-20) |
 
-**Bảng 6.3: Kịch bản tiêu biểu đã thiết kế (kết quả điền sau khi chạy)**
+**Bảng 6.3: Kịch bản tiêu biểu (đã thực thi 16/08/2026)**
 
 | Mã test case | Mô tả | Kỳ vọng | Kết quả |
 |---|---|---|---|
-| TEST-B-001 | Đăng ký tài khoản thành công | 201, email chuẩn hóa lowercase, đăng nhập lại được | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-B-045 | Nộp bài SINGLE đúng | Điểm đúng theo đáp án | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-B-137..141 | Practice Ladder tuần tự | Chưa pass Quiz → `LADDER_LOCKED`; pass Code ≥ 70% → pass node | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-B-148 | Vào node mới trừ đúng 1 tim | 200 + `heartsLeft:9` + 1 bản ghi NodeSessions | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-B-151 | 2 request song song cùng enter | Chỉ 1 lần trừ tim (concurrency thực) | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-E-003 | Bubble sort trace chuẩn `[3,1,2]` (20 bước) | So khớp 100% bảng trace mốc vàng | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-E-035 | Hiệu năng sinh bước mảng 100 | Trung bình ≤ 500ms, không lần nào > 800ms | chờ hoàn tất kiểm thử (tuần 19-20) |
-| TEST-UI-001 | Luồng học tập hoàn chỉnh (E2E) | Toàn bộ luồng không lỗi, tiến độ đúng | chờ hoàn tất kiểm thử (tuần 19-20) |
+| TEST-B-001 | Đăng ký tài khoản thành công | 201, email chuẩn hóa lowercase, đăng nhập lại được | PASS (16/08/2026) |
+| TEST-B-045 | Nộp bài SINGLE đúng | Điểm đúng theo đáp án | PASS (16/08/2026) |
+| TEST-B-137..141 | Practice Ladder tuần tự | Chưa pass Quiz → `LADDER_LOCKED`; pass Code ≥ 70% → pass node | PASS (16/08/2026) |
+| TEST-B-148 | Vào node mới trừ đúng 1 tim | 200 + `heartsLeft:9` + 1 bản ghi NodeSessions | PASS (16/08/2026) |
+| TEST-B-151 | 2 request song song cùng enter | Chỉ 1 lần trừ tim (concurrency thực) | PASS (16/08/2026) |
+| TEST-E-003 | Bubble sort trace chuẩn `[3,1,2]` (20 bước) | So khớp 100% bảng trace mốc vàng | PASS (16/08/2026) |
+| TEST-E-035 | Hiệu năng sinh bước mảng 100 | Trung bình ≤ 500ms, không lần nào > 800ms | PASS (16/08/2026) |
+| TEST-UI-001 | Luồng học tập hoàn chỉnh (E2E) | Toàn bộ luồng không lỗi, tiến độ đúng | PASS (16/08/2026) |
 
 Ngưỡng chất lượng trước khi bàn giao (Definition of Done): 100% test case nhóm B/E/API của FR mức Cao PASS; FAIL mở tối đa 3 lỗi trung bình có kế hoạch; coverage generator ≥ 90%; 8 kịch bản hiệu năng đạt ngưỡng; kiểm thử bảo mật 13.3 toàn bộ PASS. Mọi FAIL khi chạy phải kèm nguyên nhân, người sửa và ngày pass lại — không bịa số liệu.
 
@@ -2158,12 +2164,12 @@ Backlog mở rộng đã ghi trong SDD cho các giai đoạn sau:
 | Nginx | 1.24+ | Reverse proxy + static files (Linux) |
 | Docker | 24+ | Tùy chọn — dev chuẩn hóa (SQL Server + MailHog) |
 
-**Bước 1 — Cài frontend:** chạy `npm install` để cài dependency, sau đó `npm run dev` khởi động Vite dev server tại cổng 5173 (proxy `/api` sang localhost:5000). Xem kết quả tại `http://localhost:5173`.
+**Bước 1 — Cài frontend:** chạy `npm install` để cài dependency, sau đó `npm run dev` khởi động Vite dev server tại cổng 5173 (dev local, proxy `/api` sang localhost:5000). Xem kết quả tại `http://localhost:5173`; bản demo container chạy tại `http://localhost:8081` (`docker compose up -d --build`).
 
 ```bash
 cd frontend
 npm install
-npm run dev        # Vite dev server :5173, proxy /api → localhost:5000
+npm run dev        # Vite dev server :5173 (dev local), proxy /api → localhost:5000 — demo container: FE :8081
 ```
 
 **Bước 2 — Cài backend:** khôi phục và build solution bằng `dotnet restore` + `dotnet build`, chạy migration tạo CSDL, rồi khởi động API kèm seed dữ liệu mẫu. Kiểm tra tại Swagger `http://localhost:5000/swagger`.

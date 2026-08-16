@@ -54,7 +54,7 @@ Tài liệu này mô tả thiết kế chi tiết của DSA-Visual: kiến trúc
 |---|---|---|
 | 1 | "Cho code đến đâu, chạy visual đến đó" — hardcode hoạt ảnh từng GT | **EDV** (§4.0): mọi GT là mã TypeScript thật chạy qua StepExecutor; hoạt ảnh = phát lại trace |
 | 2 | 1 màn gộp 4 chức năng | **1 màn = 1 việc** (§8.0): mỗi route 1 nhiệm vụ; Node Hub/Hồ sơ = tab component tách |
-| 3 | Scope trôi dạt | SRS §1.3.2 loại trừ rõ; 12 FR cắt; 20 tuần 10 sprint |
+| 3 | Scope trôi dạt | SRS §1.3.2 loại trừ rõ; 12 FR cắt; 13 tuần 10 sprint |
 
 ---
 
@@ -1297,14 +1297,15 @@ public record Result<T>
 
 # 7. THIẾT KẾ CƠ SỞ DỮ LIỆU
 
-> Nguồn: prompt §10 (TOÀN BỘ). **32 bảng** — lõi học tập (24) + gamification/code (8 + Users tham chiếu). Quy ước đặt tên: **PascalCase** toàn bộ tên bảng/cột (chuẩn EF Core — D-10); xóa mềm = `DeletedAt datetime2 NULL` mọi bảng (D-5).
+> Nguồn: prompt §10 (TOÀN BỘ). **33 bảng** (32 gốc + `OtpCodes` 2FA email — GP-T2, FR-1.11) — lõi học tập (25) + gamification/code (8 + Users tham chiếu). Quy ước đặt tên: **PascalCase** toàn bộ tên bảng/cột (chuẩn EF Core — D-10); xóa mềm = `DeletedAt datetime2 NULL` mọi bảng (D-5).
 
-## 7.1 ERD — Lõi học tập (24 bảng)
+## 7.1 ERD — Lõi học tập (25 bảng)
 
 ```mermaid
 erDiagram
     Users ||--o{ RefreshTokens : has
     Users ||--o{ PasswordResetTokens : has
+    Users ||--o{ OtpCodes : "2FA email (GP-T2)"
     Users ||--o{ UserProgress : has
     Users ||--o{ Favorites : has
     Users ||--o{ ExerciseSubmissions : submits
@@ -1338,6 +1339,7 @@ erDiagram
     Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     RefreshTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; datetime? RevokedAt; string? CreatedByIp; datetime CreatedAt }
     PasswordResetTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; bool Used; datetime CreatedAt }
+    OtpCodes { int Id PK; int UserId FK; string CodeHash; string Purpose; datetime ExpiresAt; bool Used; datetime CreatedAt }
     Topics { int Id PK; int? ParentId FK; string Name; string Description; int SortOrder; int CreatedBy FK; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     Lessons { int Id PK; int TopicId FK; string Title; string Description; string ContentHtml; int SortOrder; int Status; int CreatedBy FK; int? UpdatedBy; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     LessonSimulations { int Id PK; int LessonId FK; string SimulationKey; string Title; string? DefaultInputJson; int SortOrder }
@@ -1387,7 +1389,7 @@ erDiagram
     CodeSubmissions { int Id PK; int UserId FK; int ExerciseId FK; string Code; int Score; int PassedTests; int TotalTests; string ResultJson; datetime SubmittedAt }
 ```
 
-**Đối chiếu 32 bảng**: A (24): Users, RefreshTokens, PasswordResetTokens, Topics, Lessons, LessonSimulations, LessonNotes, Exercises, Questions, ExerciseSubmissions, UserProgress, UserNodeProgress, Favorites, Settings, Classes, ClassMembers, ClassAssignments, Achievements, UserAchievements, ContentFeedback, BugReports, LearningPaths, LearningPathNodes, NodeSessions. B (8): DailyQuests, UserQuests, ShopItems, UserInventory, GemTransactions, PremiumSubscriptions, CodeRuns, CodeSubmissions. `Users` xuất hiện lại ở sơ đồ B chỉ để vẽ quan hệ (cột gamification — §7.3.1) — không đếm thêm.
+**Đối chiếu bảng**: A (25): Users, RefreshTokens, PasswordResetTokens, **OtpCodes (2FA email — GP-T2, FR-1.11)**, Topics, Lessons, LessonSimulations, LessonNotes, Exercises, Questions, ExerciseSubmissions, UserProgress, UserNodeProgress, Favorites, Settings, Classes, ClassMembers, ClassAssignments, Achievements, UserAchievements, ContentFeedback, BugReports, LearningPaths, LearningPathNodes, NodeSessions. B (8): DailyQuests, UserQuests, ShopItems, UserInventory, GemTransactions, PremiumSubscriptions, CodeRuns, CodeSubmissions. `Users` xuất hiện lại ở sơ đồ B chỉ để vẽ quan hệ (cột gamification — §7.3.1) — không đếm thêm. Tổng = 33 bảng (32 gốc + `OtpCodes`).
 
 ## 7.3 Đặc tả từng bảng (đầy đủ cột)
 
@@ -1610,6 +1612,20 @@ Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job do
 | PassedAt | datetime2 | NULL | | pass cả 3 bậc |
 | UpdatedAt | datetime2 | NOT NULL | GETUTCDATE() | |
 
+### 7.3.31 `OtpCodes` (2FA email — FR-1.11, GP-T2)
+
+> Mã OTP 1 lần cho 2FA email (GP-T2 — bảng mới ngoài 32 bảng gốc, migration `AddOtpCodes`). Chỉ lưu **SHA256 hash** của mã, không lưu mã gốc; dùng 1 lần + hết hạn 5 phút.
+
+| Cột | Kiểu | Ràng buộc | Ghi chú |
+|---|---|---|---|
+| Id | int | PK, identity | |
+| UserId | int | FK→Users.Id, NOT NULL | index (UserId) |
+| CodeHash | nvarchar(64) | NOT NULL | SHA256 hex của mã 6 số |
+| Purpose | nvarchar(32) | NOT NULL | `enable_2fa` \| `login` |
+| ExpiresAt | datetime2 | NOT NULL | hết hạn 5 phút |
+| Used | bit | NOT NULL default 0 | dùng 1 lần — index (UserId, Purpose, Used) |
+| CreatedAt | datetime2 | NOT NULL | |
+
 ## 7.4 Chỉ mục (indexes — đầy đủ)
 
 | Bảng | Chỉ mục | Loại | Lý do |
@@ -1621,6 +1637,8 @@ Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job do
 | RefreshTokens | TokenHash | UNIQUE | tìm phiên |
 | RefreshTokens | UserId, ExpiresAt | THƯỜNG | dọn phiên hết hạn |
 | PasswordResetTokens | TokenHash / UserId | UNIQUE / THƯỜNG | xác thực + dọn token (v2.4) |
+| OtpCodes | UserId | THƯỜNG | tìm mã theo user (GP-T2) |
+| OtpCodes | UserId, Purpose, Used | THƯỜNG | kiểm tra mã còn hiệu lực (GP-T2) |
 | Lessons | TopicId, SortOrder | THƯỜNG | liệt kê |
 | Lessons | Status, DeletedAt | THƯỜNG | lọc hiển thị |
 | Topics | ParentId, Name | UNIQUE | chống trùng tên cùng cấp cha-con (FR-2.1) |
@@ -3658,7 +3676,7 @@ graph LR
 
 | Môi trường | URL (ví dụ) | Mục đích |
 |---|---|---|
-| Development | `localhost:5173` (Vite) + `localhost:5000` (API) | lập trình hằng ngày |
+| Development | `localhost:5173` (Vite — dev local) + `localhost:5000` (API) — demo container: `localhost:8081` | lập trình hằng ngày |
 | Staging | `staging.dsa-visual.example.edu.vn` | kiểm thử |
 | Production | `dsa-visual.example.edu.vn` | người dùng thật |
 
@@ -3709,7 +3727,7 @@ graph LR
 | Huỳnh Lê Minh Thư | TD01131 | Thành viên | Simulation Engine (code) + Kiểm thử: StepExecutor, generators, renderers, golden data |
 | Trần Viết Tâm Phúc | TD01261 | Thành viên | Code hỗ trợ (đơn giản) + Tài liệu + triển khai: seed, DEPLOY, TEST_PLAN, báo cáo |
 
-## 12.2 Bảng sprint chi tiết (20 tuần / 10 sprint — nguồn prompt §20.1)
+## 12.2 Bảng sprint chi tiết (13 tuần / 10 sprint — nguồn prompt §20.1)
 
 | Sprint | Tuần | Mục tiêu | Kết quả bàn giao |
 |---|---|---|---|

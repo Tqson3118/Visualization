@@ -14,7 +14,7 @@
 | Nguồn yêu cầu | PRODUCTION_PROMPT.md (Phần 0-22) — single source of truth |
 | Giả định chính | 1) Dữ liệu mô phỏng có giới hạn (mảng ≤ 100, đồ thị ≤ 50 đỉnh/200 cạnh); 2) Trình duyệt hiện đại ≥ 1024px; 3) Không offline; 4) Đồng thời ≤ 200 người dùng thí điểm; 5) Tim (hearts) là cơ chế chủ đích retention/monetization đã cân nhắc với KPI (xem §2.3) |
 
-> ⚠ **TRẠNG THÁI TÀI LIỆU**: SRS mô tả hệ thống **DSA-Visual v2 (dự kiến triển khai)** — đây là đặc tả yêu cầu cho bản phát triển mới, KHÔNG phải mô tả code cũ trong `VisualizationDSA/` (v1: PostgreSQL + Clean Architecture). Mọi quyết định ở đây (10 module A-J, 32 UC, 32 bảng, EDV) áp dụng cho code v2 chưa khởi tạo.
+> ⚠ **TRẠNG THÁI TÀI LIỆU**: SRS mô tả hệ thống **DSA-Visual v2 (dự kiến triển khai)** — đây là đặc tả yêu cầu cho bản phát triển mới, KHÔNG phải mô tả code cũ trong `VisualizationDSA/` (v1: PostgreSQL + Clean Architecture). Mọi quyết định ở đây (10 module A-J, 33 UC, 32 bảng, EDV) áp dụng cho code v2 chưa khởi tạo.
 
 ## Lịch sử thay đổi
 
@@ -47,7 +47,7 @@ Bản cũ (VisualizationDSA) bị hội đồng chấm phản hồi 3 lỗi gố
 |---|---|---|
 | 1 | "Cho code đến đâu, chạy visual đến đó" — bản cũ hardcode hoạt ảnh từng giải thuật nên code vòng lặp cũng không chạy được | Kiến trúc **EDV (Execution-Driven Visualization)**: mọi giải thuật là mã TypeScript thật chạy qua `StepExecutor`, hoạt ảnh = phát lại trace thật; Module I (Code Runner) cho người học sửa tham số/hoàn thiện hàm theo signature cố định và xem nó chạy trực quan (FR-9.1 → FR-9.5) |
 | 2 | Thiết kế màn hình chắp vá — một màn gộp 4 thứ (học + visual + code + quiz) | Nguyên tắc **"1 màn = 1 việc"** (§7.0 prompt): danh sách → chi tiết → mở trang riêng cho mô phỏng/code/bài tập; cấm nhúng chức năng chéo màn; mỗi tab của Node Hub/Hồ sơ là 1 component tách |
-| 3 | Scope trôi dạt, tính năng ngoài tầm đồ án (payment thật, realtime) | §2.4 loại trừ rõ (không cổng thanh toán thật — Premium checkout chỉ MÔ PHỎNG theo FR-10.7; không realtime); Roadmap 20 tuần 10 sprint (20.1); 12 FR đã duyệt cắt không sinh đặc tả |
+| 3 | Scope trôi dạt, tính năng ngoài tầm đồ án (payment thật, realtime) | §2.4 loại trừ rõ (không cổng thanh toán thật — Premium checkout chỉ MÔ PHỎNG theo FR-10.7; không realtime); Roadmap 13 tuần 10 sprint (20.1); 12 FR đã duyệt cắt không sinh đặc tả |
 
 ## 1.3 Phạm vi
 
@@ -161,7 +161,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 |---|---|
 | Công nghệ | Frontend: Vue.js 3 (Composition API `<script setup>`), Pinia, Vite, TypeScript strict; Backend: C# .NET 8+, ASP.NET Core Web API (2 project: Api + Application); DB: SQL Server 2019+ (SQLite/LocalDB cho dev nếu thiếu — DEPLOY); EF Core 8; JWT |
 | Nhân sự | 4 thành viên sinh viên (SD21361); phân công: TV1 backend+CSDL, TV2 frontend+admin UI, TV3 Simulation Engine, TV4 kiểm thử+tài liệu+triển khai |
-| Thời gian | 20 tuần / 10 sprint (bảng sprint §9.1) |
+| Thời gian | 13 tuần / 10 sprint (bảng sprint §9.1) |
 | Hạ tầng | Máy chủ thử nghiệm tối thiểu: 2 CPU, 4GB RAM, 50GB SSD |
 | Ngân sách | Không chi phí bản quyền (chỉ thư viện mã nguồn mở — NFR-36) |
 | Ngôn ngữ giao diện | Tiếng Việt (bắt buộc); cơ chế i18n sẵn sàng |
@@ -1052,7 +1052,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 
 # 5. MÔ HÌNH USE CASE
 
-> Yêu cầu: đủ 32 UC (UC-01 → UC-32) theo khuôn: (1) Tóm tắt, (2) Tác nhân, (3) Tiền điều kiện, (4) Hậu điều kiện, (5) Luồng chính, (6) Luồng thay thế, (7) Ngoại lệ, (8) Ràng buộc nghiệp vụ, (9) Tiêu chí chấp nhận, (10) Nguồn FR. UC-01 và UC-04 kèm sequenceDiagram (ngoài ra UC-03, UC-06, UC-09 — theo 6.16).
+> Yêu cầu: đủ 33 UC (UC-01 → UC-33) theo khuôn: (1) Tóm tắt, (2) Tác nhân, (3) Tiền điều kiện, (4) Hậu điều kiện, (5) Luồng chính, (6) Luồng thay thế, (7) Ngoại lệ, (8) Ràng buộc nghiệp vụ, (9) Tiêu chí chấp nhận, (10) Nguồn FR. UC-01 và UC-04 kèm sequenceDiagram (ngoài ra UC-03, UC-06, UC-09 — theo 6.16).
 
 ## 5.1 Sơ đồ use case tổng thể
 
@@ -1091,6 +1091,7 @@ graph TD
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
         AF[UC-32 Nâng cấp Premium]
+        AG[UC-33 Xác thực hai yếu tố (2FA)]
     end
     Khach["Khách (chưa đăng nhập)"] --> B
     Khach --> C
@@ -1118,6 +1119,7 @@ graph TD
     NguoiHoc --> AD
     NguoiHoc --> AE
     NguoiHoc --> AF
+    NguoiHoc --> AG
     NguoiDay["Giảng viên (Teacher)"] --> D
     NguoiDay --> E
     NguoiDay --> I
@@ -1619,6 +1621,18 @@ sequenceDiagram
 **(9) Tiêu chí chấp nhận**: AC-10.7.1 kích hoạt tự động sau khi bấm "Tôi đã chuyển khoản" (khả dụng sau 60s) + log giao dịch (OrderRef `DSV{userId}T{months}`); AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
 **(10) Nguồn FR**: FR-10.7.
 
+## 5.34 UC-33 | Xác thực hai yếu tố (2FA qua email) | Nguồn: FR-1.11 [BỔ SUNG]
+**(1) Tóm tắt**: Người học bật/tắt xác thực 2 lớp qua email: khi bật tài khoản nhận mã OTP 6 số qua email (hiệu lực 5 phút, dùng 1 lần) để xác nhận, sau đó mỗi lần đăng nhập phải nhập thêm mã; chỉ lưu hash SHA256 của mã, không lưu mã gốc.
+**(2) Tác nhân**: Người học đã đăng nhập (chính); Hệ thống (phụ — gửi email mã OTP qua SMTP/MailHog).
+**(3) Tiền điều kiện**: Đã đăng nhập; SMTP cấu hình (đủ điều kiện hiển thị tùy chọn bật 2FA); chưa bật 2FA khi yêu cầu bật.
+**(4) Hậu điều kiện**: `Users.TwoFactorEnabled = true/false`; khi bật, đăng nhập (UC-03) yêu cầu mã OTP ở bước 2; mã dùng 1 lần và hết hạn 5 phút; mã đã xác minh đánh dấu Used.
+**(5) Luồng chính**: (1) vào cài đặt bảo mật → chọn "Bật 2FA"; (2) hệ thống gửi mã OTP 6 số qua email (`POST /auth/2fa/send`); (3) người học nhập mã (`POST /auth/2fa/verify`) → hệ thống so khớp hash + hạn + chưa dùng → bật 2FA, đánh dấu mã Used; (4) đăng nhập sau đó: nhập email/mật khẩu → bước 2 nhập mã OTP → cấp token; (5) tắt 2FA: vào cài đặt → xác nhận (`PUT /auth/2fa` body `{enabled:false}`) → tắt trực tiếp.
+**(6) Luồng thay thế**: 2a. chọn "Ghi nhớ thiết bị 30 ngày" (cookie riêng, KHÔNG phải refresh token) → thiết bị đã ghi nhớ bỏ qua bước nhập mã trong 30 ngày.
+**(7) Ngoại lệ**: mã sai/không đúng → 400 `OTP_INVALID`; mã hết hạn (5 phút) → 400 `OTP_EXPIRED` + gửi lại mã; mã đã dùng → 400 `OTP_USED`; tài khoản chưa gửi mã · sai 3 lần → khóa bước 2 tạm 10 phút; `enabled:true` mà chưa xác minh mã → 400 `OTP_REQUIRED` (phải qua send + verify); SMTP chưa cấu hình → ẩn/cảnh báo tùy chọn (Ghi chú FR-1.11).
+**(8) Ràng buộc nghiệp vụ**: mã 6 số, hash SHA256 lưu ở `OtpCodes.CodeHash` (bảng mới GP-T2 — SDD §7.3.31), `ExpiresAt` 5 phút, `Used` đánh dấu dùng 1 lần, `Purpose` = `enable_2fa` hoặc `login`; không lưu mã gốc (log/DB); cookie "Ghi nhớ thiết bị" là cookie riêng 30 ngày — không cấp quyền truy cập API.
+**(9) Tiêu chí chấp nhận**: AC-1.11.1 tài khoản bật 2FA không đăng nhập được khi thiếu mã; AC-1.11.2 mã dùng 1 lần (dùng lại → `OTP_USED`); bật thành công chỉ sau khi verify mã đúng; tắt 2FA không cần mã.
+**(10) Nguồn FR**: FR-1.11.
+
 ---
 
 # 6. MÔ HÌNH DỮ LIỆU TỔNG QUAN
@@ -1732,7 +1746,7 @@ graph LR
 
 # 9. PHỤ LỤC
 
-## 9.1 Kế hoạch sprint (20 tuần / 10 sprint — nguồn prompt §20.1, ghi đè §2.6 cũ)
+## 9.1 Kế hoạch sprint (13 tuần / 10 sprint — nguồn prompt §20.1, ghi đè §2.6 cũ)
 
 | Sprint | Tuần | Mục tiêu | Kết quả bàn giao |
 |---|---|---|---|

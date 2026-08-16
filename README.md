@@ -59,12 +59,12 @@ dotnet run --project src/DsaVisual.Api --seed
 cd frontend
 npm install
 npm run dev
-# http://localhost:5173 (proxy /api → localhost:5000)
+# http://localhost:5173 (dev local; proxy /api → localhost:5000) — demo container: http://localhost:8081
 ```
 
 ### Bước 3 — Kiểm tra nhanh
 
-1. Mở `http://localhost:5173` → đăng ký tài khoản.
+1. Mở `http://localhost:5173` (dev local; container demo: `http://localhost:8081`) → đăng ký tài khoản.
 2. Vào "Học tập" → mở node "Bubble Sort" → chạy mô phỏng.
 3. Chạy test: `cd frontend && npm run test:unit` · `dotnet test backend/DsaVisual.sln`.
 
@@ -149,9 +149,9 @@ Bản cũ (VisualizationDSA) bị hội đồng chấm phản hồi 3 lỗi gố
 |---|---|---|
 | 1 | "Cho code đến đâu, chạy visual đến đó" — bản cũ hardcode hoạt ảnh | Kiến trúc **EDV**: mọi GT là mã thật chạy qua StepExecutor, hoạt ảnh = trace thật |
 | 2 | 1 màn gộp 4 chức năng (học + visual + code + quiz) | Nguyên tắc **"1 màn = 1 việc"**: mỗi route 1 nhiệm vụ; cấm nhúng chức năng chéo màn |
-| 3 | Scope trôi dạt (payment thật, realtime...) | Loại trừ rõ (Premium = checkout MÔ PHỎNG; không realtime); 12 FR đã duyệt cắt; 20 tuần 10 sprint |
+| 3 | Scope trôi dạt (payment thật, realtime...) | Loại trừ rõ (Premium = checkout MÔ PHỎNG; không realtime); 12 FR đã duyệt cắt; 13 tuần 10 sprint |
 
-## 10. Roadmap (20 tuần / 10 sprint — nguồn prompt §20.1)
+## 10. Roadmap (13 tuần / 10 sprint — nguồn prompt §20.1)
 
 | Sprint | Tuần | Mục tiêu |
 |---|---|---|
