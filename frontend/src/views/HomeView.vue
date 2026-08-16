@@ -14,7 +14,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { SplitText } from 'gsap/SplitText';
 import {
   Activity,
   ArrowRight,
@@ -71,7 +70,7 @@ import { useGamificationStore } from '@/stores/gamification';
 import { useProgressStore } from '@/stores/progress';
 import { useUiStore } from '@/stores/ui';
 
-gsap.registerPlugin(ScrollTrigger, SplitText);
+gsap.registerPlugin(ScrollTrigger);
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -742,120 +741,119 @@ function stopMiniViz(): void {
 }
 
 /* ── GSAP Master Animations ── */
-let splitInstance: InstanceType<typeof SplitText> | null = null;
 let gsapCtx: gsap.Context | null = null;
 
 function initAnimations(): void {
   if (prefersReducedMotion() || !homeRef.value) return;
 
   gsapCtx = gsap.context(() => {
-    // 1. Hero Title Split Text Animation
-    if (heroTitleRef.value) {
-      splitInstance = new SplitText(heroTitleRef.value, { type: 'words' });
-      gsap.from(splitInstance.words, {
-        y: 35,
-        opacity: 0,
-        rotateX: -20,
-        stagger: 0.04,
-        duration: 0.7,
-        ease: 'power3.out',
-        delay: 0.1,
-      });
-    }
+    // 1. Hero Title Fade-in (Không dùng SplitText để bảo toàn trọn vẹn cụm text-gradient "sống động nhất")
+    gsap.from('.hero__title', {
+      y: 28,
+      opacity: 0,
+      duration: 0.7,
+      ease: 'power3.out',
+      delay: 0.1,
+    });
 
     // 2. Hero Elements Fade-Up Sequence
-    gsap.from('.hero__sub', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.3 });
-    gsap.from('.hero__actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.4 });
-    gsap.from('.hero__trust', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.5 });
+    gsap.from('.hero__sub', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.25 });
+    gsap.from('.hero__actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.35 });
+    gsap.from('.hero__trust', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.45 });
     gsap.from('.hero__preview', {
-      y: 40, opacity: 0, scale: 0.96, duration: 0.8, ease: 'power2.out', delay: 0.3,
+      y: 35, opacity: 0, scale: 0.97, duration: 0.7, ease: 'power2.out', delay: 0.3,
     });
 
-    // 3. Bento Grid Stagger Animation on Scroll — blur → clear
-    gsap.from('.bento-card', {
-      y: 40,
-      opacity: 0,
-      filter: 'blur(8px)',
-      stagger: 0.1,
-      duration: 0.6,
-      ease: 'power3.out',
-      scrollTrigger: { trigger: '.bento-grid', start: 'top 85%', once: true },
-    });
-
-    // 4. Extended Sections Reveal on Scroll
-    // (Chỉ chạy cho guest — khi authed 4 section marketing bị v-if ẩn khỏi
-    // DOM, tránh ScrollTrigger log "target not found" trên console.)
+    // 3. Scroll Reveal an toàn — từng section có trigger riêng
     if (!authStore.isAuthenticated) {
-      gsap.from('.extended-text', {
-        x: -40, opacity: 0, duration: 0.7, ease: 'power2.out',
-        scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
-      });
-      gsap.from('.extended-visual', {
-        x: 40, opacity: 0, duration: 0.7, ease: 'power2.out',
-        scrollTrigger: { trigger: '.extended-section', start: 'top 80%', once: true },
-      });
-
-      // Section headers marketing — reveal blur → clear
-      gsap.from(['.features-header', '.home__section-head', '.algogrid-header', '.freemium-header', '.rank-header'], {
-        y: 40,
+      // Bento Grid
+      gsap.from('.bento-card', {
+        y: 30,
         opacity: 0,
-        filter: 'blur(8px)',
-        stagger: 0.1,
-        duration: 0.6,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.features-header', start: 'top 90%', once: true },
+        stagger: 0.08,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '#sec-bento', start: 'top 85%', once: true },
       });
 
-      // 3 Demo cards — reveal blur → clear
+      // 3 Demo Cards
       gsap.from('.home__demo', {
-        y: 40,
+        y: 30,
         opacity: 0,
-        filter: 'blur(8px)',
-        stagger: 0.1,
-        duration: 0.6,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.home__demos-grid', start: 'top 85%', once: true },
+        stagger: 0.08,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '#sec-demos', start: 'top 85%', once: true },
       });
 
-      // Roadmap — đường nối dọc phát sáng cuộn dần từ trên xuống
+      // Freemium Cards
+      gsap.from('.freemium-card', {
+        y: 30,
+        opacity: 0,
+        stagger: 0.08,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '#sec-freemium', start: 'top 85%', once: true },
+      });
+
+      // Roadmap Section
+      gsap.from('.roadmap-section .extended-text', {
+        x: -30, opacity: 0, duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: '.roadmap-section', start: 'top 85%', once: true },
+      });
+      gsap.from('.roadmap-section .extended-visual', {
+        x: 30, opacity: 0, duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: '.roadmap-section', start: 'top 85%', once: true },
+      });
       gsap.from('.road-line', {
         scaleY: 0,
         transformOrigin: 'top',
-        duration: 1.4,
+        duration: 1.2,
         ease: 'power2.out',
-        scrollTrigger: { trigger: '.roadmap-mockup', start: 'top 80%', once: true },
+        scrollTrigger: { trigger: '.roadmap-mockup', start: 'top 85%', once: true },
       });
 
-      // Rank Ladder — các cột gamification reveal blur → clear
+      // Codelab Section
+      gsap.from('.codelab-section .extended-text', {
+        x: -30, opacity: 0, duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: '.codelab-section', start: 'top 85%', once: true },
+      });
+      gsap.from('.codelab-section .extended-visual', {
+        x: 30, opacity: 0, duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: '.codelab-section', start: 'top 85%', once: true },
+      });
+
+      // Rank Ladder Cards
       gsap.from('.rank-card', {
-        y: 40,
+        y: 30,
         opacity: 0,
-        filter: 'blur(8px)',
-        stagger: 0.12,
-        duration: 0.6,
-        ease: 'power3.out',
-        scrollTrigger: { trigger: '.rank-grid', start: 'top 85%', once: true },
+        stagger: 0.08,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: '#sec-rank', start: 'top 85%', once: true },
       });
     }
 
-    // 5. Dashboard Stagger & Number Counters
+    // 4. Dashboard (Khi đã đăng nhập)
     if (authStore.isAuthenticated) {
-      gsap.from('.greeting-banner', { y: -25, opacity: 0, duration: 0.6, ease: 'power3.out' });
+      gsap.from('.greeting-banner', { y: -20, opacity: 0, duration: 0.5, ease: 'power3.out' });
       gsap.from('.dash-card', {
-        y: 25, opacity: 0, stagger: 0.06, duration: 0.5, ease: 'power2.out', delay: 0.15,
+        y: 20, opacity: 0, stagger: 0.05, duration: 0.4, ease: 'power2.out', delay: 0.1,
       });
 
       // Animated XP & Streak Numbers
       gsap.fromTo('.xp-num',
         { innerHTML: 0 },
-        { innerHTML: userXP.value, duration: 1.5, ease: 'power2.out', snap: { innerHTML: 1 } },
+        { innerHTML: userXP.value, duration: 1.2, ease: 'power2.out', snap: { innerHTML: 1 } },
       );
       gsap.fromTo('.streak-num',
         { innerHTML: 0 },
-        { innerHTML: userStreak.value, duration: 1.2, ease: 'power2.out', snap: { innerHTML: 1 } },
+        { innerHTML: userStreak.value, duration: 1.0, ease: 'power2.out', snap: { innerHTML: 1 } },
       );
     }
   }, homeRef.value);
+
+  ScrollTrigger.refresh();
 }
 
 /* ── Lifecycle ── */
@@ -885,7 +883,6 @@ onUnmounted(() => {
   stopPreview();
   stopMiniViz();
   clearCodelabTimers();
-  splitInstance?.revert();
   gsapCtx?.revert();
 });
 </script>
@@ -1029,7 +1026,7 @@ onUnmounted(() => {
                 v-for="(d, idx) in daysOfWeek"
                 :key="d"
                 class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-mono transition-all"
-                :class="userStreak > 0 && idx <= (userStreak % 7) ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'bg-muted text-muted-foreground border border-border'"
+                :class="userStreak > 0 && idx <= ((userStreak - 1) % 7) ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'bg-muted text-muted-foreground border border-border'"
               >
                 {{ d }}
               </div>
@@ -1145,7 +1142,7 @@ onUnmounted(() => {
       <div class="hero__glow z-0" aria-hidden="true"></div>
       <div class="hero__particles z-0" aria-hidden="true"></div>
 
-      <div class="hero__content" data-aos="fade-up">
+      <div class="hero__content">
         <!-- Hero Title -->
         <h1 class="hero__title font-display" ref="heroTitleRef">
           Khám phá thuật toán theo cách <span class="text-gradient">sống động nhất</span>
@@ -1186,7 +1183,7 @@ onUnmounted(() => {
         </div>
 
         <!-- 4 Chỉ số Trust Indicators -->
-        <div class="hero__trust" data-aos="fade-up" data-aos-delay="300">
+        <div class="hero__trust">
           <div class="trust-item">
             <span class="trust-number font-mono">{{ stats.visuals }}+</span>
             <span class="trust-label">Thuật toán trực quan hóa</span>
@@ -1210,7 +1207,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Hero Algorithmic Stage — QuickSort live preview -->
-      <div class="hero__preview z-10" data-aos="fade-up" data-aos-delay="400">
+      <div class="hero__preview z-10">
         <div class="glass-panel stage-panel glow-subtle">
           <div class="stage-header">
             <div class="stage-header__left">
@@ -1285,7 +1282,8 @@ onUnmounted(() => {
 
     <!-- ── TẦNG 2: BENTO GRID FEATURES (4 CỘT) ── -->
     <section v-if="!authStore.isAuthenticated" id="sec-bento" class="features-section">
-      <div class="features-header text-center mb-12" data-aos="fade-up">
+      <div class="features-header text-center mb-12">
+        <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerFeatures }}</span></span>
         <h2 class="font-display text-3xl mb-3 text-heading">Không chỉ là code, đó là nghệ thuật</h2>
         <p class="text-muted-foreground max-w-2xl mx-auto text-sm">Trải nghiệm nền tảng giáo dục kết hợp với giao diện trực quan hiện đại, mang lại cảm hứng sáng tạo vô tận.</p>
       </div>
@@ -1307,7 +1305,7 @@ onUnmounted(() => {
             <p class="text-muted-foreground text-xs leading-relaxed">{{ feat.description }}</p>
           </div>
           
-          <!-- Live Mini Visualizer Graphic for Large Card -->
+          <!-- Live Mini Visualizer Graphic for Large Card (Sorting) -->
           <div v-if="feat.id === 'sort'" class="bento-visual mini-viz-wrap mt-4" aria-hidden="true">
             <div class="mini-viz">
               <div
@@ -1322,6 +1320,61 @@ onUnmounted(() => {
                 }"
               >
                 <span class="mini-bar__value font-mono">{{ bar.value }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini Interactive Graph Preview -->
+          <div v-else-if="feat.id === 'graph'" class="bento-visual mini-graph-wrap mt-4" aria-hidden="true">
+            <svg class="mini-graph-svg w-full h-[70px]" viewBox="0 0 240 70">
+              <line x1="30" y1="35" x2="90" y2="18" class="mini-edge stroke-amber-500/40 stroke-2" />
+              <line x1="30" y1="35" x2="90" y2="52" class="mini-edge stroke-border stroke-2" />
+              <line x1="90" y1="18" x2="150" y2="35" class="mini-edge stroke-amber-500/60 stroke-2" />
+              <line x1="90" y1="52" x2="150" y2="35" class="mini-edge stroke-border stroke-2" />
+              <line x1="150" y1="35" x2="210" y2="35" class="mini-edge stroke-primary stroke-2" />
+
+              <!-- Animated traveling photon -->
+              <circle cx="0" cy="0" r="3.5" class="fill-amber-400 shadow-md">
+                <animateMotion path="M 30,35 L 90,18 L 150,35 L 210,35" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+
+              <g transform="translate(30,35)">
+                <circle r="12" class="fill-card stroke-amber-500 stroke-2" />
+                <text y="3.5" text-anchor="middle" class="text-[9px] font-mono font-bold fill-foreground">A</text>
+              </g>
+              <g transform="translate(90,18)">
+                <circle r="12" class="fill-card stroke-amber-500 stroke-2" />
+                <text y="3.5" text-anchor="middle" class="text-[9px] font-mono font-bold fill-foreground">B</text>
+              </g>
+              <g transform="translate(90,52)">
+                <circle r="12" class="fill-card stroke-border stroke-2" />
+                <text y="3.5" text-anchor="middle" class="text-[9px] font-mono font-bold fill-muted-foreground">C</text>
+              </g>
+              <g transform="translate(150,35)">
+                <circle r="12" class="fill-card stroke-amber-400 stroke-2" />
+                <text y="3.5" text-anchor="middle" class="text-[9px] font-mono font-bold fill-foreground">D</text>
+              </g>
+              <g transform="translate(210,35)">
+                <circle r="12" class="fill-primary/20 stroke-primary stroke-2" />
+                <text y="3.5" text-anchor="middle" class="text-[9px] font-mono font-bold fill-primary">E</text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Mini Gamification Streak Preview -->
+          <div v-else-if="feat.id === 'gamification'" class="bento-visual mini-game-wrap mt-4" aria-hidden="true">
+            <div class="mini-game-box p-3 rounded-xl bg-card/60 border border-border flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <Flame class="w-5 h-5 text-orange-500 fill-orange-500/20" />
+                <div>
+                  <div class="text-[11px] font-bold text-heading">{{ messages.home.streakPreviewDays }}</div>
+                  <div class="text-[9px] text-muted-foreground">{{ messages.home.streakPreviewLabel }}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/15 text-purple-500 border border-purple-500/30">
+                  {{ messages.home.streakPreviewLevel }}
+                </span>
               </div>
             </div>
           </div>
@@ -1413,7 +1466,8 @@ onUnmounted(() => {
     <!-- ── TẦNG 3: ALGORITHM LIBRARY GRID ── -->
     <section id="sec-catalog" class="algogrid-section">
       <div class="container">
-        <div class="algogrid-header text-center mb-10" data-aos="fade-up">
+        <div class="algogrid-header text-center mb-10">
+          <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerLibrary }}</span></span>
           <h2 class="font-display text-3xl mb-3 text-heading">Thư viện thuật toán trực quan</h2>
           <p class="text-muted-foreground max-w-2xl mx-auto text-sm">30+ thuật toán & cấu trúc dữ liệu, sắp xếp theo nhóm — xem animation từng bước, tự nhập dữ liệu, chạy code của bạn.</p>
         </div>
@@ -1501,12 +1555,13 @@ onUnmounted(() => {
     <!-- ── TẦNG 4: FREEMIUM SECTION ── -->
     <section v-if="!authStore.isAuthenticated" id="sec-freemium" class="freemium-section">
       <div class="container">
-        <div class="freemium-header text-center mb-10" data-aos="fade-up">
+        <div class="freemium-header text-center mb-10">
+          <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerFreemium }}</span></span>
           <h2 class="font-display text-3xl mb-3 text-heading">Miễn phí để bắt đầu, Premium để bứt phá</h2>
           <p class="text-muted-foreground max-w-2xl mx-auto text-sm">Mô hình Freemium giúp bạn học thử miễn phí và nâng cấp khi cần thêm sức mạnh.</p>
         </div>
 
-        <div class="freemium-grid grid grid-cols-1 md:grid-cols-3 gap-6" data-aos="fade-up">
+        <div class="freemium-grid grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="freemium-card glass-panel spring-hover p-6 rounded-2xl flex flex-col">
             <div class="freemium-icon text-rose-500 mb-3"><Heart class="w-8 h-8 fill-rose-500/20" /></div>
             <h3 class="font-display text-lg text-heading mb-2 font-bold">Hearts (Tim)</h3>
@@ -1545,7 +1600,8 @@ onUnmounted(() => {
     <!-- Deep-dive 1: Roadmap Lộ trình -->
     <section v-if="!authStore.isAuthenticated" class="extended-section roadmap-section">
       <div class="extended-container">
-        <div class="extended-text" data-aos="fade-right">
+        <div class="extended-text">
+          <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerRoadmap }}</span></span>
           <h2 class="font-display text-3xl mb-4 text-heading">{{ messages.home.roadmapTitle }}</h2>
           <p class="text-muted-foreground mb-6 text-sm">{{ messages.home.roadmapDesc }}</p>
           <ul class="feature-list text-muted-foreground text-xs space-y-2">
@@ -1554,7 +1610,7 @@ onUnmounted(() => {
             <li><span class="text-primary font-bold">●</span> {{ messages.home.roadmapFeature3 }}</li>
           </ul>
         </div>
-        <div class="extended-visual" aria-hidden="true" data-aos="fade-left">
+        <div class="extended-visual" aria-hidden="true">
           <div class="roadmap-mockup glass-panel">
             <div class="road-line" aria-hidden="true"></div>
             <div
@@ -1581,7 +1637,8 @@ onUnmounted(() => {
     <!-- Deep-dive 2: Codelab Thực hành Trực tiếp (Reverse 2 cột) -->
     <section v-if="!authStore.isAuthenticated" class="extended-section codelab-section reverse">
       <div class="extended-container">
-        <div class="extended-text" data-aos="fade-right">
+        <div class="extended-text">
+          <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerCodelab }}</span></span>
           <h2 class="font-display text-3xl mb-4 text-heading">{{ messages.home.codelabTitle }}</h2>
           <p class="text-muted-foreground mb-6 text-sm">{{ messages.home.codelabDesc }}</p>
           <ul class="feature-list text-muted-foreground text-xs space-y-2">
@@ -1590,7 +1647,7 @@ onUnmounted(() => {
             <li><span class="text-emerald-500 font-bold">●</span> {{ messages.home.codelabFeature3 }}</li>
           </ul>
         </div>
-        <div class="extended-visual" aria-hidden="true" data-aos="fade-left">
+        <div class="extended-visual" aria-hidden="true">
           <div class="codelab-mockup glass-panel">
             <div class="codelab-header">
               <div class="codelab-dots" aria-hidden="true">
@@ -1661,7 +1718,7 @@ onUnmounted(() => {
     <!-- ── TẦNG 5C: RANK LADDER + GAMIFICATION ── -->
     <section id="sec-rank" class="rank-section">
       <div class="container">
-        <div class="rank-header text-center mb-10" data-aos="fade-up">
+        <div class="rank-header text-center mb-10">
           <span class="home__kicker mb-3">
             <span class="font-mono">{{ messages.home.rankKicker }}</span>
           </span>
@@ -1724,9 +1781,46 @@ onUnmounted(() => {
               <Award class="w-4 h-4 text-amber-500" aria-hidden="true" />
               <h3 class="rank-card__title font-bold text-sm">{{ messages.home.rankSectionBadges }}</h3>
             </div>
-            <div v-if="earnedAchievements.length === 0" class="rank-empty">
-              <Award class="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" aria-hidden="true" />
-              <span class="text-xs text-muted-foreground">{{ messages.home.rankBadgesEmpty }}</span>
+            <div v-if="earnedAchievements.length === 0" class="rank-empty rank-badges-preview">
+              <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="locked-badge-card p-2.5 rounded-xl bg-card/40 border border-dashed border-border flex items-center gap-2 opacity-75 hover:opacity-100 transition-opacity">
+                  <div class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                    <Sparkles class="w-3.5 h-3.5" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-heading truncate">{{ messages.home.badgeApprentice }}</div>
+                    <div class="text-[9px] text-muted-foreground flex items-center gap-0.5">🔒 {{ messages.home.badgeLocked }}</div>
+                  </div>
+                </div>
+                <div class="locked-badge-card p-2.5 rounded-xl bg-card/40 border border-dashed border-border flex items-center gap-2 opacity-75 hover:opacity-100 transition-opacity">
+                  <div class="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500 shrink-0">
+                    <Network class="w-3.5 h-3.5" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-heading truncate">{{ messages.home.badgeGraphMaster }}</div>
+                    <div class="text-[9px] text-muted-foreground flex items-center gap-0.5">🔒 {{ messages.home.badgeLocked }}</div>
+                  </div>
+                </div>
+                <div class="locked-badge-card p-2.5 rounded-xl bg-card/40 border border-dashed border-border flex items-center gap-2 opacity-75 hover:opacity-100 transition-opacity">
+                  <div class="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
+                    <Target class="w-3.5 h-3.5" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-heading truncate">{{ messages.home.badgeAlgorithmHunter }}</div>
+                    <div class="text-[9px] text-muted-foreground flex items-center gap-0.5">🔒 {{ messages.home.badgeLocked }}</div>
+                  </div>
+                </div>
+                <div class="locked-badge-card p-2.5 rounded-xl bg-card/40 border border-dashed border-border flex items-center gap-2 opacity-75 hover:opacity-100 transition-opacity">
+                  <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0">
+                    <Code2 class="w-3.5 h-3.5" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-heading truncate">{{ messages.home.badgeCodelabFlash }}</div>
+                    <div class="text-[9px] text-muted-foreground flex items-center gap-0.5">🔒 {{ messages.home.badgeLocked }}</div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[11px] text-muted-foreground text-center mb-1">{{ messages.home.badgeUnlockHint }}</p>
             </div>
             <div v-else class="rank-badges">
               <div v-for="badge in earnedAchievements.slice(0, 6)" :key="badge.id" class="rank-badge">
@@ -2359,8 +2453,14 @@ onUnmounted(() => {
 
 .bar--swap {
   background: #f43f5e !important;
-  box-shadow: 0 0 16px rgba(244, 63, 94, 0.6);
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.85);
   transform: translateY(-6px);
+  animation: swapPulse 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes swapPulse {
+  0% { transform: translateY(-4px); filter: brightness(1); }
+  100% { transform: translateY(-8px); filter: brightness(1.25); }
 }
 
 .bar--sorted {

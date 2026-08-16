@@ -211,6 +211,23 @@ export const messages = {
     rankYourLevel: (lvl: number) => `Cấp độ của bạn: Lv.${lvl}`,
     rankSectionBadges: 'Huy hiệu vinh danh',
     rankBadgesEmpty: 'Hoàn thành bài học để mở khóa huy hiệu',
+    // Task i18n — kicker section labels (bento/catalog/freemium/roadmap/codelab)
+    kickerFeatures: 'Tính Năng Nổi Bật',
+    kickerLibrary: 'Thư Viện Bài Học',
+    kickerFreemium: 'Mô Hình Học Tập',
+    kickerRoadmap: 'Lộ Trình Chuẩn',
+    kickerCodelab: 'Thực Hành Trực Tiếp',
+    // Task i18n — locked badge preview cards
+    badgeLocked: 'Khóa',
+    badgeUnlockHint: 'Mở khóa 12+ huy hiệu danh dự khi hoàn thành bài học',
+    badgeApprentice: 'Tập sự DSA',
+    badgeGraphMaster: 'Bậc thầy Đồ thị',
+    badgeAlgorithmHunter: 'Thợ săn Giải thuật',
+    badgeCodelabFlash: 'Thần tốc Codelab',
+    // Task i18n — bento gamification preview
+    streakPreviewDays: '7 Ngày Streak',
+    streakPreviewLabel: 'Chuỗi học tập đều đặn',
+    streakPreviewLevel: 'Lv.5 Tinh Anh',
     rankStreakLabel: 'Chuỗi ngày học',
     rankStreakUnit: 'ngày',
     rankStatsTitle: 'Thống kê nền tảng',
