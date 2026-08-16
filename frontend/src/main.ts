@@ -27,14 +27,18 @@ async function bootstrap(): Promise<void> {
   app.use(pinia);
 
   const auth = useAuthStore(pinia);
-  try {
-    const token = await auth.refresh();
-    if (token) {
-      // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
-      await auth.fetchMe();
+  // Chỉ auto-refresh khi có hint session (login/refresh trước đó thành công) —
+  // tránh POST /auth/refresh 401 + console error trên mọi page load lúc logged-out (finding R2-04).
+  if (localStorage.getItem(auth.SESSION_HINT_KEY)) {
+    try {
+      const token = await auth.refresh();
+      if (token) {
+        // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
+        await auth.fetchMe();
+      }
+    } catch {
+      // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
     }
-  } catch {
-    // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
   }
 
   app.use(router);
