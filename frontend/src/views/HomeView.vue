@@ -750,6 +750,9 @@ let gsapCtx: gsap.Context | null = null;
 function initAnimations(): void {
   if (prefersReducedMotion() || !homeRef.value) return;
 
+  // Guard: revert context cũ trước khi tạo mới (chống navigate nhanh gây duplicate)
+  if (gsapCtx) { gsapCtx.revert(); gsapCtx = null; }
+
   gsapCtx = gsap.context(() => {
     // 1. Hero Title Fade-in (Không dùng SplitText để bảo toàn trọn vẹn cụm text-gradient "sống động nhất")
     gsap.from('.hero__title', {
@@ -855,9 +858,10 @@ function initAnimations(): void {
         { innerHTML: userStreak.value, duration: 1.0, ease: 'power2.out', snap: { innerHTML: 1 } },
       );
     }
-  }, homeRef.value);
 
-  ScrollTrigger.refresh();
+    // refresh nằm TRONG context để tự revert khi ctx.revert()
+    ScrollTrigger.refresh();
+  }, homeRef.value);
 }
 
 /* ── Lifecycle ── */
