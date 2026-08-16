@@ -211,7 +211,11 @@ export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {
-  return getData<ShopItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
+  const items = await getData<any[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
+  return (items || []).map((item) => ({
+    ...item,
+    priceGems: item.priceGems ?? item.price ?? item.cost ?? 0,
+  }));
 }
 
 export async function buyItem(itemId: number): Promise<{ gemsLeft: number }> {
