@@ -373,14 +373,19 @@ async function confirmDeleteClass(): Promise<void> {
 function copyInvite(): void {
   const code = classStore.currentClass?.inviteCode;
   if (!code) return;
-  void navigator.clipboard?.writeText(code).then(() => {
-    ui.showToast(messages.classes.detailCopied, 'success');
-    copied.value = true;
-    if (copyTimer) clearTimeout(copyTimer);
-    copyTimer = setTimeout(() => {
-      copied.value = false;
-    }, 1600);
-  });
+  void navigator.clipboard?.writeText(code)
+    .then(() => {
+      ui.showToast(messages.classes.detailCopied, 'success');
+      copied.value = true;
+      if (copyTimer) clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => {
+        copied.value = false;
+      }, 1600);
+    })
+    .catch(() => {
+      // FIX B4 — clipboard từ chối/không khả dụng → báo lỗi, không hiện trạng thái copy giả.
+      ui.showToast(messages.classes.detailCopyFailed, 'error');
+    });
 }
 
 function assignmentTitle(assign: ClassAssignmentDto): string {
@@ -441,11 +446,17 @@ function assignmentTitle(assign: ClassAssignmentDto): string {
                 {{ messages.classes.detailCopy }}
               </Button>
             </span>
-            <RouterLink :to="{ name: 'class-report', params: { id: String(classId) } }" class="class-detail__hero-link">
-              <Button v-if="isManager" size="md" variant="secondary">
-                {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
-              </Button>
-            </RouterLink>
+            <!-- FIX B1 — bỏ RouterLink bọc Button (button trong anchor = HTML không hợp lệ):
+                 dùng @click router.push giữ nguyên visual Button. -->
+            <Button
+              v-if="isManager"
+              size="md"
+              variant="secondary"
+              class="class-detail__hero-link"
+              @click="router.push({ name: 'class-report', params: { id: String(classId) } })"
+            >
+              {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
+            </Button>
           </div>
         </template>
       </PageHero>

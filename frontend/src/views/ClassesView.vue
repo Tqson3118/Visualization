@@ -218,7 +218,8 @@ async function createClass(): Promise<void> {
             <UserRound v-else :size="18" />
           </span>
           <div class="classes__card-meta">
-            <h3 class="classes__card-name">{{ cls.name }}</h3>
+            <!-- FIX B2 — tiêu đề thẻ dùng h2 (không nhảy bậc heading) -->
+            <h2 class="classes__card-name">{{ cls.name }}</h2>
             <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
           </div>
           <Badge :variant="isManagerOf(cls) ? 'primary' : 'muted'">
@@ -318,8 +319,8 @@ async function createClass(): Promise<void> {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-card-raised);
-  border: 1px solid var(--color-border-subtle);
+  background: var(--card-raised);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   align-self: flex-start;
 }
@@ -338,14 +339,14 @@ async function createClass(): Promise<void> {
 .classes__summary-val {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--foreground);
 }
 
 .classes__summary-dot {
   width: 4px;
   height: 4px;
   border-radius: var(--radius-full);
-  background: var(--color-border);
+  background: var(--border);
 }
 
 /* ── Loading ── */

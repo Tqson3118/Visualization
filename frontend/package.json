@@ -29,7 +29,6 @@
     "lucide-vue-next": "^1.0.0",
     "motion-v": "^2.3.0",
     "pinia": "^3.0.4",
-    "playwright": "^1.62.1",
     "qrcode": "^1.5.4",
     "reka-ui": "^2.10.3",
     "shadcn-vue": "^2.8.2",

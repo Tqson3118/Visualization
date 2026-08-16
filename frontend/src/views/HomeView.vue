@@ -294,12 +294,17 @@ interface RankTier {
 }
 
 const RANK_TIERS: RankTier[] = [
-  { min: 1, max: 2, icon: Medal, name: messages.home.rankTier1Name, desc: messages.home.rankTier1Desc, range: 'Lv 1–2', cls: 'rank-tier--t1' },
-  { min: 3, max: 4, icon: Shield, name: messages.home.rankTier2Name, desc: messages.home.rankTier2Desc, range: 'Lv 3–4', cls: 'rank-tier--t2' },
-  { min: 5, max: 6, icon: Crown, name: messages.home.rankTier3Name, desc: messages.home.rankTier3Desc, range: 'Lv 5–6', cls: 'rank-tier--t3' },
-  { min: 7, max: 8, icon: Gem, name: messages.home.rankTier4Name, desc: messages.home.rankTier4Desc, range: 'Lv 7–8', cls: 'rank-tier--t4' },
-  { min: 9, max: 9999, icon: Trophy, name: messages.home.rankTier5Name, desc: messages.home.rankTier5Desc, range: 'Lv 9+', cls: 'rank-tier--t5' },
+  { min: 1, max: 2, icon: Medal, name: messages.home.rankTier1Name, desc: messages.home.rankTier1Desc, range: messages.home.rankRange1, cls: 'rank-tier--t1' },
+  { min: 3, max: 4, icon: Shield, name: messages.home.rankTier2Name, desc: messages.home.rankTier2Desc, range: messages.home.rankRange2, cls: 'rank-tier--t2' },
+  { min: 5, max: 6, icon: Crown, name: messages.home.rankTier3Name, desc: messages.home.rankTier3Desc, range: messages.home.rankRange3, cls: 'rank-tier--t3' },
+  { min: 7, max: 8, icon: Gem, name: messages.home.rankTier4Name, desc: messages.home.rankTier4Desc, range: messages.home.rankRange4, cls: 'rank-tier--t4' },
+  { min: 9, max: 9999, icon: Trophy, name: messages.home.rankTier5Name, desc: messages.home.rankTier5Desc, range: messages.home.rankRange5, cls: 'rank-tier--t5' },
 ];
+
+// FIX H8 — khai báo userLevel/userXP/userStreak TRƯỚC currentRankIndex (chưa dùng trước định nghĩa)
+const userLevel = computed(() => gamificationStore.level || 1);
+const userXP = computed(() => gamificationStore.xp || 0);
+const userStreak = computed(() => gamificationStore.streakDays || 0);
 
 const currentRankIndex = computed(() => {
   const lvl = Math.max(1, userLevel.value);
@@ -416,77 +421,77 @@ interface BentoFeature {
 const bentoFeatures: BentoFeature[] = [
   {
     id: 'sort',
-    title: 'Thuật Toán Sắp Xếp Trực Quan',
-    subtitle: '7 thuật toán sắp xếp kinh điển',
-    description: 'Quan sát Bubble, Quick, Merge, Heap Sort hoạt ảnh mượt mà từng bước. Dễ dàng nhận biết vị trí Pivot, Swap và vùng đã sắp xếp.',
+    title: messages.home.bentoSortTitle,
+    subtitle: messages.home.bentoSortSubtitle,
+    description: messages.home.bentoSortDesc,
     icon: ArrowUpDown,
-    tag: 'Algorithms',
+    tag: messages.home.bentoSortTag,
     route: '/simulations',
     accentClass: 'text-primary',
     size: 'large',
   },
   {
     id: 'graph',
-    title: 'Sân Chơi Đồ Thị (Graph Sandbox)',
-    subtitle: 'Tự do kéo thả đỉnh & kết nối cạnh',
-    description: 'Tương tác trực tiếp với các đỉnh đồ thị, gán trọng số và chạy thuật toán tìm đường ngắn nhất Dijkstra, BFS, DFS sinh động.',
+    title: messages.home.bentoGraphTitle,
+    subtitle: messages.home.bentoGraphSubtitle,
+    description: messages.home.bentoGraphDesc,
     icon: Network,
-    tag: 'Graph',
+    tag: messages.home.bentoGraphTag,
     route: '/simulations',
     accentClass: 'text-amber-500',
     size: 'medium',
   },
   {
     id: 'gamification',
-    title: 'Gamification Học Mà Chơi',
-    subtitle: 'Tích lũy XP, Streak & Mở khóa Huy hiệu',
-    description: 'Biến việc học giải thuật thành hành trình thú vị với chuỗi ngày liên tục (Streak), thăng cấp độ và leo bảng xếp hạng.',
+    title: messages.home.bentoGameTitle,
+    subtitle: messages.home.bentoGameSubtitle,
+    description: messages.home.bentoGameDesc,
     icon: Trophy,
-    tag: 'Gamification',
+    tag: messages.home.bentoGameTag,
     route: '/leaderboard',
     accentClass: 'text-purple-500',
     size: 'medium',
   },
   {
     id: 'oop',
-    title: 'OOP',
-    subtitle: 'Lập trình Hướng đối tượng',
-    description: 'Đóng gói, Kế thừa, Đa hình & Trừu tượng.',
+    title: messages.home.bentoOopTitle,
+    subtitle: messages.home.bentoOopSubtitle,
+    description: messages.home.bentoOopDesc,
     icon: Boxes,
-    tag: 'OOP',
+    tag: messages.home.bentoOopTag,
     route: '/simulations',
     accentClass: 'text-cyan-500',
     size: 'small',
   },
   {
     id: 'solid',
-    title: '5 Nguyên Lý SOLID',
-    subtitle: 'Thiết kế phần mềm linh hoạt',
-    description: 'Làm chủ SRP, OCP, LSP, ISP, DIP chuẩn công nghiệp.',
+    title: messages.home.bentoSolidTitle,
+    subtitle: messages.home.bentoSolidSubtitle,
+    description: messages.home.bentoSolidDesc,
     icon: ShieldCheck,
-    tag: 'SOLID',
+    tag: messages.home.bentoSolidTag,
     route: '/simulations',
     accentClass: 'text-emerald-500',
     size: 'small',
   },
   {
     id: 'patterns',
-    title: 'Design Patterns',
-    subtitle: 'Mẫu thiết kế kinh điển',
-    description: 'Singleton, Factory, Observer, Strategy trực quan.',
+    title: messages.home.bentoPatternsTitle,
+    subtitle: messages.home.bentoPatternsSubtitle,
+    description: messages.home.bentoPatternsDesc,
     icon: GitFork,
-    tag: 'Patterns',
+    tag: messages.home.bentoPatternsTag,
     route: '/simulations',
     accentClass: 'text-pink-500',
     size: 'small',
   },
   {
     id: 'di',
-    title: 'DI / IoC',
-    subtitle: 'Dependency Injection',
-    description: 'Quản lý phụ thuộc mã nguồn chuẩn Clean Architecture.',
+    title: messages.home.bentoDiTitle,
+    subtitle: messages.home.bentoDiSubtitle,
+    description: messages.home.bentoDiDesc,
     icon: Sparkles,
-    tag: 'Architecture',
+    tag: messages.home.bentoDiTag,
     route: '/simulations',
     accentClass: 'text-blue-500',
     size: 'small',
@@ -560,10 +565,6 @@ function levelLabel(level: CatalogMeta['level']): string {
 const levelThresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000];
 const circumference = 2 * Math.PI * 46;
 
-const userLevel = computed(() => gamificationStore.level || 1);
-const userXP = computed(() => gamificationStore.xp || 0);
-const userStreak = computed(() => gamificationStore.streakDays || 0);
-
 const xpProgressPercent = computed(() => {
   const lvl = userLevel.value;
   if (lvl <= 0) return 0;
@@ -585,7 +586,7 @@ const dashOffset = computed(() => {
   return circumference * (1 - xpProgressPercent.value / 100);
 });
 
-const daysOfWeek = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const daysOfWeek = [...messages.home.dashDayAbbr];
 
 const enrolledTopics = computed(() => {
   return progressStore.overview?.topics ?? [];
@@ -596,28 +597,28 @@ const recentActivities = computed(() => {
   if (userStreak.value > 0) {
     list.push({
       id: 'act-streak',
-      title: `Chuỗi học tập ${userStreak.value} ngày`,
-      desc: 'Giữ vững lửa học tập mỗi ngày!',
+      title: messages.home.dashActivityStreakTitle(userStreak.value),
+      desc: messages.home.dashActivityStreakDesc,
       icon: Flame,
-      time: 'Hôm nay',
+      time: messages.home.dashActivityToday,
     });
   }
   if (progressStore.overview?.exercisesCompleted) {
     list.push({
       id: 'act-exercise',
-      title: `Hoạt động ${progressStore.overview.exercisesCompleted} bài tập`,
-      desc: `Điểm trung bình: ${progressStore.overview.avgScore ?? 100}%`,
+      title: messages.home.dashActivityExerciseTitle(progressStore.overview.exercisesCompleted),
+      desc: messages.home.dashActivityAvgDesc(progressStore.overview.avgScore ?? 100),
       icon: CheckCircle2,
-      time: 'Gần đây',
+      time: messages.home.dashActivityRecent,
     });
   }
   if (gamificationStore.questDone > 0) {
     list.push({
       id: 'act-quest',
-      title: `Đã nhận thưởng ${gamificationStore.questDone} nhiệm vụ`,
-      desc: 'Tích lũy Gems và XP thành công.',
+      title: messages.home.dashActivityQuestTitle(gamificationStore.questDone),
+      desc: messages.home.dashActivityQuestDesc,
       icon: Target,
-      time: 'Hôm nay',
+      time: messages.home.dashActivityToday,
     });
   }
   return list;
@@ -635,6 +636,8 @@ const tiltSupported =
   typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
 
 function handleTilt(e: MouseEvent): void {
+  // FIX H4 — tôn trọng prefers-reduced-motion: bỏ hiệu ứng tilt khi user giảm chuyển động
+  if (prefersReducedMotion()) return;
   if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return;
   if (!tiltSupported) return;
   const card = e.currentTarget as HTMLElement;
@@ -646,6 +649,7 @@ function handleTilt(e: MouseEvent): void {
 }
 
 function handleTiltReset(e: MouseEvent): void {
+  if (prefersReducedMotion()) return;
   if (!tiltSupported) return;
   const card = e.currentTarget as HTMLElement;
   card.style.removeProperty('--rx');
@@ -858,7 +862,10 @@ function initAnimations(): void {
 
 /* ── Lifecycle ── */
 onMounted(async () => {
-  startPreview();
+  // FIX H6 — preview QuickSort stage chỉ chạy cho guest (hero chỉ hiển thị khi chưa đăng nhập)
+  if (!authStore.isAuthenticated) {
+    startPreview();
+  }
 
   if (!authStore.isAuthenticated && !prefersReducedMotion()) {
     startMiniViz();
@@ -900,14 +907,14 @@ onUnmounted(() => {
         <div class="greeting-banner glass-panel spring-hover">
           <div class="greeting-banner__content">
             <h1 class="greeting-banner__title font-display text-2xl mb-2">
-              Chào mừng <span class="greeting-banner__name text-gradient">{{ authStore.user?.displayName || authStore.user?.email || 'Học viên' }}</span> quay trở lại!
+              {{ messages.home.greetingPrefix }}<span class="greeting-banner__name text-gradient">{{ authStore.user?.displayName || authStore.user?.email || messages.home.greetingFallbackName }}</span>{{ messages.home.greetingSuffix }}
             </h1>
             <p class="greeting-banner__sub text-muted-foreground">
               Level <span class="text-accent font-bold">{{ userLevel }}</span> · <span class="text-accent-warm font-bold font-mono"><span class="xp-num">{{ userXP }}</span> XP</span> ·
               <span v-if="authStore.role === 'TEACHER' || authStore.role === 'ADMIN'" class="role-tag role-tag--teacher">
-                {{ authStore.role === 'ADMIN' ? 'Quản trị viên' : 'Giảng viên' }}
+                {{ authStore.role === 'ADMIN' ? messages.home.roleAdmin : messages.home.roleTeacher }}
               </span>
-              <span v-else class="role-tag role-tag--student">Sinh viên</span>
+              <span v-else class="role-tag role-tag--student">{{ messages.home.roleStudent }}</span>
             </p>
           </div>
           <div class="greeting-banner__graphic ambient-float" aria-hidden="true">
@@ -920,15 +927,15 @@ onUnmounted(() => {
 
           <!-- Lộ trình đang học (Enrolled roadmaps — Chiếm full width) -->
           <div class="dash-card enrolled-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-3">
+            <h2 class="dash-card__title font-bold text-sm mb-3">
               <BookOpen class="w-4 h-4 text-primary inline-block mr-1.5 align-text-bottom" />
-              Lộ trình đang học
-            </h3>
+              {{ messages.home.dashEnrolledTitle }}
+            </h2>
             <div v-if="enrolledTopics.length === 0" class="enrolled-empty text-center py-6">
-              <p class="text-text-muted text-xs mb-3">Bạn chưa đăng ký lộ trình nào.</p>
+              <p class="text-text-muted text-xs mb-3">{{ messages.home.dashEnrolledEmpty }}</p>
               <RouterLink :to="{ name: 'path' }" class="enrolled-cta inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-90 transition-all">
                 <Compass class="w-3.5 h-3.5" />
-                Khám phá Lộ trình
+                {{ messages.home.dashEnrolledCta }}
               </RouterLink>
             </div>
             <div v-else class="enrolled-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -954,24 +961,24 @@ onUnmounted(() => {
 
           <!-- Khám phá Lộ trình học (Quickstart steps — Chiếm full width) -->
           <div class="dash-card quickstart-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-1">
+            <h2 class="dash-card__title font-bold text-sm mb-1">
               <Compass class="w-4 h-4 text-primary inline-block mr-1.5 align-text-bottom" />
-              Khám phá Lộ trình học
-            </h3>
-            <p class="quickstart-intro text-xs text-muted-foreground mb-3">Bắt đầu hành trình chinh phục Thuật toán bằng cách đi theo lộ trình được thiết kế sẵn:</p>
+              {{ messages.home.dashQuickstartTitle }}
+            </h2>
+            <p class="quickstart-intro text-xs text-muted-foreground mb-3">{{ messages.home.dashQuickstartIntro }}</p>
             <div class="quickstart-steps">
               <RouterLink :to="{ name: 'path' }" class="quickstart-item">
                 <div class="quickstart-item__content">
-                  <span class="quickstart-item__title text-primary font-semibold">Xem Bản đồ Lộ trình</span>
-                  <span class="quickstart-item__desc text-xs text-muted-foreground">Học qua từng bài học, mô phỏng trực quan và bài tập thực hành.</span>
+                  <span class="quickstart-item__title text-primary font-semibold">{{ messages.home.dashQuickstartMap }}</span>
+                  <span class="quickstart-item__desc text-xs text-muted-foreground">{{ messages.home.dashQuickstartMapDesc }}</span>
                 </div>
                 <ArrowRight class="quickstart-item__arrow text-primary w-5 h-5 shrink-0" />
               </RouterLink>
               
               <RouterLink :to="{ name: 'classes' }" class="quickstart-item">
                 <div class="quickstart-item__content">
-                  <span class="quickstart-item__title font-semibold">Tham gia Lớp học</span>
-                  <span class="quickstart-item__desc text-xs text-muted-foreground">Nhập mã từ Giảng viên để theo dõi tiến độ cùng lớp.</span>
+                  <span class="quickstart-item__title font-semibold">{{ messages.home.dashQuickstartClass }}</span>
+                  <span class="quickstart-item__desc text-xs text-muted-foreground">{{ messages.home.dashQuickstartClassDesc }}</span>
                 </div>
                 <ArrowRight class="quickstart-item__arrow w-5 h-5 shrink-0" />
               </RouterLink>
@@ -980,7 +987,7 @@ onUnmounted(() => {
 
           <!-- Tiến trình XP (XP Wheel SVG Animated) -->
           <div class="dash-card xp-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">Tiến trình XP</h3>
+            <h2 class="dash-card__title font-bold text-sm mb-2">{{ messages.home.dashXpTitle }}</h2>
             <div class="xp-wheel">
               <svg viewBox="0 0 100 100" class="xp-wheel__svg">
                 <defs>
@@ -1004,21 +1011,21 @@ onUnmounted(() => {
                 />
               </svg>
               <div class="xp-wheel__center">
-                <span class="xp-wheel__level font-bold text-primary">Lv.{{ userLevel }}</span>
+                <span class="xp-wheel__level font-bold text-primary">{{ messages.home.dashLevelPrefix }}{{ userLevel }}</span>
                 <span class="xp-wheel__xp text-xs font-mono"><span class="xp-num font-bold">{{ userXP }}</span> XP</span>
               </div>
             </div>
-            <p class="xp-card__hint text-xs text-muted-foreground text-center mt-2">{{ xpToNextLevel }} XP để lên level tiếp theo</p>
+            <p class="xp-card__hint text-xs text-muted-foreground text-center mt-2">{{ messages.home.dashXpHint(xpToNextLevel) }}</p>
           </div>
 
           <!-- Chuỗi ngày học (Streak Card với Flame Pulse) -->
           <div class="dash-card streak-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">Chuỗi ngày học</h3>
+            <h2 class="dash-card__title font-bold text-sm mb-2">{{ messages.home.dashStreakTitle }}</h2>
             <div class="flex items-center justify-center gap-4 py-2">
               <Flame class="w-10 h-10 text-orange-500 flame-animated" />
               <div>
-                <div class="text-2xl font-bold text-orange-500 font-mono"><span class="streak-num">{{ userStreak }}</span> Ngày</div>
-                <div class="text-xs text-muted-foreground">Giữ lửa học tập!</div>
+                <div class="text-2xl font-bold text-orange-500 font-mono"><span class="streak-num">{{ userStreak }}</span> {{ messages.home.dashStreakDays }}</div>
+                <div class="text-xs text-muted-foreground">{{ messages.home.dashStreakTagline }}</div>
               </div>
             </div>
             <div class="flex justify-between mt-4">
@@ -1035,12 +1042,12 @@ onUnmounted(() => {
 
           <!-- Daily Quests Card -->
           <div class="dash-card quests-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">
+            <h2 class="dash-card__title font-bold text-sm mb-2">
               <Target class="w-4 h-4 text-emerald-500 inline-block mr-1 align-text-bottom" />
-              Nhiệm vụ hôm nay
-            </h3>
+              {{ messages.home.dashQuestTitle }}
+            </h2>
             <div v-if="gamificationStore.quests.length === 0" class="text-xs text-muted-foreground py-4 text-center">
-              Đang tải danh sách nhiệm vụ...
+              {{ messages.home.dashQuestLoading }}
             </div>
             <div v-else class="space-y-2.5">
               <div
@@ -1058,7 +1065,7 @@ onUnmounted(() => {
               </div>
               <div class="text-right pt-1">
                 <RouterLink :to="{ name: 'quests' }" class="text-xs text-primary font-medium hover:underline inline-flex items-center gap-1">
-                  Xem tất cả nhiệm vụ <ArrowRight class="w-3 h-3" />
+                  {{ messages.home.dashQuestViewAll }} <ArrowRight class="w-3 h-3" />
                 </RouterLink>
               </div>
             </div>
@@ -1066,10 +1073,10 @@ onUnmounted(() => {
 
           <!-- Hoạt động gần đây -->
           <div class="dash-card recent-activity-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">Hoạt động gần đây</h3>
+            <h2 class="dash-card__title font-bold text-sm mb-2">{{ messages.home.dashActivityTitle }}</h2>
             <div v-if="recentActivities.length === 0" class="empty-state text-center py-4">
               <Activity class="w-8 h-8 text-muted-foreground mx-auto mb-1 opacity-50" />
-              <span class="text-muted-foreground text-xs">Chưa có hoạt động gần đây</span>
+              <span class="text-muted-foreground text-xs">{{ messages.home.dashActivityEmpty }}</span>
             </div>
             <div v-else class="space-y-2">
               <div v-for="activity in recentActivities" :key="activity.id" class="flex items-center gap-2.5 text-xs py-1">
@@ -1085,10 +1092,10 @@ onUnmounted(() => {
 
           <!-- Huy hiệu đã mở -->
           <div class="dash-card badges-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">Huy hiệu đã mở</h3>
+            <h2 class="dash-card__title font-bold text-sm mb-2">{{ messages.home.dashBadgesTitle }}</h2>
             <div v-if="topBadges.length === 0" class="text-center py-4">
               <Trophy class="w-8 h-8 text-muted-foreground mx-auto mb-1 opacity-40" />
-              <span class="text-xs text-muted-foreground">Chưa có huy hiệu nào. Hãy hoàn thành bài học!</span>
+              <span class="text-xs text-muted-foreground">{{ messages.home.dashBadgesEmpty }}</span>
             </div>
             <div v-else class="grid grid-cols-2 gap-2">
               <div v-for="badge in topBadges" :key="badge.id" class="p-2 rounded-lg bg-muted/60 flex items-center gap-2">
@@ -1100,23 +1107,23 @@ onUnmounted(() => {
 
           <!-- Truy cập nhanh (Quicklinks) -->
           <div class="dash-card quicklinks-card glass-panel spring-hover">
-            <h3 class="dash-card__title font-bold text-sm mb-2">Truy cập nhanh</h3>
+            <h2 class="dash-card__title font-bold text-sm mb-2">{{ messages.home.dashQuicklinkTitle }}</h2>
             <div class="grid grid-cols-2 gap-2">
               <RouterLink :to="{ name: 'path' }" class="quicklink-btn flex items-center gap-2 p-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-all">
                 <BookOpen class="w-4 h-4 text-primary" />
-                <span>Bản đồ Lộ trình</span>
+                <span>{{ messages.home.dashQuicklinkPath }}</span>
               </RouterLink>
               <RouterLink :to="{ name: 'leaderboard' }" class="quicklink-btn flex items-center gap-2 p-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-all">
                 <Trophy class="w-4 h-4 text-amber-500" />
-                <span>Bảng xếp hạng</span>
+                <span>{{ messages.home.dashQuicklinkLeaderboard }}</span>
               </RouterLink>
               <RouterLink :to="{ name: 'shop' }" class="quicklink-btn flex items-center gap-2 p-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-all">
                 <Gem class="w-4 h-4 text-purple-500" />
-                <span>Cửa hàng Gems</span>
+                <span>{{ messages.home.dashQuicklinkShop }}</span>
               </RouterLink>
               <RouterLink :to="{ name: 'simulations' }" class="quicklink-btn flex items-center gap-2 p-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-medium transition-all">
                 <Layers class="w-4 h-4 text-emerald-500" />
-                <span>Thư viện mô phỏng</span>
+                <span>{{ messages.home.dashQuicklinkSims }}</span>
               </RouterLink>
             </div>
           </div>
@@ -1145,13 +1152,12 @@ onUnmounted(() => {
       <div class="hero__content">
         <!-- Hero Title -->
         <h1 class="hero__title font-display" ref="heroTitleRef">
-          Khám phá thuật toán theo cách <span class="text-gradient">sống động nhất</span>
+          {{ messages.home.heroTitlePrefix }}<span class="text-gradient">{{ messages.home.heroTitleGradient }}</span>
         </h1>
 
         <!-- Hero Subtitle -->
         <p class="hero__sub font-sans">
-          Trực quan hóa cấu trúc dữ liệu, đồ thị, và design patterns. 
-          Hệ thống gamification giúp bạn biến việc học code thành một hành trình thú vị.
+          {{ messages.home.heroSub1 }}{{ messages.home.heroSub2 }}
         </p>
 
         <!-- Hero Actions -->
@@ -1162,7 +1168,7 @@ onUnmounted(() => {
             class="btn-primary hero-btn spring-hover inline-flex items-center"
           >
             <Play class="size-4 mr-2" />
-            Bắt đầu học ngay
+            {{ messages.home.heroStartNow }}
           </RouterLink>
           <RouterLink
             v-else
@@ -1178,7 +1184,7 @@ onUnmounted(() => {
             class="btn-ghost hero-btn spring-hover inline-flex items-center"
           >
             <Layers class="size-4 mr-2" />
-            Khám phá Thư viện thuật toán
+            {{ messages.home.heroExploreLibrary }}
           </RouterLink>
         </div>
 
@@ -1186,22 +1192,22 @@ onUnmounted(() => {
         <div class="hero__trust">
           <div class="trust-item">
             <span class="trust-number font-mono">{{ stats.visuals }}+</span>
-            <span class="trust-label">Thuật toán trực quan hóa</span>
+            <span class="trust-label">{{ messages.home.trustAlgorithms }}</span>
           </div>
           <div class="trust-divider" aria-hidden="true"></div>
           <div class="trust-item">
             <span class="trust-number font-mono">4</span>
-            <span class="trust-label">Bước học mỗi bài</span>
+            <span class="trust-label">{{ messages.home.trustStepsPerLesson }}</span>
           </div>
           <div class="trust-divider" aria-hidden="true"></div>
           <div class="trust-item">
             <span class="trust-number font-mono">100%</span>
-            <span class="trust-label">Tiếng Việt</span>
+            <span class="trust-label">{{ messages.home.trustVietnamese }}</span>
           </div>
           <div class="trust-divider" aria-hidden="true"></div>
           <div class="trust-item">
             <span class="trust-number font-mono">∞</span>
-            <span class="trust-label">Thực hành</span>
+            <span class="trust-label">{{ messages.home.trustPractice }}</span>
           </div>
         </div>
       </div>
@@ -1284,8 +1290,8 @@ onUnmounted(() => {
     <section v-if="!authStore.isAuthenticated" id="sec-bento" class="features-section">
       <div class="features-header text-center mb-12">
         <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerFeatures }}</span></span>
-        <h2 class="font-display text-3xl mb-3 text-heading">Không chỉ là code, đó là nghệ thuật</h2>
-        <p class="text-muted-foreground max-w-2xl mx-auto text-sm">Trải nghiệm nền tảng giáo dục kết hợp với giao diện trực quan hiện đại, mang lại cảm hứng sáng tạo vô tận.</p>
+        <h2 class="font-display text-3xl mb-3 text-heading">{{ messages.home.bentoHeaderTitle }}</h2>
+        <p class="text-muted-foreground max-w-2xl mx-auto text-sm">{{ messages.home.bentoHeaderDesc }}</p>
       </div>
 
       <div class="bento-grid">
@@ -1381,7 +1387,7 @@ onUnmounted(() => {
 
           <div class="bento-footer mt-3">
             <RouterLink :to="feat.route" class="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline">
-              Khám phá ngay <ArrowRight class="w-3 h-3" />
+              {{ messages.home.bentoExploreCta }} <ArrowRight class="w-3 h-3" />
             </RouterLink>
           </div>
         </div>
@@ -1389,6 +1395,8 @@ onUnmounted(() => {
     </section>
 
     <!-- ── 3 DEMO CARDS NHANH (FR-7.6) ── -->
+    <!-- FIX H13 — decision guest/member split: #sec-demos hiển thị CHO CẢ guest & member
+         (demo công khai là nội dung cốt lõi, không giới hạn theo trạng thái đăng nhập). -->
     <section id="sec-demos" class="home__section home__demos">
       <div class="container">
         <div class="home__section-head">
@@ -1464,16 +1472,19 @@ onUnmounted(() => {
     </section>
 
     <!-- ── TẦNG 3: ALGORITHM LIBRARY GRID ── -->
+    <!-- FIX H13 — decision: #sec-catalog (thư viện thuật toán) hiển thị CHO CẢ guest & member,
+         member vẫn duyệt danh mục để vào mô phỏng. Không ẩn theo trạng thái đăng nhập. -->
     <section id="sec-catalog" class="algogrid-section">
       <div class="container">
         <div class="algogrid-header text-center mb-10">
           <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerLibrary }}</span></span>
-          <h2 class="font-display text-3xl mb-3 text-heading">Thư viện thuật toán trực quan</h2>
-          <p class="text-muted-foreground max-w-2xl mx-auto text-sm">30+ thuật toán & cấu trúc dữ liệu, sắp xếp theo nhóm — xem animation từng bước, tự nhập dữ liệu, chạy code của bạn.</p>
+          <h2 class="font-display text-3xl mb-3 text-heading">{{ messages.home.altCatalogTitle }}</h2>
+          <p class="text-muted-foreground max-w-2xl mx-auto text-sm">{{ messages.home.altCatalogDesc }}</p>
         </div>
 
         <div class="home__catalog-toolbar mb-8">
-          <div class="home__filters" role="tablist" aria-label="Bộ lọc danh mục thuật toán">
+          <!-- FIX H9 — bộ lọc không phải tabs: bỏ role=tablist (không đúng ngữ nghĩa) -->
+          <div class="home__filters" role="group" aria-label="Bộ lọc danh mục thuật toán">
             <Button
               v-for="group in catalogGroups"
               :key="group.key"
@@ -1557,15 +1568,15 @@ onUnmounted(() => {
       <div class="container">
         <div class="freemium-header text-center mb-10">
           <span class="home__kicker mb-3 inline-block"><span class="font-mono text-[11px] font-semibold tracking-wider uppercase">{{ messages.home.kickerFreemium }}</span></span>
-          <h2 class="font-display text-3xl mb-3 text-heading">Miễn phí để bắt đầu, Premium để bứt phá</h2>
-          <p class="text-muted-foreground max-w-2xl mx-auto text-sm">Mô hình Freemium giúp bạn học thử miễn phí và nâng cấp khi cần thêm sức mạnh.</p>
+          <h2 class="font-display text-3xl mb-3 text-heading">{{ messages.home.freemiumHeaderTitle }}</h2>
+          <p class="text-muted-foreground max-w-2xl mx-auto text-sm">{{ messages.home.freemiumHeaderDesc }}</p>
         </div>
 
         <div class="freemium-grid grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="freemium-card glass-panel spring-hover p-6 rounded-2xl flex flex-col">
             <div class="freemium-icon text-rose-500 mb-3"><Heart class="w-8 h-8 fill-rose-500/20" /></div>
-            <h3 class="font-display text-lg text-heading mb-2 font-bold">Hearts (Tim)</h3>
-            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">Mỗi bài học có giới hạn số lần thử. Sai quá nhiều thì hết tim và phải đợi hồi phục — tạo động lực tập trung.</p>
+            <h3 class="font-display text-lg text-heading mb-2 font-bold">{{ messages.home.freemiumHeartsTitle }}</h3>
+            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{{ messages.home.freemiumHeartsDesc }}</p>
             <RouterLink :to="{ name: 'help' }" :class="buttonVariants({ variant: 'outline', size: 'sm', class: 'w-full' })">
               {{ messages.home.freemiumHeartsCta }}
             </RouterLink>
@@ -1573,8 +1584,8 @@ onUnmounted(() => {
 
           <div class="freemium-card glass-panel spring-hover p-6 rounded-2xl flex flex-col">
             <div class="freemium-icon text-cyan-500 mb-3"><Gem class="w-8 h-8 text-cyan-400" /></div>
-            <h3 class="font-display text-lg text-heading mb-2 font-bold">Gems (Đá quý)</h3>
-            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">Tiêu gems mua gợi ý, đóng băng streak, khung avatar — tiêu được chứ không chỉ là số đẹp.</p>
+            <h3 class="font-display text-lg text-heading mb-2 font-bold">{{ messages.home.freemiumGemsTitle }}</h3>
+            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{{ messages.home.freemiumGemsDesc }}</p>
             <RouterLink :to="{ name: 'shop' }" :class="buttonVariants({ variant: 'outline', size: 'sm', class: 'w-full' })">
               {{ messages.home.freemiumGemsCta }}
             </RouterLink>
@@ -1583,12 +1594,12 @@ onUnmounted(() => {
           <div class="freemium-card glass-panel spring-hover freemium-card--premium p-6 rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-transparent flex flex-col">
             <div class="freemium-icon text-amber-500 mb-3"><Crown class="w-8 h-8" /></div>
             <h3 class="font-display text-lg text-heading mb-2 font-bold flex items-center justify-between">
-              Premium VIP
-              <Badge variant="secondary" class="text-[10px]">Cao cấp</Badge>
+              {{ messages.home.freemiumPremiumTitle }}
+              <Badge variant="secondary" class="text-[10px]">{{ messages.home.freemiumPremiumTag }}</Badge>
             </h3>
-            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">Mở khóa toàn bộ visualizer cao cấp, AI không giới hạn, không quảng cáo và thanh toán chuyển khoản bảo mật.</p>
+            <p class="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{{ messages.home.freemiumPremiumDesc }}</p>
             <RouterLink :to="{ name: 'premium' }" :class="buttonVariants({ variant: 'default', size: 'sm', class: 'w-full' })">
-              Nâng cấp Premium
+              {{ messages.home.freemiumUpgradeCta }}
             </RouterLink>
           </div>
         </div>
@@ -1716,6 +1727,8 @@ onUnmounted(() => {
     </section>
 
     <!-- ── TẦNG 5C: RANK LADDER + GAMIFICATION ── -->
+    <!-- FIX H13 — decision: #sec-rank hiển thị CHO CẢ guest & member — guest thấy thang bậc + CTA
+         đăng ký (rankRegisterCta), member thấy rank thật + CTA leaderboard (rankLeaderboardCta). -->
     <section id="sec-rank" class="rank-section">
       <div class="container">
         <div class="rank-header text-center mb-10">
@@ -1861,14 +1874,14 @@ onUnmounted(() => {
     <!-- ── TẦNG 6: CTA SECTION ── -->
     <section v-if="!authStore.isAuthenticated" id="sec-cta" class="cta-section">
       <div class="cta-card glass-panel spring-hover">
-        <h2 class="font-display text-3xl mb-3 text-heading font-bold">Sẵn sàng nâng cao trình độ?</h2>
-        <p class="text-muted-foreground mb-8 max-w-lg mx-auto text-sm">Gia nhập cộng đồng sinh viên lập trình Việt Nam và làm chủ Cấu trúc Dữ liệu & Giải thuật ngay hôm nay.</p>
+        <h2 class="font-display text-3xl mb-3 text-heading font-bold">{{ messages.home.ctaTitle }}</h2>
+        <p class="text-muted-foreground mb-8 max-w-lg mx-auto text-sm">{{ messages.home.ctaDesc }}</p>
         <RouterLink
           v-if="!authStore.isAuthenticated"
           :to="{ name: 'register' }"
           class="btn-primary hero-btn mx-auto spring-hover inline-flex items-center"
         >
-          Tạo tài khoản miễn phí
+          {{ messages.home.ctaRegister }}
           <ArrowRight class="size-4 ml-2" />
         </RouterLink>
         <RouterLink
@@ -1876,7 +1889,7 @@ onUnmounted(() => {
           :to="{ name: 'path' }"
           class="btn-primary hero-btn mx-auto spring-hover inline-flex items-center"
         >
-          Tiếp tục học ngay
+          {{ messages.home.ctaContinue }}
           <ArrowRight class="size-4 ml-2" />
         </RouterLink>
       </div>
@@ -1985,7 +1998,9 @@ onUnmounted(() => {
   font-size: 0.75rem;
   font-weight: 600;
 }
-.role-tag--teacher { background: rgba(234, 179, 8, 0.15); color: #d97706; }
+/* FIX H7 — tăng contrast tag Giảng viên (amber-800 ≥4.5:1 trên nền sáng) */
+.role-tag--teacher { background: rgba(234, 179, 8, 0.15); color: #92400e; }
+.dark .role-tag--teacher { color: #fbbf24; }
 .role-tag--student { background: rgba(99, 102, 241, 0.15); color: var(--color-primary); }
 
 .dashboard__grid {
@@ -2019,6 +2034,11 @@ onUnmounted(() => {
   border: 1px solid var(--color-border);
   text-decoration: none;
   transition: all 0.25s ease;
+}
+/* FIX H10 — focus ring chuẩn cho thẻ nhanh */
+.quickstart-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 .quickstart-item:hover {
   border-color: var(--color-primary);
@@ -2398,6 +2418,11 @@ onUnmounted(() => {
   width: 84px;
   accent-color: #2dd4bf;
   cursor: pointer;
+}
+/* FIX H10 — focus ring cho slider tốc độ */
+.stage-speed__input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .stage-body {
@@ -3053,6 +3078,11 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
+/* FIX H10 — focus ring chuẩn cho nút chạy codelab */
+.codelab-run:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 
 .codelab-run:disabled {
   cursor: not-allowed;
@@ -3179,7 +3209,8 @@ onUnmounted(() => {
 }
 
 .rank-tier--near { opacity: 0.72; }
-.rank-tier--far { opacity: 0.42; }
+/* FIX H7 — far tier opacity tăng để text (--color-text-primary) đủ ≥4.5:1 khi bị làm mờ */
+.rank-tier--far { opacity: 0.65; }
 
 .rank-tier:hover {
   transform: translateX(6px);
@@ -3289,6 +3320,11 @@ onUnmounted(() => {
   border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
   background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+/* FIX H10 — focus ring chuẩn cho CTA thang bậc */
+.rank-foot__cta:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .rank-foot__cta:hover {
@@ -3421,5 +3457,20 @@ onUnmounted(() => {
   }
   .trust-divider { display: none; }
   .dashboard__grid { grid-template-columns: 1fr; }
+}
+
+/* ━━ FIX H11 — tôn trọng prefers-reduced-motion: tắt keyframe trang trí/mesh/caret ━━ */
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob,
+  .hero__glow,
+  .ambient-float,
+  .flame-animated,
+  .bar--swap,
+  .rm-pulse-dot,
+  .codelab-caret,
+  .codelab-run--ready,
+  .codelab-glow {
+    animation: none !important;
+  }
 }
 </style>

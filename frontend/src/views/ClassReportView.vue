@@ -94,7 +94,7 @@ function cssVar(name: string, fallback: string): string {
 const distributionOption = computed(() => {
   // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
   void ui.theme;
-  const ink = cssVar('--color-canvas-ink', '#0D1020');
+  const ink = cssVar('--color-canvas-ink', '#0F172A');
   const canvasText = '#D9DDE8';
   const resolved = cssVar('--color-resolved', '#34D399');
   const warning = cssVar('--color-warning', '#D97706');

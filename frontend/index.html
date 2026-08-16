@@ -4,7 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="DSA Visual — Nền tảng học và trực quan hóa Cấu trúc dữ liệu & Giải thuật. Học tương tác, mô phỏng từng bước, luyện tập theo lộ trình." />
-    <meta name="theme-color" content="#0D9488" />
+    <!-- FIX A2 — chống FOUC: áp sớm class dark từ localStorage/OS TRƯỚC khi CSS render.
+         Dùng dsa_theme (không dấu) đồng bộ với stores/ui.ts để tránh nháy nền. -->
+    <meta name="theme-color" id="meta-theme-color" content="#0D9488" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('dsa_theme');
+          var dark = t === 'dark' || (t !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230D9488'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3ED%3C/text%3E%3C/svg%3E" />
     <title>DSA Visual — Học Cấu trúc dữ liệu & Giải thuật trực quan</title>
   </head>

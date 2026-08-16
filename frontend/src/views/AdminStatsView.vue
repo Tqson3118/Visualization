@@ -71,7 +71,7 @@ const WEEK = [
 const weekOption = computed(() => {
   // Vùng dữ liệu LUÔN tối (quyết định #5) — palette đọc canvas vars, không theo theme.
   void ui.theme;
-  const ink = cssVar('--canvas-ink', '#0D1020');
+  const ink = cssVar('--canvas-ink', '#0F172A');
   const block = cssVar('--data-core', '#4255FF');
   const text = '#d9dde8'; // text engine canvasTheme.ts (decision log 14/08) — nhãn nền tối ≥ #D9DDE8
   const axis = 'rgba(66, 85, 255, 0.25)';
@@ -217,13 +217,17 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
           <div class="admin-stats__chart-head">
             <h2 class="admin-stats__chart-title">{{ messages.admin.stats.weekTitle }}</h2>
             <span class="admin-stats__chart-tag">{{ messages.admin.stats.weekTag }}</span>
+            <span class="admin-stats__chart-tag admin-stats__chart-tag--sample">{{ messages.admin.stats.sampleTag }}</span>
           </div>
           <VChartLazy :option="weekOption" height="260px" />
         </div>
 
         <!-- Phân bố vai trò (donut SVG) — vùng dữ liệu LUÔN tối -->
         <div class="admin-stats__chart">
-          <h2 class="admin-stats__chart-title">{{ messages.admin.stats.roleTitle }}</h2>
+          <div class="admin-stats__chart-head">
+            <h2 class="admin-stats__chart-title">{{ messages.admin.stats.roleTitle }}</h2>
+            <span class="admin-stats__chart-tag admin-stats__chart-tag--sample">{{ messages.admin.stats.sampleTag }}</span>
+          </div>
           <svg :viewBox="`0 0 ${DONUT_C * 2} ${DONUT_C * 2}`" class="admin-stats__donut" role="img" :aria-label="messages.admin.stats.roleAria">
             <path
               v-for="(seg, idx) in donutSegments()"
@@ -348,6 +352,15 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
   font-size: var(--text-xs);
   color: #d9dde8;
   white-space: nowrap;
+}
+
+/* FIX A5 — nhãn "Dữ liệu mẫu": badge nền tối viền mờ để phân biệt với tag khung */
+.admin-stats__chart-tag--sample {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, #d9dde8 40%, transparent);
+  color: color-mix(in srgb, #d9dde8 80%, transparent);
+  font-size: 10px;
 }
 
 .admin-stats__donut { width: 100%; height: auto; max-height: 220px; }

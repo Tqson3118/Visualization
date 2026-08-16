@@ -340,6 +340,36 @@ describe('HomeView — Source 2 Layout & Presentation Tests', () => {
       wrapper.unmount();
     });
 
+    // FIX H1 — streak off-by-one: công thức idx <= ((streak-1) % 7)
+    it('Streak 1 ngày → chỉ ngày đầu (T2) trong tuần được sáng', () => {
+      mockGamification.streakDays = 1;
+      const wrapper = mount(HomeView);
+      const dayChips = wrapper.findAll('.streak-card .w-8.h-8');
+      expect(dayChips.length).toBe(7);
+      const lit = dayChips.filter((c) => c.classes().includes('bg-orange-500/20'));
+      expect(lit.length).toBe(1);
+      expect(lit[0].text()).toBe('T2');
+      wrapper.unmount();
+    });
+
+    it('Streak 7 ngày → cả 7 ngày trong tuần đều sáng', () => {
+      mockGamification.streakDays = 7;
+      const wrapper = mount(HomeView);
+      const dayChips = wrapper.findAll('.streak-card .w-8.h-8');
+      const lit = dayChips.filter((c) => c.classes().includes('bg-orange-500/20'));
+      expect(lit.length).toBe(7);
+      wrapper.unmount();
+    });
+
+    it('Streak 8 ngày → tuần mới reset, chỉ 1 ngày sáng', () => {
+      mockGamification.streakDays = 8;
+      const wrapper = mount(HomeView);
+      const dayChips = wrapper.findAll('.streak-card .w-8.h-8');
+      const lit = dayChips.filter((c) => c.classes().includes('bg-orange-500/20'));
+      expect(lit.length).toBe(1);
+      wrapper.unmount();
+    });
+
     it('hiển thị Nhiệm vụ hôm nay, Hoạt động gần đây và Truy cập nhanh', () => {
       const wrapper = mount(HomeView);
       expect(wrapper.find('.quests-card').exists()).toBe(true);

@@ -130,7 +130,7 @@ async function onLogout(): Promise<void> {
   top: 0;
   z-index: var(--z-raised);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
 
@@ -147,11 +147,11 @@ async function onLogout(): Promise<void> {
   gap: var(--space-sm);
   text-decoration: none;
   font-weight: 800;
-  color: var(--color-foreground);
+  color: var(--foreground);
 }
 
 .app-header__logo {
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   border-radius: var(--radius-md);
   padding: 3px 8px;
@@ -176,8 +176,8 @@ async function onLogout(): Promise<void> {
   padding-block: 4px;
 }
 
-.app-header__link:hover { color: var(--color-primary); }
-.app-header__link.router-link-exact-active { color: var(--color-primary); }
+.app-header__link:hover { color: var(--primary); }
+.app-header__link.router-link-exact-active { color: var(--primary); }
 
 .app-header__actions {
   position: relative;
@@ -205,11 +205,11 @@ async function onLogout(): Promise<void> {
 
 .app-header__theme:hover {
   background: var(--color-surface-hover);
-  color: var(--color-primary);
+  color: var(--primary);
 }
 
 .app-header__theme:focus-visible {
-  outline: 2px solid var(--color-ring);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -234,14 +234,14 @@ async function onLogout(): Promise<void> {
 .app-header__login {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--foreground);
   text-decoration: none;
 }
 
 .app-header__register {
   font-size: var(--text-sm);
   font-weight: 700;
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   padding: 0.4rem 1rem;
   border-radius: var(--radius-md);
@@ -282,15 +282,15 @@ async function onLogout(): Promise<void> {
 }
 
 .app-header__user-frame--default {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-data-core));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 45%, transparent);
+  background: linear-gradient(135deg, var(--primary), var(--color-data-core));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
 .app-header__user {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   border: none;
   font-weight: 800;
@@ -323,14 +323,14 @@ async function onLogout(): Promise<void> {
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--foreground);
   text-decoration: none;
   cursor: pointer;
 }
 
 .app-header__menu-item:hover { background: var(--color-surface-hover); }
 
-.app-header__menu-item--danger { color: var(--color-destructive); }
+.app-header__menu-item--danger { color: var(--destructive); }
 
 .app-menu-enter-active,
 .app-menu-leave-active { transition: opacity 150ms ease, transform 150ms ease; }
