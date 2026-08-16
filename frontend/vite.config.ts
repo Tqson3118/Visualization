@@ -26,9 +26,15 @@ export default defineConfig({
     target: 'es2020',
     rollupOptions: {
       output: {
-        // manualChunks theo SDD §3.9 (engine + vendor) — Vite 8/Rolldown chỉ hỗ trợ dạng hàm
+        // manualChunks theo SDD §3.9 — Vite 8/Rolldown chỉ hỗ trợ dạng hàm
+        // engine tách 2: renderers (pixi+canvas+painter ~400KB) vs core (generators+catalog ~430KB)
+        // để cả 2 chunk < 500KB (fix Vite warning)
         manualChunks(id: string) {
-          if (id.includes('/src/engines/')) return 'engine';
+          // Normalize Windows path (\ -> /): trên Windows id là 'D:\FPT\...\src\engines\...'
+          // nên includes('/src/engines/') không khớp -> mọi module rơi về chunk mặc định.
+          const nid = id.replace(/\\/g, '/');
+          if (nid.includes('/src/engines/renderers/')) return 'engine-renderers';
+          if (nid.includes('/src/engines/')) return 'engine-core';
           if (
             id.includes('/node_modules/vue/') ||
             id.includes('/node_modules/@vue/') ||
