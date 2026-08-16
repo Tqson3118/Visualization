@@ -53,6 +53,14 @@ const props = defineProps<{
   defaultKeys?: string[];
 }>();
 
+
+/** Đọc CSS variable thành màu cụ thể (ECharts canvas không hiểu var()). */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return val || fallback;
+}
+
 const ui = useUiStore();
 
 // â”€â”€ Domain Management â”€â”€
