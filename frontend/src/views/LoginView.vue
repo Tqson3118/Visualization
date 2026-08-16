@@ -42,7 +42,9 @@ async function onSubmit(): Promise<void> {
     submitError.value =
       err instanceof ApiError && err.status === 429
         ? messages.auth.tooManyAttempts
-        : messages.auth.loginFailed;
+        : err instanceof ApiError && err.status === 0
+          ? err.message // NETWORK_ERROR (BE tắt) — "Không kết nối được máy chủ..."
+          : messages.auth.loginFailed;
   } finally {
     submitting.value = false;
   }

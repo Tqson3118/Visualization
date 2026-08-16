@@ -755,21 +755,24 @@ function initAnimations(): void {
 
   gsapCtx = gsap.context(() => {
     // 1. Hero Title Fade-in (Không dùng SplitText để bảo toàn trọn vẹn cụm text-gradient "sống động nhất")
-    gsap.from('.hero__title', {
-      y: 28,
-      opacity: 0,
-      duration: 0.7,
-      ease: 'power3.out',
-      delay: 0.1,
-    });
+    // Hero chỉ render khi CHƯA đăng nhập — guard để tránh "GSAP target not found" (user đã login)
+    if (!authStore.isAuthenticated) {
+      gsap.from('.hero__title', {
+        y: 28,
+        opacity: 0,
+        duration: 0.7,
+        ease: 'power3.out',
+        delay: 0.1,
+      });
 
-    // 2. Hero Elements Fade-Up Sequence
-    gsap.from('.hero__sub', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.25 });
-    gsap.from('.hero__actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.35 });
-    gsap.from('.hero__trust', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.45 });
-    gsap.from('.hero__preview', {
-      y: 35, opacity: 0, scale: 0.97, duration: 0.7, ease: 'power2.out', delay: 0.3,
-    });
+      // 2. Hero Elements Fade-Up Sequence
+      gsap.from('.hero__sub', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.25 });
+      gsap.from('.hero__actions', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.35 });
+      gsap.from('.hero__trust', { y: 20, opacity: 0, duration: 0.6, ease: 'power2.out', delay: 0.45 });
+      gsap.from('.hero__preview', {
+        y: 35, opacity: 0, scale: 0.97, duration: 0.7, ease: 'power2.out', delay: 0.3,
+      });
+    }
 
     // 3. Scroll Reveal an toàn — từng section có trigger riêng
     if (!authStore.isAuthenticated) {
