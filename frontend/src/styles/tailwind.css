@@ -87,7 +87,7 @@
   --info: oklch(0.609 0.111 221.723);    /* #0891B2 */
 
   /* ── Canvas palette §2.1 — nguồn canvasTheme.ts, LUÔN tối bất kể theme ── */
-  --canvas-ink: #0D1020;
+  --canvas-ink: #0F172A;
   --data-core: #4255FF;
   --resolved: #34D399;
   --conflict: #F87171;

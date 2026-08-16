@@ -86,12 +86,23 @@ const hasReviewInfo = computed(() => {
 
 onMounted(load);
 
+// FIX A3 — pendingCount phải là TỔNG thật. badge tab "Chờ duyệt" lấy từ request
+// role=TEACHER_PENDING (PagedResponse.total), không chỉ đếm trang hiện tại.
+const pendingTotal = ref(0);
+
 async function load(): Promise<void> {
   loading.value = true;
   loadError.value = false;
   try {
     const page = await adminApi.fetchUsers({ role: tab.value === 'pending' ? 'TEACHER_PENDING' : undefined, q: search.value || undefined, page: 1 });
     users.value = page.items;
+    // Cập nhật tổng chờ duyệt (từ chính request hiện tại nếu đang ở tab pending,
+    // nếu không thì fetch riêng theo role pending).
+    if (tab.value === 'pending') {
+      pendingTotal.value = page.total;
+    } else {
+      void refreshPendingTotal();
+    }
   } catch {
     loadError.value = true;
     users.value = [];
@@ -100,12 +111,21 @@ async function load(): Promise<void> {
   }
 }
 
+async function refreshPendingTotal(): Promise<void> {
+  try {
+    const res = await adminApi.fetchUsers({ role: 'TEACHER_PENDING', page: 1 });
+    pendingTotal.value = res.total;
+  } catch {
+    // Giữ nguyên pendingTotal cũ khi lỗi — không làm hỏng badge.
+  }
+}
+
 function switchTab(next: string): void {
   tab.value = next as 'all' | 'pending';
   void load();
 }
 
-const pendingCount = computed(() => users.value.filter((u) => u.role === 'TEACHER_PENDING').length);
+const pendingCount = computed(() => pendingTotal.value);
 
 const userTabs = computed(() => [
   { key: 'all', label: messages.admin.users.tabAll },
@@ -192,6 +212,10 @@ async function submitReview(): Promise<void> {
 
 // ── Block 2.3 - Drawer chi tiết user ──
 
+// FIX A4 — request token chống race: mở drawer mới → response cũ của drawer trước
+// (chậm hơn) KHÔNG được ghi đè lên drawer hiện tại.
+let drawerLoadToken = 0;
+
 function openDrawer(user: AdminUserDto): void {
   drawerUser.value = user;
   drawerDetail.value = null;
@@ -208,15 +232,19 @@ function closeDrawer(): void {
 }
 
 async function loadDrawerDetail(id: number): Promise<void> {
+  const token = ++drawerLoadToken;
   drawerLoading.value = true;
   drawerError.value = false;
   try {
-    drawerDetail.value = await adminApi.fetchUser(id);
+    const detail = await adminApi.fetchUser(id);
+    if (token !== drawerLoadToken) return;
+    drawerDetail.value = detail;
   } catch {
+    if (token !== drawerLoadToken) return;
     drawerError.value = true;
     drawerDetail.value = null;
   } finally {
-    drawerLoading.value = false;
+    if (token === drawerLoadToken) drawerLoading.value = false;
   }
 }
 

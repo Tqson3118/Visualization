@@ -285,4 +285,60 @@ public class LessonServiceTests
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
         Assert.Equal(0, await db.BugReports.CountAsync());
     }
+
+    // ── RejectionReason mapping — GET /lessons list shows Admin rejection reason (v2.15) ──
+
+    [Fact]
+    public async Task GetList_AsAdmin_MapsRejectionReason()
+    {
+        var (service, db) = await SetupAsync(nameof(GetList_AsAdmin_MapsRejectionReason));
+
+        // Bài bị từ chối duyệt — có RejectionReason (như hồ sơ Draft thật)
+        db.Lessons.Add(new Lesson
+        {
+            Id = 99,
+            TopicId = 1,
+            Title = "Bài bị từ chối",
+            ContentHtml = "<p>x</p>",
+            Status = LessonStatus.Draft,
+            RejectionReason = "Thiếu hình minh họa sắp xếp",
+            CreatedBy = 1,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetListAsync(
+            userId: 1, role: "ADMIN", topicId: null, status: "draft",
+            q: "Bài bị từ chối", page: 1, pageSize: 20, ct: CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var item = Assert.Single(result.Value.Items);
+        Assert.Equal("Thiếu hình minh họa sắp xếp", item.RejectionReason);
+    }
+
+    [Fact]
+    public async Task GetPendingList_MapsRejectionReason()
+    {
+        var (service, db) = await SetupAsync(nameof(GetPendingList_MapsRejectionReason));
+
+        // Bài PendingReview có RejectionReason legacy (từ lần từ chối trước)
+        db.Lessons.Add(new Lesson
+        {
+            Id = 98,
+            TopicId = 1,
+            Title = "Bài chờ duyệt lại",
+            ContentHtml = "<p>x</p>",
+            Status = LessonStatus.PendingReview,
+            RejectionReason = "Bổ sung sau khi từ chối",
+            CreatedBy = 1,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetPendingListAsync(CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var item = Assert.Single(result.Value);
+        Assert.Equal("Bổ sung sau khi từ chối", item.RejectionReason);
+    }
 }

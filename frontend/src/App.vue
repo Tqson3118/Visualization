@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import { RouterView } from 'vue-router';
 import { Toaster } from 'vue-sonner';
 
@@ -9,6 +9,18 @@ import { messages } from '@/i18n/vi';
 import { useUiStore } from '@/stores/ui';
 
 const ui = useUiStore();
+
+// Task 15C — đồng bộ theme store → <html class="dark"> (USER_GUIDE §3.15):
+// class này kích hoạt palette tối của legacy --color-* (tokens.css),
+// shadcn OKLCH (tailwind.css) và gradient (palettes.css) đồng thời.
+// FIX A2 — đồng bộ cả <meta name="theme-color"> để thanh trình duyệt đổi theo theme.
+function applyTheme(theme: 'light' | 'dark'): void {
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  const meta = document.getElementById('meta-theme-color');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#020617' : '#0D9488');
+}
+applyTheme(ui.theme);
+watch(() => ui.theme, applyTheme);
 
 // G-F2a: smooth scroll toàn cục (singleton — App đời là tạo 1 lần duy nhất).
 const { scrollToTop } = useLenis();

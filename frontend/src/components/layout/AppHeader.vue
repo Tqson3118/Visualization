@@ -3,6 +3,7 @@
 // Hiển thị cho mọi route; ẩn menu học tập khi chưa đăng nhập.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Moon, Sun } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
@@ -18,6 +19,12 @@ const router = useRouter();
 const menuOpen = ref(false);
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
+
+// Task 15C — nhãn nút đổi màu nền: mô tả hành động SẮP xảy ra khi bấm
+// (light → "sang tối", dark → "sang sáng") — icon hiển thị trạng thái đích.
+const themeToggleLabel = computed(() =>
+  ui.theme === 'light' ? messages.common.toDarkTheme : messages.common.toLightTheme,
+);
 
 // Quản trị: TEACHER → /admin/content (roles TEACHER|ADMIN); ADMIN → /admin/users
 const adminTarget = computed(() => ({ name: auth.role === 'TEACHER' ? 'admin-content' : 'admin-users' }));
@@ -65,6 +72,16 @@ async function onLogout(): Promise<void> {
       </nav>
 
       <div class="app-header__actions">
+        <button
+          type="button"
+          class="app-header__theme"
+          :title="themeToggleLabel"
+          :aria-label="themeToggleLabel"
+          @click="ui.toggleTheme()"
+        >
+          <Sun v-if="ui.theme === 'dark'" class="app-header__theme-icon" aria-hidden="true" />
+          <Moon v-else class="app-header__theme-icon" aria-hidden="true" />
+        </button>
         <HeartsGemsWidget v-if="auth.isAuthenticated" />
         <template v-if="!auth.isAuthenticated">
           <RouterLink class="app-header__login" :to="{ name: 'login' }">{{ messages.nav.login }}</RouterLink>
@@ -113,7 +130,7 @@ async function onLogout(): Promise<void> {
   top: 0;
   z-index: var(--z-raised);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
 
@@ -130,11 +147,11 @@ async function onLogout(): Promise<void> {
   gap: var(--space-sm);
   text-decoration: none;
   font-weight: 800;
-  color: var(--color-foreground);
+  color: var(--foreground);
 }
 
 .app-header__logo {
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   border-radius: var(--radius-md);
   padding: 3px 8px;
@@ -159,8 +176,8 @@ async function onLogout(): Promise<void> {
   padding-block: 4px;
 }
 
-.app-header__link:hover { color: var(--color-primary); }
-.app-header__link.router-link-exact-active { color: var(--color-primary); }
+.app-header__link:hover { color: var(--primary); }
+.app-header__link.router-link-exact-active { color: var(--primary); }
 
 .app-header__actions {
   position: relative;
@@ -170,17 +187,61 @@ async function onLogout(): Promise<void> {
   margin-left: auto;
 }
 
+/* Task 15C — nút đổi màu nền: icon 20px trong button 40px (interactive
+   sizing), pill, hover surface + primary, focus ring chuẩn. */
+.app-header__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.app-header__theme:hover {
+  background: var(--color-surface-hover);
+  color: var(--primary);
+}
+
+.app-header__theme:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.app-header__theme-icon {
+  width: 20px;
+  height: 20px;
+  animation: theme-icon-pop 200ms ease;
+}
+
+/* Rotate + scale nhẹ khi đổi icon (reduced-motion đã được global.css cắt) */
+@keyframes theme-icon-pop {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
 .app-header__login {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--foreground);
   text-decoration: none;
 }
 
 .app-header__register {
   font-size: var(--text-sm);
   font-weight: 700;
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   padding: 0.4rem 1rem;
   border-radius: var(--radius-md);
@@ -221,15 +282,15 @@ async function onLogout(): Promise<void> {
 }
 
 .app-header__user-frame--default {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-data-core));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 45%, transparent);
+  background: linear-gradient(135deg, var(--primary), var(--color-data-core));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
 .app-header__user {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--primary);
   color: var(--color-on-primary);
   border: none;
   font-weight: 800;
@@ -262,14 +323,14 @@ async function onLogout(): Promise<void> {
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--foreground);
   text-decoration: none;
   cursor: pointer;
 }
 
 .app-header__menu-item:hover { background: var(--color-surface-hover); }
 
-.app-header__menu-item--danger { color: var(--color-destructive); }
+.app-header__menu-item--danger { color: var(--destructive); }
 
 .app-menu-enter-active,
 .app-menu-leave-active { transition: opacity 150ms ease, transform 150ms ease; }

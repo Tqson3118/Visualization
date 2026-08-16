@@ -176,7 +176,26 @@ async function createClass(): Promise<void> {
       @action="isTeacher ? (createOpen = true) : (joinOpen = true)"
     />
 
-    <div v-else class="classes__grid">
+    <div v-else class="classes__content-wrap">
+      <!-- Panel tóm tắt nhanh chỉ số lớp học (Task 2) -->
+      <div class="classes__summary-bar">
+        <div class="classes__summary-item">
+          <span class="classes__summary-label">Tổng số lớp</span>
+          <span class="classes__summary-val">{{ classStore.classes.length }}</span>
+        </div>
+        <span class="classes__summary-dot" aria-hidden="true" />
+        <div class="classes__summary-item">
+          <span class="classes__summary-label">Tổng học viên</span>
+          <span class="classes__summary-val">{{ classStore.classes.reduce((sum, c) => sum + c.memberCount, 0) }}</span>
+        </div>
+        <span class="classes__summary-dot" aria-hidden="true" />
+        <div class="classes__summary-item">
+          <span class="classes__summary-label">Đang quản lý</span>
+          <span class="classes__summary-val">{{ classStore.classes.filter((c) => isManagerOf(c)).length }}</span>
+        </div>
+      </div>
+
+      <div class="classes__grid">
       <Card
         v-for="cls in classStore.classes"
         :key="cls.id"
@@ -199,7 +218,8 @@ async function createClass(): Promise<void> {
             <UserRound v-else :size="18" />
           </span>
           <div class="classes__card-meta">
-            <h3 class="classes__card-name">{{ cls.name }}</h3>
+            <!-- FIX B2 — tiêu đề thẻ dùng h2 (không nhảy bậc heading) -->
+            <h2 class="classes__card-name">{{ cls.name }}</h2>
             <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
           </div>
           <Badge :variant="isManagerOf(cls) ? 'primary' : 'muted'">
@@ -227,6 +247,7 @@ async function createClass(): Promise<void> {
         </footer>
       </Card>
     </div>
+  </div>
 
     <!-- Modal nhập mã -->
     <Modal :open="joinOpen" :title="messages.classes.joinTitle" @close="joinOpen = false">
@@ -281,6 +302,51 @@ async function createClass(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  max-width: 68rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.classes__content-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ── Panel tóm tắt chỉ số lớp (Task 2) ── */
+.classes__summary-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--card-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  align-self: flex-start;
+}
+
+.classes__summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+}
+
+.classes__summary-label {
+  color: var(--color-text-secondary);
+}
+
+.classes__summary-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.classes__summary-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--border);
 }
 
 /* ── Loading ── */

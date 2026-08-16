@@ -1,7 +1,7 @@
-<script setup lang="ts">
-// BenchmarkPanel — Phòng Thí Nghiệm Đo Hiệu Năng Đa Cấu Trúc Dữ Liệu & Giải Thuật (Multi-Domain Benchmark Studio)
-// Đo lường thời gian thực (ms), số phép so sánh, hoán đổi và thao tác bộ nhớ độc lập trên Web Worker đa luồng.
-// Hỗ trợ 5 Chuyên đề: Sắp xếp (11), Tìm kiếm (6), Tra cứu CTDL (5), Đồ thị (4), Chiến lược Đống (2).
+﻿<script setup lang="ts">
+// BenchmarkPanel â€” PhÃ²ng ThÃ­ Nghiá»‡m Äo Hiá»‡u NÄƒng Äa Cáº¥u TrÃºc Dá»¯ Liá»‡u & Giáº£i Thuáº­t (Multi-Domain Benchmark Studio)
+// Äo lÆ°á»ng thá»i gian thá»±c (ms), sá»‘ phÃ©p so sÃ¡nh, hoÃ¡n Ä‘á»•i vÃ  thao tÃ¡c bá»™ nhá»› Ä‘á»™c láº­p trÃªn Web Worker Ä‘a luá»“ng.
+// Há»— trá»£ 5 ChuyÃªn Ä‘á»: Sáº¯p xáº¿p (11), TÃ¬m kiáº¿m (6), Tra cá»©u CTDL (5), Äá»“ thá»‹ (4), Chiáº¿n lÆ°á»£c Äá»‘ng (2).
 import { computed, ref, watch } from 'vue';
 
 import VChart from 'vue-echarts';
@@ -45,28 +45,28 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
-// Đăng ký module ECharts tree-shaking
+// ÄÄƒng kÃ½ module ECharts tree-shaking
 use([CanvasRenderer, LineChart, GridComponent, LegendComponent, TooltipComponent, LegacyGridContainLabel]);
 
 const props = defineProps<{
-  /** Keys mặc định (từ route /benchmark/:k1/:k2) */
+  /** Keys máº·c Ä‘á»‹nh (tá»« route /benchmark/:k1/:k2) */
   defaultKeys?: string[];
 }>();
 
 const ui = useUiStore();
 
-// ── Domain Management ──
+// â”€â”€ Domain Management â”€â”€
 const DOMAIN_TABS: Array<{ id: BenchmarkDomain; label: string; icon: any; count: number }> = [
-  { id: 'sort', label: 'Sắp xếp Mảng', icon: ArrowUpDown, count: 11 },
-  { id: 'search', label: 'Tìm kiếm Mảng', icon: Search, count: 6 },
-  { id: 'lookup', label: 'Tra cứu CTDL', icon: Layers, count: 5 },
-  { id: 'graph', label: 'Giải thuật Đồ thị', icon: Share2, count: 4 },
-  { id: 'heap_strategy', label: 'Chiến lược Đống', icon: Flame, count: 2 },
+  { id: 'sort', label: 'Sáº¯p xáº¿p Máº£ng', icon: ArrowUpDown, count: 11 },
+  { id: 'search', label: 'TÃ¬m kiáº¿m Máº£ng', icon: Search, count: 6 },
+  { id: 'lookup', label: 'Tra cá»©u CTDL', icon: Layers, count: 5 },
+  { id: 'graph', label: 'Giáº£i thuáº­t Äá»“ thá»‹', icon: Share2, count: 4 },
+  { id: 'heap_strategy', label: 'Chiáº¿n lÆ°á»£c Äá»‘ng', icon: Flame, count: 2 },
 ];
 
 const activeDomain = ref<BenchmarkDomain>('sort');
 
-// Tự động suy luận domain từ props.defaultKeys nếu có
+// Tá»± Ä‘á»™ng suy luáº­n domain tá»« props.defaultKeys náº¿u cÃ³
 if (props.defaultKeys && props.defaultKeys.length > 0) {
   const firstKey = props.defaultKeys[0];
   if (firstKey && BENCHMARK_ALGORITHMS[firstKey]) {
@@ -98,7 +98,7 @@ function initDomainKeys(domain: BenchmarkDomain): void {
   error.value = '';
 }
 
-// Khởi tạo ban đầu
+// Khá»Ÿi táº¡o ban Ä‘áº§u
 initDomainKeys(activeDomain.value);
 
 function switchDomain(domain: BenchmarkDomain): void {
@@ -135,19 +135,19 @@ async function toggleKey(key: string): Promise<void> {
       selectedKeys.value = selectedKeys.value.filter((k) => k !== key);
       rows.value = [];
     } else {
-      ui.showToast('Cần chọn ít nhất 2 thuật toán để so sánh.', 'warning');
+      ui.showToast('Cáº§n chá»n Ã­t nháº¥t 2 thuáº­t toÃ¡n Ä‘á»ƒ so sÃ¡nh.', 'warning');
     }
   } else {
     if (selectedKeys.value.length >= 5) {
-      ui.showToast('Tối đa 5 giải thuật cho mỗi lần benchmark.', 'warning');
+      ui.showToast('Tá»‘i Ä‘a 5 giáº£i thuáº­t cho má»—i láº§n benchmark.', 'warning');
       return;
     }
-    // Nếu thuật toán thuộc domain khác, tự chuyển domain
+    // Náº¿u thuáº­t toÃ¡n thuá»™c domain khÃ¡c, tá»± chuyá»ƒn domain
     if (def.domain !== activeDomain.value) {
       activeDomain.value = def.domain;
       selectedKeys.value = [key];
       rows.value = [];
-      ui.showToast(`Đã chuyển sang chuyên đề ${def.domain.toUpperCase()}.`, 'info');
+      ui.showToast(`ÄÃ£ chuyá»ƒn sang chuyÃªn Ä‘á» ${def.domain.toUpperCase()}.`, 'info');
       return;
     }
 
@@ -156,36 +156,36 @@ async function toggleKey(key: string): Promise<void> {
   }
 }
 
-// ── Dynamic Domain Presets ──
+// â”€â”€ Dynamic Domain Presets â”€â”€
 const currentPresets = computed(() => {
   if (activeDomain.value === 'sort') {
     return [
       {
         id: 'optimal_sort',
-        name: 'Sắp xếp Tối ưu',
-        sub: 'Quick (Hoare) · Lomuto · Merge · Heap',
+        name: 'Sáº¯p xáº¿p Tá»‘i Æ°u',
+        sub: 'Quick (Hoare) Â· Lomuto Â· Merge Â· Heap',
         badge: 'O(N log N)',
         keys: ['sort.quick_hoare', 'sort.quick', 'sort.merge', 'sort.heap'],
       },
       {
         id: 'basic_sort',
-        name: 'Sắp xếp Cơ bản',
-        sub: 'Bubble · Selection · Insertion · Cocktail',
-        badge: 'O(N²)',
+        name: 'Sáº¯p xáº¿p CÆ¡ báº£n',
+        sub: 'Bubble Â· Selection Â· Insertion Â· Cocktail',
+        badge: 'O(NÂ²)',
         keys: ['sort.bubble', 'sort.selection', 'sort.insertion', 'sort.cocktail'],
       },
       {
         id: 'non_comp_sort',
-        name: 'Phi So Sánh Tuyến Tính',
-        sub: 'Counting · Radix LSD vs Quick Sort',
+        name: 'Phi So SÃ¡nh Tuyáº¿n TÃ­nh',
+        sub: 'Counting Â· Radix LSD vs Quick Sort',
         badge: 'O(N+K)',
         keys: ['sort.counting', 'sort.radix_lsd', 'sort.quick_hoare'],
       },
       {
         id: 'nearly_sorted',
-        name: 'Mảng Gần Như Đã Sắp',
+        name: 'Máº£ng Gáº§n NhÆ° ÄÃ£ Sáº¯p',
         sub: 'Insertion vs Shell vs Quick vs Bubble',
-        badge: 'O(N) vs O(N²)',
+        badge: 'O(N) vs O(NÂ²)',
         keys: ['sort.insertion', 'sort.shell', 'sort.quick_hoare', 'sort.bubble'],
       },
     ];
@@ -194,14 +194,14 @@ const currentPresets = computed(() => {
     return [
       {
         id: 'search_div_conquer',
-        name: 'Chia Để Trị & Nhảy Bước',
+        name: 'Chia Äá»ƒ Trá»‹ & Nháº£y BÆ°á»›c',
         sub: 'Binary vs Ternary vs Jump vs Exponential',
         badge: 'O(log N)',
         keys: ['search.binary', 'search.ternary', 'search.jump', 'search.exponential'],
       },
       {
         id: 'search_interp',
-        name: 'Nội Suy vs Tuyến Tính',
+        name: 'Ná»™i Suy vs Tuyáº¿n TÃ­nh',
         sub: 'Interpolation vs Binary vs Linear',
         badge: 'O(log log N) vs O(N)',
         keys: ['search.interpolation', 'search.binary', 'search.linear'],
@@ -212,14 +212,14 @@ const currentPresets = computed(() => {
     return [
       {
         id: 'lookup_all',
-        name: 'So Sánh Tra Cứu Toàn Diện',
+        name: 'So SÃ¡nh Tra Cá»©u ToÃ n Diá»‡n',
         sub: 'Hash Table vs AVL vs BST vs Array Scan',
         badge: 'O(1) -> O(N)',
         keys: ['lookup.hashtable', 'lookup.avl', 'lookup.bst', 'lookup.array'],
       },
       {
         id: 'lookup_tree_vs_hash',
-        name: 'Bảng Băm vs Cây Cân Bằng',
+        name: 'Báº£ng BÄƒm vs CÃ¢y CÃ¢n Báº±ng',
         sub: 'Hash Table (Chaining) vs AVL Tree vs Array',
         badge: 'O(1) vs O(log N)',
         keys: ['lookup.hashtable', 'lookup.avl', 'lookup.array'],
@@ -230,16 +230,16 @@ const currentPresets = computed(() => {
     return [
       {
         id: 'graph_traversal',
-        name: 'Duyệt Đồ Thị (Traversal)',
-        sub: 'BFS (Hàng đợi) vs DFS (Ngăn xếp/Đệ quy)',
+        name: 'Duyá»‡t Äá»“ Thá»‹ (Traversal)',
+        sub: 'BFS (HÃ ng Ä‘á»£i) vs DFS (NgÄƒn xáº¿p/Äá»‡ quy)',
         badge: 'O(V+E)',
         keys: ['graph.bfs', 'graph.dfs'],
       },
       {
         id: 'graph_shortest_path',
-        name: 'Tìm Đường Đi Ngắn Nhất',
+        name: 'TÃ¬m ÄÆ°á»ng Äi Ngáº¯n Nháº¥t',
         sub: 'Dijkstra (Min-Heap) vs Dijkstra (Matrix)',
-        badge: 'O((V+E)log V) vs O(V²)',
+        badge: 'O((V+E)log V) vs O(VÂ²)',
         keys: ['graph.dijkstra_heap', 'graph.dijkstra_matrix'],
       },
     ];
@@ -247,8 +247,8 @@ const currentPresets = computed(() => {
   return [
     {
       id: 'heap_build',
-      name: 'Xây Đống (Heap Construction)',
-      sub: 'Floyd Heapify (Bottom-up) vs N lần Chèn',
+      name: 'XÃ¢y Äá»‘ng (Heap Construction)',
+      sub: 'Floyd Heapify (Bottom-up) vs N láº§n ChÃ¨n',
       badge: 'O(N) vs O(N log N)',
       keys: ['heap.floyd', 'heap.sequential'],
     },
@@ -283,7 +283,7 @@ function buildResults(): Array<{ key: string; measurements: Array<{ n: number; d
 
 async function run(): Promise<void> {
   if (selectedKeys.value.length < 2) {
-    ui.showToast('Chọn ít nhất 2 thuật toán để so sánh.', 'warning');
+    ui.showToast('Chá»n Ã­t nháº¥t 2 thuáº­t toÃ¡n Ä‘á»ƒ so sÃ¡nh.', 'warning');
     return;
   }
   running.value = true;
@@ -292,7 +292,7 @@ async function run(): Promise<void> {
   rows.value = [];
   try {
     for (const size of sizes.value) {
-      progress.value = `Đang đo mẫu n = ${size}...`;
+      progress.value = `Äang Ä‘o máº«u n = ${size}...`;
       const measures: Record<string, BenchmarkMeasure | null> = {};
       for (const key of selectedKeys.value) {
         const def = BENCHMARK_ALGORITHMS[key];
@@ -315,7 +315,7 @@ async function run(): Promise<void> {
       }
       rows.value = [...rows.value, { size, measures }];
     }
-    progress.value = 'Hoàn tất đo đạc.';
+    progress.value = 'HoÃ n táº¥t Ä‘o Ä‘áº¡c.';
     try {
       await runBenchmark({
         keys: selectedKeys.value,
@@ -350,10 +350,10 @@ function exportCsv(): void {
   URL.revokeObjectURL(url);
 }
 
-// ── Kết luận & Phân tích thông minh ──
+// â”€â”€ Káº¿t luáº­n & PhÃ¢n tÃ­ch thÃ´ng minh â”€â”€
 const analysis = computed(() => {
   if (rows.value.length === 0) return null;
-  // Tìm hàng có kích thước mẫu lớn nhất mà có ít nhất 1 thuật toán đo thành công
+  // TÃ¬m hÃ ng cÃ³ kÃ­ch thÆ°á»›c máº«u lá»›n nháº¥t mÃ  cÃ³ Ã­t nháº¥t 1 thuáº­t toÃ¡n Ä‘o thÃ nh cÃ´ng
   const validRows = [...rows.value].reverse();
   let targetRow = validRows.find((r) => selectedKeys.value.some((k) => r.measures[k] !== null)) ?? rows.value[rows.value.length - 1];
 
@@ -402,9 +402,9 @@ function paletteColor(idx: number): string {
 
 const chartOption = computed(() => {
   void ui.theme;
-  const textColor = '#94a3b8';
-  const gridLineColor = 'rgba(255, 255, 255, 0.07)';
-  const tooltipBg = '#0b0f19';
+  const textColor = cssVar('--color-index-muted', '#6B7385');
+  const gridLineColor = cssVar('--color-border-subtle', 'rgba(255, 255, 255, 0.07)');
+  const tooltipBg = cssVar('--color-canvas-ink', '#0F172A');
 
   const series = selectedKeys.value.map((key, idx) => ({
     name: BENCHMARK_ALGORITHMS[key]?.title ?? key,
@@ -441,7 +441,7 @@ const chartOption = computed(() => {
     grid: { left: 45, right: 24, top: 48, bottom: 36, containLabel: true },
     xAxis: {
       type: 'category' as const,
-      name: activeDomain.value === 'graph' ? 'V (đỉnh)' : 'n (kích thước)',
+      name: activeDomain.value === 'graph' ? 'V (Ä‘á»‰nh)' : 'n (kÃ­ch thÆ°á»›c)',
       nameLocation: 'middle' as const,
       nameGap: 24,
       nameTextStyle: { color: textColor, fontSize: 11 },
@@ -452,7 +452,7 @@ const chartOption = computed(() => {
     },
     yAxis: {
       type: 'value' as const,
-      name: 'Thời gian (ms)',
+      name: 'Thá»i gian (ms)',
       nameTextStyle: { color: textColor, fontSize: 11 },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -465,7 +465,7 @@ const chartOption = computed(() => {
 });
 
 function complexityColorClass(cls: string): string {
-  if (cls.includes('n²') || cls.includes('V²')) return 'badge--n2';
+  if (cls.includes('nÂ²') || cls.includes('VÂ²')) return 'badge--n2';
   if (cls.includes('log') || cls.includes('n^1.3')) return 'badge--nlogn';
   if (cls.includes('O(1)')) return 'badge--o1';
   if (cls.includes('n') || cls.includes('V+E')) return 'badge--n';
@@ -475,9 +475,9 @@ function complexityColorClass(cls: string): string {
 
 <template>
   <div class="benchmark-studio">
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- TOP DOMAIN SELECTOR BAR                                              -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="benchmark-domain-bar">
       <button
         v-for="tab in DOMAIN_TABS"
@@ -493,9 +493,9 @@ function complexityColorClass(cls: string): string {
       </button>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- HEADER BAR                                                           -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <header class="benchmark-studio__header">
       <div class="benchmark-studio__header-left">
         <div class="benchmark-studio__icon-box">
@@ -503,10 +503,10 @@ function complexityColorClass(cls: string): string {
         </div>
         <div>
           <h2 class="benchmark-studio__title">
-            Phòng Thí Nghiệm Hiệu Năng (Benchmark Studio)
+            PhÃ²ng ThÃ­ Nghiá»‡m Hiá»‡u NÄƒng (Benchmark Studio)
           </h2>
           <p class="benchmark-studio__subtitle">
-            Đo lường thời gian thực (ms), số phép so sánh và thao tác bộ nhớ độc lập trên Web Worker đa luồng.
+            Äo lÆ°á»ng thá»i gian thá»±c (ms), sá»‘ phÃ©p so sÃ¡nh vÃ  thao tÃ¡c bá»™ nhá»› Ä‘á»™c láº­p trÃªn Web Worker Ä‘a luá»“ng.
           </p>
         </div>
       </div>
@@ -516,23 +516,23 @@ function complexityColorClass(cls: string): string {
           <Cpu :size="13" /> Web Worker Sandbox
         </span>
         <span class="benchmark-studio__badge benchmark-studio__badge--free">
-          <Zap :size="13" /> Không tốn tim
+          <Zap :size="13" /> KhÃ´ng tá»‘n tim
         </span>
       </div>
     </header>
 
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- MAIN CONTENT BODY                                                    -->
-    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="benchmark-studio__content">
-      <!-- ── TẦNG 1: CẤU HÌNH & CHỌN THUẬT TOÁN (CONFIG DECK) ── -->
+      <!-- â”€â”€ Táº¦NG 1: Cáº¤U HÃŒNH & CHá»ŒN THUáº¬T TOÃN (CONFIG DECK) â”€â”€ -->
       <section class="config-deck">
         <!-- 1.1: Quick Presets -->
         <div class="config-deck__presets">
           <div class="config-deck__presets-header">
             <span class="config-deck__presets-label">
               <Sparkles :size="13" class="text-amber-400" />
-              KỊCH BẢN SO SÁNH GỢI Ý:
+              Ká»ŠCH Báº¢N SO SÃNH Gá»¢I Ã:
             </span>
           </div>
 
@@ -561,8 +561,8 @@ function complexityColorClass(cls: string): string {
         <div class="config-deck__matrix">
           <div class="config-deck__matrix-header">
             <div class="config-deck__matrix-title">
-              Chọn thuật toán cần đo (chọn từ 2 đến 5 giải thuật):
-              <span class="config-deck__counter">({{ selectedKeys.length }}/5 đã chọn)</span>
+              Chá»n thuáº­t toÃ¡n cáº§n Ä‘o (chá»n tá»« 2 Ä‘áº¿n 5 giáº£i thuáº­t):
+              <span class="config-deck__counter">({{ selectedKeys.length }}/5 Ä‘Ã£ chá»n)</span>
             </div>
           </div>
 
@@ -596,14 +596,14 @@ function complexityColorClass(cls: string): string {
         <div class="config-deck__ribbon">
           <div class="config-deck__dist-wrap">
             <label class="config-deck__dist-label" for="benchmark-data-mode">
-              Kịch bản dữ liệu:
+              Ká»‹ch báº£n dá»¯ liá»‡u:
             </label>
             <select id="benchmark-data-mode" v-model="dataMode" class="config-deck__select">
-              <option value="random">🎲 Mảng ngẫu nhiên (Random)</option>
-              <option value="best">📈 Tốt nhất / Tăng dần (Best Case)</option>
-              <option value="worst">📉 Xấu nhất / Giảm dần (Worst Case)</option>
-              <option value="nearly_sorted">🔄 Gần như đã sắp (Nearly Sorted 95%)</option>
-              <option value="duplicates">👯 Nhiều phần tử trùng (Duplicates)</option>
+              <option value="random">ðŸŽ² Máº£ng ngáº«u nhiÃªn (Random)</option>
+              <option value="best">ðŸ“ˆ Tá»‘t nháº¥t / TÄƒng dáº§n (Best Case)</option>
+              <option value="worst">ðŸ“‰ Xáº¥u nháº¥t / Giáº£m dáº§n (Worst Case)</option>
+              <option value="nearly_sorted">ðŸ”„ Gáº§n nhÆ° Ä‘Ã£ sáº¯p (Nearly Sorted 95%)</option>
+              <option value="duplicates">ðŸ‘¯ Nhiá»u pháº§n tá»­ trÃ¹ng (Duplicates)</option>
             </select>
           </div>
 
@@ -616,7 +616,7 @@ function complexityColorClass(cls: string): string {
               @click="run"
             >
               <Play :size="14" class="fill-current mr-1.5" />
-              {{ running ? 'Đang đo lường...' : 'Bắt đầu đo hiệu năng' }}
+              {{ running ? 'Äang Ä‘o lÆ°á»ng...' : 'Báº¯t Ä‘áº§u Ä‘o hiá»‡u nÄƒng' }}
             </Button>
 
             <Button
@@ -625,7 +625,7 @@ function complexityColorClass(cls: string): string {
               size="sm"
               @click="exportCsv"
             >
-              <Download :size="14" class="mr-1.5" /> Xuất CSV
+              <Download :size="14" class="mr-1.5" /> Xuáº¥t CSV
             </Button>
           </div>
 
@@ -636,7 +636,7 @@ function complexityColorClass(cls: string): string {
         </div>
       </section>
 
-      <!-- ── TẦNG 2: BÁO CÁO & TRỰC QUAN HÓA SỐ LIỆU (RESULTS & ANALYTICS) ── -->
+      <!-- â”€â”€ Táº¦NG 2: BÃO CÃO & TRá»°C QUAN HÃ“A Sá» LIá»†U (RESULTS & ANALYTICS) â”€â”€ -->
 
       <!-- 2A: Preview State (Before running) -->
       <div v-if="rows.length === 0 && !running" class="benchmark-preview">
@@ -645,9 +645,9 @@ function complexityColorClass(cls: string): string {
             <Info :size="18" class="text-primary" />
           </div>
           <div>
-            <h4 class="benchmark-preview__title">Bảng Đối Chiếu Độ Phức Tạp Lý Thuyết</h4>
+            <h4 class="benchmark-preview__title">Báº£ng Äá»‘i Chiáº¿u Äá»™ Phá»©c Táº¡p LÃ½ Thuyáº¿t</h4>
             <p class="benchmark-preview__desc">
-              Các thuật toán đã chọn sẽ được biên dịch và đo đạc qua Web Worker với các kích thước mẫu:
+              CÃ¡c thuáº­t toÃ¡n Ä‘Ã£ chá»n sáº½ Ä‘Æ°á»£c biÃªn dá»‹ch vÃ  Ä‘o Ä‘áº¡c qua Web Worker vá»›i cÃ¡c kÃ­ch thÆ°á»›c máº«u:
               <strong class="text-foreground">{{ activeDomain === 'graph' ? 'V' : 'n' }} = {{ sizes.join(', ') }}</strong>.
             </p>
           </div>
@@ -657,11 +657,11 @@ function complexityColorClass(cls: string): string {
           <table class="benchmark-preview__table">
             <thead>
               <tr>
-                <th>Thuật toán</th>
-                <th>Kỳ vọng Thời gian</th>
-                <th>Bộ nhớ phụ (Space)</th>
-                <th>Trường hợp tốt nhất</th>
-                <th>Trường hợp xấu nhất</th>
+                <th>Thuáº­t toÃ¡n</th>
+                <th>Ká»³ vá»ng Thá»i gian</th>
+                <th>Bá»™ nhá»› phá»¥ (Space)</th>
+                <th>TrÆ°á»ng há»£p tá»‘t nháº¥t</th>
+                <th>TrÆ°á»ng há»£p xáº¥u nháº¥t</th>
               </tr>
             </thead>
             <tbody>
@@ -699,23 +699,23 @@ function complexityColorClass(cls: string): string {
             </div>
             <div>
               <span class="analysis-hero__kicker">
-                KẾT QUẢ TỔNG QUAN TẠI {{ activeDomain === 'graph' ? 'V' : 'N' }} = {{ analysis.maxN }}
+                Káº¾T QUáº¢ Tá»”NG QUAN Táº I {{ activeDomain === 'graph' ? 'V' : 'N' }} = {{ analysis.maxN }}
               </span>
               <h3 class="analysis-hero__winner-title">
-                🏆 <strong class="text-emerald-400">{{ analysis.winner.title }}</strong> nhanh nhất!
+                ðŸ† <strong class="text-emerald-400">{{ analysis.winner.title }}</strong> nhanh nháº¥t!
               </h3>
               <p class="analysis-hero__desc">
-                Hoàn thành chỉ trong <span class="text-emerald-400 font-mono font-bold">{{ analysis.winnerMeasure?.durationMs }}ms</span>
-                với <span class="text-foreground font-mono">{{ analysis.winnerMeasure?.comparisons }}</span> phép so sánh
+                HoÃ n thÃ nh chá»‰ trong <span class="text-emerald-400 font-mono font-bold">{{ analysis.winnerMeasure?.durationMs }}ms</span>
+                vá»›i <span class="text-foreground font-mono">{{ analysis.winnerMeasure?.comparisons }}</span> phÃ©p so sÃ¡nh
                 <template v-if="analysis.slowest && analysis.speedRatio > 1">
-                  (nhanh hơn <span class="text-amber-400 font-bold font-mono">{{ analysis.speedRatio }}x</span> so với {{ analysis.slowest.title }}).
+                  (nhanh hÆ¡n <span class="text-amber-400 font-bold font-mono">{{ analysis.speedRatio }}x</span> so vá»›i {{ analysis.slowest.title }}).
                 </template>
               </p>
             </div>
           </div>
 
           <div class="analysis-hero__badge">
-            <span class="text-xs text-muted-foreground">Dữ liệu thử nghiệm</span>
+            <span class="text-xs text-muted-foreground">Dá»¯ liá»‡u thá»­ nghiá»‡m</span>
             <span class="text-sm font-semibold capitalize text-foreground">{{ dataMode }}</span>
           </div>
         </div>
@@ -725,8 +725,8 @@ function complexityColorClass(cls: string): string {
           <!-- Column 1: ECharts Line Graph -->
           <div class="analytics-card">
             <div class="analytics-card__header">
-              <h3 class="analytics-card__title">Đồ Thị Tăng Trưởng Thời Gian (ms theo {{ activeDomain === 'graph' ? 'V' : 'n' }})</h3>
-              <span class="analytics-card__sub">Overlay so sánh trực quan</span>
+              <h3 class="analytics-card__title">Äá»“ Thá»‹ TÄƒng TrÆ°á»Ÿng Thá»i Gian (ms theo {{ activeDomain === 'graph' ? 'V' : 'n' }})</h3>
+              <span class="analytics-card__sub">Overlay so sÃ¡nh trá»±c quan</span>
             </div>
             <div class="analytics-card__chart-wrap">
               <VChart
@@ -734,7 +734,7 @@ function complexityColorClass(cls: string): string {
                 autoresize
                 class="analytics-chart"
                 role="img"
-                aria-label="Biểu đồ benchmark thời gian thực tế theo n"
+                aria-label="Biá»ƒu Ä‘á»“ benchmark thá»i gian thá»±c táº¿ theo n"
               />
             </div>
           </div>
@@ -742,14 +742,14 @@ function complexityColorClass(cls: string): string {
           <!-- Column 2: Data Matrix Table -->
           <div class="analytics-card">
             <div class="analytics-card__header">
-              <h3 class="analytics-card__title">Bảng Số Liệu Chi Tiết</h3>
-              <span class="analytics-card__sub">Thời gian ms & Số phép so sánh</span>
+              <h3 class="analytics-card__title">Báº£ng Sá»‘ Liá»‡u Chi Tiáº¿t</h3>
+              <span class="analytics-card__sub">Thá»i gian ms & Sá»‘ phÃ©p so sÃ¡nh</span>
             </div>
             <div class="table-container">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th class="data-table__th-n">Mẫu</th>
+                    <th class="data-table__th-n">Máº«u</th>
                     <th v-for="key in selectedKeys" :key="key">
                       {{ BENCHMARK_ALGORITHMS[key]?.title }}
                     </th>
@@ -789,7 +789,7 @@ function complexityColorClass(cls: string): string {
   gap: var(--space-md);
 }
 
-/* ── Top Domain Selector Bar ── */
+/* â”€â”€ Top Domain Selector Bar â”€â”€ */
 .benchmark-domain-bar {
   display: flex;
   gap: 6px;
@@ -832,7 +832,7 @@ function complexityColorClass(cls: string): string {
   opacity: 0.7;
 }
 
-/* ── Header ── */
+/* â”€â”€ Header â”€â”€ */
 .benchmark-studio__header {
   display: flex;
   justify-content: space-between;
@@ -901,14 +901,14 @@ function complexityColorClass(cls: string): string {
   border-color: rgba(16, 185, 129, 0.25);
 }
 
-/* ── Content Body ── */
+/* â”€â”€ Content Body â”€â”€ */
 .benchmark-studio__content {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
 }
 
-/* ── Config Deck (Tầng Cấu hình) ── */
+/* â”€â”€ Config Deck (Táº§ng Cáº¥u hÃ¬nh) â”€â”€ */
 .config-deck {
   display: flex;
   flex-direction: column;
@@ -1209,7 +1209,7 @@ function complexityColorClass(cls: string): string {
   to { transform: rotate(360deg); }
 }
 
-/* ── TẦNG 2: PREVIEW STATE (BẢNG ĐỐI CHIẾU LÝ THUYẾT) ── */
+/* â”€â”€ Táº¦NG 2: PREVIEW STATE (Báº¢NG Äá»I CHIáº¾U LÃ THUYáº¾T) â”€â”€ */
 .benchmark-preview {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1276,7 +1276,7 @@ function complexityColorClass(cls: string): string {
   font-size: 11px;
 }
 
-/* ── TẦNG 2: LIVE RESULTS DASHBOARD ── */
+/* â”€â”€ Táº¦NG 2: LIVE RESULTS DASHBOARD â”€â”€ */
 .benchmark-results {
   display: flex;
   flex-direction: column;

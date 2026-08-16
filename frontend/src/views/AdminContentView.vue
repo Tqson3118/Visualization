@@ -774,19 +774,22 @@ async function saveTopic(): Promise<void> {
       <div v-else class="admin-content__tree" role="list" :aria-label="messages.admin.content.treeAria">
         <template v-for="row in treeRows" :key="row.key">
           <!-- Chủ đề: folder + chevron + số bài học -->
+          <!-- FIX B3 — bỏ role=listitem trên button (đã có role=list ở container);
+               ẩn chevron + bỏ aria-expanded khi topic là leaf; thêm id cho nút toggle. -->
           <button
             v-if="row.type === 'topic' && row.topic"
             type="button"
-            role="listitem"
+            :id="`topic-row-${row.topic.id}`"
             class="admin-content__tree-row"
             :class="[
               `admin-content__tree-row--depth-${Math.min(row.depth, 3)}`,
               { 'admin-content__tree-row--leaf': !treeHasChildren(row.topic) },
             ]"
-            :aria-expanded="expandedTopics.has(row.topic.id)"
+            :aria-expanded="treeHasChildren(row.topic) ? expandedTopics.has(row.topic.id) : undefined"
             @click="toggleTopic(row.topic)"
           >
             <ChevronRight
+              v-if="treeHasChildren(row.topic)"
               :size="16"
               class="admin-content__tree-chevron"
               :class="{ 'admin-content__tree-chevron--open': expandedTopics.has(row.topic.id) }"
@@ -810,8 +813,10 @@ async function saveTopic(): Promise<void> {
             <div class="admin-content__tree-lesson-main">
               <button
                 type="button"
+                :id="`lesson-toggle-${row.lesson.id}`"
                 class="admin-content__tree-lesson-toggle"
                 :aria-expanded="expandedLessons.has(row.lesson.id)"
+                :aria-controls="`lesson-toggled-${row.lesson.id}`"
                 :aria-label="row.lesson.title"
                 @click="toggleLesson(row.lesson)"
               >
@@ -855,6 +860,7 @@ async function saveTopic(): Promise<void> {
             <!-- Cấp mô phỏng: chip mono theo lesson detail (lazy) -->
             <div
               v-if="expandedLessons.has(row.lesson.id)"
+              :id="`lesson-toggled-${row.lesson.id}`"
               class="admin-content__tree-sims"
               :class="`admin-content__tree-sims--depth-${Math.min(row.depth + 2, 3)}`"
             >
