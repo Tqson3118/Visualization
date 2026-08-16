@@ -437,15 +437,13 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           <div class="simulator__canvas-wrap">
             <CanvasArea
               :structure="currentStep?.structure ?? null"
+              :sim-key="key"
+              :complexity="generator?.complexity.average ?? ''"
               v-model:show-index="renderOptions.showIndex"
               v-model:show-values="renderOptions.showValues"
               v-model:zoom="renderOptions.zoom"
               :empty-text="messages.simulator.canvasPlaceholder"
             />
-            <div class="simulator__canvas-meta">
-              <span class="simulator__canvas-dot" aria-hidden="true" />
-              <span class="simulator__canvas-label">{{ messages.simulator.canvasMeta }}</span>
-            </div>
           </div>
           <StatsBar
             :comparisons="currentStep?.stats.comparisons ?? 0"
@@ -559,20 +557,22 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   padding-block: var(--space-md) var(--space-2xl);
 }
 
-/* ── Chrome header — surface band level-2 (DESIGN.md §1 + §6) ── */
+/* ── Chrome header — Studio Top Bar (Compact & Sleek) ── */
 .simulator__chrome {
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-card-raised);
-  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-card);
+  padding: 10px 16px;
+  margin-bottom: 12px;
 }
 
 .simulator__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .simulator__title-block {
@@ -580,47 +580,48 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   min-width: 0;
 }
 
-/* 1 hàng: breadcrumb + title + chips — baseline căn chỉnh (DESIGN.md §3) */
+/* 1 hàng: breadcrumb + title + chips — căn giữa hoàn hảo */
 .simulator__title-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
-  row-gap: var(--space-xs);
-  column-gap: var(--space-md);
+  row-gap: 6px;
+  column-gap: 10px;
 }
 
 .simulator__breadcrumb {
   display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-sm);
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
   color: var(--color-text-tertiary);
 }
 
 .simulator__breadcrumb a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 
 .simulator__title {
-  font-size: var(--text-3xl);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: var(--color-foreground);
   margin: 0;
 }
 
-/* Chip meta — badge chuẩn DESIGN.md §4.3 (text-xs, min-h 24px, radius-md) */
+/* Chip meta — badge chuẩn gọn gàng */
 .simulator__chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
-  min-height: 24px;
-  padding: 2px 10px;
-  border: 1px solid var(--color-border-subtle);
+  gap: 4px;
+  min-height: 22px;
+  padding: 1px 8px;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  font-size: var(--text-xs);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
@@ -632,28 +633,28 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 .simulator__chip-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: var(--color-foreground);
+  color: var(--color-primary);
 }
 
-/* Description — clamp 2 dòng, nút "Xem thêm" chỉ hiện khi tràn */
+/* Description — gọn gàng 1 dòng */
 .simulator__desc {
-  margin: var(--space-xs) 0 0;
-  font-size: var(--text-sm);
-  line-height: 1.55;
-  color: var(--color-text-secondary);
-  max-width: 64ch;
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  max-width: 72ch;
 }
 
 .simulator__desc--clamped {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.simulator__desc-toggle { margin-top: var(--space-xs); }
+.simulator__desc-toggle { margin-top: 2px; }
 
-.simulator__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center; }
+.simulator__actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 .simulator__fav-on { color: var(--color-warning); }
 
@@ -739,14 +740,11 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   background: var(--color-destructive-foreground);
 }
 
-/* Khung vẽ — NGUYÊN CanvasArea bên trong; khung ngoài = nền canvas-ink (motif tối §6) */
+/* Khung vẽ — Khung liền khối duy nhất từ CanvasArea/DataStructureStage */
 .simulator__canvas-wrap {
   position: relative;
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--color-index-muted) 45%, transparent);
-  border-radius: var(--radius-lg);
-  background: var(--color-canvas-ink);
-  padding: var(--space-sm);
+  width: 100%;
 }
 
 .simulator__canvas-meta {

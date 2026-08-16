@@ -8,9 +8,14 @@ import { defineConfig, configDefaults } from 'vitest/config';
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    // alias dạng array: hỗ trợ find/RegExp (B3 tree-shake pixi) + alias đơn giản (`@`)
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      // B3 — Tree-shake PixiJS: alias root 'pixi.js' sang pixi-entry.mjs (deep-import chỉ
+      // Application/Container/Graphics/Text/TextStyle + các init cần thiết). Regex để
+      // KHÔNG khớp 'pixi.js/app' hay subpath khác.
+      { find: /^pixi[.]js$/, replacement: fileURLToPath(new URL('./src/lib/pixi-entry.mjs', import.meta.url)) },
+    ],
   },
   // Web Worker engine (engines/worker/compiler.worker.ts) — bê từ VisualizationDSA3 (V3):
   // worker chạy dạng ES module (compileWorker tạo Worker { type: 'module' })

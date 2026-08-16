@@ -121,53 +121,103 @@ function onSpeedChange(event: Event): void {
 
 <style scoped>
 .control-bar {
-  padding: var(--space-sm) var(--space-md);
+  padding: 8px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-card);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
 }
 
 .control-bar__row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-md);
-  flex-wrap: wrap;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
 .control-bar__nav {
   display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .control-bar__indicator {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-on-primary);
-  padding: var(--space-xs) var(--space-sm);
+  padding: 4px 10px;
   background: var(--color-primary);
   border-radius: var(--radius-full);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .control-bar__speed {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--text-sm);
+  gap: 6px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
-  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .control-bar__speed select {
-  padding: var(--space-xs) var(--space-sm);
+  padding: 4px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-foreground);
   cursor: pointer;
   font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .control-bar {
+    padding: 8px 10px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .control-bar__row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+  }
+  .control-bar__nav {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .control-bar__nav :deep(button) {
+    padding-inline: 6px;
+    font-size: 11px;
+    height: 32px;
+    flex: 1;
+  }
+  .control-bar__nav :deep(button span) {
+    display: inline;
+  }
+  .control-bar__indicator {
+    min-width: auto;
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+  .control-bar__speed {
+    font-size: 11px;
+  }
 }
 </style>
