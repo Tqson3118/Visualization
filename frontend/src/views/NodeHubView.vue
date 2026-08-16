@@ -24,6 +24,7 @@ import LadderShell from '@/components/ladder/LadderShell.vue';
 import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
