@@ -312,6 +312,7 @@ public class LessonServiceTests
             q: "Bài bị từ chối", page: 1, pageSize: 20, ct: CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.NotNull(result.Value);
         var item = Assert.Single(result.Value.Items);
         Assert.Equal("Thiếu hình minh họa sắp xếp", item.RejectionReason);
     }
@@ -338,6 +339,7 @@ public class LessonServiceTests
         var result = await service.GetPendingListAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.NotNull(result.Value);
         var item = Assert.Single(result.Value);
         Assert.Equal("Bổ sung sau khi từ chối", item.RejectionReason);
     }
