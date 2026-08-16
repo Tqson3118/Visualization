@@ -114,7 +114,10 @@ client.interceptors.response.use(
       }
       // Refresh thất bại → logout + redirect về /login (CHỈ 1 lần — tránh storm logout+redirect)
       await auth.logout();
-      if (!redirectedToLogin) {
+      // Đã ở trang auth (login/register) thì KHÔNG redirect nữa — tránh vòng lặp
+      // /login?redirect=/login?redirect=... (fix BLOCKER redirect-loop 16/08, PROMPT_M_STATE).
+      const onAuthPage = ['/login', '/register'].includes(window.location.pathname);
+      if (!redirectedToLogin && !onAuthPage) {
         redirectedToLogin = true;
         const redirect = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.assign(`/login?redirect=${redirect}`);

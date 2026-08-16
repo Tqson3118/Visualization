@@ -59,12 +59,12 @@ test.describe('Ladder — Màn 14', () => {
     await expect(page.getByLabel('Tim: 10/10')).toBeVisible();
 
     // Vào topic 1 → bản đồ node (mock GET /learning-path/1)
-    await page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' }).click();
+    await page.getByRole('link', { name: /Sắp xếp & Tìm kiếm/ }).click();
     await expect(page).toHaveURL(/\/path\/1$/);
 
     // Mở popover node "Bubble Sort" → hiển thị chi phí 1 tim
     await page.getByRole('button', { name: 'Sắp xếp nổi bọt (Bubble Sort)' }).click();
-    await expect(page.getByText('❤ 1 — trừ 1 tim khi vào node')).toBeVisible();
+    await expect(page.getByText('1 tim — trừ khi vào node')).toBeVisible();
 
     // Bắt đầu → POST .../enter (mock) → heartsLeft 9 → widget tim "9/10"
     await page.getByRole('button', { name: 'Bắt đầu', exact: true }).click();

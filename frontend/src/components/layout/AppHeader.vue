@@ -42,7 +42,11 @@ const userAvatarClass = computed(() => {
 });
 
 onMounted(() => {
-  void gamification.fetchInventory();
+  // Chỉ fetch inventory khi đã đăng nhập — tránh 401 → refresh fail → redirect loop
+  // khi khách truy cập trang công khai (fix BLOCKER redirect-loop 16/08, xem PROMPT_M_STATE).
+  if (auth.isAuthenticated) {
+    void gamification.fetchInventory();
+  }
 });
 
 async function onLogout(): Promise<void> {
@@ -339,5 +343,10 @@ async function onLogout(): Promise<void> {
 
 @media (max-width: 900px) {
   .app-header__nav { display: none; }
+  /* Fix overflow mobile (PROMPT_M §2): co header — ẩn brand text, thu gap
+     để theme + hearts + user không tràn ra ngoài viewport 390px. */
+  .app-header__inner { gap: var(--space-sm); }
+  .app-header__name { display: none; }
+  .app-header__actions { gap: 2px; }
 }
 </style>
