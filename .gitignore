@@ -30,3 +30,6 @@ Thumbs.db
 
 # Tooling artifacts
 .playwright-mcp/
+
+# Git worktrees phụ (session song song — pre-approve workspace)
+trees/
