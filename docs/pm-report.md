@@ -105,3 +105,50 @@
 | 5.3 | Widget "Hôm nay" trên Home sau login | ⏸ BACKLOG (tùy chọn GĐ3, chi phí thấp) | — |
 
 > Mọi thay đổi CHỈ ảnh hưởng sidebar + 1 route (`/simulations` trở thành Màn 33 chính thức) — KHÔNG đụng FR/kiến trúc/business logic. Changelog v2.6 đã ghi vào PRODUCTION_PROMPT Phần 22.
+---
+
+## 8. Kết luận bàn giao — Batch 2FA Gmail SMTP + final verification (17/08/2026)
+
+> Nội dung này kết thúc batch đang mở: sửa lỗi JSON appsettings.Development.json (smtp.gmail.com) + re-verify toàn bộ + đóng trạng thái bàn giao. Quy ước đóng trạng thái: **PARTIAL** (automated verification PASS, Task 4/6 BLOCKED) hoặc **DONE** (chỉ khi PM xác nhận/duyệt rõ 2 blocker deferred).
+
+### 8.1 Kết quả automated verification (lệnh thật, chạy lại trong batch này)
+
+| Hạng mục | Lệnh | Kết quả |
+|---|---|---|
+| JSON hợp lệ | ConvertFrom-Json + python json.load | **PASS** — keys: DSA, ConnectionStrings, Serilog |
+| Secret scan diff | git diff + pattern scan (AKIA/ghp_/BEGIN/sk-/smtp user-pass/app password) | **SẠCH** — diff chỉ thêm 2 dấu phẩy (Email.SmtpHost, Email.SmtpPort); match duy nhất là hostname smtp.gmail.com |
+| dotnet build | dotnet build DsaVisual.sln -c Debug | **PASS** — Build succeeded, 0 Warning(s), 0 Error(s), exit 0 |
+| dotnet test | dotnet test DsaVisual.sln -c Debug --no-build | **PASS** — Unit 159/159 + Integration 78/78 = **237/237**, exit 0 (DsaVisual.Api.Tests: scaffold rỗng — 0 test source, 'No test is available') |
+| npm run build | npm run build (vue-tsc + vite) | **PASS** — vite built in 2.06s, exit 0 |
+| npx vitest run | npx vitest run | **PASS** — **23 files / 207 tests** passed (207), exit 0 (stderr 'canvas getContext not implemented' = jsdom noise, không ảnh hưởng) |
+| Docker thực tế | docker ps + docker compose ps -a | Xem 8.2 |
+| Git sau push | git status --porcelain -b + git rev-parse HEAD/origin/dev | **CLEAN** — HEAD = origin/dev = d05f36f → sau report commit: xem 8.6 |
+
+### 8.2 Môi trường Docker thực tế (đúng trạng thái hiện hữu, không lý tưởng hóa)
+
+- **Backend** neww-backend-1 (compose project 'neww'): **Up (healthy)**, 0.0.0.0:5000->8080/tcp, health HTTP 200. Env dùng DSA__Email__SmtpHost=mailhog / SmtpPort=1025 (env override file) — container không bị ảnh hưởng bởi appsettings.
+- **Database**: compose neww-sqlserver-1 **Exited (255)** — KHÔNG chạy; SQL Server đang hoạt động trong batch này là **testcontainer mssql 2022** (Testcontainers spawn khi chạy dotnet test, port host random ->1433, có Ryuk reaper). Ngoài ra legacy vdsa-database postgres:15 (5433) của stack V1 đang Up (leftover, KHÔNG thuộc compose hiện tại).
+- **Frontend**: compose neww-frontend-1 **Exited (255)** 21h trước; không có FE dev server trên 5173/8081/5001 (probe connect fail) — FE chạy qua local build/CI, không qua Docker lúc này.
+- **MailHog**: compose neww-mailhog-1 **Exited (255)**; port 8025/1025 không listen — MailHog hiện KHÔNG chạy.
+- **Redis**: vdsa-redis (6379) đang Up nhưng thuộc legacy stack V1 — **compose hiện tại KHÔNG có Redis** (SDD §5.6: 'KHÔNG Postgres/Redis/Judge0/Cloudinary'). Báo cáo đúng theo môi trường thực tế.
+
+### 8.3 Task 4 — [BLOCKED] Xác thực OTP Gmail THẬT (2FA)
+
+Chưa thể kết luận DONE: cần **PM xác nhận trên môi trường thật** 3 điều:
+1. Tài khoản Gmail thật **nhận được** email chứa mã OTP gửi qua SMTP smtp.gmail.com:587.
+2. Nhập mã vào POST /auth/2fa/verify → **verify thành công** (đúng 1 lần).
+3. **Dùng lại mã cũ** → bị từ chối (OTP_USED, mã dùng 1 lần — AC-1.11.2).
+
+Lưu ý kỹ thuật (không phải blocker mới): code SMTP (AuthService.cs / UserService.cs) chỉ đọc DSA:Email:SmtpHost/Port/From — **chưa** có SmtpUsername/SmtpPassword trong code lẫn config; Gmail yêu cầu AUTH bằng **App Password** — phải cấp qua env var DSA__Email__* ở môi trường chạy (SETUP_TODO §10.1), **KHÔNG** nhập vào appsettings để commit. KHÔNG yêu cầu PM dán app password vào chat.
+
+### 8.4 Task 6 — [BLOCKED] Ngày bảo vệ + ngành học (bìa BAO_CAO)
+
+Chưa thể kết luận DONE: cần **PM cung cấp** (1) ngày bảo vệ chính xác và (2) ngành học chính xác để điền vào bìa BAO_CAO — mục 'Ngày bảo vệ: .....' hiện vẫn để trống (đúng quy định PROMPT_REPORT_PRO2192: chỉ điền khi user cho ngày).
+
+### 8.5 Tuân thủ ràng buộc batch
+
+- **KHÔNG** reset database; **KHÔNG** tắt 2FA hiện tại; **KHÔNG** yêu cầu app password trong chat — tất cả giữ nguyên.
+
+### 8.6 KẾT LUẬN BÀN GIAO: **PARTIAL**
+
+> Automated verification **PASS toàn bộ** (JSON, secret scan, dotnet build/test 237/237, FE build + vitest 23 files/207 tests, git clean + in sync). **Task 4 và Task 6 BLOCKED** chờ PM. Theo quy ước, trạng thái bàn giao = **PARTIAL** — chuyển sang **DONE** chỉ khi PM xác nhận/duyệt rõ 2 blocker deferred (OTP Gmail thật verified + cung cấp ngày bảo vệ/ngành học).
