@@ -256,9 +256,18 @@ builder.Services.AddRateLimiter(rateLimiter =>
             return RateLimitPartition.GetNoLimiter("health");
         }
 
+        // Sensitive = endpoint có credential/OTP (login/register/2fa/reset/change-password/join) —
+        // refresh/logout KHÔNG tính (token nội bộ, không phải mục tiêu brute-force; chống self-DoS
+        // khi token cũ → refresh storm đốt hết quota chung với login — fix 14/08).
+        var pathString = path.Value ?? string.Empty;
         var isSensitive =
-            path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase)
-            || path.Value?.Contains("/join", StringComparison.OrdinalIgnoreCase) == true;
+            pathString.Contains("/api/v1/auth/login", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/api/v1/auth/register", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/api/v1/auth/2fa", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/api/v1/auth/forgot-password", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/api/v1/auth/reset-password", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/api/v1/auth/change-password", StringComparison.OrdinalIgnoreCase)
+            || pathString.Contains("/join", StringComparison.OrdinalIgnoreCase);
 
         // Partition = (user claim sub | IP) — login/register là anonymous nên rơi về IP;
         // user đăng nhập dùng sub → không thể làm nghẽn hàng xóm cùng NAT.
