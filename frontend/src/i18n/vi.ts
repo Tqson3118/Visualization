@@ -1331,6 +1331,39 @@ export const messages = {
     toastFailed: (threshold: number, pct: number) =>
       `Đạt ${pct}% — cần ≥ ${threshold}%. Làm lại trong phiên miễn phí.`,
   },
+
+  // ── Feature port F3 — Code-to-Visual DSL (Playground) ──
+  codeToVisual: {
+    breadcrumbRoot: 'Playground',
+    title: 'Code-to-Visual',
+    subtitle: 'Viết DSL giới hạn (array/stack/queue) và xem từng bước trực quan — không chạy mã tùy ý.',
+    editorLabel: 'Mã DSL',
+    editorPlaceholder: 'array.push(5)\narray.push(3)\narray.swap(0, 1)\narray.set(1, 9)\narray.pop()\nstack.push(7)\nstack.pop()\nqueue.enqueue(4)\nqueue.dequeue()',
+    run: 'Chạy',
+    runAria: 'Chạy phân tích DSL',
+    clear: 'Xóa',
+    clearAria: 'Xóa toàn bộ editor và kết quả',
+    consoleTitle: 'Console',
+    consoleEmpty: 'Nhấn "Chạy" để phân tích mã DSL từng bước.',
+    consoleError: 'Lỗi dòng {line}: {message}',
+    arrayInputLabel: 'Mảng khởi tạo (2–50 số, phân cách dấu phẩy)',
+    arrayInputPlaceholder: '5, 3, 8, 1, 9, 2',
+    arrayInputHint: 'Dùng làm state ban đầu cho array; stack/queue bắt đầu rỗng.',
+    arrayInvalid: 'Mảng không hợp lệ — cần 2–50 số nguyên.',
+    outputTitle: 'Trực quan hóa',
+    outputEmpty: 'Chưa có kết quả — nhấn "Chạy" để xem playback.',
+    stepsLabel: (n: number) => n + ' bước',
+    errorBadge: 'Lỗi dòng',
+    docsTitle: 'Cú pháp DSL',
+    docs: [
+      'array.push(x) — thêm vào cuối',
+      'array.set(i, x) — gán arr[i] = x',
+      'array.swap(i, j) — hoán đổi 2 ô',
+      'array.pop() — lấy phần tử cuối',
+      'stack.push(x) / pop() / peek()',
+      'queue.enqueue(x) / dequeue() / front()',
+    ] as const,
+  },
 } as const;
 
 export type MessageKey = keyof typeof messages;

@@ -17,7 +17,7 @@ export interface SimulationStats {
 export interface LoadedSimulation {
   key: string;
   title: string;
-  generator: SimulationGenerator;
+  generator: SimulationGenerator | null;
 }
 
 /** Store simulation theo SDD §3.2 — triển khai thật với generator từ engines/registry (task 3). */
@@ -126,9 +126,38 @@ export const useSimulationStore = defineStore('simulation', () => {
     }
   }
 
+  /**
+   * Nạp steps trực tiếp (không qua registry generator) — dùng cho Code-to-Visual DSL:
+   * view gán steps đã convert từ TraceEvent, rồi playback bằng store như bình thường.
+   */
+  function loadSteps(title: string, newSteps: Step[]): void {
+    clearPlayback();
+    if (newSteps.length === 0) {
+      currentSim.value = null;
+      steps.value = [];
+      currentIndex.value = 0;
+      status.value = 'idle';
+      breakpointHit.value = null;
+      stats.value = { comparisons: 0, swaps: 0, writes: 0 };
+      return;
+    }
+    currentSim.value = { key: 'code-to-visual', title, generator: null };
+    steps.value = newSteps;
+    currentIndex.value = 0;
+    status.value = 'idle';
+    breakpointHit.value = null;
+    const last = newSteps[newSteps.length - 1];
+    stats.value = { ...last.stats };
+  }
+
+  /** Xóa steps/playback (empty state) — dùng khi RUN mới hoặc xóa editor. */
+  function clearSteps(): void {
+    loadSteps('', []);
+  }
+
   /** Cấu hình lại input → validate → sinh lại steps */
   async function configureInput(input: InputConfig): Promise<void> {
-    if (!currentSim.value) return;
+    if (!currentSim.value || !currentSim.value.generator) return;
     loading.value = true;
     loadError.value = null;
     try {
@@ -240,6 +269,8 @@ export const useSimulationStore = defineStore('simulation', () => {
     totalSteps,
     generator,
     loadSim,
+    loadSteps,
+    clearSteps,
     configureInput,
     play,
     pause,
