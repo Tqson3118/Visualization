@@ -22,6 +22,10 @@ import { mockApi } from './helpers/mockApi';
 test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
   test('guard chưa đăng nhập → /login?redirect=... → sau login hiển thị editor với code mẫu', async ({ page }) => {
     await mockApi(page);
+    // Warmup (giống demo-chain.spec): vite cold-compile sau restart làm tab crash khi
+    // tải Monaco chunk ngay sau login → precompile trước.
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
     await page.goto('/code/sort.bubble');
 
     // Guard requiresAuth → login kèm redirect
@@ -33,7 +37,8 @@ test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page).toHaveURL(/\/code\/sort\.bubble$/);
 
-    await expect(page.getByRole('heading', { name: /Code Challenge/ })).toBeVisible();
+    // Tiêu đề h1 = catalog meta title của key sort.bubble (không phải "Code Challenge")
+    await expect(page.getByRole('heading', { name: 'Sắp xếp nổi bọt (Bubble Sort)', level: 1 })).toBeVisible();
 
     // Editor = textarea, chứa code mẫu bubbleSort (loadTemplate từ store)
     const editor = page.getByRole('textbox', { name: 'Trình soạn mã sort.bubble' });

@@ -40,12 +40,13 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
     await inputs.nth(3).press('Tab');
     await page.waitForTimeout(200);
 
-    // Submit → mock POST /auth/register 201 → student → router.replace('/path')
+    // Submit → mock POST /auth/register 201 → student → router.replace('/courses')
+    // (PR30: /path redirect → /courses — roadmap cũ thay bằng Grokking courses)
     await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
-    await expect(page).toHaveURL(/\/path$/);
+    await expect(page).toHaveURL(/\/courses$/);
 
-    // PathRedirectView hiển thị topic từ mock GET /topics
-    await expect(page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' })).toBeVisible();
+    // CoursesListView hiển thị tiêu đề ổn định (không phụ thuộc mock API)
+    await expect(page.getByRole('heading', { name: 'Lộ trình học DSA' })).toBeVisible();
   });
 
   test('đăng nhập đúng → vào /path', async ({ page }) => {
@@ -56,9 +57,9 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
     await page.locator('#password').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
 
-    // Mock POST /auth/login → token + user → LoginView router.replace('/path')
-    await expect(page).toHaveURL(/\/path$/);
-    await expect(page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' })).toBeVisible();
+    // Mock POST /auth/login → token + user → LoginView router.replace('/courses') (PR30 routing)
+    await expect(page).toHaveURL(/\/courses$/);
+    await expect(page.getByRole('heading', { name: 'Lộ trình học DSA' })).toBeVisible();
   });
 
   test('guard: /profile chưa đăng nhập → /login?redirect=... → sau login quay lại /profile', async ({ page }) => {

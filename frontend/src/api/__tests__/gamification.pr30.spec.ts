@@ -36,6 +36,16 @@ describe('api/gamification — PR30 regression', () => {
     expect(b.priceGems).toBe(60);
   });
 
+  it('enterNode posts to /learning-path/{id}/nodes/{nodeId}/enter (F1 hearts contract)', async () => {
+    vi.mocked(getData).mockResolvedValue({ session: {}, heartsLeft: 9 });
+    const r = await gamificationApi.enterNode(2, 5);
+    expect(vi.mocked(getData)).toHaveBeenCalledWith({
+      method: 'POST',
+      url: '/learning-path/2/nodes/5/enter',
+    });
+    expect(r.heartsLeft).toBe(9);
+  });
+
   it('fetchLearningPaths calls /learning-paths (F1 selector)', async () => {
     vi.mocked(getData).mockResolvedValue([]);
     await gamificationApi.fetchLearningPaths();

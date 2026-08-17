@@ -47,28 +47,22 @@ test.describe('Ladder — Màn 14', () => {
     await expect(stepper.getByRole('button', { name: /Code/ })).toBeDisabled();
   });
 
-  test('FR-10.1: vào node mới trừ đúng 1 tim (enter → heartsLeft giảm, widget tim cập nhật)', async ({ page }) => {
+  test('FR-10.1: hearts widget 10/10 + routing contract /path → /courses (PR30)', async ({ page }) => {
     await mockApi(page);
     await page.goto('/login');
     await page.locator('#email').fill(E2E_EMAIL);
     await page.locator('#password').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await expect(page).toHaveURL(/\/path$/);
+    // PR30: /path redirect → /courses (roadmap cũ thay bằng Grokking courses)
+    await expect(page).toHaveURL(/\/courses$/);
 
     // Header: HeartsGemsWidget fetch GET /me/hearts (mock) → 10/10
     await expect(page.getByLabel('Tim: 10/10')).toBeVisible();
 
-    // Vào topic 1 → bản đồ node (mock GET /learning-path/1)
-    await page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' }).click();
-    await expect(page).toHaveURL(/\/path\/1$/);
-
-    // Mở popover node "Bubble Sort" → hiển thị chi phí 1 tim
-    await page.getByRole('button', { name: 'Sắp xếp nổi bọt (Bubble Sort)' }).click();
-    await expect(page.getByText('❤ 1 — trừ 1 tim khi vào node')).toBeVisible();
-
-    // Bắt đầu → POST .../enter (mock) → heartsLeft 9 → widget tim "9/10"
-    await page.getByRole('button', { name: 'Bắt đầu', exact: true }).click();
-    await expect(page.getByLabel('Tim: 9/10')).toBeVisible();
-    await expect(page).toHaveURL(/\/path\/1\/node\/1$/);
+    // PR30: route cũ /path/{id} (bản đồ node + enter trừ tim qua UI PathView) redirect sang
+    // course-detail — luồng UI cũ đã bị thay bằng courses; contract API
+    // POST /learning-path/{id}/nodes/{nodeId}/enter vẫn giữ (xem gamification.pr30.spec.ts).
+    await page.goto('/path/1');
+    await expect(page).toHaveURL(/\/courses\/1$/);
   });
 });
