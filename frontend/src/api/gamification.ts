@@ -217,7 +217,10 @@ export async function claimQuest(id: number): Promise<{ gems: number; xp: number
 }
 
 export async function fetchStreak(): Promise<StreakDto> {
-  return getData<StreakDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.streak });
+  // BE trả { streakDays, streakFreeze } (StreakDto: StreakFreeze) — map sang freezeAvailable
+  // để UI không bao giờ hiển thị "undefined đông cứng" khi field thiếu.
+  const raw = await getData<{ streakDays: number; streakFreeze?: number }>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.streak });
+  return { streakDays: raw.streakDays ?? 0, freezeAvailable: raw.streakFreeze ?? 0 };
 }
 
 export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class'; classId?: number; page?: number } = {}): Promise<LeaderboardDto> {
