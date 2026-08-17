@@ -1,4 +1,4 @@
-﻿using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,6 +15,9 @@ public sealed class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(c => c.InviteCode).HasMaxLength(6).IsRequired();
         builder.Property(c => c.Semester).HasMaxLength(50);
         builder.Property(c => c.Description).HasMaxLength(500);
+        builder.Property(c => c.CurriculumTitle).HasMaxLength(200);
+        builder.Property(c => c.CurriculumDescription).HasMaxLength(500);
+        builder.Property(c => c.CurriculumPublished).HasDefaultValue(true);
         builder.Property(c => c.Status).HasConversion<int>().HasDefaultValue(ClassStatus.Open);
         builder.Property(c => c.CreatedAt).HasColumnType("datetime2");
         builder.Property(c => c.DeletedAt).HasColumnType("datetime2");
@@ -60,8 +63,10 @@ public sealed class ClassAssignmentConfiguration : IEntityTypeConfiguration<Clas
 
         builder.Property(a => a.DueAt).HasColumnType("datetime2");
         builder.Property(a => a.CreatedAt).HasColumnType("datetime2");
+        builder.Property(a => a.SortOrder).HasDefaultValue(0);
 
         builder.HasIndex(a => new { a.ClassId, a.DueAt });
+        builder.HasIndex(a => new { a.ClassId, a.SortOrder });
         builder.HasIndex(a => a.LessonId);
         builder.HasIndex(a => a.ExerciseId);
 

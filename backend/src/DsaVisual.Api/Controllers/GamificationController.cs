@@ -38,6 +38,14 @@ public class GamificationController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    // ── Gamification summary (level + XP — feature port) ──
+    [HttpGet("me/gamification")]
+    public async Task<ActionResult<GamificationSummaryDto>> GetGamificationSummary(CancellationToken ct)
+    {
+        var result = await _service.GetGamificationSummaryAsync(CurrentUserId(), ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     // ── Learning path ──
     [HttpGet("learning-paths")]
     public async Task<ActionResult<List<LearningPathSummaryDto>>> GetLearningPaths(CancellationToken ct)

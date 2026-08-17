@@ -1,5 +1,14 @@
 import { client, getData } from './client';
-import type { ClassAssignmentDto, ClassDetailDto, ClassDto, ClassMemberDto, ClassReportDto } from './types';
+import type {
+  ClassAssignmentDto,
+  ClassCurriculumDto,
+  ClassCurriculumReorderRequest,
+  ClassCurriculumUpsertRequest,
+  ClassDetailDto,
+  ClassDto,
+  ClassMemberDto,
+  ClassReportDto,
+} from './types';
 
 /** Endpoint theo API_REFERENCE §4.11 (Classes — Module H) */
 export const CLASS_ENDPOINTS = {
@@ -15,6 +24,9 @@ export const CLASS_ENDPOINTS = {
   assignment: (id: number, assignId: number) => `/classes/${id}/assignments/${assignId}`,
   report: (id: number) => `/classes/${id}/report`,
   reportExport: (id: number) => `/classes/${id}/report/export`,
+  // ── Learning Path / Curriculum (per-class) ──
+  curriculum: (id: number) => `/classes/${id}/curriculum`,
+  curriculumReorder: (id: number) => `/classes/${id}/curriculum/reorder`,
 } as const;
 
 // ── CRUD (API_REFERENCE §4.11) ──
@@ -91,4 +103,26 @@ export async function fetchClassReport(id: number): Promise<ClassReportDto> {
 export async function exportClassReportCsv(id: number): Promise<string> {
   const response = await getData<unknown>({ method: 'GET', url: CLASS_ENDPOINTS.reportExport(id) });
   return typeof response === 'string' ? response : '';
+}
+// ── Learning Path / Curriculum (per-class) ───────────────────
+
+/** Lộ trình học của lớp (học viên: kèm status từ progress thật; manager: cùng schema). */
+export async function fetchClassCurriculum(id: number): Promise<ClassCurriculumDto> {
+  return getData<ClassCurriculumDto>({ method: 'GET', url: CLASS_ENDPOINTS.curriculum(id) });
+}
+
+/** Teacher/Admin: cập nhật meta lộ trình + publish/unpublish (draft ẩn với học viên). */
+export async function updateClassCurriculum(
+  id: number,
+  payload: ClassCurriculumUpsertRequest,
+): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'PUT', url: CLASS_ENDPOINTS.curriculum(id), data: payload });
+}
+
+/** Teacher/Admin: sắp xếp lại thứ tự items trong lộ trình. */
+export async function reorderClassCurriculum(
+  id: number,
+  payload: ClassCurriculumReorderRequest,
+): Promise<void> {
+  await client.put(CLASS_ENDPOINTS.curriculumReorder(id), payload);
 }

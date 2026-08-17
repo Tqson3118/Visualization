@@ -25,6 +25,7 @@ const LabView = () => import('@/views/LabView.vue');
 const CodeRunnerView = () => import('@/views/CodeRunnerView.vue');
 const BenchmarkView = () => import('@/views/BenchmarkView.vue');
 const CheatSheetView = () => import('@/views/CheatSheetView.vue');
+const CodeToVisualView = () => import('@/views/CodeToVisualView.vue');
 const LeaderboardView = () => import('@/views/LeaderboardView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const ClassesView = () => import('@/views/ClassesView.vue');
@@ -222,6 +223,13 @@ const router = createRouter({
       path: '/cheatsheet',
       name: 'cheatsheet',
       component: CheatSheetView,
+      meta: { requiresAuth: true },
+    },
+    // F3 — Code-to-Visual DSL Playground
+    {
+      path: '/playground/code-to-visual',
+      name: 'code-to-visual',
+      component: CodeToVisualView,
       meta: { requiresAuth: true },
     },
     // Màn 06 — Bài tập trắc nghiệm (Bậc 1)

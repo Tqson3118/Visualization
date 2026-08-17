@@ -5,6 +5,7 @@ import type { PagedResponse } from './types';
 /** Endpoint theo API_REFERENCE §4.14 (gamification, premium, leaderboard) */
 export const GAMIFICATION_ENDPOINTS = {
   hearts: '/me/hearts',
+  gamificationSummary: '/me/gamification',
   enterNode: (pathId: number, nodeId: number) => `/learning-path/${pathId}/nodes/${nodeId}/enter`,
   learningPaths: `/learning-paths`,
   learningPath: (id: number) => `/learning-path/${id}`,
@@ -24,6 +25,15 @@ export const GAMIFICATION_ENDPOINTS = {
 } as const;
 
 // ── DTO (API_REFERENCE §3.12-3.13) ──
+
+/** Tổng hợp level/XP — GET /me/gamification (feature port gamification UI). */
+export interface GamificationSummaryDto {
+  xp: number;
+  level: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+  levelProgressPct: number;
+}
 
 export interface HeartsStatusDto {
   hearts: number;
@@ -157,6 +167,10 @@ export interface LearningPathDto {
 
 export async function fetchHearts(): Promise<HeartsStatusDto> {
   return getData<HeartsStatusDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.hearts });
+}
+
+export async function fetchGamificationSummary(): Promise<GamificationSummaryDto> {
+  return getData<GamificationSummaryDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.gamificationSummary });
 }
 
 export async function enterNode(pathId: number, nodeId: number): Promise<{ session: unknown; heartsLeft: number }> {

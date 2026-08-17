@@ -38,11 +38,61 @@ export interface ClassAssignmentDto {
   title: string | null;
   dueAt: string | null;
   allowLateSubmission: boolean;
+  /** Thứ tự trong lộ trình học của lớp (sort curriculum). */
+  sortOrder: number;
   createdAt: string;
 }
 
 /** Chi tiết lớp — GET /classes/{id} + POST /classes/join-by-code (API_REFERENCE §4.11). */
-export type ClassDetailDto = ClassDto & { members?: ClassMemberDto[]; assignments?: ClassAssignmentDto[] };
+export type ClassDetailDto = ClassDto & {
+  members?: ClassMemberDto[];
+  assignments?: ClassAssignmentDto[];
+  /** Lộ trình học (curriculum) per-class. */
+  curriculumTitle?: string | null;
+  curriculumDescription?: string | null;
+  curriculumPublished?: boolean;
+};
+
+// ── Learning Path / Curriculum per-class (feature port — teacher creates path) ──
+
+/** Body PUT /classes/{id}/curriculum — meta + publish/unpublish. */
+export interface ClassCurriculumUpsertRequest {
+  title?: string | null;
+  description?: string | null;
+  published?: boolean | null;
+}
+
+export interface ClassCurriculumReorderItem {
+  assignmentId: number;
+  sortOrder: number;
+}
+
+export interface ClassCurriculumReorderRequest {
+  items: ClassCurriculumReorderItem[];
+}
+
+/** Một item trong lộ trình — status: not_started | in_progress | completed. */
+export interface ClassCurriculumItemDto {
+  assignmentId: number;
+  lessonId: number | null;
+  exerciseId: number | null;
+  title: string;
+  itemType: 'lesson' | 'exercise';
+  sortOrder: number;
+  dueAt: string | null;
+  status: 'not_started' | 'in_progress' | 'completed';
+  bestScore: number | null;
+}
+
+/** Lộ trình học của lớp cho học viên — GET /classes/{id}/curriculum. */
+export interface ClassCurriculumDto {
+  classId: number;
+  title: string | null;
+  description: string | null;
+  published: boolean;
+  progressPct: number;
+  items: ClassCurriculumItemDto[];
+}
 
 /** Thống kê 1 bài gán trong báo cáo lớp — khớp backend ClassReportAssignmentDto. */
 export interface ClassReportAssignmentDto {
