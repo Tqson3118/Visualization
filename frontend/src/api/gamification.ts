@@ -243,7 +243,12 @@ export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {
-  return getData<ShopItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
+  // Giữ map fallback priceGems từ dev (item.price/item.cost) — phòng BE trả thiếu field (F2 mapping ổn định).
+  const items = await getData<Array<ShopItemDto & { price?: number; cost?: number }>>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
+  return (items || []).map((item) => ({
+    ...item,
+    priceGems: item.priceGems ?? item.price ?? item.cost ?? 0,
+  }));
 }
 
 export async function buyItem(itemId: number): Promise<{ gemsLeft: number }> {
