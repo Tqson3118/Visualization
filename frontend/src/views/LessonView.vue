@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
+import EmbeddedVisualizer from '@/components/visualizer/EmbeddedVisualizer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -26,6 +27,8 @@ const lessonId = computed(() => String(route.params.lessonId ?? ''));
 const error = ref('');
 const marking = ref(false);
 const activeTab = ref('content');
+/** Trạng thái mở visualizer inline trong tab Lý thuyết ("Chạy thử thuật toán"). */
+const runOpen = ref(false);
 
 const lesson = computed(() => lessonStore.currentLesson);
 const viewed = computed(() => lesson.value?.progress?.viewed ?? false);
@@ -57,12 +60,11 @@ function openExercise(id: number): void {
   void router.push({ name: 'exercise', params: { id: String(id) } });
 }
 
-/** "Học tiếp": bước thao tác thật — mô phỏng đầu tiên của bài, nếu chưa có thì sang Lý thuyết. */
+/** "Học tiếp": sang tab Lý thuyết và mở visualizer inline ngay trong lesson (single surface — B3). */
 function onContinue(): void {
+  activeTab.value = 'theory';
   if (theorySimKey.value) {
-    openSimulation(theorySimKey.value);
-  } else {
-    activeTab.value = 'theory';
+    runOpen.value = true;
   }
 }
 
@@ -151,6 +153,26 @@ async function onMarkViewed(): Promise<void> {
               </div>
             </dl>
           </Card>
+
+          <!-- Chạy thử thuật toán: visual tương tác inline (KHÔNG thêm tab Visualizer riêng — B3).
+               Chỉ hiện khi bài có simulationKey. -->
+          <div v-if="theorySimKey" class="lesson-view__try">
+            <Button
+              v-if="!runOpen"
+              variant="secondary"
+              data-testid="run-algo-btn"
+              @click="runOpen = true"
+            >
+              <Play :size="16" aria-hidden="true" />
+              Chạy thử thuật toán
+            </Button>
+            <EmbeddedVisualizer
+              v-else
+              :simulation-key="theorySimKey"
+              @close="runOpen = false"
+            />
+          </div>
+
           <article
             class="lesson-view__theory"
             v-html="lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>'"
@@ -254,6 +276,11 @@ async function onMarkViewed(): Promise<void> {
 
 /* ── Lý thuyết ── */
 .lesson-view__theory-card {
+  margin-bottom: var(--space-md);
+}
+
+/* Khu "Chạy thử thuật toán" — visual tương tác inline trong Lý thuyết (B3) */
+.lesson-view__try {
   margin-bottom: var(--space-md);
 }
 

@@ -101,12 +101,26 @@ const router = createRouter({
       path: '/learn',
       redirect: '/path',
     },
-    // Màn 04 — Chi tiết bài học
+    // Màn 04 — Chi tiết bài học (canonical: /lessons/:lessonId; giữ /learn/:lessonId cũ redirect — 20.5.6)
     {
-      path: '/learn/:lessonId',
+      path: '/lessons/:lessonId',
       name: 'lesson',
       component: LessonView,
       meta: { requiresAuth: true },
+    },
+    // Alias cũ — URL /learn/:lessonId vẫn hoạt động (deep link sẵn có)
+    {
+      path: '/learn/:lessonId',
+      redirect: (to) => ({ name: 'lesson', params: { lessonId: String(to.params.lessonId) } }),
+    },
+    // Alias tương thích khóa học cũ (do not hiển thị '/lo-trinh' trên URL — convention tiếng Anh)
+    {
+      path: '/courses',
+      redirect: '/path',
+    },
+    {
+      path: '/courses/:id',
+      redirect: (to) => ({ name: 'path-topic', params: { topicId: String(to.params.id) } }),
     },
     // Màn 13 — Learning Path
     {

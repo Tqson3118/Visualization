@@ -65,7 +65,7 @@ function topicProgress(topicId: number): number {
   <main class="path-redirect container">
     <!-- Banner surface band level-2 + kicker mono (DESIGN.md §1, không gradient/emoji) -->
     <header class="path-redirect__chrome">
-      <p class="path-redirect__kicker">Learning Path · Chọn chủ đề</p>
+      <p class="path-redirect__kicker">Lộ trình · Chọn chủ đề</p>
       <h1 class="path-redirect__title">
         <Route :size="28" aria-hidden="true" class="path-redirect__title-icon" />
         Lộ trình học
