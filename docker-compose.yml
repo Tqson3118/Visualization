@@ -1,4 +1,4 @@
-﻿# ── Docker Compose dev (SDD §5.6 / DEPLOY §3.3) — SQL Server + MailHog + backend + frontend ──
+# ── Docker Compose dev (SDD §5.6 / DEPLOY §3.3) — SQL Server + MailHog + backend + frontend ──
 # KHÔNG Postgres/Redis/Judge0/Cloudinary — viết MỚI (không bê docker-compose V1).
 # Chạy: docker compose up -d --build
 
@@ -34,6 +34,9 @@ services:
       DSA__Cors__AllowedOrigins: http://localhost:8081
       DSA__Email__SmtpHost: mailhog
       DSA__Email__SmtpPort: "1025"
+      DSA__Email__UseMailHog: "${DSA__EMAIL__USE_MAILHOG:-true}"
+      DSA__Email__SmtpUsername: "${DSA__EMAIL__SMTP_USERNAME:-}"
+      DSA__Email__SmtpPassword: "${DSA__EMAIL__SMTP_PASSWORD:-}"
     ports:
       - "5000:8080"   # host 5000 (DEPLOY §2.3) → container 8080
     depends_on:
