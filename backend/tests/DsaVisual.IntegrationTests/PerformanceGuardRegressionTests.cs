@@ -143,9 +143,11 @@ public sealed class PerformanceGuardRegressionTests : IntegrationTestBase, IClas
                 new LessonSimulation { LessonId = lesson.Id, SimulationKey = "sort.bubble", Title = "Bubble", SortOrder = 0 },
                 new LessonSimulation { LessonId = lesson.Id, SimulationKey = "sort.merge", Title = "Merge", SortOrder = 1 });
 
-            // 1 user hoạt động hôm nay (UTC+7)
+            // 1 user hoạt động hôm nay (UTC+7) — KHỚP ngữ nghĩa app: GamificationService ghi
+            // LastActivityDate = clock.UtcNow.AddHours(7).Date (mốc 00:00 UTC+7), còn
+            // AdminController stats so sánh LastActivityDate >= cùng mốc (perf#9).
             var active = await db.Users.FirstAsync(u => u.Id == studentB.Id);
-            active.LastActivityDate = now;
+            active.LastActivityDate = now.AddHours(7).Date;
 
             await db.SaveChangesAsync();
         }
