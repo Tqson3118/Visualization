@@ -13,6 +13,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  // PR30: demo-chain chạy với backend thật (playwright.demo.config.ts) — loại khỏi suite route-mock.
+  testIgnore: '**/demo-chain.spec.ts',
   timeout: 30_000,
   expect: {
     timeout: 10_000,

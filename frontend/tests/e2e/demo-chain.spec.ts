@@ -15,6 +15,11 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
+// PR30: demo-chain yêu cầu BACKEND THẬT + DB đã seed — KHÔNG chạy trong suite route-mock mặc định
+// (playwright.config.ts đã testIgnore spec này). Chỉ chạy với backend thật khi đặt:
+//   PLAYWRIGHT_REAL_STACK=1 npx playwright test --config=playwright.demo.config.ts
+const REQUIRES_REAL_STACK = process.env.PLAYWRIGHT_REAL_STACK === '1';
+
 const BASE = 'http://localhost:8081';
 const ACC = {
   student: { email: 'student@demo.local', password: 'Student@123' },
@@ -62,6 +67,7 @@ async function logout(page: Page, displayName: string): Promise<void> {
 
 test.setTimeout(240_000);
 test.describe('DEMO_01_FULL_PRESENTATION_FLOW — backend thật', () => {
+  test.skip(!REQUIRES_REAL_STACK, 'Cần PR backend + DB đã seed (đặt PLAYWRIGHT_REAL_STACK=1 để chạy)');
   test('chuỗi liên tục student → teacher → admin + showcase', async ({ page }) => {
     const { errors, apiCalls, httpErrors } = watch(page);
 
