@@ -131,3 +131,13 @@ export function parseEmojiToSvg(text: string): string {
   }
   return result;
 }
+
+/** Escape HTML — chỉ dùng cho TEXT thuần trước khi đưa vào parseEmojiToSvg (caller chịu trách nhiệm gọi). */
+export function escapeHtmlText(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

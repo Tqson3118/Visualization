@@ -17,12 +17,6 @@ export const useAuthStore = defineStore('auth', () => {
   const status = ref<AuthStatus>('idle');
 
   let refreshPromise: Promise<string | null> | null = null;
-/** Logout chủ động (nút Đăng xuất): chặn auto-refresh sau logout — tránh 401 refresh storm
- *  với cookie refresh token đã bị revoke (finding R2-04 — 5×401 /auth/refresh sau logout). */
-let loggedOutExplicitly = false;
-/** Hint session còn sống (localStorage) — main.ts chỉ auto-refresh khi có hint
- *  để tránh POST /auth/refresh 401 trên mọi page load lúc logged-out (finding R2-04). */
-const SESSION_HINT_KEY = 'dsa-session-hint';
 
   const isAuthenticated = computed(
     () => status.value === 'authenticated' && accessToken.value !== null,
@@ -37,7 +31,6 @@ const SESSION_HINT_KEY = 'dsa-session-hint';
       accessToken.value = response.accessToken;
       user.value = response.user;
       status.value = 'authenticated';
-      localStorage.setItem(SESSION_HINT_KEY, '1'); // login mở phiên → F5/reload khôi phục được
     } catch (error) {
       status.value = 'error';
       throw error;
@@ -51,7 +44,6 @@ const SESSION_HINT_KEY = 'dsa-session-hint';
       accessToken.value = response.accessToken;
       user.value = response.user;
       status.value = 'authenticated';
-      localStorage.setItem(SESSION_HINT_KEY, '1');
     } catch (error) {
       status.value = 'error';
       throw error;
@@ -59,8 +51,6 @@ const SESSION_HINT_KEY = 'dsa-session-hint';
   }
 
   async function logout(): Promise<void> {
-    loggedOutExplicitly = true; // chặn auto-refresh sau logout (finding R2-04)
-    localStorage.removeItem(SESSION_HINT_KEY);
     try {
       await authApi.logout();
     } catch {
@@ -74,21 +64,18 @@ const SESSION_HINT_KEY = 'dsa-session-hint';
 
   /** Singleton promise: chỉ 1 lần gọi /auth/refresh cho mọi request 401 đồng thời */
   async function refresh(): Promise<string | null> {
-    if (loggedOutExplicitly) return null; // đã logout chủ động — không gọi /auth/refresh
     if (refreshPromise) return refreshPromise;
     refreshPromise = authApi
       .refresh()
       .then((response) => {
         accessToken.value = response.accessToken;
         status.value = 'authenticated';
-        localStorage.setItem(SESSION_HINT_KEY, '1');
         return response.accessToken;
       })
       .catch(() => {
         accessToken.value = null;
         user.value = null;
         status.value = 'error';
-        localStorage.removeItem(SESSION_HINT_KEY);
         return null;
       })
       .finally(() => {
@@ -114,6 +101,5 @@ const SESSION_HINT_KEY = 'dsa-session-hint';
     logout,
     refresh,
     fetchMe,
-    SESSION_HINT_KEY,
   };
 });

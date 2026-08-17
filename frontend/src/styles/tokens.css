@@ -43,7 +43,7 @@
   --color-card-raised:      #F7FDFD;
 
   /* Canvas palette (DESIGN-IDENTITY §1.2 — nguồn canvasTheme.ts, LUÔN tối) */
-  --color-canvas-ink:       #0F172A;
+  --color-canvas-ink:       #0D1020;
   --color-data-core:        #4255FF;
   --color-resolved:         #34D399;
   --color-conflict:         #F87171;
@@ -97,6 +97,12 @@
   --transition-fast:   all 150ms ease;
   --transition-smooth: all 250ms ease;
   --transition-slow:   all 500ms ease;
+
+  /* ── HEADER NỔI (absolute) ──
+     Chiều cao cụm brand+nav+action (logo 72px + padding 30+10 = 112px).
+     App.vue dùng làm padding-top cho app-shell; HomeView bù margin-top -112px
+     để hero tràn đỉnh. Sửa logo → sửa DUY NHẤT ở đây (cả 2 nơi tự đồng bộ). */
+  --app-header-h: 112px;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -110,17 +116,19 @@
   --color-on-primary:     #042F2E;
   --color-secondary:      #0D9488;
   --color-accent:         #FBBF24;
-  --color-background:     #042F2E;
-  --color-foreground:     #CCFBF1;
-  --color-muted:          #0F3D3A;
-  --color-border:         #115E59;
+  /* Tân trang 15/08: nền tối chuyển sang tím-đen (khớp trang chủ vũ trụ #0B0A12)
+     — trước là #17191D (xám) gây dải xám ở đỉnh trang khi header tàng hình */
+  --color-background:     #0B0A12;
+  --color-foreground:     #E8EAEE;
+  --color-muted:          #202329;
+  --color-border:         #33383F;
   --color-destructive:    #F87171;
   --color-ring:           #2DD4BF;
 
-  --color-surface:        #0F3D3A;
-  --color-surface-hover:  #134E4A;
-  --color-text-muted:     #99F6E4;
-  --color-text-disabled:  #5EEAD4;
+  --color-surface:        #1C1F25;
+  --color-surface-hover:  #242830;
+  --color-text-muted:     #A8AEB8;
+  --color-text-disabled:  #8A919C;
   --color-success:        #34D399;
   --color-warning:        #FBBF24;
   --color-info:           #22D3EE;
@@ -128,15 +136,15 @@
   /* Text 4 tầng dark (DESIGN.md §2.2) */
   --color-text-primary:     var(--color-foreground);
   --color-text-secondary:   var(--color-text-muted);
-  --color-text-tertiary:    #94AAA8;
-  --color-text-quaternary:  #829392;
+  --color-text-tertiary:    #9AA2AD;
+  --color-text-quaternary:  #7E8691;
 
   /* Border 3 tầng dark — semi-transparent trắng trên nền tối */
-  --color-border-subtle:    rgba(255, 255, 255, 0.06);
-  --color-border-strong:    rgba(255, 255, 255, 0.16);
+  --color-border-subtle:    rgba(255, 255, 255, 0.07);
+  --color-border-strong:    rgba(255, 255, 255, 0.15);
 
   /* Surface raised dark — sáng hơn --color-surface 1 bậc */
-  --color-card-raised:      #134E4A;
+  --color-card-raised:      #22262D;
 
   /* Shadow nhẹ hơn trên nền tối */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);

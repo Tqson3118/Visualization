@@ -39,10 +39,10 @@ onMounted(async () => {
 const doneCount = computed(() => gamification.quests.filter((q) => q.current >= q.target).length);
 const allDone = computed(() => gamification.quests.length > 0 && doneCount.value === gamification.quests.length);
 
-const DIFFICULTY: Record<number, { label: string; variant: 'success' | 'warning' | 'danger' }> = {
-  0: { label: messages.quests.difficulty[0], variant: 'success' },
-  1: { label: messages.quests.difficulty[1], variant: 'warning' },
-  2: { label: messages.quests.difficulty[2], variant: 'danger' },
+const DIFFICULTY: Record<number, { label: string; cls: string }> = {
+  0: { label: messages.quests.difficulty[0], cls: 'quests__diff--easy' },
+  1: { label: messages.quests.difficulty[1], cls: 'quests__diff--mid' },
+  2: { label: messages.quests.difficulty[2], cls: 'quests__diff--hard' },
 };
 
 /** Khoảnh khắc đầu tư duy nhất của màn: ăn mừng khi claim quest cuối cùng trong ngày. */
@@ -68,6 +68,8 @@ async function claim(quest: QuestDto): Promise<void> {
   <main class="quests container">
     <!-- Hero — surface band level-2 (không gradient, không blob) + strip mono -->
     <header class="quests__hero">
+      <span class="quests__hero-spark quests__hero-spark--1" aria-hidden="true">✦</span>
+      <span class="quests__hero-spark quests__hero-spark--2" aria-hidden="true">✦</span>
       <div class="quests__hero-body">
         <span class="quests__hero-icon" aria-hidden="true"><Target :size="20" /></span>
         <div class="quests__hero-title-wrap">
@@ -115,7 +117,7 @@ async function claim(quest: QuestDto): Promise<void> {
           }"
         >
           <div class="quests__head">
-            <Badge :variant="DIFFICULTY[idx % 3]?.variant ?? 'muted'">
+            <Badge class="quests__diff" :class="DIFFICULTY[idx % 3]?.cls ?? 'quests__diff--mid'">
               {{ DIFFICULTY[idx % 3]?.label ?? messages.quests.difficulty[1] }}
             </Badge>
             <span class="quests__reward-value">
@@ -126,11 +128,13 @@ async function claim(quest: QuestDto): Promise<void> {
           <div class="quests__body">
             <p class="quests__title-text">{{ quest.title }}</p>
             <p class="quests__desc">{{ quest.description }}</p>
-            <ProgressBar
-              :value="quest.target === 0 ? 0 : Math.min(100, Math.round((quest.current / quest.target) * 100))"
-              :variant="quest.current >= quest.target ? 'success' : 'default'"
-              show-label
-            />
+            <div class="quests__progress" :class="{ 'quests__progress--done': quest.current >= quest.target }">
+              <ProgressBar
+                :value="quest.target === 0 ? 0 : Math.min(100, Math.round((quest.current / quest.target) * 100))"
+                :variant="quest.current >= quest.target ? 'success' : 'default'"
+                show-label
+              />
+            </div>
           </div>
 
           <div class="quests__foot">
@@ -154,6 +158,19 @@ async function claim(quest: QuestDto): Promise<void> {
 
 <style scoped>
 .quests {
+  /* Bộ tím (khớp chủ đề Shop) — accent riêng cho trang thử thách */
+  --q-purple: #8b5cf6;
+  --q-purple-light: #a78bfa;
+  --q-purple-dark: #6d28d9;
+  /* Remap token shadcn primary (teal) → tím NGAY TRONG scope trang:
+     Button, ProgressBar, Badge, BlockToken đều tự đổi sang tím. */
+  --primary: oklch(0.56 0.24 293);
+  --primary-foreground: oklch(0.99 0 0);
+  --ring: oklch(0.56 0.24 293);
+  /* BlockToken streak đang dùng --resolved (xanh lá) → tím nhạt */
+  --data-core: var(--q-purple);
+  --resolved: var(--q-purple-light);
+
   padding-block: var(--space-lg) var(--space-2xl);
   display: flex;
   flex-direction: column;
@@ -166,25 +183,50 @@ async function claim(quest: QuestDto): Promise<void> {
   box-shadow: none;
 }
 
-/* ── Hero — surface band level-2 (DESIGN.md §6) ── */
+/* ── Hero — surface band level-2 + tint tím + texture chấm nhẹ ── */
 .quests__hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg) var(--space-xl);
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--q-purple) 22%, var(--color-border-subtle));
   border-radius: var(--radius-lg);
-  background: var(--color-card-raised);
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--q-purple) 10%, transparent) 0%, transparent 55%),
+    var(--color-card-raised);
 }
 
-.quests__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
+/* Texture chấm tím rất nhạt — bớt đơn điệu, không màu mè */
+.quests__hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(color-mix(in srgb, var(--q-purple) 16%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.5;
+}
+
+.quests__hero-spark {
+  position: absolute;
+  color: var(--q-purple-light);
+  font-size: var(--text-sm);
+  animation: quests-blink 2.4s ease-in-out infinite;
+}
+
+.quests__hero-spark--1 { top: 12px; right: 14%; }
+.quests__hero-spark--2 { bottom: 14px; right: 4%; animation-delay: 0.9s; }
+
+.quests__hero-body { position: relative; display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
 
 .quests__hero-icon {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-lg);
-  background: var(--color-muted);
-  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--q-purple) 14%, var(--color-muted));
+  color: var(--q-purple);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -213,7 +255,7 @@ async function claim(quest: QuestDto): Promise<void> {
   font-size: var(--text-xs);
   color: var(--color-text-tertiary);
   background: var(--color-canvas-ink);
-  border: 1px solid color-mix(in srgb, var(--color-resolved) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--q-purple-light) 40%, transparent);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
   white-space: nowrap;
@@ -223,7 +265,8 @@ async function claim(quest: QuestDto): Promise<void> {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-sm);
-  background: var(--color-resolved);
+  background: var(--q-purple-light);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--q-purple) 60%, transparent);
 }
 
 .quests__chips { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
@@ -234,9 +277,9 @@ async function claim(quest: QuestDto): Promise<void> {
   gap: var(--space-xs);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-info);
-  background: color-mix(in srgb, var(--color-info) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-info) 45%, var(--color-border));
+  color: var(--q-purple-dark);
+  background: color-mix(in srgb, var(--q-purple) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--q-purple) 40%, var(--color-border));
   padding: var(--space-xs) 12px;
   border-radius: var(--radius-full);
   font-variant-numeric: tabular-nums;
@@ -249,25 +292,74 @@ async function claim(quest: QuestDto): Promise<void> {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: color-mix(in srgb, var(--color-success) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--q-purple) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--q-purple) 45%, var(--color-border));
   border-radius: var(--radius-lg);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--color-success);
+  color: var(--q-purple-dark);
 }
+
+.quests__bonus svg { color: var(--q-purple); }
 
 .quests__list { display: flex; flex-direction: column; gap: var(--space-sm); }
 
-.quests__card { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md) var(--space-lg); }
+.quests__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dải accent tím bên trái mỗi card — bớt đơn điệu */
+.quests__card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--q-purple) 32%, transparent);
+}
+
+.quests__card:hover { border-color: color-mix(in srgb, var(--q-purple) 45%, var(--color-border-subtle)); }
 
 .quests__card--claimed { opacity: 0.7; }
 
-/* Trạng thái sẵn sàng claim — chỉ border + tint (KHÔNG gradient trang trí) */
+/* Trạng thái sẵn sàng claim — tint tím + dải tím đậm */
 .quests__card--ready {
-  border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-success) 5%, var(--color-card));
+  border-color: color-mix(in srgb, var(--q-purple) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--q-purple) 6%, var(--color-card));
+}
+
+.quests__card--ready::before {
+  background: var(--q-purple);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--q-purple) 50%, transparent);
+}
+
+/* Difficulty badge — 3 nấc tím (DỄ/TB/KHÓ) */
+.quests__diff {
+  border: 1px solid transparent;
+}
+
+.quests__diff--easy {
+  background: color-mix(in srgb, var(--q-purple) 12%, var(--color-card));
+  color: var(--q-purple-dark);
+}
+
+.quests__diff--mid {
+  background: color-mix(in srgb, var(--q-purple) 22%, var(--color-card));
+  color: var(--q-purple-dark);
+}
+
+.quests__diff--hard {
+  background: var(--q-purple-dark);
+  border-color: color-mix(in srgb, var(--q-purple-dark) 40%, transparent);
+  color: #fff;
 }
 
 .quests__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
@@ -284,20 +376,43 @@ async function claim(quest: QuestDto): Promise<void> {
   white-space: nowrap;
 }
 
+.quests__reward-value svg { color: var(--q-purple); }
+
 .quests__body { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
 
 .quests__title-text { font-weight: 600; font-size: var(--text-md); }
 
 .quests__desc { font-size: var(--text-xs); line-height: 1.55; color: var(--color-text-muted); }
 
+/* Thanh tiến trình tím (chống đơn điệu với màu mặc định) */
+.quests__progress :deep([data-value]) {
+  background: var(--q-purple);
+}
+
+.quests__progress--done :deep([data-value]) {
+  background: linear-gradient(90deg, var(--q-purple), var(--q-purple-light));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--q-purple) 40%, transparent);
+}
+
 .quests__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 
 .quests__xp {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
+  color: var(--q-purple-dark);
   font-weight: 600;
 }
 
 .quests__footer { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+@keyframes quests-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quests__hero-spark {
+    animation: none;
+  }
+}
 </style>

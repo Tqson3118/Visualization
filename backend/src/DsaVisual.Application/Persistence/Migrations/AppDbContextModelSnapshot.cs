@@ -392,6 +392,64 @@ namespace DsaVisual.Application.Persistence.Migrations
                     b.ToTable("ContentFeedback", (string)null);
                 });
 
+            modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.CourseFeedback", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RepliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("RepliedById")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReplyText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Type")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepliedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CourseId", "CreatedAt");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("CourseFeedback", (string)null);
+                });
+
             modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.DailyQuest", b =>
                 {
                     b.Property<int>("Id")
@@ -632,12 +690,19 @@ namespace DsaVisual.Application.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AuthorId")
+                        .HasColumnType("int");
+
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("HighlightsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -649,6 +714,10 @@ namespace DsaVisual.Application.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("TestimonialsJson")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -658,6 +727,8 @@ namespace DsaVisual.Application.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
 
                     b.HasIndex("CreatedBy");
 
@@ -1683,6 +1754,26 @@ namespace DsaVisual.Application.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.CourseFeedback", b =>
+                {
+                    b.HasOne("DsaVisual.Application.Persistence.Entities.LearningPath", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DsaVisual.Application.Persistence.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RepliedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DsaVisual.Application.Persistence.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.Exercise", b =>
                 {
                     b.HasOne("DsaVisual.Application.Persistence.Entities.User", null)
@@ -1743,6 +1834,11 @@ namespace DsaVisual.Application.Persistence.Migrations
 
             modelBuilder.Entity("DsaVisual.Application.Persistence.Entities.LearningPath", b =>
                 {
+                    b.HasOne("DsaVisual.Application.Persistence.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("DsaVisual.Application.Persistence.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("CreatedBy")

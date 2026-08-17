@@ -1,0 +1,20 @@
+{
+  "id": "a2-step-counter",
+  "title": "Đếm bước chạy",
+  "description": "MODULE 2 — Độ phức tạp Big-O.\n\nBạn đang ước lượng độ phức tạp của một hàm: nó chạy `n²` bước khi xử lý `n` phần tử. Viết hàm `stepsNeeded(n)` trả về SỐ bước cần thiết = `n * n`, nhưng hãy TỰ tính bằng vòng lặp lồng nhau (giống bài O(n²)) chứ không dùng toán tử `*`.\n\n- Với mỗi `n`, đếm số lần vòng lặp trong chạy.\n- `n` là số nguyên không âm (0 ≤ n ≤ 1000).\n\nVí dụ: `stepsNeeded(5)` → `25` (vòng trong chạy 5 lần, vòng ngoài 5 lần → 5×5).\n\nGợi ý: dùng 2 vòng lặp `for` lồng nhau, mỗi vòng chạy từ 0 tới n, đếm tổng số lần lặp.",
+  "initialCode": "function stepsNeeded(n) {\n  let count = 0;\n  // TODO: 2 vòng lặp lồng nhau, mỗi vòng chạy n lần, đếm tổng số lần lặp\n  return count;\n}",
+  "entryFunction": "stepsNeeded",
+  "testCases": [
+    { "name": "stepsNeeded: n=5", "input": "[5]", "expectedOutput": "25" },
+    { "name": "stepsNeeded: n=0", "input": "[0]", "expectedOutput": "0" },
+    { "name": "stepsNeeded: n=1", "input": "[1]", "expectedOutput": "1" },
+    { "name": "stepsNeeded: n=10", "input": "[10]", "expectedOutput": "100" },
+    { "name": "stepsNeeded: n=12", "input": "[12]", "expectedOutput": "144" },
+    { "name": "stepsNeeded: n=100", "input": "[100]", "expectedOutput": "10000" }
+  ],
+  "hints": [
+    "Vòng ngoài: `for (let i = 0; i < n; i++)`, vòng trong: `for (let j = 0; j < n; j++)`.",
+    "Mỗi lần vòng TRONG chạy, tăng `count` lên 1 — tổng cộng n×n lần.",
+    "Đây chính là cách O(n²) hoạt động trong thực tế."
+  ]
+}

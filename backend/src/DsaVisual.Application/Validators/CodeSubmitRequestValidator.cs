@@ -27,5 +27,9 @@ public sealed class CodeSubmitRequestValidator : AbstractValidator<CodeSubmitReq
         RuleFor(x => x.ClientRequestId)
             .MaximumLength(64).WithMessage("ClientRequestId không được vượt quá 64 ký tự")
             .When(x => x.ClientRequestId is not null);
+
+        RuleFor(x => x.TaskId)
+            .MaximumLength(128).WithMessage("TaskId không được vượt quá 128 ký tự")
+            .When(x => x.TaskId is not null);
     }
 }

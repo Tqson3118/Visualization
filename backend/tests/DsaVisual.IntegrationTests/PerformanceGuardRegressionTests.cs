@@ -90,10 +90,6 @@ public sealed class PerformanceGuardRegressionTests : IntegrationTestBase, IClas
         var topic = await CreateTopicAsync(createdBy: teacher.Id);
         var lesson = await CreateLessonAsync(topic.Id, teacher.Id, "Bài stats");
         var now = DateTime.UtcNow;
-        // Mốc "hôm nay" của /admin/stats tính theo UTC+7 (AdminController.GetStats: UtcNow.AddHours(7).Date).
-        // Nếu gán LastActivityDate theo UTC gốc, từ 17:00–24:00 UTC (00:00–07:00 VN) `now` thuộc ngày cũ →
-        // user không đếm vào ActiveUsersToday → flaky perf#9. nowVn luôn >= mốc today (không cần .Date).
-        var nowVn = DateTime.UtcNow.AddHours(7);
 
         await using (var scope = Factory.Services.CreateAsyncScope())
         {
@@ -147,9 +143,11 @@ public sealed class PerformanceGuardRegressionTests : IntegrationTestBase, IClas
                 new LessonSimulation { LessonId = lesson.Id, SimulationKey = "sort.bubble", Title = "Bubble", SortOrder = 0 },
                 new LessonSimulation { LessonId = lesson.Id, SimulationKey = "sort.merge", Title = "Merge", SortOrder = 1 });
 
-            // 1 user hoạt động hôm nay (UTC+7 — khớp mốc today của AdminController.GetStats)
+            // 1 user hoạt động hôm nay (UTC+7) — KHỚP ngữ nghĩa app: GamificationService ghi
+            // LastActivityDate = clock.UtcNow.AddHours(7).Date (mốc 00:00 UTC+7), còn
+            // AdminController stats so sánh LastActivityDate >= cùng mốc (perf#9).
             var active = await db.Users.FirstAsync(u => u.Id == studentB.Id);
-            active.LastActivityDate = nowVn;
+            active.LastActivityDate = now.AddHours(7).Date;
 
             await db.SaveChangesAsync();
         }

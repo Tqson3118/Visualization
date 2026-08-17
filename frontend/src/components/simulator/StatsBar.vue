@@ -82,9 +82,6 @@ const stepLabel = computed(() =>
   border-color: transparent;
   color: var(--color-on-primary);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  min-width: 95px;
-  justify-content: center;
 }
 
 .stats__item--step svg { color: var(--color-on-primary); }

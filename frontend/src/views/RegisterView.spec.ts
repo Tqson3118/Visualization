@@ -158,7 +158,7 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     expect(payload).not.toHaveProperty('teacherBio');
     expect(payload).not.toHaveProperty('academicDegree');
     expect(payload).not.toHaveProperty('profileLink');
-    expect(replaceMock).toHaveBeenCalledWith({ name: 'path' });
+    expect(replaceMock).toHaveBeenCalledWith({ name: 'courses' });
   });
 
   // ── Block 2.3 — học vị + link hồ sơ giảng viên ──

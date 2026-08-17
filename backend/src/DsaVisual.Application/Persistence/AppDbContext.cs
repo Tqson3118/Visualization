@@ -32,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<ContentFeedback> ContentFeedback => Set<ContentFeedback>();
+    public DbSet<CourseFeedback> CourseFeedback => Set<CourseFeedback>();
     public DbSet<BugReport> BugReports => Set<BugReport>();
     public DbSet<LearningPath> LearningPaths => Set<LearningPath>();
     public DbSet<LearningPathNode> LearningPathNodes => Set<LearningPathNode>();

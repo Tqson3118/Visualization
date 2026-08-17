@@ -12,7 +12,6 @@ import { Motion } from 'motion-v';
 import { useLessonStore } from '@/stores/lesson';
 import { useUiStore } from '@/stores/ui';
 import * as exercisesApi from '@/api/exercises';
-import { fetchLearningPath } from '@/api/gamification';
 import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta, type CatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
@@ -24,7 +23,6 @@ import LadderShell from '@/components/ladder/LadderShell.vue';
 import CheatSheetTable from '@/components/lesson/CheatSheetTable.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
@@ -45,26 +43,23 @@ const TABS: TabItem[] = [
   { key: 'cheatsheet', label: messages.nodeHub.tabCheatsheet },
 ];
 
-/** Node → bài học lý thuyết — map theo node id GLOBAL (backend learning-path 1..18); null = node không có bài học (Luyện tập/Kiểm tra cuối) */
-const lessonId = computed(() => TOPIC_NODE_LESSONS[nodeId.value] ?? null);
+/** Node → bài học lý thuyết (map cục bộ topic×node) — fallback khi backend chưa gắn lesson */
+const lessonId = computed(() => {
+  const map = TOPIC_NODE_LESSONS[Number(topicId.value)]?.[nodeId.value];
+  return map ?? null;
+});
 
 const simKey = computed(() => {
-  // Node id GLOBAL → simulation key — khớp LessonSimulation seed (README Seed):
-  // Bubble→sort.bubble, Binary→search.binary, Stack→stack.push, Linked List→list.insert,
-  // BST→tree.bst-insert, AVL→tree.avl-insert, Hash→hash.insert, BFS→graph.bfs.
-  const NODE_SIM_KEYS: Record<number, string> = {
-    1: 'sort.bubble', 2: 'search.binary',
-    5: 'stack.push', 6: 'list.insert',
-    9: 'tree.bst-insert', 10: 'tree.avl-insert',
-    13: 'hash.insert', 16: 'graph.bfs',
+  const keysByTopic: Record<number, string[]> = {
+    1: ['sort.bubble', 'sort.selection', 'sort.insertion', 'sort.merge', 'sort.quick', 'sort.heap', 'search.linear', 'search.binary'],
+    2: ['structure.array', 'stack.push', 'stack.pop', 'queue.enqueue', 'queue.dequeue', 'list.insert', 'list.delete', 'structure.linkedlist'],
+    3: ['structure.binarytree', 'tree.bst-insert', 'tree.bst-search', 'tree.bst-inorder', 'tree.avl-insert', 'heap.insert', 'heap.heapify'],
+    4: ['structure.hashtable', 'hash.insert', 'hash.search', 'hash.delete'],
+    5: ['structure.graph', 'graph.bfs', 'graph.dfs', 'graph.dijkstra'],
   };
-  // Node không phải bài học (Luyện tập tổng hợp / Kiểm tra cuối) → sim đại diện topic
-  const FALLBACK_SIM_BY_TOPIC: Record<number, string> = {
-    1: 'sort.bubble', 2: 'stack.push', 3: 'tree.bst-insert', 4: 'hash.insert', 5: 'graph.bfs',
-  };
-  const key = NODE_SIM_KEYS[nodeId.value];
-  if (key && getCatalogMeta(key)) return key;
-  return FALLBACK_SIM_BY_TOPIC[Number(topicId.value)] ?? 'sort.bubble';
+  const keys = keysByTopic[Number(topicId.value)] ?? [];
+  const key = keys[nodeId.value - 1];
+  return key && getCatalogMeta(key) ? key : 'sort.bubble';
 });
 
 /** Metadata catalog của node — key algorithm = simKey (map topic×node, dữ liệu thật) */
@@ -88,9 +83,7 @@ const referenceLinks = computed(() => {
   return links;
 });
 
-const backendNodeTitle = ref<string | null>(null);
-/** Title thật từ backend learning-path (vd "Học: Stack") — fallback catalog meta */
-const nodeTitle = computed(() => backendNodeTitle.value ?? catalogMeta.value?.title ?? `Node ${nodeId.value}`);
+const nodeTitle = computed(() => catalogMeta.value?.title ?? `Node ${nodeId.value}`);
 
 /**
  * Progress node — nguồn thật hiện có: LadderShell lưu bậc đã pass ở localStorage
@@ -151,14 +144,6 @@ async function loadLadderExercises(): Promise<void> {
 
 onMounted(async () => {
   refreshProgress();
-  // Title thật của node từ backend (khớp PathView "Học: ...") — tránh lệch simKey/title
-  try {
-    const pathData = await fetchLearningPath(Number(topicId.value));
-    const node = pathData.nodes.find((n) => n.id === nodeId.value);
-    if (node) backendNodeTitle.value = node.title;
-  } catch {
-    /* backend lỗi → giữ fallback catalog */
-  }
   if (lessonId.value !== null) {
     try {
       await lessonStore.fetchLesson(lessonId.value);

@@ -741,8 +741,23 @@ public static partial class SeedDemoActivity
         try
         {
             using var doc = JsonDocument.Parse(configJson);
-            return doc.RootElement.TryGetProperty("testCases", out var tests) && tests.ValueKind == JsonValueKind.Array
-                ? tests.GetArrayLength()
+            // ConfigJson code có thể là object {signature, testCases:[...]} HOẶC array tasks (mỗi task có testCases)
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                var total = 0;
+                foreach (var task in doc.RootElement.EnumerateArray())
+                {
+                    if (task.TryGetProperty("testCases", out var tests) && tests.ValueKind == JsonValueKind.Array)
+                    {
+                        total += tests.GetArrayLength();
+                    }
+                }
+
+                return total > 0 ? total : 11;
+            }
+
+            return doc.RootElement.TryGetProperty("testCases", out var testCases) && testCases.ValueKind == JsonValueKind.Array
+                ? testCases.GetArrayLength()
                 : 11;
         }
         catch (JsonException)

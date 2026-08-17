@@ -1,6 +1,4 @@
 using Asp.Versioning;
-using DsaVisual.Api.Dtos;
-using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
@@ -35,7 +33,7 @@ public class FeedbackController(
             .AnyAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
         if (!lessonExists)
         {
-            return NotFound(ErrorResponseDto.Create(ErrorCodes.NOT_FOUND, "Bài học không tồn tại"));
+            return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
         }
 
         // perf#21: đẩy aggregate xuống SQL (COUNT + AVG trong GROUP BY) — trước đây tải TOÀN BỘ
@@ -71,7 +69,7 @@ public class FeedbackController(
             .AnyAsync(l => l.Id == request.LessonId && l.DeletedAt == null, ct);
         if (!lessonExists)
         {
-            return NotFound(ErrorResponseDto.Create(ErrorCodes.NOT_FOUND, "Bài học không tồn tại"));
+            return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
         }
 
         // 403 nếu chưa "Đánh dấu đã học" bài đó (v2.9 — API_REFERENCE §4.15)
@@ -79,7 +77,7 @@ public class FeedbackController(
             .AnyAsync(p => p.UserId == CurrentUserId() && p.LessonId == request.LessonId && p.Viewed, ct);
         if (!viewed)
         {
-            return StatusCode(403, ErrorResponseDto.Create(ErrorCodes.FORBIDDEN, "Bạn cần học bài này trước khi đánh giá"));
+            return StatusCode(403, new { error = new { code = "FORBIDDEN", message = "Bạn cần học bài này trước khi đánh giá", field = (string?)null, details = Array.Empty<string>() } });
         }
 
         // Finding security#8: sanitize Comment trước khi lưu (chống stored XSS).
@@ -201,16 +199,13 @@ public class AdminBugReportsController(AppDbContext db, IHtmlSanitizer htmlSanit
     {
         if (!Enum.TryParse<BugReportStatus>(request.Status, true, out var status))
         {
-            return BadRequest(ErrorResponseDto.Create(
-                ErrorCodes.VALIDATION_FAILED,
-                "Trạng thái không hợp lệ (NEW/PROCESSING/RESOLVED/CLOSED)",
-                "status"));
+            return BadRequest(new { error = new { code = "VALIDATION_FAILED", message = "Trạng thái không hợp lệ (NEW/PROCESSING/RESOLVED/CLOSED)", field = "status", details = Array.Empty<string>() } });
         }
 
         var report = await _db.BugReports.FirstOrDefaultAsync(b => b.Id == id, ct);
         if (report is null)
         {
-            return NotFound(ErrorResponseDto.Create(ErrorCodes.NOT_FOUND, "Báo lỗi không tồn tại"));
+            return NotFound(new { error = new { code = "NOT_FOUND", message = "Báo lỗi không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
         }
 
         report.Status = status;

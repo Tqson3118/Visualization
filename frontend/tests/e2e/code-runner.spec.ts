@@ -22,6 +22,10 @@ import { mockApi } from './helpers/mockApi';
 test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
   test('guard chưa đăng nhập → /login?redirect=... → sau login hiển thị editor với code mẫu', async ({ page }) => {
     await mockApi(page);
+    // Warmup (giống demo-chain.spec): vite cold-compile sau restart làm tab crash khi
+    // tải Monaco chunk ngay sau login → precompile trước.
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
     await page.goto('/code/sort.bubble');
 
     // Guard requiresAuth → login kèm redirect
@@ -33,8 +37,8 @@ test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page).toHaveURL(/\/code\/sort\.bubble$/);
 
-    // CodeRunnerView: kicker "CODE CHALLENGE · key" là <p> — heading thật là tên bài (h1)
-    await expect(page.getByRole('heading', { name: /Sắp xếp nổi bọt/ })).toBeVisible();
+    // Tiêu đề h1 = catalog meta title của key sort.bubble (không phải "Code Challenge")
+    await expect(page.getByRole('heading', { name: 'Sắp xếp nổi bọt (Bubble Sort)', level: 1 })).toBeVisible();
 
     // Editor = textarea, chứa code mẫu bubbleSort (loadTemplate từ store)
     const editor = page.getByRole('textbox', { name: 'Trình soạn mã sort.bubble' });
@@ -52,9 +56,8 @@ test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
     await expect(page).toHaveURL(/\/code\/sort\.bubble$/);
 
     // Chạy code mẫu (đã nạp sẵn) → status success (sandbox client, không cần backend)
-    // KHÔNG force: click thường chờ element stable; force click trong suite có thể rơi trượt
-    // (canvas ResizeObserver/PixiJS làm layout dịch giữa chừng) → status không cập nhật.
-    await page.getByRole('button', { name: /Chạy/ }).click();
+    // force: CanvasArea ResizeObserver loop làm layout dịch → nút không stable (xem simulator.spec)
+    await page.getByRole('button', { name: /Chạy/ }).click({ force: true });
     await expect(page.getByText(/Thành công · \d+ms/)).toBeVisible();
   });
 
@@ -74,7 +77,7 @@ test.describe('Code Runner — Màn 16 (sort.bubble)', () => {
       Array.from({ length: 203 }, (_, i) => `// filler line ${i + 1}`).join('\n') +
       '\nfunction solve() { return; }\n';
     await editor.fill(longCode);
-    await page.getByRole('button', { name: /Chạy/ }).click();
+    await page.getByRole('button', { name: /Chạy/ }).click({ force: true });
 
     // ⚠ UI hiện CHƯA chặn > 200 dòng → không xuất hiện thông báo nào chứa "200 dòng".
     // Khi view triển khai giới hạn (chờ task sau): kỳ vọng thông báo chặn rõ ràng hiển thị.

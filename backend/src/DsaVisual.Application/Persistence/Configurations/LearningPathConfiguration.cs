@@ -28,6 +28,14 @@ public sealed class LearningPathConfiguration : IEntityTypeConfiguration<Learnin
             .WithMany()
             .HasForeignKey(p => p.CreatedBy)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(p => p.HighlightsJson).HasMaxLength(8000);
+        builder.Property(p => p.TestimonialsJson).HasMaxLength(8000);
     }
 }
 

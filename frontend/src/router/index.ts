@@ -16,6 +16,8 @@ const FinalTestView = () => import('@/views/FinalTestView.vue');
 
 const SimulationsView = () => import('@/views/SimulationsView.vue');
 const SimulatorView = () => import('@/views/SimulatorView.vue');
+// Sandbox từ VisualizationDSA3 (bê nguyên giao diện + thuật toán — 1 trang 3 tab)
+const SortingSandboxView = () => import('@/views/sorting/SortingView.vue');
 const LessonView = () => import('@/views/LessonView.vue');
 const ExerciseView = () => import('@/views/ExerciseView.vue');
 const LadderView = () => import('@/views/LadderView.vue');
@@ -41,6 +43,7 @@ const AdminStatsView = () => import('@/views/AdminStatsView.vue');
 const AdminSettingsView = () => import('@/views/AdminSettingsView.vue');
 const AdminContentView = () => import('@/views/AdminContentView.vue');
 const AdminLadderView = () => import('@/views/AdminLadderView.vue');
+const AdminFeedbackView = () => import('@/views/AdminFeedbackView.vue');
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -96,10 +99,29 @@ const router = createRouter({
       name: 'reset-password',
       component: ResetPasswordView,
     },
-    // Màn 03 — /learn (redirect /path — 20.5.6)
+    // Màn 03 — /learn (redirect /courses — 20.5.6)
     {
       path: '/learn',
-      redirect: '/path',
+      redirect: '/courses',
+    },
+    // VDSA — Khóa học (bê từ VisualizationDSA-main): danh sách → chi tiết → học bài
+    {
+      path: '/courses',
+      name: 'courses',
+      component: () => import('@/views/courses/CoursesListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/courses/:id',
+      name: 'course-detail',
+      component: () => import('@/views/courses/CourseDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/lessons/:id',
+      name: 'lesson-study',
+      component: () => import('@/views/lesson/LessonStudyView.vue'),
+      meta: { requiresAuth: true },
     },
     // Màn 04 — Chi tiết bài học
     {
@@ -108,25 +130,22 @@ const router = createRouter({
       component: LessonView,
       meta: { requiresAuth: true },
     },
-    // Màn 13 — Learning Path
+    // Route cũ (roadmap graph) — đã thay bằng khóa học VDSA → redirect sang /courses
     {
       path: '/path',
       name: 'path',
-      component: PathRedirectView,
-      meta: { requiresAuth: true },
+      redirect: '/courses',
     },
     {
       path: '/path/:topicId',
       name: 'path-topic',
-      component: PathView,
-      meta: { requiresAuth: true },
+      redirect: (to) => ({ name: 'course-detail', params: { id: to.params.topicId } }),
     },
-    // Màn 31 — Node Hub
+    // Màn 31 — Node Hub (roadmap cũ → chi tiết khóa)
     {
       path: '/path/:topicId/node/:nodeId',
       name: 'node-hub',
-      component: NodeHubView,
-      meta: { requiresAuth: true },
+      redirect: (to) => ({ name: 'course-detail', params: { id: to.params.topicId } }),
     },
     // Màn 30 — Kiểm tra cuối lộ trình
     {
@@ -147,6 +166,29 @@ const router = createRouter({
       path: '/simulator/:key',
       name: 'simulator',
       component: SimulatorView,
+    },
+    // Sandbox từ VisualizationDSA3 — 4 route DÙNG CHUNG 1 trang (SortingView có 4 tab:
+    // Sorting Sandbox · Searching Sandbox · Graph Playground · Stack & Queue). Mỗi route
+    // mở đúng tab tương ứng (App.vue key theo fullPath → remount khi đổi route).
+    {
+      path: '/sorting-sandbox',
+      name: 'sorting-sandbox',
+      component: SortingSandboxView,
+    },
+    {
+      path: '/searching-sandbox',
+      name: 'searching-sandbox',
+      component: SortingSandboxView,
+    },
+    {
+      path: '/graph-playground',
+      name: 'graph-playground',
+      component: SortingSandboxView,
+    },
+    {
+      path: '/stack-queue-sandbox',
+      name: 'stack-queue-sandbox',
+      component: SortingSandboxView,
     },
     // Màn 14 — Practice Ladder
     {
@@ -296,6 +338,12 @@ const router = createRouter({
       path: '/admin/ladder',
       name: 'admin-ladder',
       component: AdminLadderView,
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+    },
+    {
+      path: '/admin/feedback',
+      name: 'admin-feedback',
+      component: AdminFeedbackView,
       meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
     // Màn 12 — Trang phụ trợ (công khai)

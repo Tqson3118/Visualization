@@ -1,0 +1,58 @@
+[
+  {
+    "id": "q7g1",
+    "question": "Đồ thị gồm những thành phần cơ bản nào?",
+    "options": "[\"Đỉnh (vertex) và cạnh (edge)\",\"Nút và lá\",\"Hàng đợi và ngăn xếp\",\"Khóa và giá trị\"]",
+    "correctIndex": 0,
+    "explanation": "Đồ thị = tập đỉnh + tập cạnh nối chúng (có thể có hướng, trọng số)."
+  },
+  {
+    "id": "q7g2",
+    "question": "BFS sử dụng cấu trúc dữ liệu nào để duyệt?",
+    "options": "[\"Ngăn xếp (Stack)\",\"Hàng đợi (Queue)\",\"Bảng băm\",\"Đống nhị phân\"]",
+    "correctIndex": 1,
+    "explanation": "BFS dùng Queue (FIFO) để duyệt theo từng tầng — vào trước ra trước."
+  },
+  {
+    "id": "q7g3",
+    "question": "DFS sử dụng cấu trúc dữ liệu nào (hoặc cách viết) để duyệt?",
+    "options": "[\"Hàng đợi (Queue)\",\"Ngăn xếp (Stack) hoặc đệ quy\",\"Mảng động\",\"Con trỏ\"]",
+    "correctIndex": 1,
+    "explanation": "DFS đi sâu tối đa trước → dùng Stack (LIFO) hoặc viết đệ quy."
+  },
+  {
+    "id": "q7g4",
+    "question": "Trên đồ thị KHÔNG trọng số, BFS tìm được gì?",
+    "options": "[\"Đường đi ngắn nhất theo số cạnh\",\"Đường đi dài nhất\",\"Cây khung lớn nhất\",\"Không tìm được đường đi\"]",
+    "correctIndex": 0,
+    "explanation": "BFS duyệt theo tầng → lần đầu chạm tới đỉnh chính là số cạnh ít nhất."
+  },
+  {
+    "id": "q7g5",
+    "question": "Điều kiện để áp dụng thuật toán Dijkstra là gì?",
+    "options": "[\"Đồ thị phải không có chu trình\",\"Cạnh phải có trọng số KHÔNG ÂM\",\"Đồ thị phải có hướng\",\"Tất cả trọng số bằng nhau\"]",
+    "correctIndex": 1,
+    "explanation": "Dijkstra chỉ đúng khi trọng số không âm — cạnh âm có thể làm thuật toán chốt sai sớm."
+  },
+  {
+    "id": "q7g6",
+    "question": "Trong Dijkstra, bước 'relax' (nới lỏng) một cạnh có nghĩa là gì?",
+    "options": "[\"Xóa cạnh đó\",\"Cập nhật khoảng cách nếu đường qua đỉnh hiện tại ngắn hơn\",\"Nhân đôi trọng số\",\"Đảo chiều cạnh\"]",
+    "correctIndex": 1,
+    "explanation": "Relax: nếu d + weight < dist[neighbor] thì cập nhật dist[neighbor] nhỏ hơn."
+  },
+  {
+    "id": "q7g7",
+    "question": "Độ phức tạp của BFS/DFS trên đồ thị V đỉnh, E cạnh là gì?",
+    "options": "[\"O(V × E)\",\"O(V + E)\",\"O(V² × E)\",\"O(E log V)\"]",
+    "correctIndex": 1,
+    "explanation": "Mỗi đỉnh thăm 1 lần + mỗi cạnh xét 1 lần → O(V + E)."
+  },
+  {
+    "id": "q7g8",
+    "question": "Vì sao Dijkstra dùng heap (priority queue)?",
+    "options": "[\"Để lưu đồ thị\",\"Để lấy nhanh đỉnh có khoảng cách nhỏ nhất (O(log V))\",\"Để sắp xếp cạnh\",\"Vì heap là bắt buộc về cú pháp\"]",
+    "correctIndex": 1,
+    "explanation": "Mỗi bước cần đỉnh chưa chốt có dist nhỏ nhất — heap cho O(log V) thay vì quét tuyến tính O(V)."
+  }
+]

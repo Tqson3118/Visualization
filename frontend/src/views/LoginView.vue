@@ -10,7 +10,6 @@ import { CheckCircle2, Lock, Mail, Sparkles, Target } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 import { messages } from '@/i18n/vi';
-import { ApiError } from '@/api/client';
 import { isValidEmail } from '@/utils/validators';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
@@ -36,15 +35,10 @@ async function onSubmit(): Promise<void> {
   submitting.value = true;
   try {
     await auth.login(form.email, form.password);
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/path';
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/courses';
     await router.replace(redirect);
-  } catch (err) {
-    submitError.value =
-      err instanceof ApiError && err.status === 429
-        ? messages.auth.tooManyAttempts
-        : err instanceof ApiError && err.status === 0
-          ? err.message // NETWORK_ERROR (BE tắt) — "Không kết nối được máy chủ..."
-          : messages.auth.loginFailed;
+  } catch {
+    submitError.value = messages.auth.loginFailed;
   } finally {
     submitting.value = false;
   }

@@ -116,8 +116,8 @@ export const useGamificationStore = defineStore('gamification', () => {
   async function fetchStreak(): Promise<void> {
     try {
       const streak: StreakDto = await gamificationApi.fetchStreak();
-      streakDays.value = streak.streakDays;
-      freezeAvailable.value = streak.freezeAvailable;
+      streakDays.value = streak.streakDays ?? 0;
+      freezeAvailable.value = streak.freezeAvailable ?? 0;
     } catch {
       // bỏ qua — streak không bắt buộc
     }

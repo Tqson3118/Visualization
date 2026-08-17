@@ -221,7 +221,7 @@
 ## 7. Khuyến nghị tích hợp AI (trả lời câu hỏi PM — ĐÃ CHỐT 09/08/2026)
 
 ### 7.1 Nguyên tắc chung
-- KHÔNG thêm AI vào scope chính (13 tuần, 75 FR đã kín — tránh trôi dạt như bản cũ).
+- KHÔNG thêm AI vào scope chính (20 tuần, 75 FR đã kín — tránh trôi dạt như bản cũ).
 - AI chỉ ở mức **PoC GĐ3 / backlog**; mọi tính năng AI phải có **fallback offline** (không có mạng → vẫn chạy bằng template sẵn có) để demo phòng bảo vệ an toàn.
 - AI **không chấm điểm, không sinh nội dung chính thức** — chỉ "nói/gợi ý"; điểm, thưởng do server tính (tránh câu hỏi "AI chấm sai thì sao").
 - Tiêu thụ **Hint token / Gems** (hệ thống 19.3 ĐÃ CÓ) → chống spam, gắn kinh tế sản phẩm, không cần hạ tầng mới.

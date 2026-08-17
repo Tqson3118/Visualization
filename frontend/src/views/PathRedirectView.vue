@@ -10,9 +10,8 @@ import { computed, onMounted, ref } from 'vue';
 
 import { Route } from 'lucide-vue-next';
 
-import * as lessonsApi from '@/api/lessons';
-import type { Topic } from '@/api/lessons';
-import { SEED_COURSES } from '@/data/courses';
+import * as gamificationApi from '@/api/gamification';
+import type { LearningPathSummaryDto } from '@/api/gamification';
 import { useProgressStore } from '@/stores/progress';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -20,7 +19,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 
 const progressStore = useProgressStore();
 
-const topics = ref<Topic[]>([]);
+const paths = ref<LearningPathSummaryDto[]>([]);
 const loading = ref(true);
 const apiFailed = ref(false);
 
@@ -34,10 +33,10 @@ const LOCAL_TOPICS: Array<{ id: number; name: string; description: string }> = [
 
 onMounted(async () => {
   try {
-    topics.value = await lessonsApi.fetchTopics();
+    paths.value = await gamificationApi.fetchLearningPaths();
   } catch {
     apiFailed.value = true;
-    topics.value = [];
+    paths.value = [];
   } finally {
     loading.value = false;
   }
@@ -48,16 +47,17 @@ onMounted(async () => {
   }
 });
 
+/** Chỉ hiện path ACTIVE (5 path cũ đã ẩn sau khi import Grokking — backend lọc IsActive). */
 const displayTopics = computed(() => {
-  if (topics.value.length > 0) {
-    return topics.value.map((t) => ({ id: t.id, name: t.name, description: t.description }));
+  if (paths.value.length > 0) {
+    return paths.value.map((p) => ({ id: p.id, name: p.title, description: p.description, progressPct: p.progressPct }));
   }
-  return LOCAL_TOPICS;
+  return LOCAL_TOPICS.map((t) => ({ id: t.id, name: t.name, description: t.description, progressPct: 0 }));
 });
 
 function topicProgress(topicId: number): number {
   const topic = progressStore.overview?.topics.find((t) => t.id === topicId);
-  return topic?.progressPct ?? 0;
+  return topic?.progressPct ?? displayTopics.value.find((t) => t.id === topicId)?.progressPct ?? 0;
 }
 </script>
 

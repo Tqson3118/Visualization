@@ -26,6 +26,9 @@ public sealed class ExerciseService(
     private const string RoleTeacher = "TEACHER";
     private const string RoleAdmin = "ADMIN";
 
+    /// <summary>Chấm code bài ASM phía máy chủ (Jint sandbox) — bài chỉ PASS khi code chạy ĐÚNG trên server.</summary>
+    private readonly CodelabJudgeService _judge = new();
+
     // ── Danh sách / chi tiết ──────────────────────────────────
 
     public async Task<Result<PagedResponse<ExerciseSummaryDto>>> GetListAsync(
@@ -334,15 +337,6 @@ public sealed class ExerciseService(
         if (exercise.NodeId is { } nodeId && !await IsPreviousNodePassedAsync(userId, nodeId, ct))
         {
             return Result<SubmitResultDto>.Fail(ErrorCodes.LADDER_LOCKED, "Chưa pass bậc trước — không mở bậc sau");
-        }
-
-        // Guard null / empty answers (D4)
-        if (request?.Answers is null || request.Answers.Count == 0)
-        {
-            return Result<SubmitResultDto>.Fail(
-                ErrorCodes.VALIDATION_FAILED,
-                "Chưa có câu trả lời nào",
-                new() { ["answers"] = ["Danh sách câu trả lời không được để trống"] });
         }
 
         var questions = exercise.Questions.OrderBy(q => q.SortOrder).ToList();
@@ -735,11 +729,55 @@ public sealed class ExerciseService(
         }
 
         var now = clock.UtcNow;
+
+        // ── Chấm code PHÍA MÁY CHỦ (nghiệp vụ 15/08): bài ASM/kiểm tra cuối có ConfigJson dạng
+        // array tasks → server tự chạy code học viên bằng Jint (sandbox: timeout/statements/memory/
+        // stack) so với testcase của task; KHÔNG tin Score/Passed/Total client khai.
+        var tasks = CodelabJudgeService.TryParseTasks(exercise.ConfigJson);
+        var serverJudged = false;
+        var judgedTaskEntry = (string?)null;
+        var judgeCases = new List<CodelabCaseResult>();
+        var judgeError = (string?)null;
+        if (tasks is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.TaskId))
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Bài tập này yêu cầu chấm code phía máy chủ — thiếu TaskId của bài con");
+            }
+
+            var task = tasks.FirstOrDefault(t => t.Id == request.TaskId)
+                       ?? tasks.FirstOrDefault(t => t.EntryFunction == request.TaskId);
+            if (task is null)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "TaskId không tồn tại trong đề bài");
+            }
+
+            var judged = _judge.Judge(request.Code, task);
+            serverJudged = true;
+            judgedTaskEntry = task.EntryFunction;
+            judgeCases = [.. judged.Cases];
+            judgeError = judged.CompileError ? judged.CompileErrorText : judged.TimedOut || !string.IsNullOrWhiteSpace(judged.TimeoutError) ? judged.TimeoutError : null;
+        }
+
         // findings-security #1: clamp Score vào [0, MaxScore] — không tin điểm client mù;
-        // nếu bài không có MaxScore → clamp theo Total client khai
+        // nếu bài không có MaxScore → clamp theo Total client khai.
+        // Khi serverJudged: Score = số testcase pass do MÁY CHỦ chấm.
         var maxScore = exercise.MaxScore > 0 ? exercise.MaxScore : Math.Max(request.Total, 0);
-        var score = Math.Clamp(request.Score, 0, maxScore);
-        var resultJson = JsonSerializer.Serialize(request.Results);
+        var passedTests = serverJudged ? judgeCases.Count(c => c.Passed) : request.Passed;
+        var totalTests = serverJudged ? judgeCases.Count : request.Total;
+        var score = serverJudged ? passedTests : Math.Clamp(request.Score, 0, maxScore);
+        var resultJson = serverJudged
+            ? JsonSerializer.Serialize(new
+            {
+                taskId = request.TaskId,
+                entryFunction = judgedTaskEntry,
+                judged = true,
+                error = judgeError,
+                results = judgeCases.Select(c => new { passed = c.Passed, error = c.Error }).ToList()
+            })
+            : JsonSerializer.Serialize(request.Results);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
@@ -776,10 +814,10 @@ public sealed class ExerciseService(
             ClientRequestId = request.ClientRequestId,
             Code = request.Code,
             Score = score,
-            PassedTests = request.Passed,
-            TotalTests = request.Total,
+            PassedTests = passedTests,
+            TotalTests = totalTests,
             ResultJson = resultJson,
-            IsClientDeclared = true,
+            IsClientDeclared = !serverJudged,
             SubmittedAt = now
         };
         db.CodeSubmissions.Add(submission);
@@ -819,14 +857,36 @@ public sealed class ExerciseService(
                 .AnyAsync(p => p.UserId == userId && p.NodeId == nodeId && p.Status == 2, ct);
         }
 
+        // Nghiệp vụ ASM: node pass khi MÁY CHỦ xác nhận TẤT CẢ task con đã có bài nộp full-pass.
+        var allTasksPassed = false;
+        if (serverJudged && tasks is not null)
+        {
+            var pastSubs = await db.CodeSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == id && s.PassedTests > 0)
+                .ToListAsync(ct);
+            var coveredEntries = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var s in pastSubs)
+            {
+                // entryFunction bền vững hơn id (seed tạo id mới mỗi lần chạy)
+                var entry = TryReadJudgedEntry(s.ResultJson);
+                if (entry is not null && s.PassedTests >= s.TotalTests)
+                {
+                    coveredEntries.Add(entry);
+                }
+            }
+
+            allTasksPassed = tasks.All(t => coveredEntries.Contains(t.EntryFunction));
+        }
+
+        var nodePassScore = serverJudged ? (allTasksPassed ? maxScore : score) : score;
         await UpsertUserProgressAsync(userId, exercise.LessonId, score, now, ct);
         if (exercise.NodeId is { } nid)
         {
-            await UpsertNodeProgressAsync(userId, nid, score, maxScore, now, ct);
+            await UpsertNodeProgressAsync(userId, nid, nodePassScore, maxScore, now, ct);
         }
 
         // findings-biz #7: retry khi race RowVersion/unique trên progress — pass không được mất
-        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, score, maxScore, now, ct))
+        if (!await SaveProgressWithRetryAsync(userId, exercise.LessonId, exercise.NodeId, nodePassScore, maxScore, now, ct))
         {
             await tx.RollbackAsync(ct);
             return Result<CodeSubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
@@ -836,7 +896,7 @@ public sealed class ExerciseService(
         await QuestProgressWriter.IncrementAsync(db, userId, "code_run", ct);
 
         // findings-biz #5: node VỪA pass nhờ code-submit → quest pass_node (anti double-count)
-        var passed = score >= maxScore;
+        var passed = serverJudged ? allTasksPassed : score >= maxScore;
         if (passed && nodeJustPassed && exercise.NodeId is { })
         {
             await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
@@ -844,17 +904,18 @@ public sealed class ExerciseService(
 
         await tx.CommitAsync(ct);
 
-        logger.LogInformation("Code submission {SubmissionId} for exercise {ExerciseId} by user {UserId}",
-            stored.Id, id, userId);
+        logger.LogInformation("Code submission {SubmissionId} for exercise {ExerciseId} by user {UserId} (serverJudged={ServerJudged}, {Passed}/{Total} passed)",
+            stored.Id, id, userId, serverJudged, passedTests, totalTests);
 
         return Result<CodeSubmitResultDto>.Ok(new CodeSubmitResultDto
         {
             Score = stored.Score,
             Passed = stored.PassedTests,
             Total = stored.TotalTests,
-            Results = DeserializeCodeResults(stored.ResultJson, request.Results),
+            Results = BuildCodeSubmitResults(serverJudged, judgeCases, request),
             SubmissionId = stored.Id,
-            SubmittedAt = stored.SubmittedAt
+            SubmittedAt = stored.SubmittedAt,
+            Error = judgeError
         });
     }
 
@@ -891,20 +952,19 @@ public sealed class ExerciseService(
     {
         var answerElement = JsonSerializer.Deserialize<JsonElement>(question.AnswerJson);
         var correctAnswer = answerElement.Clone();
-        var selected = answer.Selected ?? [];
 
         return question.Type switch
         {
             QuestionType.Single => (
-                selected.Count == 1 && selected[0] == GetAnswerIndex(answerElement, 0),
+                answer.Selected.Count == 1 && answer.Selected[0] == GetAnswerIndex(answerElement, 0),
                 correctAnswer,
                 null),
             QuestionType.Multi => (
-                IsSameSet(selected, GetAnswerIndices(answerElement)),
+                IsSameSet(answer.Selected, GetAnswerIndices(answerElement)),
                 correctAnswer,
                 null),
             QuestionType.Boolean => (
-                selected.Count == 1 && selected[0] == GetAnswerIndex(answerElement, 0),
+                answer.Selected.Count == 1 && answer.Selected[0] == GetAnswerIndex(answerElement, 0),
                 correctAnswer,
                 null),
             QuestionType.Lab => GradeLab(answerElement, answer.LabAnswer, out var labExplanation),
@@ -1268,6 +1328,50 @@ public sealed class ExerciseService(
         {
             return fallback;
         }
+    }
+
+    /// <summary>Đọc entryFunction từ ResultJson do MÁY CHỦ chấm (wrapper { judged, entryFunction, ... }) —
+    /// dùng để xác định task nào đã có bài nộp full-pass (node pass ASM = đủ TẤT CẢ task).</summary>
+    private static string? TryReadJudgedEntry(string resultJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(resultJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty("judged", out var judgedProp)
+                || judgedProp.ValueKind != JsonValueKind.True
+                || !doc.RootElement.TryGetProperty("entryFunction", out var entryProp)
+                || entryProp.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            return entryProp.GetString();
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Kết quả trả về client: MÁY CHỦ chấm → map case kết quả (kèm input/expected từ đề);
+    /// không phải server chấm → giữ hành vi cũ (đọc từ ResultJson, fallback request.Results).</summary>
+    private static List<CodeTestCaseResultDto> BuildCodeSubmitResults(
+        bool serverJudged, List<CodelabCaseResult> judgeCases, CodeSubmitRequest request)
+    {
+        if (!serverJudged)
+        {
+            return request.Results;
+        }
+
+        return judgeCases
+            .Select((c, i) => new CodeTestCaseResultDto
+            {
+                TestId = $"case-{i + 1}",
+                Passed = c.Passed,
+                Error = c.Error
+            })
+            .ToList();
     }
 
     private async Task UpsertUserProgressAsync(int userId, int lessonId, int score, DateTime now, CancellationToken ct)

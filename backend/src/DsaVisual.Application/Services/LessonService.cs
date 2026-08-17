@@ -74,7 +74,6 @@ public sealed class LessonService(
                 TopicId = l.TopicId,
                 SortOrder = l.SortOrder,
                 Status = l.Status.ToString().ToLowerInvariant(),
-                RejectionReason = l.RejectionReason,
                 IsClassOnly = l.IsClassOnly,
                 PublishedAt = l.PublishedAt,
                 SimulationCount = l.LessonSimulations.Count,
@@ -110,13 +109,10 @@ public sealed class LessonService(
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
-        if (!IsTeacherOrAdmin(role))
+        if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
         {
-            // Student không được xem bản nháp/chờ duyệt/ẩn hoặc bài học chỉ dành riêng cho lớp học (S6-1/2/3)
-            if (lesson.Status != LessonStatus.Active || lesson.IsClassOnly)
-            {
-                return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
-            }
+            // Student không được xem bản nháp/ẩn
+            return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
         return Result<LessonDto>.Ok(ToDto(lesson, includeContent: includeContent || IsTeacherOrAdmin(role)));
@@ -303,7 +299,6 @@ public sealed class LessonService(
                 TopicId = l.TopicId,
                 SortOrder = l.SortOrder,
                 Status = l.Status.ToString().ToLowerInvariant(),
-                RejectionReason = l.RejectionReason,
                 IsClassOnly = l.IsClassOnly,
                 PublishedAt = l.PublishedAt,
                 SimulationCount = l.LessonSimulations.Count,

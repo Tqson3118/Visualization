@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Mọi chuỗi giao diện — SDD §3.8.5: không nhúng chuỗi cứng ngoài file này.
  * MVP chỉ tiếng Việt (SDD §3.1).
  */
@@ -316,6 +316,34 @@ export const messages = {
     rankStatsTitle: 'Thống kê nền tảng',
     statsAlgorithms: 'thuật toán trực quan',
     statsLessons: 'bài học theo lộ trình',
+    // ── PR #30: purple landing (key mới từ feature/fe-sync-purple-ui) ──
+    heroTitle: 'Vũ trụ Cấu trúc Dữ liệu & Giải thuật',
+    heroSubtitle:
+      'Xem mã chạy thật, quan sát cấu trúc dữ liệu biến đổi từng thao tác, luyện tập theo lộ trình cá nhân — mọi thuật toán đều có thể nhìn thấy.',
+    ctaExplore: 'Khám phá mô phỏng',
+    ctaStart: 'Bắt đầu hành trình',
+    featureVisual: {
+      title: 'Mô phỏng từng bước',
+      desc: 'Mọi thuật toán chạy thật trong trình duyệt — trực quan khớp 100% với code.',
+    },
+    featurePath: {
+      title: 'Lộ trình cá nhân',
+      desc: 'Học theo lộ trình từ cơ bản đến nâng cao, theo dõi tiến độ mỗi chủ đề.',
+    },
+    featurePractice: {
+      title: 'Luyện tập & chấm điểm',
+      desc: 'Trắc nghiệm, thực hành thao tác và viết code — chấm điểm tự động ngay lập tức.',
+    },
+    heroBadge: 'Nền tảng học DSA tiếng Việt đầu tiên',
+    statsViet: 'nội dung tiếng Việt',
+    featuresKicker: 'Ba chìa khóa làm chủ thuật toán',
+    ctaBandTitle: 'Sẵn sàng bước vào vũ trụ thuật toán?',
+    ctaBandDesc:
+      'Hàng trăm cấu trúc dữ liệu, thuật toán và bài tập được trực quan hóa — bắt đầu miễn phí ngay hôm nay.',
+    ctaGoCourses: 'Đến khóa học Grokking',
+    ctaGoSims: 'Xem tất cả mô phỏng',
+    benchTitle: 'simulator://bubble-sort',
+    benchReady: 'Đang khởi động engine…',
   },
 
   auth: {
@@ -647,6 +675,7 @@ export const messages = {
       // Drawer chi tiết user + toast còn sót hardcode (v2.15 - PR #22)
       drawerTabProfile: 'Hồ sơ & Chỉ số',
       drawerTabActivity: 'Hoạt động học tập',
+      detailTitle: 'Chi tiết người dùng',
       detailDescription: (name: string) => `Thông tin chi tiết - ${name}`,
       joinDate: 'Ngày tham gia',
       viewDetailAria: (name: string) => `Xem chi tiết ${name}`,
@@ -1072,6 +1101,16 @@ export const messages = {
     } as const,
     footer:
       'Equip khung/avatar/theme tại Hồ sơ (kho đồ — giai đoạn sau). Kiếm gems bằng cách pass node, nâng sao, hoàn thành quest.',
+    // ── PR #30: shop purple storefront (key mới) ──
+    mascotKicker: 'Linh vật cửa hàng',
+    mascotGreeting: 'Bạn muốn đổi những gì?',
+    signTitle: 'SHOP',
+    signSub: 'Cửa hàng gems · vật phẩm · trang bị',
+    openSign: 'OPEN',
+    sale: 'SALE',
+    ticker: ['MỞ CỬA HÔM NAY', 'SALE GEMS', 'VẬT PHẨM MỚI MỖI NGÀY', 'ĐỔI BẰNG GEMS'] as const,
+    showcaseKicker: 'Trưng bày vật phẩm',
+    soon: 'Sắp có mặt',
   },
 
   quests: {

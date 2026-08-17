@@ -4,7 +4,7 @@
 // container resolution adaptation, theme backgrounds, and graceful cleanup.
 
 import { shallowRef, ref, onUnmounted } from 'vue';
-import { Application, Container } from 'pixi.js';
+import { Application, Container, type Ticker } from 'pixi.js';
 import gsap from 'gsap';
 
 export interface PixiStageOptions {
@@ -103,7 +103,7 @@ export function usePixiStage() {
         };
         gsap.ticker.add(gsapTickerFn);
       } else {
-        pixiApp.ticker.add((ticker) => {
+        pixiApp.ticker.add((ticker: Ticker) => {
           if (!isReady.value || !app.value || !app.value.renderer || (app.value.renderer as any).destroyed) return;
           if (customTickCallback) {
             customTickCallback(ticker.deltaMS);

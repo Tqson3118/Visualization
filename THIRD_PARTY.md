@@ -18,7 +18,7 @@
 
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
-| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): bổ sung 19 gói frontend mới của stack UI/UX (tailwindcss 4, shadcn-vue, reka-ui, motion-v, gsap, vue-echarts, echarts, lenis, vue-sonner, @phosphor-icons/vue, @lucide/vue, lucide-vue-next, class-variance-authority, clsx, tailwind-merge, tw-animate-css, @tailwindcss/vite, @vueuse/core, vaul-vue) — phiên bản + license THẬT theo `npm ls --depth=0`; license vaul-vue xác nhận từ GitHub LICENSE (package.json không có license field) |
+| 1.4 | 15/08/2026 | Trần Viết Tâm Phúc | Đợt chấm code server (nghiệp vụ ASM): bổ sung `Jint` 4.16.0 (BSD-2-Clause — JS interpreter cho máy chủ chấm bài code Assignment/Kiểm tra cuối, `CodelabJudgeService`) |
 | 1.3 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): bổ sung `qrcode` 1.5.4 + `@types/qrcode` 1.5.6 (sinh QR VietQR EMVCo cho checkout Premium — license MIT xác nhận từ `node_modules/<gói>/package.json` đã cài + `npm ls`); tổng 41 gói top-level |
 | 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | Cập nhật phiên bản thật theo `npm ls` + `dotnet list package` (đợt F): thay phiên bản ước lượng bằng số chính xác, xóa thư viện không cài, bổ sung thư viện mới (Testcontainers.MsSql, HtmlSanitizer, Swashbuckle, coverlet...), xác nhận license từ nuspec/package.json đã cài |
 | 1.0 | 12/08/2026 | Trần Viết Tâm Phúc | Tạo mới (danh sách thư viện + license); bổ sung front matter đầy đủ theo khuôn §17.11 + Lịch sử thay đổi (vá review) |
@@ -92,6 +92,7 @@ Nguồn: `dotnet list package` chạy trên 4 project (Api, Application, UnitTes
 | FluentValidation | 12.1.1 | App | Validation DTO | Apache-2.0 |
 | HtmlSanitizer | 9.2.995 | App | Sanitize HTML (kế thừa dự án Ganss.Xss) | MIT |
 | Microsoft.EntityFrameworkCore.SqlServer | 10.0.11 | App | Provider SQL Server (ORM EF Core) | MIT |
+| Jint | 4.16.0 | App | JS interpreter thuần .NET — chấm code bài ASM phía máy chủ (Jint sandbox: timeout/max statements/memory/stack guard) | BSD-2-Clause |
 | Microsoft.Extensions.Configuration.Binder | 10.0.11 | App | Bind cấu hình | MIT |
 | Microsoft.Extensions.Hosting.Abstractions | 10.0.11 | App | Hosting abstractions | MIT |
 | Microsoft.Extensions.Logging.Abstractions | 10.0.11 | App | Logging abstractions | MIT |

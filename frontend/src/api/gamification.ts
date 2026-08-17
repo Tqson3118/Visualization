@@ -7,6 +7,7 @@ export const GAMIFICATION_ENDPOINTS = {
   hearts: '/me/hearts',
   gamificationSummary: '/me/gamification',
   enterNode: (pathId: number, nodeId: number) => `/learning-path/${pathId}/nodes/${nodeId}/enter`,
+  learningPaths: `/learning-paths`,
   learningPath: (id: number) => `/learning-path/${id}`,
   finalTest: (id: number) => `/learning-path/${id}/final-test`,
   quests: '/me/quests',
@@ -143,6 +144,16 @@ export interface LearningPathNodeDto {
   requiredStages: { quiz: boolean; lab: boolean; code: boolean };
 }
 
+export interface LearningPathSummaryDto {
+  id: number;
+  title: string;
+  description: string;
+  topicId: number | null;
+  sortOrder: number;
+  progressPct: number;
+  nodeCount: number;
+}
+
 export interface LearningPathDto {
   id: number;
   name: string;
@@ -167,6 +178,10 @@ export async function enterNode(pathId: number, nodeId: number): Promise<{ sessi
     method: 'POST',
     url: GAMIFICATION_ENDPOINTS.enterNode(pathId, nodeId),
   });
+}
+
+export async function fetchLearningPaths(): Promise<LearningPathSummaryDto[]> {
+  return getData<LearningPathSummaryDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.learningPaths });
 }
 
 export async function fetchLearningPath(id: number): Promise<LearningPathDto> {
@@ -202,7 +217,10 @@ export async function claimQuest(id: number): Promise<{ gems: number; xp: number
 }
 
 export async function fetchStreak(): Promise<StreakDto> {
-  return getData<StreakDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.streak });
+  // BE trả { streakDays, streakFreeze } (StreakDto: StreakFreeze) — map sang freezeAvailable
+  // để UI không bao giờ hiển thị "undefined đông cứng" khi field thiếu.
+  const raw = await getData<{ streakDays: number; streakFreeze?: number }>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.streak });
+  return { streakDays: raw.streakDays ?? 0, freezeAvailable: raw.streakFreeze ?? 0 };
 }
 
 export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class'; classId?: number; page?: number } = {}): Promise<LeaderboardDto> {
@@ -225,7 +243,8 @@ export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {
-  const items = await getData<any[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
+  // Giữ map fallback priceGems từ dev (item.price/item.cost) — phòng BE trả thiếu field (F2 mapping ổn định).
+  const items = await getData<Array<ShopItemDto & { price?: number; cost?: number }>>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
   return (items || []).map((item) => ({
     ...item,
     priceGems: item.priceGems ?? item.price ?? item.cost ?? 0,

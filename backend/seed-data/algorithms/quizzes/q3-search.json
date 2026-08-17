@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q3s1",
+    "question": "Tìm kiếm tuyến tính (linear search) trên mảng n phần tử có độ phức tạp worst case là gì?",
+    "options": "[\"O(1)\",\"O(log n)\",\"O(n)\",\"O(n²)\"]",
+    "correctIndex": 2,
+    "explanation": "Worst case phải duyệt hết n phần tử (phần tử ở cuối hoặc không tồn tại) → O(n)."
+  },
+  {
+    "id": "q3s2",
+    "question": "Điều kiện TIÊN QUYẾT để dùng tìm kiếm nhị phân là gì?",
+    "options": "[\"Mảng phải chứa số nguyên dương\",\"Mảng phải được sắp xếp tăng dần\",\"Mảng phải có số phần tử là lũy thừa của 2\",\"Mảng phải không trùng phần tử\"]",
+    "correctIndex": 1,
+    "explanation": "Binary search tin tưởng 'phần tử giữa' chia đúng hai nửa nhỏ/lớn → mảng phải đã sắp xếp."
+  },
+  {
+    "id": "q3s3",
+    "question": "Binary search cần tối đa bao nhiêu bước để tìm phần tử trong mảng 1.000.000 phần tử?",
+    "options": "[\"~10 bước\",\"~20 bước\",\"~100 bước\",\"~1.000.000 bước\"]",
+    "correctIndex": 1,
+    "explanation": "log₂(1.000.000) ≈ 20 — chỉ cần ~20 phép so sánh cho 1 triệu phần tử."
+  },
+  {
+    "id": "q3s4",
+    "question": "Trong binary search, khi arr[mid] < target thì ta làm gì?",
+    "options": "[\"Chuyển hi = mid - 1\",\"Chuyển lo = mid + 1\",\"Dừng lại\",\"Chuyển lo = mid\"]",
+    "correctIndex": 1,
+    "explanation": "Target lớn hơn phần tử giữa → nằm nửa phải → lo = mid + 1."
+  },
+  {
+    "id": "q3s5",
+    "question": "Điều kiện vòng lặp chuẩn của binary search là gì?",
+    "options": "[\"lo < hi\",\"lo <= hi\",\"lo === hi\",\"lo >= hi\"]",
+    "correctIndex": 1,
+    "explanation": "Phải dùng lo <= hi, nếu dùng lo < hi sẽ bỏ sót phần tử cuối cùng (off-by-one)."
+  },
+  {
+    "id": "q3s6",
+    "question": "Mảng [1,3,5,7,9], tìm 5 bằng binary search. Mid đầu tiên là phần tử nào?",
+    "options": "[\"1\",\"3\",\"5\",\"7\"]",
+    "correctIndex": 2,
+    "explanation": "lo=0, hi=4 → mid = floor((0+4)/2) = 2 → arr[2] = 5. Tìm thấy ngay ở bước đầu."
+  },
+  {
+    "id": "q3s7",
+    "question": "Khi nào nên dùng linear search thay vì binary search?",
+    "options": "[\"Mảng rất lớn và đã sắp xếp\",\"Mảng chưa sắp xếp hoặc rất nhỏ\",\"Luôn dùng binary search\",\"Khi mảng là mảng 2 chiều\"]",
+    "correctIndex": 1,
+    "explanation": "Linear search không cần mảng sắp xếp, phù hợp dữ liệu nhỏ hoặc chưa sắp xếp."
+  }
+]

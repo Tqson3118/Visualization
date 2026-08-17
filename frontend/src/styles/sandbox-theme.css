@@ -1,0 +1,234 @@
+/* ════════════════════════════════════════════════════════════════
+   SANDBOX THEME — bê từ VisualizationDSA3 (src/styles/theme.css +
+   design-tokens.css + tailwind.config.js colors extend).
+
+   Vì sao file này tồn tại:
+   - Nguồn dùng Tailwind 3 + tailwind.config.js map class như
+     `bg-bg-surface`, `text-accent-green`, `border-border-default`
+     sang CSS variables (--color-*) trong theme.css.
+   - Đích dùng Tailwind 4 (CSS-first) KHÔNG có config đó → các class
+     này không được generate → sandbox mất hết màu.
+   - Giải pháp: SCoped selector `.sandbox-theme` — chỉ áp cho 3 trang
+     sandbox (App.vue thêm class này vào main), TUYỆT ĐỐI không đụng
+     UI hiện tại (tokens.css/global.css của đích giữ nguyên).
+   - Opacity dùng color-mix (hỗ trợ mọi trình duyệt hiện đại) thay
+     cho cú pháp /opacity của Tailwind 3.
+   ════════════════════════════════════════════════════════════════ */
+
+.sandbox-theme {
+  /* ── Theme màu (theme.css — dark purple + accent) ── */
+  --color-bg-primary:    #09090e;
+  --color-bg-secondary:  #0d0c14;
+  --color-bg-surface:    #13111c;
+  --color-bg-hover:      #1a1826;
+  --color-bg-active:     #221f33;
+  --color-bg-overlay:    rgba(9, 9, 14, 0.88);
+  --color-bg-terminal:   #050508;
+  --color-bg-base:       #09090e;
+  --color-bg-tertiary:   #1a1826;
+
+  --color-text-primary:   rgba(255, 255, 255, 0.92);
+  --color-text-heading:   #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-muted:     rgba(255, 255, 255, 0.45);
+  --color-text-disabled:  rgba(255, 255, 255, 0.2);
+  --color-text-inverse:   #09090e;
+
+  --color-accent-primary:       #8b5cf6;
+  --color-accent-primary-light: #a78bfa;
+  --color-accent-primary-dark:  #7c3aed;
+  --color-accent-primary-text:  #a78bfa;
+  --color-accent-primary-glow:  rgba(139, 92, 246, 0.2);
+  --color-accent-primary-dim:   rgba(139, 92, 246, 0.1);
+
+  --color-accent-green:       #10b981;
+  --color-accent-green-light: #34d399;
+  --color-accent-green-glow:  rgba(16, 185, 129, 0.12);
+  --color-accent-green-dim:   rgba(16, 185, 129, 0.06);
+
+  --color-accent-red:       #ef4444;
+  --color-accent-red-light: #f87171;
+  --color-accent-red-glow:  rgba(239, 68, 68, 0.12);
+  --color-accent-red-dim:   rgba(239, 68, 68, 0.06);
+
+  --color-accent-yellow:       #eab308;
+  --color-accent-yellow-light: #facc15;
+  --color-accent-yellow-glow:  rgba(234, 179, 8, 0.12);
+  --color-accent-yellow-dim:   rgba(234, 179, 8, 0.06);
+
+  --color-accent-cyan:       #06b6d4;
+  --color-accent-cyan-light: #22d3ee;
+  --color-accent-cyan-glow:  rgba(6, 182, 212, 0.12);
+  --color-accent-cyan-dim:   rgba(6, 182, 212, 0.06);
+
+  --color-accent-purple:       #8b5cf6;
+  --color-accent-purple-light: #a78bfa;
+  --color-accent-purple-glow:  rgba(139, 92, 246, 0.2);
+  --color-accent-purple-dim:   rgba(139, 92, 246, 0.1);
+
+  --color-accent-emerald:       #10b981;
+  --color-accent-emerald-light: #34d399;
+  --color-accent-emerald-glow:  rgba(16, 185, 129, 0.12);
+  --color-accent-emerald-dim:   rgba(16, 185, 129, 0.06);
+
+  --color-accent-secondary: var(--color-accent-cyan);
+  --color-accent-blue:      #3b82f6;
+
+  /* Borders */
+  --color-border-color:   rgba(255, 255, 255, 0.08);
+  --color-border-subtle:  rgba(255, 255, 255, 0.04);
+  --color-border-default: rgba(255, 255, 255, 0.08);
+  --color-border-strong:  rgba(255, 255, 255, 0.15);
+  --color-border-focus:   #8b5cf6;
+  --color-border-accent:  rgba(139, 92, 246, 0.3);
+  --color-border-card:    rgba(255, 255, 255, 0.06);
+
+  /* Glass + VCR + canvas visualization */
+  --glass-bg:             rgba(13, 12, 20, 0.7);
+  --glass-bg-light:       rgba(24, 28, 25, 0.55);
+  --glass-bg-heavy:       rgba(16, 19, 17, 0.88);
+  --glass-bg-card:        rgba(19, 22, 20, 0.65);
+  --glass-border:         rgba(255, 255, 255, 0.06);
+  --glass-border-hover:   rgba(61, 153, 112, 0.15);
+  --glass-blur:           blur(20px) saturate(1.4);
+  --glass-blur-heavy:     blur(28px) saturate(1.5);
+  --glass-blur-light:     blur(12px) saturate(1.3);
+  --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  --vcr-accent:          var(--color-accent-primary, #8b5cf6);
+  --vcr-accent-dim:      rgba(139, 92, 246, 0.15);
+  --vcr-accent-bg:       rgba(139, 92, 246, 0.06);
+  --vcr-accent-badge:    rgba(139, 92, 246, 0.12);
+  --vcr-exit-color:      var(--color-accent-red, #ef4444);
+  --vcr-exit-border:     rgba(239, 68, 68, 0.20);
+
+  --canvas-bg:           #09090e;
+  --canvas-grid-color:   rgba(139, 92, 246, 0.05);
+  --canvas-node-default: #8b5cf6;
+  --canvas-node-active:  #a78bfa;
+  --canvas-edge-default: rgba(255, 255, 255, 0.15);
+  --canvas-edge-active:  #8b5cf6;
+
+  --vis-panel-bg:        #13111c;
+  --vis-panel-bg-deep:   #0d0c14;
+  --vis-panel-bg-inner:  #1a1826;
+  --vis-panel-border:    rgba(255, 255, 255, 0.08);
+  --vis-panel-header-bg: #1a1826;
+
+  --vis-color-pivot:   #facc15;
+  --vis-color-active:  #8b5cf6;
+  --vis-color-sorted:  #34d399;
+  --vis-color-swap:    #ef4444;
+  --vis-color-compare: rgba(255, 255, 255, 0.8);
+  --vis-color-bucket:  rgba(139, 92, 246, 0.6);
+  --vis-color-default: rgba(255, 255, 255, 0.3);
+
+  --shadow-sm:     0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md:     0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg:     0 12px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl:     0 24px 48px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 0 25px rgba(139, 92, 246, 0.15);
+  --shadow-cyan:   0 0 25px rgba(6, 182, 212, 0.1);
+}
+
+/* ══ Tailwind color classes (mapping từ tailwind.config.js nguồn) ══ */
+
+/* ── Backgrounds: bg-bg-* ── */
+.sandbox-theme .bg-bg-primary        { background-color: var(--color-bg-primary); }
+.sandbox-theme .bg-bg-secondary      { background-color: var(--color-bg-secondary); }
+.sandbox-theme .bg-bg-surface        { background-color: var(--color-bg-surface); }
+.sandbox-theme .bg-bg-hover          { background-color: var(--color-bg-hover); }
+.sandbox-theme .bg-bg-active         { background-color: var(--color-bg-active); }
+.sandbox-theme .bg-bg-secondary\/40  { background-color: color-mix(in srgb, var(--color-bg-secondary) 40%, transparent); }
+.sandbox-theme .bg-bg-secondary\/45  { background-color: color-mix(in srgb, var(--color-bg-secondary) 45%, transparent); }
+.sandbox-theme .bg-bg-secondary\/50  { background-color: color-mix(in srgb, var(--color-bg-secondary) 50%, transparent); }
+.sandbox-theme .bg-bg-secondary\/60  { background-color: color-mix(in srgb, var(--color-bg-secondary) 60%, transparent); }
+.sandbox-theme .bg-bg-secondary\/65  { background-color: color-mix(in srgb, var(--color-bg-secondary) 65%, transparent); }
+.sandbox-theme .bg-bg-secondary\/80  { background-color: color-mix(in srgb, var(--color-bg-secondary) 80%, transparent); }
+.sandbox-theme .bg-bg-secondary\/85  { background-color: color-mix(in srgb, var(--color-bg-secondary) 85%, transparent); }
+.sandbox-theme .bg-bg-secondary\/90  { background-color: color-mix(in srgb, var(--color-bg-secondary) 90%, transparent); }
+.sandbox-theme .bg-bg-surface\/50    { background-color: color-mix(in srgb, var(--color-bg-surface) 50%, transparent); }
+.sandbox-theme .bg-bg-surface\/60    { background-color: color-mix(in srgb, var(--color-bg-surface) 60%, transparent); }
+.sandbox-theme .bg-border-default    { background-color: var(--color-border-default); }
+.sandbox-theme .bg-text-secondary\/50 { background-color: color-mix(in srgb, var(--color-text-secondary) 50%, transparent); }
+
+/* ── Text: text-text-*, text-accent-* ── */
+.sandbox-theme .text-text-primary   { color: var(--color-text-primary); }
+.sandbox-theme .text-text-secondary { color: var(--color-text-secondary); }
+.sandbox-theme .text-text-muted     { color: var(--color-text-muted); }
+.sandbox-theme .text-accent         { color: var(--color-accent-primary); }
+.sandbox-theme .text-accent-primary { color: var(--color-accent-primary); }
+.sandbox-theme .text-accent-hover   { color: var(--color-accent-primary-light); }
+.sandbox-theme .text-accent-light   { color: var(--color-accent-primary-light); }
+.sandbox-theme .text-accent-green   { color: var(--color-accent-green); }
+.sandbox-theme .text-accent-red     { color: var(--color-accent-red); }
+.sandbox-theme .text-accent-yellow  { color: var(--color-accent-yellow); }
+.sandbox-theme .text-accent-cyan    { color: var(--color-accent-cyan); }
+.sandbox-theme .text-accent-emerald { color: var(--color-accent-emerald); }
+
+/* ── Accent backgrounds: bg-accent-* ── */
+.sandbox-theme .bg-accent              { background-color: var(--color-accent-primary); }
+.sandbox-theme .bg-accent-primary-dim  { background-color: var(--color-accent-primary-dim); }
+.sandbox-theme .bg-accent-light        { background-color: var(--color-accent-primary-light); }
+.sandbox-theme .bg-accent-hover        { background-color: var(--color-accent-primary); }
+.sandbox-theme .bg-accent-red          { background-color: var(--color-accent-red); }
+.sandbox-theme .bg-accent-red-light    { background-color: var(--color-accent-red-light); }
+.sandbox-theme .bg-accent-red\/10      { background-color: color-mix(in srgb, var(--color-accent-red) 10%, transparent); }
+.sandbox-theme .bg-accent-red\/15      { background-color: color-mix(in srgb, var(--color-accent-red) 15%, transparent); }
+.sandbox-theme .bg-accent-red\/90      { background-color: color-mix(in srgb, var(--color-accent-red) 90%, transparent); }
+.sandbox-theme .bg-accent-green\/90    { background-color: color-mix(in srgb, var(--color-accent-green) 90%, transparent); }
+.sandbox-theme .bg-accent-cyan         { background-color: var(--color-accent-cyan); }
+.sandbox-theme .bg-accent-cyan\/5      { background-color: color-mix(in srgb, var(--color-accent-cyan) 5%, transparent); }
+.sandbox-theme .bg-accent-cyan\/10     { background-color: color-mix(in srgb, var(--color-accent-cyan) 10%, transparent); }
+.sandbox-theme .bg-accent-cyan\/15     { background-color: color-mix(in srgb, var(--color-accent-cyan) 15%, transparent); }
+.sandbox-theme .bg-accent-cyan\/20     { background-color: color-mix(in srgb, var(--color-accent-cyan) 20%, transparent); }
+.sandbox-theme .bg-accent-cyan\/25     { background-color: color-mix(in srgb, var(--color-accent-cyan) 25%, transparent); }
+.sandbox-theme .bg-accent-cyan\/35     { background-color: color-mix(in srgb, var(--color-accent-cyan) 35%, transparent); }
+.sandbox-theme .bg-accent-cyan\/40     { background-color: color-mix(in srgb, var(--color-accent-cyan) 40%, transparent); }
+.sandbox-theme .bg-accent-cyan\/50     { background-color: color-mix(in srgb, var(--color-accent-cyan) 50%, transparent); }
+.sandbox-theme .bg-accent-cyan\/70     { background-color: color-mix(in srgb, var(--color-accent-cyan) 70%, transparent); }
+.sandbox-theme .bg-accent-cyan\/90     { background-color: color-mix(in srgb, var(--color-accent-cyan) 90%, transparent); }
+.sandbox-theme .bg-accent-emerald       { background-color: var(--color-accent-emerald); }
+.sandbox-theme .bg-accent-emerald\/5    { background-color: color-mix(in srgb, var(--color-accent-emerald) 5%, transparent); }
+.sandbox-theme .bg-accent-emerald\/10   { background-color: color-mix(in srgb, var(--color-accent-emerald) 10%, transparent); }
+.sandbox-theme .bg-accent-emerald\/15   { background-color: color-mix(in srgb, var(--color-accent-emerald) 15%, transparent); }
+.sandbox-theme .bg-accent-emerald\/20   { background-color: color-mix(in srgb, var(--color-accent-emerald) 20%, transparent); }
+.sandbox-theme .bg-accent-yellow\/5     { background-color: color-mix(in srgb, var(--color-accent-yellow) 5%, transparent); }
+.sandbox-theme .bg-accent-yellow\/20    { background-color: color-mix(in srgb, var(--color-accent-yellow) 20%, transparent); }
+.sandbox-theme .bg-accent-yellow\/35    { background-color: color-mix(in srgb, var(--color-accent-yellow) 35%, transparent); }
+
+/* ── Borders: border-border-*, border-accent-* ── */
+.sandbox-theme .border-border-subtle  { border-color: var(--color-border-subtle); }
+.sandbox-theme .border-border-default { border-color: var(--color-border-default); }
+.sandbox-theme .border-border-strong  { border-color: var(--color-border-strong); }
+.sandbox-theme .border-border-default\/50 { border-color: color-mix(in srgb, var(--color-border-default) 50%, transparent); }
+.sandbox-theme .border-border-subtle\/30 { border-color: color-mix(in srgb, var(--color-border-subtle) 30%, transparent); }
+.sandbox-theme .border-accent-primary { border-color: var(--color-accent-primary); }
+.sandbox-theme .border-accent-cyan    { border-color: var(--color-accent-cyan); }
+.sandbox-theme .border-accent-cyan\/10 { border-color: color-mix(in srgb, var(--color-accent-cyan) 10%, transparent); }
+.sandbox-theme .border-accent-cyan\/20 { border-color: color-mix(in srgb, var(--color-accent-cyan) 20%, transparent); }
+.sandbox-theme .border-accent-cyan\/30 { border-color: color-mix(in srgb, var(--color-accent-cyan) 30%, transparent); }
+.sandbox-theme .border-accent-cyan\/40 { border-color: color-mix(in srgb, var(--color-accent-cyan) 40%, transparent); }
+.sandbox-theme .border-accent-cyan\/50 { border-color: color-mix(in srgb, var(--color-accent-cyan) 50%, transparent); }
+.sandbox-theme .border-accent-cyan\/80 { border-color: color-mix(in srgb, var(--color-accent-cyan) 80%, transparent); }
+.sandbox-theme .border-accent-cyan\/90 { border-color: color-mix(in srgb, var(--color-accent-cyan) 90%, transparent); }
+.sandbox-theme .border-accent-emerald\/10 { border-color: color-mix(in srgb, var(--color-accent-emerald) 10%, transparent); }
+.sandbox-theme .border-accent-emerald\/20 { border-color: color-mix(in srgb, var(--color-accent-emerald) 20%, transparent); }
+.sandbox-theme .border-accent-emerald\/30 { border-color: color-mix(in srgb, var(--color-accent-emerald) 30%, transparent); }
+.sandbox-theme .border-accent-green\/40 { border-color: color-mix(in srgb, var(--color-accent-green) 40%, transparent); }
+.sandbox-theme .border-accent-red\/20   { border-color: color-mix(in srgb, var(--color-accent-red) 20%, transparent); }
+.sandbox-theme .border-accent-red\/30   { border-color: color-mix(in srgb, var(--color-accent-red) 30%, transparent); }
+.sandbox-theme .border-accent-yellow\/30 { border-color: color-mix(in srgb, var(--color-accent-yellow) 30%, transparent); }
+.sandbox-theme .border-accent-yellow\/40 { border-color: color-mix(in srgb, var(--color-accent-yellow) 40%, transparent); }
+
+/* ── Shadows: shadow-accent-* ── */
+.sandbox-theme .shadow-accent-cyan\/10 { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-cyan) 10%, transparent); }
+.sandbox-theme .shadow-accent-cyan\/20 { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-cyan) 20%, transparent); }
+.sandbox-theme .shadow-accent-cyan\/45 { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-cyan) 45%, transparent); }
+.sandbox-theme .shadow-accent-green\/20 { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-green) 20%, transparent); }
+.sandbox-theme .shadow-accent-red\/20   { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-red) 20%, transparent); }
+.sandbox-theme .shadow-accent-yellow\/10 { box-shadow: 0 0 25px color-mix(in srgb, var(--color-accent-yellow) 10%, transparent); }
+
+/* ── Gradients ── */
+.sandbox-theme .from-accent-cyan { --tw-gradient-from: var(--color-accent-cyan); background-image: linear-gradient(to right, var(--color-accent-cyan), var(--tw-gradient-to, transparent)); }
+.sandbox-theme .to-accent-blue   { --tw-gradient-to: var(--color-accent-blue); }

@@ -23,6 +23,8 @@ export interface UserSummary {
   role: UserRole;
   avatarUrl: string | null;
   createdAt: string;
+  xp: number;
+  level: number;
 }
 
 export interface LoginRequest {
