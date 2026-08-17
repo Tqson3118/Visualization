@@ -192,8 +192,8 @@ const radarOption = computed(() => {
   // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
   void ui.theme;
   const indexMuted = cssVar('--color-index-muted', '#6B7385');
-  const dataCore = cssVar('--color-data-core', '#4255FF');
-  const ink = cssVar('--color-canvas-ink', '#0F172A');
+  const dataCore = cssVar('--vdsa-purple', '#8b5cf6');
+  const ink = cssVar('--color-canvas-ink', '#0D1020');
 
   return {
     tooltip: {
@@ -210,7 +210,7 @@ const radarOption = computed(() => {
       splitLine: { lineStyle: { color: indexMuted, opacity: 0.35 } },
       splitArea: {
         areaStyle: {
-          color: ['rgba(66,85,255,0.04)', 'rgba(66,85,255,0.08)', 'rgba(66,85,255,0.12)', 'rgba(66,85,255,0.16)', 'rgba(66,85,255,0.2)'],
+          color: ['rgba(139,92,246,0.06)', 'rgba(139,92,246,0.12)', 'rgba(139,92,246,0.18)', 'rgba(139,92,246,0.24)', 'rgba(139,92,246,0.3)'],
         },
       },
       axisLine: { lineStyle: { color: indexMuted } },
@@ -224,7 +224,7 @@ const radarOption = computed(() => {
             name: 'Độ phủ kỹ năng',
           },
         ],
-        areaStyle: { color: 'rgba(66,85,255,0.22)' },
+        areaStyle: { color: 'rgba(139,92,246,0.25)' },
         lineStyle: { color: dataCore, width: 2 },
         symbol: 'circle' as const,
         symbolSize: 5,
@@ -285,7 +285,7 @@ function csvExport(): void {
           <p class="profile__email">{{ auth.user?.email }}</p>
           <div class="profile__chips">
             <Badge variant="primary">Lv {{ level }}</Badge>
-            <Badge variant="success" class="profile__streak-chip"><Flame :size="12" /> {{ gamification.streakDays }} ngày streak</Badge>
+            <Badge variant="success" class="profile__streak-chip"><Flame :size="12" class="profile__flame" /> {{ gamification.streakDays }} ngày streak</Badge>
             <Badge v-if="gamification.isPremium" variant="warning">Premium</Badge>
           </div>
         </div>
@@ -305,22 +305,22 @@ function csvExport(): void {
           index="01 · tích lũy"
           class="profile__stats-hero"
         />
-        <div class="profile__stat-block">
+        <div class="profile__stat-block profile__stat-block--level">
           <span class="profile__stat-label">Level</span>
           <div class="profile__stat-line">
             <span class="profile__stat-value">{{ level }}</span>
             <span class="profile__stat-unit">CẤP</span>
           </div>
         </div>
-        <BlockToken size="sm" tone="resolved" label="Streak" :value="gamification.streakDays" index="ngày" />
-        <div class="profile__stat-block">
+        <BlockToken size="sm" tone="resolved" label="Streak" :value="gamification.streakDays" index="ngày" class="profile__streak-token" />
+        <div class="profile__stat-block profile__stat-block--gems">
           <span class="profile__stat-label">Gems</span>
           <div class="profile__stat-line">
             <span class="profile__stat-value">{{ gamification.gems }}</span>
             <span class="profile__stat-unit">GEMS</span>
           </div>
         </div>
-        <div class="profile__stat-block">
+        <div class="profile__stat-block profile__stat-block--hearts">
           <span class="profile__stat-label">Tim</span>
           <div class="profile__stat-line">
             <span class="profile__stat-value">{{ gamification.hearts }}/{{ gamification.heartsMax }}</span>
@@ -552,6 +552,17 @@ function csvExport(): void {
 
 <style scoped>
 .profile {
+  /* Bộ tím (khớp --vdsa-purple / tab Sorting Sandbox) — accent riêng cho trang hồ sơ */
+  --p-purple: #8b5cf6;
+  --p-purple-light: #a78bfa;
+  --p-purple-dark: #7c3aed;
+  /* Remap token shadcn primary (teal) → tím NGAY TRONG scope trang:
+     ProgressBar, Badge primary, Button primary, Tabs active đều tự đổi sang tím. */
+  --primary: oklch(0.56 0.24 293);
+  --primary-foreground: oklch(0.99 0 0);
+  --ring: oklch(0.56 0.24 293);
+  /* BlockToken XP hero đang dùng --data-core (xanh #4255FF) → tím */
+  --data-core: var(--p-purple);
   padding-block: var(--space-lg) var(--space-2xl);
   display: flex;
   flex-direction: column;
@@ -559,20 +570,51 @@ function csvExport(): void {
   max-width: 920px;
 }
 
-/* Card dùng class global .card (global.css có shadow-md) — §6 cấm shadow card → override */
+/* Card — kính mờ (glass) đồng bộ phong cách hiện tại: nền bán trong suốt + blur +
+   viền sáng nhẹ + glow tông primary. Thay cho card phẳng shadow-none cũ. */
 .profile .card {
-  box-shadow: none;
+  background: color-mix(in srgb, var(--color-card) 72%, transparent);
+  backdrop-filter: blur(10px);
+  border-color: color-mix(in srgb, var(--p-purple) 22%, var(--color-border-subtle));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),
+    0 8px 28px color-mix(in srgb, var(--p-purple) 7%, transparent);
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.profile .card:hover {
+  border-color: color-mix(in srgb, var(--p-purple) 45%, var(--color-border-subtle));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 10px 34px color-mix(in srgb, var(--p-purple) 12%, transparent);
 }
 
-/* ── Hero profile card — surface band level-2 (DESIGN.md §6), compact ── */
+/* ── Hero profile — glass band + dải accent gradient trên đỉnh ── */
 .profile__hero {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg);
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--p-purple) 30%, var(--color-border-subtle));
   border-radius: var(--radius-lg);
-  background: var(--color-card-raised);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--p-purple) 7%, transparent) 0%, transparent 42%),
+    color-mix(in srgb, var(--color-card-raised) 78%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent),
+    0 10px 36px color-mix(in srgb, var(--p-purple) 10%, transparent);
+  overflow: hidden;
+}
+
+/* Dải accent gradient (primary → data-core) trên đỉnh hero */
+.profile__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--p-purple), var(--p-purple-dark), transparent);
+  opacity: 0.85;
 }
 
 .profile__hero-main {
@@ -582,7 +624,7 @@ function csvExport(): void {
   flex-wrap: wrap;
 }
 
-/* Banner hồ sơ giảng viên chờ duyệt — warning band (không shadow card) */
+/* Banner hồ sơ giảng viên chờ duyệt — warning band kính mờ */
 .profile__banner {
   display: flex;
   align-items: center;
@@ -591,6 +633,7 @@ function csvExport(): void {
   border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  backdrop-filter: blur(10px);
   color: var(--color-foreground);
   font-size: var(--text-sm);
   font-weight: 500;
@@ -632,13 +675,13 @@ function csvExport(): void {
 }
 
 .profile__avatar-frame--default {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-data-core));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 45%, transparent);
+  background: linear-gradient(135deg, var(--p-purple), var(--p-purple-dark));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--p-purple) 45%, transparent);
 }
 
 .profile__avatar {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: var(--radius-full);
   background: var(--color-muted);
   color: var(--color-text-secondary);
@@ -646,8 +689,8 @@ function csvExport(): void {
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: var(--text-lg);
-  font-weight: 600;
+  font-size: var(--text-xl);
+  font-weight: 700;
   flex-shrink: 0;
 }
 
@@ -706,16 +749,30 @@ function csvExport(): void {
   animation: profile-hero-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Stat phụ — glass + viền trên màu riêng từng loại (Level=cyan, Gems=xanh lá, Tim=đỏ) */
 .profile__stat-block {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
   padding: var(--space-sm);
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  border-top: 2px solid var(--p-purple);
   border-radius: var(--radius-md);
-  background: var(--color-card);
+  background: color-mix(in srgb, var(--color-card) 75%, transparent);
+  backdrop-filter: blur(8px);
   min-width: 0;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.profile__stat-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--p-purple) 12%, transparent);
+}
+.profile__stat-block--level { border-top-color: #a78bfa; }
+.profile__stat-block--gems { border-top-color: #8b5cf6; }
+.profile__stat-block--hearts { border-top-color: #7c3aed; }
+.profile__stat-block--level .profile__stat-value { color: color-mix(in srgb, #a78bfa 62%, var(--color-foreground)); }
+.profile__stat-block--gems .profile__stat-value { color: color-mix(in srgb, #8b5cf6 62%, var(--color-foreground)); }
+.profile__stat-block--hearts .profile__stat-value { color: color-mix(in srgb, #7c3aed 62%, var(--color-foreground)); }
 
 .profile__stat-label {
   font-size: var(--text-xs);
@@ -754,6 +811,8 @@ function csvExport(): void {
   font-weight: 600;
   letter-spacing: -0.015em;
   margin-bottom: var(--space-sm);
+  padding-left: var(--space-sm);
+  border-left: 3px solid var(--p-purple);
 }
 
 .profile__overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
@@ -770,21 +829,24 @@ function csvExport(): void {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--p-purple) 20%, var(--color-border-subtle));
   border-radius: var(--radius-md);
-  background: var(--color-card);
+  background: color-mix(in srgb, var(--color-card) 70%, transparent);
+  backdrop-filter: blur(8px);
   color: var(--color-foreground);
   font-weight: 500;
   font-size: var(--text-sm);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .profile__quick-link:hover {
-  border-color: var(--color-border-strong);
+  border-color: color-mix(in srgb, var(--p-purple) 55%, var(--color-border-subtle));
+  transform: translateX(3px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--p-purple) 12%, transparent);
   text-decoration: none;
 }
 
-.profile__quick-link svg { color: var(--color-text-secondary); }
+.profile__quick-link svg { color: var(--p-purple); }
 
 .profile__quick-idx {
   font-family: var(--font-mono);
@@ -799,7 +861,7 @@ function csvExport(): void {
 
 .profile__radar-canvas {
   margin-top: var(--space-xs);
-  border: 1px solid color-mix(in srgb, var(--color-data-core) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--p-purple-dark) 20%, transparent);
   border-radius: var(--radius-lg);
   background: var(--color-canvas-ink);
   padding: var(--space-sm);
@@ -856,18 +918,22 @@ function csvExport(): void {
   gap: var(--space-sm);
   text-align: center;
   padding: var(--space-lg) var(--space-md);
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid color-mix(in srgb, var(--p-purple) 18%, var(--color-border-subtle));
   border-radius: var(--radius-lg);
-  background: var(--color-card);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: color-mix(in srgb, var(--color-card) 72%, transparent);
+  backdrop-filter: blur(8px);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.profile__achievement:hover { border-color: var(--color-border-strong); }
+.profile__achievement:hover { border-color: color-mix(in srgb, var(--p-purple) 45%, var(--color-border-subtle)); }
 
-.profile__achievement--locked { opacity: 0.6; }
+.profile__achievement--locked { opacity: 0.55; }
 
 .profile__achievement-icon { color: var(--color-text-quaternary); }
-.profile__achievement-icon--open { color: var(--color-success); }
+.profile__achievement-icon--open {
+  color: var(--color-success);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-success) 60%, transparent));
+}
 .profile__achievement-img { width: 24px; height: 24px; object-fit: contain; border-radius: var(--radius-sm); }
 .profile__achievement-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-foreground); }
 .profile__achievement-desc { font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-muted); }
@@ -890,17 +956,20 @@ function csvExport(): void {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.profile__inv-card:hover { border-color: var(--color-border-strong); }
+.profile__inv-card:hover {
+  border-color: color-mix(in srgb, var(--p-purple) 50%, var(--color-border-subtle));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--p-purple) 12%, transparent);
+}
 
 .profile__inv-icon {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: var(--color-muted);
-  color: var(--color-text-secondary);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--p-purple) 16%, var(--color-muted)), var(--color-muted));
+  color: var(--p-purple);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -952,6 +1021,57 @@ function csvExport(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .profile__stats-hero { animation: none; }
+}
+
+/* ── Streak: ngọn lửa bập bùng ── */
+.profile__streak-chip { position: relative; }
+
+/* Halo cam phía sau badge streak */
+.profile__streak-chip::after {
+  content: '';
+  position: absolute;
+  inset: -3px -6px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, transparent 70%);
+  filter: blur(7px);
+  z-index: -1;
+  animation: flame-glow 1.6s ease-in-out infinite;
+}
+
+/* Ngọn lửa icon: bập bùng nghiêng + phóng to nhỏ */
+.profile__flame {
+  color: #fb923c;
+  transform-origin: center bottom;
+  animation: flame-flicker 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.8));
+}
+
+/* Streak token (BlockToken) — hơi thở phát sáng cam */
+.profile__streak-token {
+  animation: streak-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  20%      { transform: scale(1.14) rotate(2deg) translateY(-1px); }
+  45%      { transform: scale(0.94) rotate(-1.5deg); }
+  70%      { transform: scale(1.08) rotate(1deg) translateY(-0.5px); }
+}
+
+@keyframes flame-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes streak-breathe {
+  0%, 100% { box-shadow: 0 0 0 rgba(251, 146, 60, 0); }
+  50%      { box-shadow: 0 0 20px rgba(251, 146, 60, 0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile__flame,
+  .profile__streak-chip::after,
+  .profile__streak-token { animation: none; }
 }
 
 @media (max-width: 768px) {

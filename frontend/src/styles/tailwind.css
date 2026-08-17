@@ -87,7 +87,7 @@
   --info: oklch(0.609 0.111 221.723);    /* #0891B2 */
 
   /* ── Canvas palette §2.1 — nguồn canvasTheme.ts, LUÔN tối bất kể theme ── */
-  --canvas-ink: #0F172A;
+  --canvas-ink: #0D1020;
   --data-core: #4255FF;
   --resolved: #34D399;
   --conflict: #F87171;
@@ -103,43 +103,43 @@
 }
 
 .dark {
-  --background: oklch(0.185 0.028 190);
-  --foreground: oklch(0.945 0.02 186);
+  --background: oklch(0.16 0.009 258); /* ~ #17191D — đen vừa, neutral xanh nhẹ */
+  --foreground: oklch(0.93 0.01 258); /* ~ #E8EAEE */
 
-  --card: oklch(0.215 0.03 190);
-  --card-foreground: oklch(0.945 0.02 186);
+  --card: oklch(0.185 0.011 258);
+  --card-foreground: oklch(0.93 0.01 258);
 
-  --popover: oklch(0.215 0.03 190);
-  --popover-foreground: oklch(0.945 0.02 186);
+  --popover: oklch(0.185 0.011 258);
+  --popover-foreground: oklch(0.93 0.01 258);
 
   --primary: oklch(0.72 0.12 185); /* teal sáng hơn cho tương phản */
   --primary-foreground: oklch(0.22 0.06 186);
 
-  --secondary: oklch(0.29 0.04 190);
-  --secondary-foreground: oklch(0.93 0.02 186);
+  --secondary: oklch(0.24 0.014 258);
+  --secondary-foreground: oklch(0.92 0.012 258);
 
-  --muted: oklch(0.27 0.032 190);
-  --muted-foreground: oklch(0.72 0.025 190);
+  --muted: oklch(0.225 0.013 258);
+  --muted-foreground: oklch(0.71 0.02 258);
 
-  --accent: oklch(0.29 0.04 190);
-  --accent-foreground: oklch(0.93 0.02 186);
+  --accent: oklch(0.24 0.014 258);
+  --accent-foreground: oklch(0.92 0.012 258);
 
   --destructive: oklch(0.637 0.237 25.331);
   --destructive-foreground: oklch(0.985 0 0);
 
-  --border: oklch(0.4 0.05 190); /* GP-T9b (#26): border dark rõ hơn trên card tối */
-  --input: oklch(0.4 0.05 190);
+  --border: oklch(0.29 0.018 258);
+  --input: oklch(0.29 0.018 258);
   --ring: oklch(0.72 0.12 185);
 
   /* ── DESIGN.md §2.2 — dark: text 4 tầng + border tiers + surface raised ── */
-  --foreground-secondary: oklch(0.85 0.02 190);
+  --foreground-secondary: oklch(0.85 0.012 258);
   --foreground-tertiary: var(--muted-foreground);
-  --foreground-quaternary: oklch(0.65 0.02 190);
+  --foreground-quaternary: oklch(0.62 0.016 258);
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.15);
 
-  --card-raised: oklch(0.245 0.03 190);
+  --card-raised: oklch(0.21 0.012 258);
 
   /* ── Semantic dark (tokens.css legacy) ── */
   --success: oklch(0.773 0.153 163.223); /* #34D399 = resolved */
@@ -222,6 +222,48 @@
   --background-image-aurora-gradient: var(--gradient-aurora);
   --background-image-sunset-gradient: var(--gradient-sunset);
   --background-image-mint-gradient: var(--gradient-mint);
+
+  /* ── VDSA namespace (bê từ VisualizationDSA-main) — classes bg-vdsa-*,
+     text-vdsa-*, border-vdsa-* dùng trong views courses/lesson.
+     @theme PHẢI đặt cùng file @import "tailwindcss" (verify 14/08: đặt ở
+     vdsa-theme.css Tailwind không sinh utility). ── */
+  --color-vdsa-bg: var(--vdsa-bg);
+  --color-vdsa-bg-secondary: var(--vdsa-bg-secondary);
+  --color-vdsa-surface: var(--vdsa-surface);
+  --color-vdsa-hover: var(--vdsa-hover);
+  --color-vdsa-active: var(--vdsa-active);
+  --color-vdsa-overlay: var(--vdsa-overlay);
+  --color-vdsa-terminal: var(--vdsa-terminal);
+  --color-vdsa-tertiary: var(--vdsa-tertiary);
+
+  --color-vdsa-text: var(--vdsa-text);
+  --color-vdsa-heading: var(--vdsa-heading);
+  --color-vdsa-secondary: var(--vdsa-secondary);
+  --color-vdsa-muted: var(--vdsa-muted);
+  --color-vdsa-disabled: var(--vdsa-disabled);
+  --color-vdsa-inverse: var(--vdsa-inverse);
+
+  --color-vdsa-accent: var(--vdsa-accent);
+  --color-vdsa-accent-light: var(--vdsa-accent-light);
+  --color-vdsa-accent-dark: var(--vdsa-accent-dark);
+
+  --color-vdsa-green: var(--vdsa-green);
+  --color-vdsa-green-light: var(--vdsa-green-light);
+  --color-vdsa-red: var(--vdsa-red);
+  --color-vdsa-red-light: var(--vdsa-red-light);
+  --color-vdsa-yellow: var(--vdsa-yellow);
+  --color-vdsa-yellow-light: var(--vdsa-yellow-light);
+  --color-vdsa-cyan: var(--vdsa-cyan);
+  --color-vdsa-cyan-light: var(--vdsa-cyan-light);
+  --color-vdsa-purple: var(--vdsa-purple);
+  --color-vdsa-purple-light: var(--vdsa-purple-light);
+
+  --color-vdsa-border: var(--vdsa-border);
+  --color-vdsa-border-subtle: var(--vdsa-border-subtle);
+  --color-vdsa-border-strong: var(--vdsa-border-strong);
+
+  --shadow-vdsa-accent: var(--vdsa-shadow-accent);
+  --shadow-vdsa-cyan: var(--vdsa-shadow-cyan);
 }
 
 /* ── Text gradient utilities (background-clip: text) — G-F2a ── */

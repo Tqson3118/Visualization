@@ -9,4 +9,7 @@ public sealed class CodeSubmitResultDto
     public List<CodeTestCaseResultDto> Results { get; set; } = [];
     public int SubmissionId { get; set; }
     public DateTime SubmittedAt { get; set; }
+
+    /// <summary>Lỗi khi MÁY CHỦ chấm code (compile error / timeout / giới hạn) — null nếu chấm bình thường.</summary>
+    public string? Error { get; set; }
 }

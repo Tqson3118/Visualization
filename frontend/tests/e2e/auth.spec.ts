@@ -6,7 +6,7 @@
  *   - LoginView: input #email / #password (label for=...), nút submit "Đăng nhập".
  *   - RegisterView: 4 Input (.ui-input input theo thứ tự Họ tên/Email/Mật khẩu/Xác nhận),
  *     checkbox "Đồng ý...", nút submit "Đăng ký".
- *   - PathRedirectView: thẻ topic là RouterLink → role=link "Sắp xếp & Tìm kiếm" (mock GET /topics).
+ *   - PathRedirectView: thẻ topic role=button "Sắp xếp & Tìm kiếm" (mock GET /topics).
  */
 import { expect, test } from '@playwright/test';
 
@@ -45,7 +45,7 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
     await expect(page).toHaveURL(/\/path$/);
 
     // PathRedirectView hiển thị topic từ mock GET /topics
-    await expect(page.getByRole('link', { name: /Sắp xếp & Tìm kiếm/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' })).toBeVisible();
   });
 
   test('đăng nhập đúng → vào /path', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
 
     // Mock POST /auth/login → token + user → LoginView router.replace('/path')
     await expect(page).toHaveURL(/\/path$/);
-    await expect(page.getByRole('link', { name: /Sắp xếp & Tìm kiếm/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sắp xếp & Tìm kiếm' })).toBeVisible();
   });
 
   test('guard: /profile chưa đăng nhập → /login?redirect=... → sau login quay lại /profile', async ({ page }) => {

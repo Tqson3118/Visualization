@@ -6,6 +6,7 @@ import type { PagedResponse } from './types';
 export const GAMIFICATION_ENDPOINTS = {
   hearts: '/me/hearts',
   enterNode: (pathId: number, nodeId: number) => `/learning-path/${pathId}/nodes/${nodeId}/enter`,
+  learningPaths: `/learning-paths`,
   learningPath: (id: number) => `/learning-path/${id}`,
   finalTest: (id: number) => `/learning-path/${id}/final-test`,
   quests: '/me/quests',
@@ -133,6 +134,16 @@ export interface LearningPathNodeDto {
   requiredStages: { quiz: boolean; lab: boolean; code: boolean };
 }
 
+export interface LearningPathSummaryDto {
+  id: number;
+  title: string;
+  description: string;
+  topicId: number | null;
+  sortOrder: number;
+  progressPct: number;
+  nodeCount: number;
+}
+
 export interface LearningPathDto {
   id: number;
   name: string;
@@ -153,6 +164,10 @@ export async function enterNode(pathId: number, nodeId: number): Promise<{ sessi
     method: 'POST',
     url: GAMIFICATION_ENDPOINTS.enterNode(pathId, nodeId),
   });
+}
+
+export async function fetchLearningPaths(): Promise<LearningPathSummaryDto[]> {
+  return getData<LearningPathSummaryDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.learningPaths });
 }
 
 export async function fetchLearningPath(id: number): Promise<LearningPathDto> {
@@ -211,11 +226,7 @@ export async function fetchLeaderboard(params: { tab?: 'week' | 'level' | 'class
 }
 
 export async function fetchShopItems(): Promise<ShopItemDto[]> {
-  const items = await getData<any[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
-  return (items || []).map((item) => ({
-    ...item,
-    priceGems: item.priceGems ?? item.price ?? item.cost ?? 0,
-  }));
+  return getData<ShopItemDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.shopItems });
 }
 
 export async function buyItem(itemId: number): Promise<{ gemsLeft: number }> {

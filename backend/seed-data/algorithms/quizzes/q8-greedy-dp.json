@@ -1,0 +1,51 @@
+﻿[
+  {
+    "id": "q8g1",
+    "question": "Ý tưởng cốt lõi của thuật toán tham lam (greedy) là gì?",
+    "options": "[\"Khảo sát toàn bộ không gian lời giải\",\"Mỗi bước chọn phương án tốt nhất trước mắt, không quay lại\",\"Thử mọi tổ hợp rồi chọn tốt nhất\",\"Dùng đệ quy để thử mọi nhánh\"]",
+    "correctIndex": 1,
+    "explanation": "Greedy: ở mỗi bước chọn local best và không thay đổi quyết định cũ."
+  },
+  {
+    "id": "q8g2",
+    "question": "Coin change với hệ xu {1,3,4}, thối 6. Greedy cho kết quả gì?",
+    "options": "[\"2 đồng (3+3)\",\"3 đồng (4+1+1)\",\"4 đồng\",\"Không trả được\"]",
+    "correctIndex": 1,
+    "explanation": "Greedy lấy 4 rồi 1+1 = 3 đồng, nhưng tối ưu là 3+3 = 2 đồng → greedy SAI cho hệ này."
+  },
+  {
+    "id": "q8g3",
+    "question": "Khi nào greedy cho kết quả tối ưu?",
+    "options": "[\"Không bao giờ\",\"Khi lựa chọn local best luôn dẫn tới global best (tính tham lam an toàn)\",\"Chỉ khi dữ liệu nhỏ\",\"Chỉ khi mảng đã sắp xếp\"]",
+    "correctIndex": 1,
+    "explanation": "Greedy đúng khi bài toán có tính chất tham lam an toàn (coin chuẩn, activity selection, Huffman)."
+  },
+  {
+    "id": "q8g4",
+    "question": "Quy hoạch động (DP) giải quyết vấn đề gì mà đệ quy ngây thơ gặp phải?",
+    "options": "[\"Thiếu base case\",\"Tính lặp lại cùng một bài toán con (overlapping subproblems)\",\"Tràn số nguyên\",\"Không có vòng lặp\"]",
+    "correctIndex": 1,
+    "explanation": "DP nhớ kết quả các bài toán con đã tính để tái sử dụng — tránh tính lặp."
+  },
+  {
+    "id": "q8g5",
+    "question": "Fibonacci viết bằng đệ quy ngây thơ O(2ⁿ) sẽ thành bao nhiêu nếu dùng QHĐ (memo/tabulation)?",
+    "options": "[\"O(n)\",\"O(n²)\",\"O(log n)\",\"O(2ⁿ)\"]",
+    "correctIndex": 0,
+    "explanation": "QHĐ tính mỗi F(i) một lần → O(n) thay vì O(2ⁿ)."
+  },
+  {
+    "id": "q8g6",
+    "question": "Hai đặc tính để nhận diện bài toán áp dụng được QHĐ là gì?",
+    "options": "[\"Overlapping subproblems + Optimal substructure\",\"Recursive case + Base case\",\"Input + Output\",\"Time + Space\"]",
+    "correctIndex": 0,
+    "explanation": "Bài toán con lặp lại (overlapping subproblems) và lời giải tối ưu kết hợp từ bài toán con tối ưu (optimal substructure)."
+  },
+  {
+    "id": "q8g7",
+    "question": "Memoization (top-down) và Tabulation (bottom-up) khác nhau thế nào?",
+    "options": "[\"Một cái nhanh một cái chậm\",\"Top-down: đệ quy + nhớ kết quả; Bottom-up: tính từ nhỏ đến lớn bằng vòng lặp\",\"Một cái dùng mảng, một cái dùng cây\",\"Không khác nhau\"]",
+    "correctIndex": 1,
+    "explanation": "Memoization vẫn đệ quy nhưng lưu kết quả vào memo; Tabulation tính dần từ base case bằng vòng lặp."
+  }
+]

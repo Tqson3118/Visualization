@@ -1,0 +1,44 @@
+[
+  {
+    "id": "q1c1",
+    "question": "Thuật toán (algorithm) là gì?",
+    "options": "[\"Một ngôn ngữ lập trình\",\"Một chuỗi các bước có thứ tự, rõ ràng để giải quyết một bài toán\",\"Một phần cứng máy tính\",\"Một loại dữ liệu đặc biệt\"]",
+    "correctIndex": 1,
+    "explanation": "Thuật toán là chuỗi bước có thứ tự, rõ ràng, giải quyết một bài toán cụ thể — ví dụ như công thức nấu ăn."
+  },
+  {
+    "id": "q1c2",
+    "question": "Thuộc tính nào dưới đây KHÔNG phải tính chất bắt buộc của một thuật toán?",
+    "options": "[\"Xác định (mỗi bước rõ ràng)\",\"Hữu hạn (kết thúc sau một số bước)\",\"Chạy nhanh nhất có thể\",\"Có đầu ra (kết quả)\"]",
+    "correctIndex": 2,
+    "explanation": "\"Chạy nhanh\" là mục tiêu tối ưu, không phải tính chất bắt buộc. Bắt buộc gồm: xác định, hữu hạn, có đầu vào, có đầu ra, hiệu quả."
+  },
+  {
+    "id": "q1c3",
+    "question": "Mã giả (pseudocode) dùng để làm gì?",
+    "options": "[\"Chạy trực tiếp trên máy tính\",\"Mô tả logic thuật toán gần với tiếng người, không ràng buộc cú pháp\",\"Biên dịch thành file thực thi\",\"Mã hóa dữ liệu đầu vào\"]",
+    "correctIndex": 1,
+    "explanation": "Mã giả giúp tập trung vào logic trước khi viết code ngôn ngữ cụ thể — không chạy được trực tiếp."
+  },
+  {
+    "id": "q1c4",
+    "question": "Xếp chồng chén đĩa (lấy cái trên cùng trước) tương ứng với cấu trúc/ý tưởng nào?",
+    "options": "[\"Stack (LIFO)\",\"Queue (FIFO)\",\"Binary Search\",\"Merge Sort\"]",
+    "correctIndex": 0,
+    "explanation": "Lấy cái trên cùng trước = LIFO (Last In First Out) — chính là Stack."
+  },
+  {
+    "id": "q1c5",
+    "question": "Một quy trình mô tả: \"Thêm muối vừa đủ\" — vi phạm tính chất nào của thuật toán?",
+    "options": "[\"Hữu hạn\",\"Xác định (không mơ hồ)\",\"Có đầu vào\",\"Hiệu quả\"]",
+    "correctIndex": 1,
+    "explanation": "\"Vừa đủ\" là mơ hồ, không xác định được chính xác — vi phạm tính chất xác định (definite)."
+  },
+  {
+    "id": "q1c6",
+    "question": "Khi viết chương trình giải quyết một bài toán, thứ tự tư duy đúng là gì?",
+    "options": "[\"Viết code → chọn thuật toán → hiểu bài toán\",\"Hiểu bài toán → chọn thuật toán → viết chương trình\",\"Chọn thuật toán → hiểu bài toán → viết code\",\"Không cần hiểu bài toán\"]",
+    "correctIndex": 1,
+    "explanation": "Đúng quy trình: hiểu bài toán (đầu vào/đầu ra), chọn thuật toán (cách giải tối ưu), rồi viết chương trình."
+  }
+]

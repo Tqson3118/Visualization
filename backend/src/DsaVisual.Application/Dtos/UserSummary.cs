@@ -10,4 +10,6 @@ public sealed class UserSummary
     public string Role { get; set; } = string.Empty;    // STUDENT/TEACHER/TEACHER_PENDING/ADMIN
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int Xp { get; set; }                         // gamification — hiển thị ở /courses (khớp VDSA-main)
+    public int Level { get; set; }                      // 1 + floor(sqrt(xp/100)) — khớp GamificationService.ComputeLevel
 }

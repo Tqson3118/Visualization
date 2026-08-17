@@ -62,6 +62,12 @@ public static class SeedRunner
         // H-FINAL1: seed LearningPaths/Nodes TRƯỚC exercises → exercise lesson được gán NodeId/Stage
         // (Ladder filter GET /exercises?nodeId&stage — Exercise.NodeId/Stage, SDD §7.3.9).
         await SeedLearningPathsAsync(db, topics, lessons, adminId, now, logger, ct);
+        // SeedGrokking: import khóa "Grokking Data Structures" (backend/seed-data/grokking-course.json) —
+        // 4 topics + 16 lessons + path lớn + exercises; Ẩn 5 path cũ (IsActive=false).
+        await SeedGrokkingData.SeedAsync(db, adminId, now, logger, ct);
+        // SeedGrokkingAlgorithms: import khóa "Grokking Algorithms" (backend/seed-data/grokking-algorithms.json) —
+        // 8 topics + 32 lessons + path lớn + exercises + final test (lộ trình thứ 2, SortOrder=2).
+        await SeedGrokkingAlgorithmsData.SeedAsync(db, adminId, now, logger, ct);
         await SeedExercisesAsync(db, lessons, adminId, now, logger, ct);
         await SeedQuestsAsync(db, logger, ct);
         await SeedShopItemsAsync(db, logger, ct);
@@ -190,17 +196,7 @@ public static class SeedRunner
             var lesson = await db.Lessons.FirstOrDefaultAsync(l => l.TopicId == topic.Id && l.Title == seed.Title, ct);
             if (lesson is not null)
             {
-                // Nếu lesson tồn tại nhưng status khác Active, cập nhật lại (Task 4: Seed Lessons Status=2)
-                if (lesson.Status != LessonStatus.Active)
-                {
-                    lesson.Status = LessonStatus.Active;
-                    logger.LogInformation("Seed: Cập nhật lesson {Title} từ {OldStatus} sang Active", seed.Title, lesson.Status);
-                    await db.SaveChangesAsync(ct);
-                }
-                else
-                {
-                    logger.LogInformation("Seed: Lessons bỏ qua (đã tồn tại) {Title}", seed.Title);
-                }
+                logger.LogInformation("Seed: Lessons bỏ qua (đã tồn tại) {Title}", seed.Title);
                 result[seed.Title] = lesson;
                 continue;
             }

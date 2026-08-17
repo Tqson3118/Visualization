@@ -36,7 +36,7 @@ onBeforeUnmount(() => {
   if (syncTimer !== null) clearTimeout(syncTimer);
 });
 
-const heartsLabel = computed(() => `${gamification.hearts ?? 5}/${gamification.heartsMax ?? 5}`);
+const heartsLabel = computed(() => `${gamification.hearts}/${gamification.heartsMax}`);
 
 /** Mốc tim kế tiếp = lastHeartAt + (floor(elapsed/interval) + 1) * interval — khớp nextHeartInSeconds backend. */
 const nextHeartAtMs = computed(() => {

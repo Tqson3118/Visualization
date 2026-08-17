@@ -151,7 +151,7 @@ async function onSubmit(): Promise<void> {
     if (isTeacher) {
       registeredTeacher.value = true;
     } else {
-      await router.replace({ name: 'path' });
+      await router.replace({ name: 'courses' });
     }
   } catch (err) {
     if (err instanceof ApiError) {

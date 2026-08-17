@@ -39,6 +39,13 @@ public class GamificationController(
     }
 
     // ── Learning path ──
+    [HttpGet("learning-paths")]
+    public async Task<ActionResult<List<LearningPathSummaryDto>>> GetLearningPaths(CancellationToken ct)
+    {
+        var result = await _service.GetLearningPathsAsync(CurrentUserId(), ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     [HttpGet("learning-path/{id:int}")]
     public async Task<ActionResult<LearningPathMapDto>> GetLearningPath([FromRoute] int id, CancellationToken ct)
     {

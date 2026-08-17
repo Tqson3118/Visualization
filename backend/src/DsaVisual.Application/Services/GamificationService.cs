@@ -48,6 +48,42 @@ public sealed class GamificationService(
 
     // ── Learning path ─────────────────────────────────────────
 
+    /// <summary>Danh sách path ACTIVE (selector /path) kèm tiến độ user + số node (FR-2.10).</summary>
+    public async Task<Result<List<LearningPathSummaryDto>>> GetLearningPathsAsync(int userId, CancellationToken ct)
+    {
+        var paths = await db.LearningPaths.AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.SortOrder)
+            .Select(p => new { p.Id, p.Title, p.Description, p.TopicId, p.SortOrder, p.IsActive })
+            .ToListAsync(ct);
+
+        var summaries = new List<LearningPathSummaryDto>();
+        foreach (var p in paths)
+        {
+            var nodes = await db.LearningPathNodes.AsNoTracking()
+                .Where(n => n.PathId == p.Id)
+                .OrderBy(n => n.SortOrder)
+                .Select(n => n.Id)
+                .ToListAsync(ct);
+
+            var passed = nodes.Count == 0 ? 0 : await db.UserNodeProgress.AsNoTracking()
+                .CountAsync(up => up.UserId == userId && up.Status == 2 && nodes.Contains(up.NodeId), ct);
+
+            summaries.Add(new LearningPathSummaryDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Description = p.Description ?? string.Empty,
+                TopicId = p.TopicId,
+                SortOrder = p.SortOrder,
+                ProgressPct = nodes.Count == 0 ? 0 : (int)Math.Round(passed * 100.0 / nodes.Count),
+                NodeCount = nodes.Count
+            });
+        }
+
+        return Result<List<LearningPathSummaryDto>>.Ok(summaries);
+    }
+
     public async Task<Result<LearningPathMapDto>> GetLearningPathAsync(int userId, int pathId, CancellationToken ct)
     {
         var path = await db.LearningPaths.AsNoTracking()

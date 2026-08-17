@@ -3,7 +3,7 @@
 // Render bằng shadcn-vue Dialog (DialogScrollContent để giữ scroll khi nội dung dài).
 import { messages } from '@/i18n/vi';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
+import { Dialog, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
 
 const props = withDefaults(
   defineProps<{
@@ -47,9 +47,6 @@ function onPointerDownOutside(event: Event): void {
       <DialogHeader>
         <DialogTitle v-if="title">{{ title }}</DialogTitle>
         <DialogTitle v-else class="sr-only">{{ messages.common.close }}</DialogTitle>
-        <!-- DialogDescription bắt buộc (reka-ui warn "Missing Description" nếu thiếu); sr-only vì title đã mô tả -->
-        <DialogDescription v-if="title" class="sr-only">{{ title }}</DialogDescription>
-        <DialogDescription v-else class="sr-only">{{ messages.common.close }}</DialogDescription>
       </DialogHeader>
       <div>
         <slot />

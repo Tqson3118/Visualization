@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q4s1",
+    "question": "Bubble Sort so sánh và có thể đổi chỗ những phần tử nào mỗi lượt?",
+    "options": "[\"Hai phần tử bất kỳ trong mảng\",\"Hai phần tử liền kề nhau\",\"Phần tử đầu và cuối\",\"Phần tử giữa và cuối\"]",
+    "correctIndex": 1,
+    "explanation": "Bubble Sort duyệt mảng, so sánh từng cặp LIỀN KỀ và đổi chỗ nếu sai thứ tự — phần tử lớn 'nổi' lên cuối."
+  },
+  {
+    "id": "q4s2",
+    "question": "Selection Sort mỗi lượt làm gì?",
+    "options": "[\"Đổi chỗ mọi cặp liền kề\",\"Tìm phần tử nhỏ nhất trong vùng chưa sắp xếp rồi đưa lên đầu\",\"Chia mảng đôi rồi trộn\",\"Chọn pivot phân hoạch\"]",
+    "correctIndex": 1,
+    "explanation": "Selection Sort mỗi lượt tìm MIN trong vùng chưa sắp xếp rồi đưa lên đầu vùng đó."
+  },
+  {
+    "id": "q4s3",
+    "question": "Best case của Insertion Sort là khi nào?",
+    "options": "[\"Mảng đã được sắp xếp tăng dần\",\"Mảng giảm dần hoàn toàn\",\"Mảng ngẫu nhiên\",\"Mảng có nhiều phần tử trùng\"]",
+    "correctIndex": 0,
+    "explanation": "Mảng đã sắp xếp → chỉ duyệt, không cần dịch chuyển → O(n)."
+  },
+  {
+    "id": "q4s4",
+    "question": "Độ phức tạp thời gian trung bình của Bubble/Selection/Insertion Sort là gì?",
+    "options": "[\"O(n)\",\"O(n log n)\",\"O(n²)\",\"O(log n)\"]",
+    "correctIndex": 2,
+    "explanation": "Cả ba thuật toán sắp xếp cơ bản đều O(n²) trung bình — chậm với dữ liệu lớn."
+  },
+  {
+    "id": "q4s5",
+    "question": "Insertion Sort mô phỏng cách nào trong đời sống?",
+    "options": "[\"Xếp bài tây trên tay\",\"Tìm đồ trong nhà\",\"Xếp hàng mua vé\",\"Lật từ điển\"]",
+    "correctIndex": 0,
+    "explanation": "Insertion Sort giống xếp bài: lấy lá mới, dịch các lá lớn hơn sang phải, chèn vào đúng chỗ."
+  },
+  {
+    "id": "q4s6",
+    "question": "Ưu điểm chính của Selection Sort so với Bubble Sort là gì?",
+    "options": "[\"Chạy nhanh hơn về độ phức tạp\",\"Số phép đổi chỗ ít hơn hẳn\",\"Ổn định hơn\",\"Không cần mảng\"]",
+    "correctIndex": 1,
+    "explanation": "Selection Sort đổi chỗ O(n) lần (mỗi lượt 1 lần) trong khi Bubble Sort đổi chỗ O(n²) lần."
+  },
+  {
+    "id": "q4s7",
+    "question": "Khi nào người ta dùng Insertion Sort trong các thư viện sắp xếp hiện đại?",
+    "options": "[\"Cho mảng lớn bất kỳ\",\"Cho các mảng con nhỏ (n < ~20) như bước tinh chỉnh\",\"Chỉ khi mảng rỗng\",\"Không bao giờ\"]",
+    "correctIndex": 1,
+    "explanation": "Hybrid sort: dùng Quick/Merge cho mảng lớn, chuyển Insertion Sort cho mảng con nhỏ vì chi phí cố định thấp."
+  }
+]

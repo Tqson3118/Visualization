@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q6h1",
+    "question": "Trong max-heap, phần tử nào luôn nằm ở gốc?",
+    "options": "[\"Phần tử nhỏ nhất\",\"Phần tử lớn nhất\",\"Phần tử ở giữa\",\"Phần tử đầu tiên được chèn\"]",
+    "correctIndex": 1,
+    "explanation": "Max-heap: mỗi node ≥ các con → gốc là phần tử lớn nhất."
+  },
+  {
+    "id": "q6h2",
+    "question": "Heap được lưu trong mảng: node tại chỉ số i có con trái ở đâu?",
+    "options": "[\"Chỉ số i - 1\",\"Chỉ số 2i + 1\",\"Chỉ số 2i + 2\",\"Chỉ số i + 1\"]",
+    "correctIndex": 1,
+    "explanation": "Con trái tại 2i+1, con phải tại 2i+2, cha tại floor((i-1)/2)."
+  },
+  {
+    "id": "q6h3",
+    "question": "Độ phức tạp của thao tác insert (bubble up) vào heap là gì?",
+    "options": "[\"O(1)\",\"O(log n)\",\"O(n)\",\"O(n²)\"]",
+    "correctIndex": 1,
+    "explanation": "Chèn vào cuối rồi đẩy ngược lên theo chiều cao cây → O(log n)."
+  },
+  {
+    "id": "q6h4",
+    "question": "Heapify (dựng heap từ mảng bất kỳ) có độ phức tạp là gì?",
+    "options": "[\"O(n log n)\",\"O(n)\",\"O(n²)\",\"O(log n)\"]",
+    "correctIndex": 1,
+    "explanation": "Hầu hết node là lá không cần di chuyển → tổng công việc tuyến tính → O(n)."
+  },
+  {
+    "id": "q6h5",
+    "question": "Heap Sort có độ phức tạp thời gian và bộ nhớ là gì?",
+    "options": "[\"O(n log n) thời gian, O(n) bộ nhớ\",\"O(n log n) thời gian, O(1) bộ nhớ\",\"O(n²) thời gian, O(1) bộ nhớ\",\"O(n) thời gian, O(n) bộ nhớ\"]",
+    "correctIndex": 1,
+    "explanation": "Heap Sort: O(n log n) thời gian (không có worst case tệ) và O(1) bộ nhớ phụ vì sắp tại chỗ."
+  },
+  {
+    "id": "q6h6",
+    "question": "Để tìm K phần tử LỚN NHẤT trong n phần tử (K rất nhỏ), ta duy trì cấu trúc nào?",
+    "options": "[\"Max-heap kích thước n\",\"Min-heap kích thước K\",\"Mảng chưa sắp xếp\",\"Stack\"]",
+    "correctIndex": 1,
+    "explanation": "Min-heap kích thước K: đỉnh heap là 'nhỏ nhất trong top-K', nếu gặp phần tử lớn hơn thì thay. Độ phức tạp O(n log K)."
+  },
+  {
+    "id": "q6h7",
+    "question": "Thao tác extract (sift down) trong min-heap trả về phần tử gì và làm gì tiếp theo?",
+    "options": "[\"Trả về phần tử nhỏ nhất, đưa phần tử cuối lên gốc rồi đẩy xuống\",\"Trả về phần tử lớn nhất rồi dừng\",\"Trả về phần tử giữa\",\"Không trả về gì\"]",
+    "correctIndex": 0,
+    "explanation": "Extract lấy gốc (min), thay bằng phần tử cuối, sift down để duy trì tính chất đống."
+  }
+]

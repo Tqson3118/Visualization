@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q2b1",
+    "question": "Độ phức tạp Big-O của tìm kiếm nhị phân (binary search) là gì?",
+    "options": "[\"O(n)\",\"O(log n)\",\"O(n²)\",\"O(1)\"]",
+    "correctIndex": 1,
+    "explanation": "Mỗi bước chia đôi dữ liệu → số bước = log₂(n) → O(log n)."
+  },
+  {
+    "id": "q2b2",
+    "question": "Đoạn code sau có độ phức tạp Big-O là bao nhiêu? for (i=0; i<n; i++) for (j=0; j<n; j++) console.log(i*j)",
+    "options": "[\"O(n)\",\"O(log n)\",\"O(n²)\",\"O(n³)\"]",
+    "correctIndex": 2,
+    "explanation": "Hai vòng lặp lồng nhau, mỗi vòng n lần → n × n = O(n²)."
+  },
+  {
+    "id": "q2b3",
+    "question": "Thứ tự từ NHANH đến CHẬM của các Big-O nào sau đây là đúng?",
+    "options": "[\"O(n²) < O(n log n) < O(n) < O(log n)\",\"O(1) < O(log n) < O(n) < O(n log n) < O(n²)\",\"O(n) < O(1) < O(n²) < O(log n)\",\"O(log n) < O(1) < O(n²) < O(n)\"]",
+    "correctIndex": 1,
+    "explanation": "Đúng thứ tự tăng trưởng: O(1) < O(log n) < O(n) < O(n log n) < O(n²)."
+  },
+  {
+    "id": "q2b4",
+    "question": "Thuật toán có độ phức tạp O(n log n) thường gặp ở đâu?",
+    "options": "[\"Tìm kiếm nhị phân\",\"Sắp xếp hiệu quả (Merge/Quick Sort)\",\"Truy cập phần tử mảng\",\"Tìm kiếm tuyến tính\"]",
+    "correctIndex": 1,
+    "explanation": "Merge Sort và Quick Sort có trung bình O(n log n) — chuẩn vàng cho sắp xếp."
+  },
+  {
+    "id": "q2b5",
+    "question": "Độ phức tạp KHÔNG GIAN của hàm sau là gì? function copy(arr){ const r=[]; for (const x of arr) r.push(x); return r; }",
+    "options": "[\"O(1)\",\"O(log n)\",\"O(n)\",\"O(n²)\"]",
+    "correctIndex": 2,
+    "explanation": "Tạo mảng r có n phần tử → bộ nhớ phụ O(n)."
+  },
+  {
+    "id": "q2b6",
+    "question": "Vì sao chạy thử (benchmark) không đủ để đánh giá thuật toán?",
+    "options": "[\"Vì code luôn chạy giống nhau mọi máy\",\"Vì kết quả phụ thuộc máy và dữ liệu cụ thể\",\"Vì máy tính không đo được thời gian\",\"Vì benchmark không bao giờ đúng\"]",
+    "correctIndex": 1,
+    "explanation": "Benchmark phụ thuộc máy, dữ liệu, và không mở rộng được — Big-O khách quan hơn."
+  },
+  {
+    "id": "q2b7",
+    "question": "Thuật toán O(n²) xử lý mảng 1000 phần tử ước tính làm bao nhiêu phép toán?",
+    "options": "[\"~1000\",\"~2000\",\"~1.000.000\",\"~100.000\"]",
+    "correctIndex": 2,
+    "explanation": "n² = 1000 × 1000 = 1.000.000 phép toán."
+  }
+]

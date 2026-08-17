@@ -30,27 +30,3 @@ Thumbs.db
 
 # Tooling artifacts
 .playwright-mcp/
-
-# Git worktrees phụ (session song song — pre-approve workspace)
-trees/
-
-# Audit session state logs (PROMPT_M_STATE.md etc — local only)
-session/
-
-# FE artifacts (ПРОМПТ_M §23 — generated logs/screenshots)
-frontend/test-results/
-frontend/*.txt
-frontend/public/screenshots/
-# Evidence tam cua cac phien (khong commit)
-docs/work/
-frontend/public/screenshots/
-# Temp capture scripts
-frontend/capture_current_review.mjs
-frontend/scripts/capture-after.cjs
-frontend/scripts/capture-screenshots.cjs
-source/capture_all.cjs
-frontend/docs/
-sim-catalog-final.png
-sim-snapshot.txt
-test_api.py
-tailieu/BaoCaoDoAn_new.docx

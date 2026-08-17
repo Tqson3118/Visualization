@@ -40,12 +40,6 @@ export class ApiError extends Error {
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
-/** Chống redirect storm: nhiều request 401 song song → chỉ redirect /login 1 lần (fix 14/08). */
-let redirectedToLogin = false;
-window.addEventListener('beforeunload', () => {
-  redirectedToLogin = false;
-});
-
 export const client = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
@@ -112,16 +106,10 @@ client.interceptors.response.use(
         original.headers.Authorization = `Bearer ${newToken}`;
         return client(original as AxiosRequestConfig);
       }
-      // Refresh thất bại → logout + redirect về /login (CHỈ 1 lần — tránh storm logout+redirect)
+      // Refresh thất bại → logout + redirect về /login
       await auth.logout();
-      // Đã ở trang auth (login/register) thì KHÔNG redirect nữa — tránh vòng lặp
-      // /login?redirect=/login?redirect=... (fix BLOCKER redirect-loop 16/08, PROMPT_M_STATE).
-      const onAuthPage = ['/login', '/register'].includes(window.location.pathname);
-      if (!redirectedToLogin && !onAuthPage) {
-        redirectedToLogin = true;
-        const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.assign(`/login?redirect=${redirect}`);
-      }
+      const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.assign(`/login?redirect=${redirect}`);
       return Promise.reject(toApiError(error));
     }
 

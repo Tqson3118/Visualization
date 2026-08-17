@@ -1,5 +1,4 @@
 using Asp.Versioning;
-using DsaVisual.Api.Dtos;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
 using DsaVisual.Application.Validators;
@@ -89,7 +88,7 @@ public class ExercisesController(
     {
         if (file is null || file.Length == 0)
         {
-            return BadRequest(ErrorResponseDto.Create("UPLOAD_INVALID_TYPE", "Thiếu file CSV", "file"));
+            return BadRequest(new { error = new { code = "UPLOAD_INVALID_TYPE", message = "Thiếu file CSV", field = "file", details = Array.Empty<string>() } });
         }
 
         using var reader = new StreamReader(file.OpenReadStream());

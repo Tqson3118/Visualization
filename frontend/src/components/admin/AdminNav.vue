@@ -5,7 +5,7 @@
 import { RouterLink } from 'vue-router';
 
 defineProps<{
-  active: 'users' | 'stats' | 'settings' | 'content' | 'ladder';
+  active: 'users' | 'stats' | 'settings' | 'content' | 'ladder' | 'feedback';
 }>();
 
 const LINKS = [
@@ -13,6 +13,7 @@ const LINKS = [
   { key: 'stats', label: 'Thống kê', to: 'admin-stats' },
   { key: 'content', label: 'Nội dung', to: 'admin-content' },
   { key: 'ladder', label: 'Soạn Ladder', to: 'admin-ladder' },
+  { key: 'feedback', label: 'Ý kiến học viên', to: 'admin-feedback' },
   { key: 'settings', label: 'Cấu hình', to: 'admin-settings' },
 ] as const;
 </script>

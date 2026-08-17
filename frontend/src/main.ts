@@ -4,6 +4,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { useAuthStore } from '@/stores/auth';
+import BaseIcon from '@/shared/components/BaseIcon.vue';
 // Thứ tự CSS (Phase 1a G): tokens → tailwind → global.
 // tokens.css: biến --color-* legacy (component scoped cũ).
 // tailwind.css: @import "tailwindcss" + tw-animate-css + theme OKLCH shadcn + font.
@@ -13,7 +14,10 @@ import './styles/tokens.css';
 import './styles/tailwind.css';
 import './styles/palettes.css';
 import 'lenis/dist/lenis.css';
+import './styles/vdsa-theme.css';
 import './styles/global.css';
+// Sandbox theme (bê từ VisualizationDSA3) — scoped .sandbox-theme, chỉ 3 trang sandbox dùng
+import './styles/sandbox-theme.css';
 
 /**
  * Boot app (ADR-004, bug P1 #1 — SETUP_TODO §6.1):
@@ -26,19 +30,19 @@ async function bootstrap(): Promise<void> {
   const pinia = createPinia();
   app.use(pinia);
 
+  // Sandbox từ VisualizationDSA3 (sorting/searching/graph) dùng <BaseIcon> GLOBAL trong template
+  // (nguồn đăng ký ở main.ts) — các file này không import BaseIcon trực tiếp.
+  app.component('BaseIcon', BaseIcon);
+
   const auth = useAuthStore(pinia);
-  // Chỉ auto-refresh khi có hint session (login/refresh trước đó thành công) —
-  // tránh POST /auth/refresh 401 + console error trên mọi page load lúc logged-out (finding R2-04).
-  if (localStorage.getItem(auth.SESSION_HINT_KEY)) {
-    try {
-      const token = await auth.refresh();
-      if (token) {
-        // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
-        await auth.fetchMe();
-      }
-    } catch {
-      // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
+  try {
+    const token = await auth.refresh();
+    if (token) {
+      // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
+      await auth.fetchMe();
     }
+  } catch {
+    // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
   }
 
   app.use(router);

@@ -1,6 +1,4 @@
-using Asp.Versioning;
-using DsaVisual.Api.Dtos;
-using DsaVisual.Application.Common;
+﻿using Asp.Versioning;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -114,11 +112,16 @@ public class LessonsController(ILessonService service) : ApiControllerBase
     {
         if (!request.Approve && string.IsNullOrWhiteSpace(request.Reason))
         {
-            return BadRequest(ErrorResponseDto.Create(
-                ErrorCodes.VALIDATION_FAILED,
-                "Phải nhập lý do khi từ chối duyệt bài học",
-                "reason",
-                [new ErrorDetailDto("reason", "Phải nhập lý do khi từ chối duyệt bài học")]));
+            return BadRequest(new
+            {
+                error = new
+                {
+                    code = "VALIDATION_FAILED",
+                    message = "Phải nhập lý do khi từ chối duyệt bài học",
+                    field = "reason",
+                    details = new[] { "Phải nhập lý do khi từ chối duyệt bài học" }
+                }
+            });
         }
 
         var result = await _service.ReviewAsync(CurrentUserId(), id, request, ct);

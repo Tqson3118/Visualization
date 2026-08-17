@@ -20,5 +20,12 @@ public sealed class CodeSubmitRequest
     /// </summary>
     public string? ClientRequestId { get; set; }
 
+    /// <summary>
+    /// Id của task con (bài ASM nhiều task / kiểm tra cuối — ConfigJson dạng array).
+    /// Khi có: MÁY CHỦ tự chấm code (Jint) — bỏ qua Score/Passed/Total client khai (nghiệp vụ 15/08).
+    /// Fallback: khớp theo entryFunction nếu không tìm thấy id (seed tạo id mới mỗi lần chạy).
+    /// </summary>
+    public string? TaskId { get; set; }
+
     public List<CodeTestCaseResultDto> Results { get; set; } = [];
 }

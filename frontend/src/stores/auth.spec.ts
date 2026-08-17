@@ -26,6 +26,8 @@ const mockUser: UserSummary = {
   role: 'STUDENT',
   avatarUrl: null,
   createdAt: '2026-08-01T08:00:00Z',
+  xp: 100,
+  level: 2,
 };
 
 const mockLoginResponse: LoginResponse = {

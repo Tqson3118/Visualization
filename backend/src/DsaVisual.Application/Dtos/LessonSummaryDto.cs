@@ -19,7 +19,6 @@ public sealed class LessonSummaryDto
     public int TopicId { get; set; }
     public int SortOrder { get; set; }
     public string Status { get; set; } = LessonStatus.Draft.ToString();
-    public string? RejectionReason { get; set; }
     public bool IsClassOnly { get; set; }
     public DateTime? PublishedAt { get; set; }
     public int SimulationCount { get; set; }

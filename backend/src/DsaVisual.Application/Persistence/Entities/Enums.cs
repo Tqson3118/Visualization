@@ -68,3 +68,19 @@ public enum CodeRunStatus
     Error = 3,
     Timeout = 4
 }
+
+/// <summary>Loại ý kiến học viên gửi giảng viên về khóa học.</summary>
+public enum CourseFeedbackType
+{
+    Suggestion = 0,   // Góp ý
+    Bug = 1,          // Báo lỗi
+    Request = 2       // Đề xuất nội dung
+}
+
+/// <summary>Trạng thái xử lý ý kiến học viên (pattern BugReport — SDD §7.3.22).</summary>
+public enum CourseFeedbackStatus
+{
+    New = 0,       // Mới — chưa ai đọc
+    Read = 1,      // Đã đọc
+    Resolved = 2   // Đã xử lý / đã trả lời
+}

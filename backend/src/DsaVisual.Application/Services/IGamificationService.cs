@@ -10,6 +10,7 @@ namespace DsaVisual.Application.Services;
 public interface IGamificationService
 {
     Task<Result<HeartsStatusDto>> GetHeartsAsync(int userId, CancellationToken ct);
+    Task<Result<List<LearningPathSummaryDto>>> GetLearningPathsAsync(int userId, CancellationToken ct);
     Task<Result<LearningPathMapDto>> GetLearningPathAsync(int userId, int pathId, CancellationToken ct);
     Task<Result<NodeEnterResultDto>> EnterNodeAsync(int userId, int pathId, int nodeId, NodeEnterRequest? request, CancellationToken ct);
     Task<Result<List<QuestionDto>>> GetFinalTestAsync(int userId, int pathId, CancellationToken ct);

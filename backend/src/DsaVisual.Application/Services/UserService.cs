@@ -1,6 +1,6 @@
+﻿using System.Net.Mail;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
-using DsaVisual.Application.Options;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -316,7 +316,7 @@ public sealed class UserService(
     /// </summary>
     private async Task SendTeacherDecisionEmailAsync(User user, bool approved, string? reason, CancellationToken ct)
     {
-        var emailSmtp = EmailOptions.FromConfiguration(config);
+        var smtpHost = config["DSA:Email:SmtpHost"];
         var subject = approved
             ? "Tài khoản giảng viên của bạn đã được duyệt — DSA Visual"
             : "Yêu cầu đăng ký giảng viên đã bị từ chối — DSA Visual";
@@ -331,7 +331,7 @@ public sealed class UserService(
               (string.IsNullOrWhiteSpace(reason) ? string.Empty : $"\nLý do: {reason}") +
               "\n\n— DSA Visual";
 
-        if (string.IsNullOrWhiteSpace(emailSmtp.SmtpHost))
+        if (string.IsNullOrWhiteSpace(smtpHost))
         {
             // SMTP chưa cấu hình → ghi log dev, KHÔNG block luồng (SDD §5.6)
             logger.LogWarning("SMTP chưa cấu hình — email duyệt/từ chối giảng viên (dev) cho user {UserId}: {Subject}",
@@ -341,9 +341,12 @@ public sealed class UserService(
 
         try
         {
-            using var smtp = SmtpClientFactory.Create(emailSmtp);
+            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025))
+            {
+                Timeout = 10_000   // timeout ngắn — không giữ request (GP-T2)
+            };
             await smtp.SendMailAsync(
-                emailSmtp.From ?? "no-reply@dsa-visual.local",
+                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
                 user.Email,
                 subject,
                 body, ct);

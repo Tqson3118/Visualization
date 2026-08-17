@@ -1,0 +1,19 @@
+{
+  "id": "a1-attendance",
+  "title": "Điểm danh lớp học",
+  "description": "MODULE 1 — Nhập môn Thuật toán.\n\nCô giáo có danh sách điểm danh là một mảng các tên học sinh (chuỗi). Viết hàm `countStudents(names)` trả về SỐ học sinh trong danh sách — đếm tuần tự từng phần tử (thuật toán duyệt tuyến tính O(n)).\n\n- Danh sách rỗng trả về 0.\n- Không được dùng thuộc tính `length` của mảng — hãy tự đếm bằng vòng lặp để luyện tư duy duyệt từng bước.\n\nVí dụ: `countStudents([\"An\", \"Binh\", \"Chi\"])` → `3`.",
+  "initialCode": "function countStudents(names) {\n  let count = 0;\n  // TODO: duyệt từng phần tử và đếm\n  // Gợi ý: for (const name of names) { ... }\n  return count;\n}",
+  "entryFunction": "countStudents",
+  "testCases": [
+    { "name": "countStudents: 3 học sinh", "input": "[[\"An\",\"Binh\",\"Chi\"]]", "expectedOutput": "3" },
+    { "name": "countStudents: rỗng", "input": "[[]]", "expectedOutput": "0" },
+    { "name": "countStudents: 1 học sinh", "input": "[[\"Dat\"]]", "expectedOutput": "1" },
+    { "name": "countStudents: 6 học sinh", "input": "[[\"A\",\"B\",\"C\",\"D\",\"E\",\"F\"]]", "expectedOutput": "6" },
+    { "name": "countStudents: tên trùng vẫn đếm", "input": "[[\"An\",\"An\",\"An\"]]", "expectedOutput": "3" }
+  ],
+  "hints": [
+    "Duyệt từng phần tử bằng vòng lặp `for (const x of names)` và tăng biến đếm lên 1.",
+    "Danh sách rỗng: vòng lặp không chạy lần nào → trả về 0.",
+    "Độ phức tạp: O(n) thời gian, O(1) bộ nhớ."
+  ]
+}

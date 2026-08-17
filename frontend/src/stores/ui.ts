@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
 import { toast } from '@/lib/toast';
@@ -12,32 +12,38 @@ export interface ModalState {
   resolve: ((value: boolean) => void) | null;
 }
 
+const THEME_KEY = 'dsa.theme';
+
+function readStoredTheme(): 'light' | 'dark' {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    /* localStorage unavailable — fallback dark */
+  }
+  return 'dark';
+}
+
 /** Store ui theo SDD §3.2 — modal, sidebar, theme. Toast: G-F1b delegate sang vue-sonner. */
 export const useUiStore = defineStore('ui', () => {
   const modalState = ref<ModalState>({ open: false, kind: null, payload: null, resolve: null });
   const sidebarOpen = ref(false);
+  const theme = ref<'light' | 'dark'>(readStoredTheme());
 
-  // FIX A1 — check giao diện khởi tạo bền vững (USER_GUIDE §3.15):
-  // ưu tiên localStorage 'dsa_theme' nếu hợp lệ; không → prefers-color-scheme;
-  // toggleTheme() ghi localStorage để giữ lựa chọn qua các phiên.
-  const THEME_STORAGE_KEY = 'dsa_theme';
-
-  function resolveInitialTheme(): 'light' | 'dark' {
-    if (typeof window !== 'undefined') {
+  /** Áp class .dark + color-scheme lên <html> mỗi khi theme đổi (dark mặc định — ghi đè light cũ). */
+  watch(
+    theme,
+    (value) => {
+      document.documentElement.classList.toggle('dark', value === 'dark');
+      document.documentElement.style.colorScheme = value;
       try {
-        const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-        if (stored === 'light' || stored === 'dark') return stored;
+        localStorage.setItem(THEME_KEY, value);
       } catch {
-        /* localStorage không khả dụng — fallback xuống prefers-color-scheme */
+        /* ignore */
       }
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
-    }
-    return 'light';
-  }
-
-  const theme = ref<'light' | 'dark'>(resolveInitialTheme());
+    },
+    { immediate: true },
+  );
 
   /** showToast — giữ API cũ (ui.showToast(msg, type)) nhưng render bằng vue-sonner. */
   function showToast(message: string, type: ToastType = 'info', _durationMs = 4000): number {
@@ -61,13 +67,6 @@ export const useUiStore = defineStore('ui', () => {
 
   function toggleTheme(): void {
     theme.value = theme.value === 'light' ? 'dark' : 'light';
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, theme.value);
-      } catch {
-        /* bỏ qua nếu localStorage không khả dụng */
-      }
-    }
   }
 
   return {
