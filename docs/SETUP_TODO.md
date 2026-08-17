@@ -123,7 +123,7 @@
 
 | # | Việc | Ghi chú | Trạng thái |
 |---|---|---|---|
-| 1 | SMTP thật khi deploy: đặt `DSA__Email__SmtpHost/Port/From` (mục §1.3 — SMTP trường/Gmail App Password) — dev hiện dùng **MailHog** (docker-compose, SMTP localhost:1025, UI http://localhost:8025) | 2FA + forgot-password đều gửi qua SMTP này; SMTP thiếu → mã OTP/link ghi trong **log dev** (KHÔNG block luồng — SDD §5.6) — không dùng cho production | [ ] |
+| 1 | Gmail/SMTP thật khi deploy: env `DSA__Email__SmtpHost=smtp.gmail.com` · `SmtpPort=587` · `UseMailHog=false` · `SmtpUsername=<email>` · `SmtpPassword=<Gmail App Password>` (mục §1.3) — code bật **AUTH** (NetworkCredential) + **TLS** (EnableSsl) chỉ khi `UseMailHog=false`; KHÔNG ghi password vào file tracked/git/log/report — dev dùng **MailHog** (docker-compose, localhost:1025, UI :8025, `UseMailHog=true`) | 2FA + forgot-password + duyệt/từ chối GV đều gửi qua SMTP này; SMTP thiếu/không AUTH → log warning dev (KHÔNG block luồng — SDD §5.6); Production mặc định Gmail AUTH (`UseMailHog=false`) — creds hoàn toàn qua env | [ ] |
 | 2 | (Tùy chọn) Luồng 2FA bước 2 khi đăng nhập (SDD Màn Login bước 2: tài khoản bật 2FA → yêu cầu mã trước khi cấp token; sai 3 lần khóa 10 phút; ghi nhớ thiết bị 30 ngày) | GP-T2 mới triển khai phần BẬT/TẮT 2FA qua email (OtpCodes + send/verify); phần chặn đăng nhập khi thiếu mã là task backend riêng (mở rộng LoginAsync + purpose "login") | [ ] |
 | 3 | (Tùy chọn) FE Màn N-1 (Cài đặt bảo mật): UI bật/tắt 2FA gọi PUT /auth/2fa + POST /auth/2fa/send + /verify | Contract đã có trong API_REFERENCE §4.12 (v1.3) | [ ] |
 
