@@ -2,7 +2,14 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import * as gamificationApi from '@/api/gamification';
-import type { AchievementDto, InventoryItemDto, PremiumStatusDto, QuestDto, StreakDto } from '@/api/gamification';
+import type {
+  AchievementDto,
+  GamificationSummaryDto,
+  InventoryItemDto,
+  PremiumStatusDto,
+  QuestDto,
+  StreakDto,
+} from '@/api/gamification';
 
 /** Store gamification theo SDD §3.2 — Module J (ADR-011) — triển khai thật với API. */
 export const useGamificationStore = defineStore('gamification', () => {
@@ -14,12 +21,20 @@ export const useGamificationStore = defineStore('gamification', () => {
   const freezeAvailable = ref(0);
   const xp = ref(0);
   const level = ref(1);
+  /** Tổng hợp level/XP từ GET /me/gamification — nguồn số liệu THẬT cho các card gamification. */
+  const summary = ref<GamificationSummaryDto | null>(null);
   const quests = ref<QuestDto[]>([]);
   const inventory = ref<InventoryItemDto[]>([]);
   const achievements = ref<AchievementDto[]>([]);
   const premium = ref<PremiumStatusDto | null>(null);
   const loading = ref(false);
 
+  /** XP đã tích lũy trong level hiện tại (từ summary — 0 khi chưa tải). */
+  const xpIntoLevel = computed(() => summary.value?.xpIntoLevel ?? 0);
+  /** XP cần để lên level tiếp theo (từ summary). */
+  const xpForNextLevel = computed(() => summary.value?.xpForNextLevel ?? 100);
+  /** Phần trăm tiến tới level kế (0-100). */
+  const levelProgressPct = computed(() => summary.value?.levelProgressPct ?? 0);
   const heartsPercent = computed(() =>
     heartsMax.value === 0 ? 0 : Math.round((hearts.value / heartsMax.value) * 100),
   );
@@ -34,6 +49,17 @@ export const useGamificationStore = defineStore('gamification', () => {
       lastHeartAt.value = status.lastHeartAt;
     } catch {
       // API lỗi → giữ giá trị cục bộ (fallback 5 tim)
+    }
+  }
+
+  /** Nạp level/XP từ server (nguồn thật — không cộng XP ở FE). */
+  async function fetchSummary(): Promise<void> {
+    try {
+      summary.value = await gamificationApi.fetchGamificationSummary();
+      xp.value = summary.value.xp;
+      level.value = summary.value.level;
+    } catch {
+      summary.value = null;
     }
   }
 
@@ -109,7 +135,7 @@ export const useGamificationStore = defineStore('gamification', () => {
   async function fetchAll(): Promise<void> {
     loading.value = true;
     try {
-      await Promise.allSettled([fetchHearts(), fetchStreak(), fetchPremium()]);
+      await Promise.allSettled([fetchHearts(), fetchSummary(), fetchStreak(), fetchPremium()]);
     } finally {
       loading.value = false;
     }
@@ -124,6 +150,10 @@ export const useGamificationStore = defineStore('gamification', () => {
     freezeAvailable,
     xp,
     level,
+    summary,
+    xpIntoLevel,
+    xpForNextLevel,
+    levelProgressPct,
     quests,
     inventory,
     achievements,
@@ -134,6 +164,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     isPremium,
     fetchAll,
     fetchHearts,
+    fetchSummary,
     enterNode,
     fetchQuests,
     claimQuest,

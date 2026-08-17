@@ -1034,6 +1034,24 @@ export const messages = {
   },
 
   // ── Đợt H (H-D): 4 màn gamification & tài khoản — shop / quests / premium / subscription ──
+
+  // ── Gamification UI dashboard (feature port) ──
+  gamification: {
+    levelLabel: 'Cấp độ',
+    xpLabel: 'XP',
+    xpToNext: (into: number, need: number) => `${into} / ${need} XP → level kế tiếp`,
+    streakUnit: 'ngày streak',
+    streakFreeze: (n: number) => `${n} đông cứng`,
+    questsTitle: 'Nhiệm vụ hôm nay',
+    questClaimed: 'Đã nhận thưởng',
+    questTodo: 'todo',
+    questTodoNote: 'Chưa bắt đầu',
+    questsEmptyTitle: 'Chưa có nhiệm vụ hôm nay',
+    questsEmptyDesc: 'Quay lại sau — nhiệm vụ mới được tạo mỗi ngày.',
+    badgesTitle: 'Thành tích',
+    badgesEmptyTitle: 'Chưa có huy hiệu',
+    badgesEmptyDesc: 'Hoàn thành bài học, quiz và thử thách để mở huy hiệu.',
+  },
   shop: {
     title: 'Cửa hàng',
     subtitle: 'Dùng gems kiếm từ lộ trình học để đổi vật phẩm hữu ích.',

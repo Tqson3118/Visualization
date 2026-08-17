@@ -42,6 +42,11 @@ import BlockToken from '@/components/ui/BlockToken.vue';
 import Input from '@/components/ui/Input.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { messages } from '@/i18n/vi';
+// Gamification dashboard (feature port — dữ liệu thật từ store/API)
+import XpProgressCard from '@/components/gamification/XpProgressCard.vue';
+import StreakCard from '@/components/gamification/StreakCard.vue';
+import QuestProgressCard from '@/components/gamification/QuestProgressCard.vue';
+import BadgeGrid from '@/components/gamification/BadgeGrid.vue';
 
 const auth = useAuthStore();
 const gamification = useGamificationStore();
@@ -65,6 +70,7 @@ onMounted(async () => {
   loading.value = true;
   await Promise.allSettled([
     gamification.fetchAll(),
+    gamification.fetchQuests(),
     gamification.fetchInventory(),
     gamification.fetchAchievements(),
     auth.fetchMe().catch(() => undefined),
@@ -413,6 +419,27 @@ function csvExport(): void {
           <p class="profile__radar-note">
             Điểm mỗi trục = phần trăm hoàn thành chủ đề tương ứng (bài học + bài tập), tính từ tiến độ thực tế.
           </p>
+        </div>
+
+        <!-- Gamification dashboard (feature port — dữ liệu thật từ store /me/gamification, quests, achievements, streak) -->
+        <div class="profile__gamification">
+          <div class="profile__gamification-row">
+            <XpProgressCard
+              :level="gamification.level"
+              :xp="gamification.xp"
+              :xp-into-level="gamification.xpIntoLevel"
+              :xp-for-next-level="gamification.xpForNextLevel"
+              :level-progress-pct="gamification.levelProgressPct"
+              :loading="gamification.loading"
+            />
+            <StreakCard
+              :streak-days="gamification.streakDays"
+              :freeze-available="gamification.freezeAvailable"
+              :loading="gamification.loading"
+            />
+          </div>
+          <QuestProgressCard :quests="gamification.quests" :loading="gamification.loading" />
+          <BadgeGrid :badges="gamification.achievements" :loading="gamification.loading" />
         </div>
       </template>
     </section>
@@ -957,5 +984,14 @@ function csvExport(): void {
 @media (max-width: 768px) {
   .profile__overview-grid { grid-template-columns: 1fr; }
   .profile__actions { margin-left: 0; }
+}
+
+
+/* ── Gamification dashboard (feature port) ── */
+.profile__gamification { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-md); }
+.profile__gamification-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+
+@media (max-width: 768px) {
+  .profile__gamification-row { grid-template-columns: 1fr; }
 }
 </style>

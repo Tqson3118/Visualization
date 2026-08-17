@@ -46,6 +46,33 @@ public sealed class GamificationService(
         return Result<HeartsStatusDto>.Ok(ComputeHearts(user));
     }
 
+    // ── Gamification summary (level + XP — hồi đáp UI) ──────
+
+    public async Task<Result<GamificationSummaryDto>> GetGamificationSummaryAsync(int userId, CancellationToken ct)
+    {
+        var xp = await db.Users.AsNoTracking()
+            .Where(u => u.Id == userId && u.DeletedAt == null)
+            .Select(u => u.Xp)
+            .FirstOrDefaultAsync(ct);
+
+        var level = ComputeLevel(xp);
+        var xpFloor = (level - 1) * (level - 1) * 100;                  // XP tối thiểu của level hiện tại
+        var xpIntoLevel = Math.Max(0, xp - xpFloor);
+        var xpForNextLevel = 100 * (2 * level - 1);                    // (level^2 - (level-1)^2)*100
+        var levelProgressPct = xpForNextLevel <= 0
+            ? 0
+            : (int)Math.Round(Math.Clamp((double)xpIntoLevel / xpForNextLevel, 0, 1) * 100);
+
+        return Result<GamificationSummaryDto>.Ok(new GamificationSummaryDto
+        {
+            Xp = xp,
+            Level = level,
+            XpIntoLevel = xpIntoLevel,
+            XpForNextLevel = xpForNextLevel,
+            LevelProgressPct = levelProgressPct
+        });
+    }
+
     // ── Learning path ─────────────────────────────────────────
 
     public async Task<Result<LearningPathMapDto>> GetLearningPathAsync(int userId, int pathId, CancellationToken ct)
