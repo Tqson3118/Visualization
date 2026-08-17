@@ -413,9 +413,9 @@ watch(n, (newN) => {
 .sv-fps  { font-size:10px; font-weight:700; color:#f59e0b; font-family:monospace; letter-spacing:.05em; }
 
 /* ── Algo pills (Bottom Right) ── */
-.sv-algo-pills-bottom { 
+.sv-algo-pills-bottom {
   position: absolute; bottom: 12px; right: 12px;
-  display: flex; gap: 4px; 
+  display: flex; gap: 4px;
   background: rgba(12,10,9,.88); backdrop-filter: blur(14px);
   padding: 4px; border-radius: 999px; border: 1px solid rgba(245,158,11,.15);
   box-shadow: 0 4px 24px rgba(0,0,0,.5);
@@ -481,7 +481,7 @@ watch(n, (newN) => {
 /* ── Canvas ── */
 .sv-canvas {
   flex:1; position:relative; display:flex; align-items:center; justify-content:center;
-  background: 
+  background:
     linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px),
     radial-gradient(ellipse at 50% 35%, rgba(245,158,11,.07) 0%, transparent 60%),

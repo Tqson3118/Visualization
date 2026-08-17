@@ -1110,11 +1110,11 @@ export const useGuidedTourStore = defineStore('guidedTour', () => {
   const currentStepIndex = ref(0);
   const activePageKey = ref<string | null>(null);
 
-  
+
   const virtualCursor = ref<{ x: number; y: number; visible: boolean; clicking: boolean } | null>(null);
   const isExecutingScript = ref(false);
 
-  
+
   const steps = ref<TourStep[]>([
     {
       title: 'Chào mừng đến với VisualizationDSA!',
@@ -1152,7 +1152,7 @@ export const useGuidedTourStore = defineStore('guidedTour', () => {
     },
   ]);
 
-  
+
   const currentSteps = ref<TourStep[]>(steps.value);
 
   function initTour() {
@@ -1174,7 +1174,7 @@ export const useGuidedTourStore = defineStore('guidedTour', () => {
     }
   }
 
-  
+
 
 
 

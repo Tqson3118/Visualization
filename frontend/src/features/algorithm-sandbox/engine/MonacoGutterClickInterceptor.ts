@@ -19,7 +19,7 @@ export class MonacoGutterClickInterceptor {
     if (!this.editorInstance) return;
 
     this.mouseDownListener = this.editorInstance.onMouseDown((e: monaco.editor.IEditorMouseEvent) => {
-      
+
       if (e.target.type === 3 || e.target.type === 4) {
         const lineNumber = e.target.position?.lineNumber;
         if (lineNumber !== undefined) {

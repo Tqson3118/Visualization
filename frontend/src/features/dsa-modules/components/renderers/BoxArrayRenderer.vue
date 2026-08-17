@@ -21,7 +21,7 @@ let resizeObserver: ResizeObserver | null = null;
 const animatedState = shallowRef<AnimatedState | null>(null);
 let animationFrameId: number | null = null;
 let animStartTime = 0;
-const ANIM_DURATION = 420; 
+const ANIM_DURATION = 420;
 
 let startState: AnimatedState | null = null;
 let targetState: AnimatedState | null = null;
@@ -70,7 +70,7 @@ function renderCanvas(): void {
   const frame = props.frame;
   if (!frame || frame.dataState.length === 0) return;
 
-  
+
   drawBoxArray(ctx, w, h, frame, colors, animatedState.value ?? undefined);
 }
 
@@ -86,7 +86,7 @@ function animateFrame(now: number): void {
   const progress = Math.min(1, elapsed / ANIM_DURATION);
   const t = easeOutQuart(progress);
 
-  
+
   animatedState.value = {
     low: startState.low + (targetState.low - startState.low) * t,
     lowOpacity: startState.lowOpacity + (targetState.lowOpacity - startState.lowOpacity) * t,
@@ -121,14 +121,14 @@ watch(() => props.frame, (newFrame) => {
   }
 
   const n = newFrame.dataState.length;
-  
-  
+
+
   const tLow = newFrame.highlights.low ?? (animatedState.value?.low ?? 0);
   const tLowOp = newFrame.highlights.low != null ? 1.0 : 0.0;
-  
+
   const tHigh = newFrame.highlights.high ?? (animatedState.value?.high ?? n - 1);
   const tHighOp = newFrame.highlights.high != null ? 1.0 : 0.0;
-  
+
   const tMid = newFrame.highlights.mid ?? (animatedState.value?.mid ?? 0);
   const tMidOp = newFrame.highlights.mid != null ? 1.0 : 0.0;
 
@@ -147,11 +147,11 @@ watch(() => props.frame, (newFrame) => {
   };
 
   if (!animatedState.value || animatedState.value.opacities.length !== n) {
-    
+
     animatedState.value = nextTargetState;
     renderCanvas();
   } else {
-    
+
     startState = { ...animatedState.value };
     targetState = nextTargetState;
     animStartTime = performance.now();

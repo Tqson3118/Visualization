@@ -2,7 +2,7 @@
   <div ref="containerRef" class="w-full h-full vis-canvas-container relative overflow-hidden">
     <canvas ref="canvasRef" class="w-full h-full block cursor-grab active:cursor-grabbing" />
 
-    
+
     <div v-if="hoveredNode" class="absolute pointer-events-none z-20 px-3 py-2 rounded-lg text-xs shadow-2xl" :style="tooltipStyle">
       <div class="font-bold text-accent mb-1">{{ hoveredNode.label ?? `V${hoveredNode.id}` }}</div>
       <div class="text-text-secondary">Giá trị: {{ hoveredNode.value }}</div>
@@ -12,14 +12,14 @@
       <div v-if="hoveredNodeDegree > 0" class="text-text-secondary">Bậc: {{ hoveredNodeDegree }}</div>
     </div>
 
-    
+
     <div v-if="frame?.graphNodes?.length" class="absolute top-3 right-3 flex flex-col gap-1 z-10">
       <button @click="zoomIn" class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-text-primary hover:bg-bg-hover transition" style="background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.05)" title="Phóng to" aria-label="Phóng to"><BaseIcon name="plus" class="w-4 h-4" /></button>
       <button @click="zoomOut" class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-text-primary hover:bg-bg-hover transition" style="background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.05)" title="Thu nhỏ" aria-label="Thu nhỏ"><BaseIcon name="minus" class="w-4 h-4" /></button>
       <button @click="resetView" class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-text-primary hover:bg-bg-hover transition" style="background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.05)" title="Đặt lại" aria-label="Đặt lại"><BaseIcon name="refresh-cw" class="w-3.5 h-3.5" /></button>
     </div>
 
-    
+
     <div v-if="frame?.graphNodes?.length" class="absolute bottom-3 left-3 flex flex-wrap gap-2 text-[10px] z-10">
       <span class="flex items-center gap-1 px-2 py-1 rounded-md" style="background:rgba(15,23,42,0.8);backdrop-filter:blur(8px)">
         <span class="w-2.5 h-2.5 rounded-full" style="background:#FBBF24"></span> Active
@@ -35,7 +35,7 @@
       </span>
     </div>
 
-    
+
     <div v-if="showDistanceTable && distances" class="absolute top-3 right-12 text-[10px] p-2 rounded-lg max-h-[40%] overflow-auto z-10" style="background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.05)">
       <div class="font-bold text-accent mb-1">Distances</div>
       <div v-for="([nodeId, d]) in sortedDistances" :key="nodeId" class="flex justify-between gap-2">
@@ -219,7 +219,7 @@ function onWheel(e: WheelEvent): void {
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
   zoom.value = Math.max(0.3, Math.min(5, zoom.value * delta));
 
-  
+
   const dpr = window.devicePixelRatio || 1;
   panX.value = sx - (sx - panX.value * dpr) * (zoom.value / oldZoom);
   panY.value = sy - (sy - panY.value * dpr) * (zoom.value / oldZoom);
@@ -299,11 +299,11 @@ function renderCanvas(): void {
   const nodes = frame.graphNodes;
   const edges = frame.graphEdges ?? [];
 
-  
+
   const drawnEdgeKeys = new Set<string>();
   const isUndirected = !edges.some(e => e.directed);
 
-  
+
   for (const edge of edges) {
     const fromNode = nodes.find(n => n.id === edge.from);
     const toNode = nodes.find(n => n.id === edge.to);
@@ -318,7 +318,7 @@ function renderCanvas(): void {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const minDist = 1;
 
-    
+
     const offset = isUndirected ? 8 : 0;
     const perpX = dist > minDist ? (-dy / dist) * offset : 0;
     const perpY = dist > minDist ? (dx / dist) * offset : 0;
@@ -347,7 +347,7 @@ function renderCanvas(): void {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    
+
     if (edge.directed || isUndirected) {
       const angle = Math.atan2(endY - startY, endX - startX);
       const arrowLen = 8;
@@ -361,7 +361,7 @@ function renderCanvas(): void {
       ctx.fill();
     }
 
-    
+
     if (edge.weight !== undefined && edge.weight !== null && dist > 30) {
       const midX = (startX + endX) / 2 + perpX;
       const midY = (startY + endY) / 2 + perpY;
@@ -380,7 +380,7 @@ function renderCanvas(): void {
     }
   }
 
-  
+
   const activeIds = new Set<number>(frame.highlights?.active ?? []);
   const compareIds = new Set<number>(frame.highlights?.compare ?? []);
   const sortedIds = new Set<number>(frame.highlights?.sorted ?? []);
@@ -395,7 +395,7 @@ function renderCanvas(): void {
 
     const nodeRadius = isHovered ? 22 : 18;
 
-    
+
     if (isActive || isHovered) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, nodeRadius + 8, 0, Math.PI * 2);
@@ -406,7 +406,7 @@ function renderCanvas(): void {
       ctx.fill();
     }
 
-    
+
     ctx.beginPath();
     ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
 
@@ -433,7 +433,7 @@ function renderCanvas(): void {
     ctx.fill();
     ctx.stroke();
 
-    
+
     ctx.fillStyle = isActive || isCompare || isHovered ? '#000' : '#FFFFFF';
     ctx.font = `bold ${isHovered ? 13 : 12}px monospace`;
     ctx.textAlign = 'center';
@@ -442,7 +442,7 @@ function renderCanvas(): void {
     const displayLabel = node.label ?? String(node.value);
     ctx.fillText(displayLabel.length > 2 ? displayLabel.slice(0, 2) : displayLabel, node.x, node.y);
 
-    
+
     if (frame.distances && frame.distances[node.id] !== undefined) {
       ctx.fillStyle = isDimmed ? '#64748B' : '#22D3EE';
       ctx.font = '9px monospace';
@@ -450,7 +450,7 @@ function renderCanvas(): void {
     }
   }
 
-  
+
   const currentPath = frame.currentPath;
   if (currentPath && currentPath.length > 1) {
     ctx.beginPath();

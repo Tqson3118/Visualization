@@ -66,7 +66,7 @@ const {
 }
 
 .canvas-grid {
-  background-image: 
+  background-image:
     linear-gradient(to right, var(--color-border-default) 1px, transparent 1px),
     linear-gradient(to bottom, var(--color-border-default) 1px, transparent 1px);
   background-size: 4rem 4rem;

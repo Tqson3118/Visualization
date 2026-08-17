@@ -5,7 +5,7 @@
       <div class="text-[10px] font-bold text-text-secondary uppercase tracking-wider select-none">
         Thêm cạnh
       </div>
-      
+
       <!-- Source Node -->
       <div class="flex flex-col gap-1">
         <label class="text-[9px] text-text-muted font-bold uppercase">Nguồn</label>

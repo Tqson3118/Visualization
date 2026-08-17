@@ -2,7 +2,7 @@
   <div
     class="course-card group relative bg-vdsa-bg-secondary border border-vdsa-border-subtle rounded-2xl overflow-hidden transition-all duration-300 hover:translate-y-[-4px] hover:shadow-2xl hover:border-vdsa-accent/30 flex flex-col"
   >
-    
+
     <div class="relative h-36 overflow-hidden bg-vdsa-surface shrink-0">
       <img v-if="course.coverImageUrl || course.coverImage" :src="course.coverImageUrl || course.coverImage" alt="Course Cover" class="w-full h-full object-cover" />
       <CourseCover v-else :course="course" class="w-full h-full" />
@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    
+
     <div class="p-4 flex flex-col flex-1">
       <div class="flex items-start justify-between mb-2">
         <h3 class="text-base font-bold text-white line-clamp-1 mr-2">{{ course.title }}</h3>
@@ -49,7 +49,7 @@
         </div>
 
         <div class="flex items-center gap-3">
-          
+
           <div v-if="authStore.isAuthenticated && isEnrolled" class="flex items-center gap-2">
             <div class="w-16 h-1.5 bg-vdsa-surface rounded-full overflow-hidden">
               <div

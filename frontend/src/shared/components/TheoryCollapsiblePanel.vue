@@ -7,7 +7,7 @@
       'is-expanded-width': isExpandedWidth
     }"
   >
-    
+
     <button
       v-if="!isOpen"
       class="theory-toggle-tab"
@@ -18,9 +18,9 @@
       <span class="tab-text">Lý thuyết & Tài liệu</span>
     </button>
 
-    
+
     <div class="theory-drawer-content" v-if="isOpen">
-      
+
       <div class="drawer-header">
         <div class="flex items-center justify-between w-full">
           <h3 class="drawer-title flex items-center gap-2">
@@ -28,7 +28,7 @@
             <span>{{ document?.title || 'Tài liệu Lý thuyết' }}</span>
           </h3>
           <div class="flex items-center gap-3">
-            
+
             <button
               class="expand-toggle-btn"
               @click="toggleExpandWidth"
@@ -42,7 +42,7 @@
               </svg>
             </button>
 
-            
+
             <button class="close-btn" @click="closePanel" title="Thu gọn (Đóng)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -53,9 +53,9 @@
         </div>
       </div>
 
-      
+
       <div class="drawer-body" ref="bodyRef">
-        
+
         <TheorySummaryView
           v-if="!showFullDocs && document"
           :document="document"
@@ -63,7 +63,7 @@
           @readMore="showFullDocs = true"
         />
 
-        
+
         <div v-else-if="showFullDocs && document" class="accordion-container">
           <TheoryAccordionItem
             v-for="(sec, idx) in document.sections"
@@ -79,7 +79,7 @@
             @nextPillar="triggerNextPillar"
           />
 
-          
+
           <button class="back-to-summary-footer-btn mt-4" @click="showFullDocs = false">
             ◀ Quay lại Tóm tắt Khái niệm
           </button>
@@ -117,9 +117,9 @@ const flashedSectionId = ref<string | null>(null);
 
 function toggleSection(id: string) {
   if (expandedSectionId.value === id) {
-    expandedSectionId.value = null; 
+    expandedSectionId.value = null;
   } else {
-    expandedSectionId.value = id; 
+    expandedSectionId.value = id;
     emit('sectionActivated', id);
   }
 }

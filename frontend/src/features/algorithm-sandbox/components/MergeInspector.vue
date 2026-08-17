@@ -7,7 +7,7 @@
         </svg>
         Bộ Giám Sát Trộn (Merge Inspector)
       </h3>
-      <span 
+      <span
         class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase"
         :class="activeSub ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 animate-pulse' : 'bg-slate-500/10 text-slate-400 border border-white/5'"
       >
@@ -85,11 +85,11 @@
           <!-- Dynamic compare status badge -->
           <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-slate-400 shrink-0">Kết quả:</span>
-            <span 
-              v-if="leftPointerIdx !== null && rightPointerIdx !== null" 
+            <span
+              v-if="leftPointerIdx !== null && rightPointerIdx !== null"
               class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
               :class="frame.arrayState[leftPointerIdx] <= frame.arrayState[rightPointerIdx]
-                ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
+                ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
                 : 'bg-purple-500/10 text-purple-400 border-purple-500/20'"
             >
               {{ frame.arrayState[leftPointerIdx] <= frame.arrayState[rightPointerIdx] ? 'LẤY L[i] (L <= R)' : 'LẤY R[j] (L > R)' }}
@@ -123,7 +123,7 @@
         <p class="text-[10px] text-slate-300 leading-relaxed">
           Sử dụng kỹ thuật <strong>Chia để trị (Divide and Conquer)</strong>. Chia mảng thành 2 nửa đệ quy cho đến khi kích thước phân đoạn bằng 1, sau đó <strong>trộn (merge)</strong> các phân đoạn đã sắp xếp để tạo thành mảng hoàn chỉnh.
         </p>
-        
+
         <div class="grid grid-cols-2 gap-1.5 mt-1 text-[10px]">
           <div class="p-1.5 rounded merge-cell">
             <span class="text-slate-400 block text-[9px] uppercase font-bold">Thời gian (Tất cả TH)</span>

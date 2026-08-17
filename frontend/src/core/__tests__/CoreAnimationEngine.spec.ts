@@ -23,8 +23,8 @@ describe('1. CoreAnimationEngine Unit Test Suit', () => {
 
   test('Phép toán Lerp phải hoạt động chính xác trong giới hạn 0-1', () => {
     expect(CoreAnimationEngine.lerp(10, 20, 0.5)).toBe(15);
-    expect(CoreAnimationEngine.lerp(10, 20, -1)).toBe(10); 
-    expect(CoreAnimationEngine.lerp(10, 20, 2)).toBe(20);  
+    expect(CoreAnimationEngine.lerp(10, 20, -1)).toBe(10);
+    expect(CoreAnimationEngine.lerp(10, 20, 2)).toBe(20);
   });
 
   test('Phép toán lerpPoint phải hoạt động chính xác cho tọa độ 2D', () => {
@@ -39,7 +39,7 @@ describe('1. CoreAnimationEngine Unit Test Suit', () => {
     const engine = new CoreAnimationEngine();
     const mockCallback = vi.fn();
 
-    
+
     let rafCallback: any = null;
     const mockRaf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
       rafCallback = cb;
@@ -50,13 +50,13 @@ describe('1. CoreAnimationEngine Unit Test Suit', () => {
     expect(mockRaf).toHaveBeenCalled();
     expect(rafCallback).toBeDefined();
 
-    
+
     if (rafCallback) {
       rafCallback(performance.now() + 16.67);
     }
     expect(mockCallback).toHaveBeenCalled();
 
-    
+
     engine.unregisterRender(mockCallback);
     engine.destroy();
   });
@@ -76,17 +76,17 @@ describe('1. CoreAnimationEngine Unit Test Suit', () => {
 
     engine.registerRender(callback);
 
-    
+
     if (rafCallback) {
       rafCallback(1000);
     }
 
-    
+
     if (rafCallback) {
       rafCallback(2000);
     }
 
-    expect(recordedDelta).toBe(32); 
+    expect(recordedDelta).toBe(32);
 
     engine.destroy();
   });
@@ -100,18 +100,18 @@ describe('2. CompilerStepExecutor Unit Test Suit', () => {
     `;
     const frames = CompilerStepExecutor.compileAlgorithm(pseudocode, [10, 20]);
     expect(frames.length).toBe(2);
-    expect(frames[0].lineNumber).toBe(2); 
-    expect(frames[1].lineNumber).toBe(3); 
+    expect(frames[0].lineNumber).toBe(2);
+    expect(frames[1].lineNumber).toBe(3);
     expect(frames[0].canvasStateSnapshot.comparingIndices).toEqual([0, 1]);
     expect(frames[1].canvasStateSnapshot.swappingIndices).toEqual([0, 1]);
-    
+
     expect(frames[1].canvasStateSnapshot.array).toEqual([20, 10]);
   });
 
   test('Bỏ qua dòng trống và bình luận', () => {
     const pseudocode = `
       // Đây là bình luận
-      
+
       compare(arr[0], arr[1])
     `;
     const frames = CompilerStepExecutor.compileAlgorithm(pseudocode, [10, 20]);
@@ -127,19 +127,19 @@ describe('2. CompilerStepExecutor Unit Test Suit', () => {
     `;
     const frames = CompilerStepExecutor.compileAlgorithm(pseudocode, [10, 20, 30]);
     expect(frames.length).toBe(3);
-    
-    
+
+
     expect(frames[0].lineNumber).toBe(2);
     expect(frames[0].canvasStateSnapshot.loopVariables).toEqual({ i: 0 });
     expect(frames[0].canvasStateSnapshot.highlightedIndices).toEqual([0]);
     expect(frames[0].description).toContain("biến 'i'");
-    
-    
+
+
     expect(frames[1].lineNumber).toBe(3);
     expect(frames[1].canvasStateSnapshot.loopVariables).toEqual({ j: 1 });
     expect(frames[1].canvasStateSnapshot.highlightedIndices).toEqual([1]);
-    
-    
+
+
     expect(frames[2].lineNumber).toBe(4);
     expect(frames[2].canvasStateSnapshot.loopVariables).toEqual({ k: 0 });
   });
@@ -154,15 +154,15 @@ describe('3. Additional Edge Cases Unit Test Suit', () => {
   test('Hủy đăng ký một callback chưa từng đăng ký', () => {
     const engine = new CoreAnimationEngine();
     const mockCallback = vi.fn();
-    
-    
+
+
     expect(() => engine.unregisterRender(mockCallback)).not.toThrow();
-    
-    
+
+
     const activeCb = vi.fn();
     engine.registerRender(activeCb);
     expect(() => engine.unregisterRender(mockCallback)).not.toThrow();
-    
+
     engine.destroy();
   });
 

@@ -5,7 +5,7 @@ import type { Course, CourseProgress } from '../types/course.types';
 
 export const useCourseStore = defineStore('course', () => {
 
-  
+
   const courses = ref<Course[]>([]);
   const isLoading = ref<boolean>(false);
   const error = ref<string>('');
@@ -14,7 +14,7 @@ export const useCourseStore = defineStore('course', () => {
   const searchQuery = ref<string>('');
   const enrolledCourseIds = ref<Set<string>>(new Set());
 
-  
+
   const filteredCourses = computed(() => {
     let result = courses.value;
     if (selectedCategory.value !== 'All') {
@@ -44,7 +44,7 @@ export const useCourseStore = defineStore('course', () => {
     return ['All', ...Array.from(diffs)];
   });
 
-  
+
 
   async function loadCourses() {
     isLoading.value = true;
@@ -110,7 +110,7 @@ export const useCourseStore = defineStore('course', () => {
       };
     }
 
-    
+
     // Lưu ý: API list `/concepts/courses` KHÔNG trả lessons (chỉ totalLessons) —
     // phải null-safe để tránh crash khi iterate.
     const lessons = course.lessons ?? [];
@@ -119,7 +119,7 @@ export const useCourseStore = defineStore('course', () => {
     let xpEarned = 0;
 
     for (const lesson of lessons) {
-      
+
       const key = `lesson_progress_${lesson.id}`;
       const saved = localStorage.getItem(key);
       if (saved) {

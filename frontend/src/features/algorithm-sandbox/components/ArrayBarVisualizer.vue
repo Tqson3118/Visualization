@@ -5,7 +5,7 @@
   >
     <div class="canvas-grid absolute inset-0 opacity-[0.18] pointer-events-none [mask-image:radial-gradient(ellipse_65%_55%_at_50%_50%,#000_60%,transparent_100%)]" />
 
-    
+
     <div class="relative z-10 flex items-center justify-between px-4 pt-3 pb-1 shrink-0 gap-2 flex-wrap">
       <SortingHudOverlay :stepDescription="stepDescription" />
       <SortingAlgorithmControls
@@ -14,7 +14,7 @@
       />
     </div>
 
-    
+
     <div class="relative z-10 flex items-center gap-2 px-4 pb-2 shrink-0 flex-wrap">
       <span class="text-[10px] font-bold text-text-muted uppercase tracking-wider shrink-0">Mảng:</span>
       <button
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    
+
     <div class="relative z-10 flex-1 min-h-0 flex flex-col px-4 pb-20 overflow-hidden">
       <div class="flex-1 min-h-[0] overflow-x-auto overflow-y-hidden">
         <SortingVisualizerDispatcher :frame="displayFrame" />
@@ -125,7 +125,7 @@ function onSizeChange(e: Event): void {
 }
 
 .canvas-grid {
-  background-image: 
+  background-image:
     linear-gradient(to right, var(--color-border-default) 1px, transparent 1px),
     linear-gradient(to bottom, var(--color-border-default) 1px, transparent 1px);
   background-size: 3.5rem 3.5rem;

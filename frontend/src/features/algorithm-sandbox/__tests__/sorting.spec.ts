@@ -16,12 +16,12 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
     it('should generate valid frames from input array', () => {
       const frames = generateBubbleSortFrames(testArray);
       expect(frames.length).toBeGreaterThan(0);
-      
-      
+
+
       expect(frames[0].arrayState).toEqual(testArray);
       expect(frames[0].algorithm).toBe('bubble');
-      
-      
+
+
       const finalFrame = frames[frames.length - 1];
       expect(finalFrame.arrayState).toEqual([2, 3, 4, 5, 8]);
       expect(finalFrame.sortedIndices.length).toBe(testArray.length);
@@ -140,11 +140,11 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
     it('should generate partition steps and highlight pivot correctly', () => {
       const frames = generateQuickSortFrames(testArray);
       expect(frames.length).toBeGreaterThan(0);
-      
-      
+
+
       const partitionFrames = frames.filter(f => f.pivotIndex !== null);
       expect(partitionFrames.length).toBeGreaterThan(0);
-      
+
       const finalFrame = frames[frames.length - 1];
       expect(finalFrame.arrayState).toEqual([2, 3, 4, 5, 8]);
     });
@@ -154,7 +154,7 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
     it('should generate divide and conquer frames and end with sorted array', () => {
       const frames = generateMergeSortFrames(testArray);
       expect(frames.length).toBeGreaterThan(0);
-      
+
       const finalFrame = frames[frames.length - 1];
       expect(finalFrame.arrayState).toEqual([2, 3, 4, 5, 8]);
     });
@@ -164,7 +164,7 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
     it('should build max heap and extract elements iteratively to sort', () => {
       const frames = generateHeapSortFrames(testArray);
       expect(frames.length).toBeGreaterThan(0);
-      
+
       const finalFrame = frames[frames.length - 1];
       expect(finalFrame.arrayState).toEqual([2, 3, 4, 5, 8]);
     });
@@ -185,9 +185,9 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
       for (const frame of frames) {
         expect(frame.arrayStateWithIds).toBeDefined();
         expect(frame.arrayStateWithIds!.length).toBe(radixArr.length);
-        
+
         expect(frame.arrayStateWithIds!.map(e => e.value)).toEqual(frame.arrayState);
-        
+
         const ids = frame.arrayStateWithIds!.map(e => e.id);
         expect(new Set(ids).size).toBe(ids.length);
       }
@@ -207,11 +207,11 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
     });
 
     it('should preserve FIFO order — earlier-distributed elements appear first in collect', () => {
-      
+
       const arr = [21, 31, 41];
       const frames = generateRadixSortFrames(arr);
       const final = frames[frames.length - 1];
-      
+
       expect(final.arrayState).toEqual([21, 31, 41]);
     });
   });
@@ -231,7 +231,7 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
       for (const frame of frames) {
         expect(frame.arrayStateWithIds).toBeDefined();
         expect(frame.arrayStateWithIds!.length).toBe(bucketArr.length);
-        
+
         const ids = frame.arrayStateWithIds!.map(e => e.id);
         expect(new Set(ids).size).toBe(ids.length);
       }
@@ -239,15 +239,15 @@ describe('Sprint 2: Sorting Algorithm Frame Generators', () => {
 
     it('should assign correct buckets matching value ranges', () => {
       const frames = generateBucketSortFrames([10, 30, 60, 90]);
-      
+
       const distributeFinishedFrame = frames.find(f => f.description.includes('Phân phối thành công phần tử A[3]'));
       expect(distributeFinishedFrame).toBeDefined();
-      
+
       const buckets = distributeFinishedFrame!.bucketSortBuckets!;
-      expect(buckets[0]).toContain(10); 
-      expect(buckets[1]).toContain(30); 
-      expect(buckets[2]).toContain(60); 
-      expect(buckets[3]).toContain(90); 
+      expect(buckets[0]).toContain(10);
+      expect(buckets[1]).toContain(30);
+      expect(buckets[2]).toContain(60);
+      expect(buckets[3]).toContain(90);
     });
   });
 });

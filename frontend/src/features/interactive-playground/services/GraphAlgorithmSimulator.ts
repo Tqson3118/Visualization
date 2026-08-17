@@ -4,11 +4,11 @@ export interface GraphAnimationStep {
   stepId: number;
   activeLine: number;
   explanation: string;
-  visitedNodes: string[]; 
-  activeNodes: string[]; 
-  visitedEdges: string[]; 
-  distances?: Record<string, number>; 
-  queueStack?: string[]; 
+  visitedNodes: string[];
+  activeNodes: string[];
+  visitedEdges: string[];
+  distances?: Record<string, number>;
+  queueStack?: string[];
 }
 
 export interface SimulationResult {
@@ -122,7 +122,7 @@ export class GraphAlgorithmSimulator {
     const queue: string[] = [];
     const visitedEdges: string[] = [];
 
-    
+
     frames.push({
       stepId: stepId++,
       activeLine: 1,
@@ -137,7 +137,7 @@ export class GraphAlgorithmSimulator {
     queue.push(startId);
     const startLabel = this.getNodeLabel(nodes, startId);
 
-    
+
     frames.push({
       stepId: stepId++,
       activeLine: 2,
@@ -163,7 +163,7 @@ export class GraphAlgorithmSimulator {
         queueStack: [currLabel, ...qLabels]
       });
 
-      
+
       for (const edge of edges) {
         const neighborId = this.resolveNeighbor(edge, currId, graphType);
         if (neighborId === null) continue;
@@ -185,7 +185,7 @@ export class GraphAlgorithmSimulator {
             queueStack: curQLabels
           });
         } else {
-          
+
           const curQLabels = queue.map(id => this.getNodeLabel(nodes, id));
           frames.push({
             stepId: stepId++,
@@ -222,11 +222,11 @@ export class GraphAlgorithmSimulator {
     let stepId = 1;
 
     const visited = new Set<string>();
-    
+
     const stack: { id: string; edgeId: string | null }[] = [];
     const visitedEdges: string[] = [];
 
-    
+
     frames.push({
       stepId: stepId++,
       activeLine: 1,
@@ -240,7 +240,7 @@ export class GraphAlgorithmSimulator {
     stack.push({ id: startId, edgeId: null });
     const startLabel = this.getNodeLabel(nodes, startId);
 
-    
+
     frames.push({
       stepId: stepId++,
       activeLine: 2,
@@ -258,8 +258,8 @@ export class GraphAlgorithmSimulator {
 
       if (!visited.has(currId)) {
         visited.add(currId);
-        
-        
+
+
         if (incomingEdgeId && !visitedEdges.includes(incomingEdgeId)) {
           visitedEdges.push(incomingEdgeId);
         }
@@ -274,7 +274,7 @@ export class GraphAlgorithmSimulator {
           queueStack: [...sLabels]
         });
 
-        
+
         for (const edge of edges) {
           const neighborId = this.resolveNeighbor(edge, currId, graphType);
           if (neighborId === null) continue;
@@ -296,7 +296,7 @@ export class GraphAlgorithmSimulator {
           }
         }
       } else {
-        
+
         frames.push({
           stepId: stepId++,
           activeLine: 6,
@@ -331,7 +331,7 @@ export class GraphAlgorithmSimulator {
     let stepId = 1;
 
     const dist: Record<string, number> = {};
-    const parentEdge: Record<string, string> = {}; 
+    const parentEdge: Record<string, string> = {};
     const visited = new Set<string>();
 
     for (const node of nodes) {
@@ -341,7 +341,7 @@ export class GraphAlgorithmSimulator {
 
     const startLabel = this.getNodeLabel(nodes, startId);
 
-    
+
     frames.push({
       stepId: stepId++,
       activeLine: 1,
@@ -355,7 +355,7 @@ export class GraphAlgorithmSimulator {
     const unvisited = new Set<string>(nodes.map(n => n.id));
 
     while (unvisited.size > 0) {
-      
+
       let currId: string | null = null;
       let minD = Infinity;
 
@@ -374,7 +374,7 @@ export class GraphAlgorithmSimulator {
       visited.add(currId);
       const currLabel = this.getNodeLabel(nodes, currId);
 
-      
+
       const currentVisitedEdges = Object.values(parentEdge);
       frames.push({
         stepId: stepId++,
@@ -386,7 +386,7 @@ export class GraphAlgorithmSimulator {
         distances: { ...dist }
       });
 
-      
+
       for (const edge of edges) {
         const neighborId = this.resolveNeighbor(edge, currId, graphType);
         if (neighborId === null) continue;
@@ -396,7 +396,7 @@ export class GraphAlgorithmSimulator {
 
         const alt = dist[currId] + edge.weight;
 
-        
+
         frames.push({
           stepId: stepId++,
           activeLine: 8,
@@ -409,7 +409,7 @@ export class GraphAlgorithmSimulator {
 
         if (alt < dist[neighborId]) {
           dist[neighborId] = alt;
-          parentEdge[neighborId] = edge.id; 
+          parentEdge[neighborId] = edge.id;
 
           const updatedVisitedEdges = Object.values(parentEdge);
           frames.push({

@@ -1,6 +1,6 @@
 <template>
   <div class="lesson-step-theory flex flex-col h-full overflow-y-auto p-6 text-vdsa-text font-sans leading-relaxed">
-    
+
     <div class="border-b border-vdsa-border pb-4 mb-6">
       <div class="flex items-center gap-2 text-xs font-semibold text-accent uppercase tracking-wider mb-1">
         <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -11,12 +11,12 @@
       <h1 class="text-2xl font-black text-white tracking-tight">{{ title }}</h1>
     </div>
 
-    
+
     <div class="prose prose-invert prose-indigo max-w-none text-sm space-y-4">
       <div v-html="formattedContent"></div>
     </div>
 
-    
+
     <div class="mt-8 pt-6 border-t border-vdsa-border flex items-center justify-between">
       <span class="text-xs text-vdsa-muted">Đọc hết nội dung để hoàn thành bài học.</span>
       <button

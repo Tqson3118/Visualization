@@ -20,7 +20,7 @@ function serializeTree(node: BSTNode | null): { treeNodes: TreeNodeDTO[]; values
     if (!n) return;
     treeNodes.push({
       id: n.id,
-      value: n.currentDistance, 
+      value: n.currentDistance,
       leftNodeId: n.left?.id ?? null,
       rightNodeId: n.right?.id ?? null,
     });
@@ -56,7 +56,7 @@ export function generateBFS(inputData: number[]): AlgorithmResult {
     root = insertBST(root, val, idCounter);
   }
 
-  
+
   function resetDistancesToOriginal(n: BSTNode | null): void {
     if (!n) return;
     n.currentDistance = n.originalValue;
@@ -329,7 +329,7 @@ export function generateDijkstra(inputData: number[]): AlgorithmResult {
   const visitedDistances: number[] = [];
 
   while (unvisited.size > 0) {
-    
+
     let curr: BSTNode | null = null;
     let minD = 9999;
     for (const n of unvisited) {
@@ -541,7 +541,7 @@ export function generateMonotonicStack(inputData: number[]): AlgorithmResult {
   const arr = [...inputData];
   const n = arr.length;
   const res = Array(n).fill(-1);
-  const stack: number[] = []; 
+  const stack: number[] = [];
 
   const pseudoCode = [
     'nextGreaterElement(A):',

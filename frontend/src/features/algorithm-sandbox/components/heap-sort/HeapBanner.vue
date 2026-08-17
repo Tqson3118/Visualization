@@ -6,7 +6,7 @@
         <span class="text-xs font-bold font-sans status-desc">{{ currentStepDescription }}</span>
       </div>
       <!-- Phase Badge -->
-      <span 
+      <span
         class="phase-badge text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase border shadow-md flex items-center gap-1 shrink-0"
         :class="currentPhase === 'SORT' ? 'badge-sort' : 'badge-build'"
       >

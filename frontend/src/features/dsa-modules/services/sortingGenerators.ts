@@ -134,7 +134,7 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
     '  return -1'
   ];
 
-  
+
   frames.push({
     stepId: ++stepId,
     activeLine: 1,
@@ -149,16 +149,16 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
     const mid = Math.floor((low + high) / 2);
     const midVal = arr[mid];
 
-    
+
     const currentDimmed: number[] = [];
     for (let i = 0; i < arr.length; i++) {
       if (i < low || i > high) currentDimmed.push(i);
     }
 
-    
+
     frames.push({
       stepId: ++stepId,
-      activeLine: 3, 
+      activeLine: 3,
       explanation: `Vòng lặp mới: Tính vị trí giữa mid = (${low} + ${high}) / 2 = ${mid}. Giá trị A[mid] = ${midVal}.`,
       dataState: [...arr],
       highlights: defaultHighlights({
@@ -170,7 +170,7 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
       })
     });
 
-    
+
     const decisionLine = midVal === target ? 4 : (midVal < target ? 5 : 6);
     let compExplain = "";
     if (midVal === target) {
@@ -197,7 +197,7 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
     });
 
     if (midVal === target) {
-      
+
       frames.push({
         stepId: ++stepId,
         activeLine: 4,
@@ -216,17 +216,17 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
       break;
     }
 
-    
+
     let oldLow = low;
     let oldHigh = high;
-    
+
     if (midVal < target) {
       low = mid + 1;
     } else {
       high = mid - 1;
     }
 
-    
+
     const nextDimmed: number[] = [];
     for (let i = 0; i < arr.length; i++) {
       if (i < low || i > high) nextDimmed.push(i);
@@ -245,7 +245,7 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
       explanation: shrinkExplain,
       dataState: [...arr],
       highlights: defaultHighlights({
-        
+
         low: low <= high ? low : null,
         high: low <= high ? high : null,
         dimmed: [...nextDimmed],
@@ -257,7 +257,7 @@ export function generateBinarySearch(inputData: number[]): AlgorithmResult {
   if (!found) {
     frames.push({
       stepId: ++stepId,
-      activeLine: 7, 
+      activeLine: 7,
       explanation: `Khoảng tìm kiếm trống (low > high). Đã xét tất cả phần tử và không tìm thấy target = ${target} trong mảng!`,
       dataState: [...arr],
       highlights: defaultHighlights({

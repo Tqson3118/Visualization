@@ -18,7 +18,7 @@ export interface FrameDTO {
   activeLogicalLineId?: string;
   variables?: Record<string, string | number>;
 
-  
+
   visitedNodes?: string[];
   activeNodes?: string[];
   visitedEdges?: string[];

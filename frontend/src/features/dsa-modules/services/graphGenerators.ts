@@ -96,7 +96,7 @@ export function generateBellmanFord(inputData: number[]): AlgorithmResult {
     }
   }
 
-  
+
   let negativeCycle = false;
   for (const edge of edges) {
     const u = edge.from;

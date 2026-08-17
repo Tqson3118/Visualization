@@ -17,7 +17,7 @@
       <BaseIcon name="step-forward" class="w-3.5 h-3.5" />
     </button>
 
-    
+
     <input
       type="range"
       min="0"
@@ -28,7 +28,7 @@
       @input="onScrub"
     />
 
-    
+
     <select
       class="speed-select"
       :value="playbackSpeed"

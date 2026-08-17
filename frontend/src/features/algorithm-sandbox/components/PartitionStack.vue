@@ -21,8 +21,8 @@
         v-for="(part, pIdx) in frame?.partitions || []"
         :key="pIdx"
         class="stack-item"
-        :class="{ 
-          'active': part.isActive, 
+        :class="{
+          'active': part.isActive,
           'sorted': part.isSorted && !part.isActive,
           'waiting': !part.isSorted && !part.isActive
         }"
@@ -33,7 +33,7 @@
           </span>
           <!-- inline array preview -->
           <div class="flex flex-wrap gap-1 mt-1">
-            <span 
+            <span
               v-for="(val, vIdx) in frame?.arrayState.slice(part.low, part.high + 1)"
               :key="vIdx"
               class="preview-badge"
@@ -50,7 +50,7 @@
         </div>
 
         <!-- Status Badge -->
-        <span 
+        <span
           class="status-badge"
           :class="{
             'active animate-pulse': part.isActive,
@@ -61,7 +61,7 @@
           {{ part.isActive ? 'Đang chạy' : part.isSorted ? 'Hoàn thành' : 'Chờ xử lý' }}
         </span>
       </div>
-      
+
       <div v-if="!frame?.partitions || frame.partitions.length === 0" class="empty-text">
         Không có dữ liệu phân đoạn
       </div>

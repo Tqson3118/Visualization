@@ -8,7 +8,7 @@
         </svg>
         Bộ Giám Sát Phân Hoạch (Lomuto Inspector)
       </h3>
-      <span 
+      <span
         class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase"
         :class="activePart ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-slate-500/10 text-slate-400 border border-white/5'"
       >
@@ -59,11 +59,11 @@
           <!-- Dynamic comparison alert status badge -->
           <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-slate-400 shrink-0">Kết quả:</span>
-            <span 
-              v-if="jIndex !== null" 
+            <span
+              v-if="jIndex !== null"
               class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
               :class="frame.arrayState[jIndex] <= pivotValue
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.08)]' 
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.08)]'
                 : 'bg-rose-500/10 text-rose-400 border-rose-500/20'"
             >
               {{ frame.arrayState[jIndex] <= pivotValue ? 'THỎA MÃN (TRUE)' : 'KHÔNG THỎA MÃN (FALSE)' }}
@@ -97,7 +97,7 @@
         <p class="text-[10px] text-slate-300 leading-relaxed">
           Sử dụng kỹ thuật <strong>Chia để trị</strong>. Phân hoạch Lomuto dùng chốt (Pivot) ở cuối đoạn. Duy trì hai con trỏ <code>i</code> (ranh giới phần tử &le; Pivot) và <code>j</code> (quét mảng).
         </p>
-        
+
         <div class="grid grid-cols-2 gap-1.5 mt-1 text-[10px]">
           <div class="p-1.5 rounded lom-cell">
             <span class="text-slate-400 block text-[9px] uppercase font-bold">Thời gian TB</span>
@@ -181,7 +181,7 @@ function getActionDescription() {
   if (descLower.includes('chọn pivot')) {
     return `Chọn phần tử cuối của phân đoạn làm Pivot: arr[${frameVal.pivotIndex}] = ${pivotVal}. Các phần tử sẽ được phân nhóm dựa trên giá trị này.`;
   }
-  
+
   if (descLower.includes('so sánh')) {
     if (j !== null) {
       const jVal = frameVal.arrayState[j];

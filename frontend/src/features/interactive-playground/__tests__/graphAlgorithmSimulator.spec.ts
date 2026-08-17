@@ -18,7 +18,7 @@ describe('GraphAlgorithmSimulator', () => {
     const result = GraphAlgorithmSimulator.simulate('BFS', mockNodes, mockEdges, 'node_A');
     expect(result.algorithmId).toBe('bfs');
     expect(result.pseudoCode.length).toBeGreaterThan(0);
-    
+
     const finalFrame = result.frames[result.frames.length - 1];
     expect(finalFrame.visitedNodes).toContain('node_A');
     expect(finalFrame.visitedNodes).toContain('node_B');
@@ -30,7 +30,7 @@ describe('GraphAlgorithmSimulator', () => {
   it('runs DFS simulation correctly', () => {
     const result = GraphAlgorithmSimulator.simulate('DFS', mockNodes, mockEdges, 'node_A');
     expect(result.algorithmId).toBe('dfs');
-    
+
     const finalFrame = result.frames[result.frames.length - 1];
     expect(finalFrame.visitedNodes).toContain('node_A');
     expect(finalFrame.visitedNodes).toContain('node_B');
@@ -40,7 +40,7 @@ describe('GraphAlgorithmSimulator', () => {
   it('runs Dijkstra simulation correctly with shortest paths', () => {
     const result = GraphAlgorithmSimulator.simulate('DIJKSTRA', mockNodes, mockEdges, 'node_A');
     expect(result.algorithmId).toBe('dijkstra');
-    
+
     const finalFrame = result.frames[result.frames.length - 1];
     expect(finalFrame.distances).toBeDefined();
     expect(finalFrame.distances?.['node_A']).toBe(0);

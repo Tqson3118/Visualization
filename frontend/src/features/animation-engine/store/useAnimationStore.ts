@@ -43,9 +43,9 @@ export function createAnimationVcrState() {
   let playUntilTarget: number | null = null;
   let playUntilResolver: (() => void) | null = null;
 
-  
-  
-  
+
+
+
 
   const currentFrame = computed<FrameDTO | null>(() => {
     if (frames.value.length === 0) return null;
@@ -73,9 +73,9 @@ export function createAnimationVcrState() {
     return currentIndex.value === 0 ? 'LOADED' : 'PAUSED';
   });
 
-  
-  
-  
+
+
+
 
   function loadResult(result: AlgorithmResult): void {
     stop();

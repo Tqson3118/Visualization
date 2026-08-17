@@ -30,7 +30,7 @@ export class MonacoLineSyncerCoordinator {
   private setupSyncing(): void {
     if (!this.editorInstance || !this.vcrStore) return;
 
-    
+
     this.clickInterceptor = new MonacoGutterClickInterceptor(
       this.editorInstance,
       (lineNum) => {
@@ -43,7 +43,7 @@ export class MonacoLineSyncerCoordinator {
       }
     );
 
-    
+
     this.stopWatch = watch(
       () => this.vcrStore!.currentLineNumber,
       (newLineNum) => {

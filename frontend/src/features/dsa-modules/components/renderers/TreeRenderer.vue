@@ -66,7 +66,7 @@ function renderCanvas(): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  
+
   const style = getComputedStyle(document.documentElement);
   const colorBg = style.getPropertyValue('--canvas-bg').trim() || '#080808';
   const colorMuted = style.getPropertyValue('--color-text-muted').trim() || '#64748B';
@@ -90,18 +90,18 @@ function renderCanvas(): void {
   const posMap = new Map<number, NodePosition>();
   for (const p of positions) posMap.set(p.id, p);
   for (const pos of positions) {
-    if (pos.leftId  != null) { 
-      const child = posMap.get(pos.leftId);  
-      if (child) drawEdge(ctx, pos.x, pos.y, child.x, child.y, isDijkstra.value ? 3 : undefined); 
+    if (pos.leftId  != null) {
+      const child = posMap.get(pos.leftId);
+      if (child) drawEdge(ctx, pos.x, pos.y, child.x, child.y, isDijkstra.value ? 3 : undefined);
     }
-    if (pos.rightId != null) { 
-      const child = posMap.get(pos.rightId); 
-      if (child) drawEdge(ctx, pos.x, pos.y, child.x, child.y, isDijkstra.value ? 5 : undefined); 
+    if (pos.rightId != null) {
+      const child = posMap.get(pos.rightId);
+      if (child) drawEdge(ctx, pos.x, pos.y, child.x, child.y, isDijkstra.value ? 5 : undefined);
     }
   }
   for (const pos of positions) {
     const isActive = frame.highlights.active.includes(pos.id);
-    
+
     let status: 'default' | 'active' | 'visited' = 'default';
     if (isActive) {
       status = 'active';

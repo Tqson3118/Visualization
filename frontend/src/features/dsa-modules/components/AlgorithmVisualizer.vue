@@ -6,7 +6,7 @@
       v-bind="rendererProps"
     />
 
-    
+
     <div
       v-if="currentFrame"
       class="absolute top-3 left-4 max-w-[360px] pointer-events-auto hover:opacity-10 transition-opacity duration-200 rounded-xl p-3 border border-border-subtle shadow-2xl select-none"
@@ -20,7 +20,7 @@
       </p>
     </div>
 
-    
+
     <div
       v-if="!currentFrame"
       class="absolute inset-0 flex items-center justify-center"
@@ -30,7 +30,7 @@
       </p>
     </div>
 
-    
+
     <div class="absolute bottom-0 left-0 right-0 h-[3px] bg-bg-surface/60">
       <div
         class="h-full bg-gradient-to-r from-accent-cyan to-accent-blue rounded-r-sm transition-[width] duration-100 ease-out shadow-[0_0_8px_rgba(6,182,212,0.6)]"

@@ -8,7 +8,7 @@
       'flash-active': flashedSectionId === sec.id
     }"
   >
-    
+
     <div
       class="accordion-header"
       :class="{ 'accordion-header-active': expandedSectionId === sec.id || activeSectionId === sec.id }"
@@ -35,19 +35,19 @@
       </span>
     </div>
 
-    
+
     <div class="accordion-content-wrapper" v-show="expandedSectionId === sec.id">
       <div class="accordion-content">
-        
+
         <div class="section-markdown-body" v-html="renderMarkdown(sec.content)"></div>
 
-        
+
         <div class="section-code-sample" v-if="sec.codeSample">
           <div class="code-sample-title flex items-center justify-between mb-2">
             <span class="text-[9.5px] text-text-muted font-bold">Mã C# minh họa:</span>
             <button class="copy-btn" @click="copyCode(sec.codeSample)">Sao chép</button>
           </div>
-          
+
           <div class="code-box-wrapper">
             <pre class="code-pre"><code>{{ codeLinesToShow }}</code></pre>
           </div>
@@ -61,7 +61,7 @@
           </button>
         </div>
 
-        
+
         <div v-if="isLast" class="pillar-completion-footer mt-4">
           <div class="completion-banner">
             <span class="check-icon-wrapper">
@@ -110,7 +110,7 @@ const hasMoreThanFiveLines = computed(() => {
 const codeLinesToShow = computed(() => {
   if (!props.sec.codeSample) return '';
   if (showFullCode.value) return props.sec.codeSample;
-  
+
   const lines = props.sec.codeSample.split('\n');
   if (lines.length <= 5) return props.sec.codeSample;
   return lines.slice(0, 5).join('\n') + '\n// ...';

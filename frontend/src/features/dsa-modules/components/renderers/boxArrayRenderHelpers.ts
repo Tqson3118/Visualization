@@ -14,7 +14,7 @@ export interface BoxArrayColors {
 }
 
 export const BOX_SIZE = 50;
-export const GAP = 12; 
+export const GAP = 12;
 export const MARGIN = 40;
 export const POINTER_AREA = 50;
 
@@ -38,15 +38,15 @@ export function drawBoxArray(
   anim?: AnimatedState
 ): void {
   const n = frame.dataState.length;
-  
-  
+
+
   const maxTotalW = w - MARGIN * 2;
   const defaultBoxSize = 50;
   const defaultGap = 12;
-  
+
   let boxSize = defaultBoxSize;
   let gap = defaultGap;
-  
+
   const totalNeededWithDefault = n * boxSize + (n - 1) * gap;
   if (totalNeededWithDefault > maxTotalW) {
     boxSize = maxTotalW / (n + 0.24 * (n - 1));
@@ -54,27 +54,27 @@ export function drawBoxArray(
     gap = Math.max(2, boxSize * 0.24);
   }
 
-  
+
   const totalW = n * boxSize + (n - 1) * gap;
   const startX = Math.max(MARGIN, (w - totalW) / 2);
-  
-  
+
+
   const y = (h - boxSize) / 2 + 15;
 
-  
+
   const low = anim ? anim.low : frame.highlights.low;
   const lowOpacity = anim ? anim.lowOpacity : (frame.highlights.low != null ? 1.0 : 0.0);
-  
+
   const high = anim ? anim.high : frame.highlights.high;
   const highOpacity = anim ? anim.highOpacity : (frame.highlights.high != null ? 1.0 : 0.0);
-  
+
   const mid = anim ? anim.mid : frame.highlights.mid;
   const midOpacity = anim ? anim.midOpacity : (frame.highlights.mid != null ? 1.0 : 0.0);
 
   const target = frame.highlights.target;
   const foundIdx = frame.highlights.found;
 
-  
+
   if (target !== undefined && target !== null) {
     ctx.save();
     const labelText = `Target: ${target}`;
@@ -88,7 +88,7 @@ export function drawBoxArray(
     const capX = (w - capW) / 2;
     const capY = 16;
 
-    
+
     ctx.fillStyle = 'rgba(6, 182, 212, 0.08)';
     ctx.strokeStyle = 'rgba(6, 182, 212, 0.35)';
     ctx.lineWidth = 1.5;
@@ -97,42 +97,42 @@ export function drawBoxArray(
     ctx.fill();
     ctx.stroke();
 
-    
+
     const cx = capX + paddingX + iconW / 2;
     const cy = capY + capH / 2;
 
-    
+
     ctx.strokeStyle = '#38bdf8';
     ctx.fillStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
-    
-    
+
+
     ctx.beginPath();
     ctx.arc(cx, cy, 5.0, 0, Math.PI * 2);
     ctx.stroke();
-    
-    
+
+
     ctx.beginPath();
     ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
     ctx.fill();
-    
-    
+
+
     ctx.beginPath();
-    
+
     ctx.moveTo(cx, cy - 7.5);
     ctx.lineTo(cx, cy - 5.0);
-    
+
     ctx.moveTo(cx, cy + 7.5);
     ctx.lineTo(cx, cy + 5.0);
-    
+
     ctx.moveTo(cx - 7.5, cy);
     ctx.lineTo(cx - 5.0, cy);
-    
+
     ctx.moveTo(cx + 7.5, cy);
     ctx.lineTo(cx + 5.0, cy);
     ctx.stroke();
 
-    
+
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -140,31 +140,31 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
-  
+
+
   const isSearchFinished = foundIdx !== null || frame.explanation.includes('Không tìm thấy');
   if (!isSearchFinished && low !== null && low !== undefined && high !== null && high !== undefined && low <= high) {
     ctx.save();
     const xLow = startX + low * (boxSize + gap);
     const xHigh = startX + high * (boxSize + gap) + boxSize;
-    
-    
+
+
     const bracketY = y - 58;
     ctx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
     ctx.lineWidth = 1.8;
     ctx.globalAlpha = Math.min(lowOpacity, highOpacity);
-    
+
     ctx.beginPath();
-    
+
     ctx.moveTo(xLow, bracketY + 6);
     ctx.lineTo(xLow, bracketY);
-    
+
     ctx.lineTo(xHigh, bracketY);
-    
+
     ctx.lineTo(xHigh, bracketY + 6);
     ctx.stroke();
 
-    
+
     ctx.fillStyle = '#22d3ee';
     ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
@@ -173,7 +173,7 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
+
   for (let i = 0; i < n; i++) {
     ctx.save();
     const isDimmed = frame.highlights.dimmed.includes(i);
@@ -185,11 +185,11 @@ export function drawBoxArray(
     const elemOpacity = anim ? anim.opacities[i] : (isDimmed ? 0.25 : 1.0);
     const crossVal = anim ? anim.crosses[i] : (isDimmed ? 1.0 : 0.0);
 
-    
+
     let curBoxSize = boxSize;
     let boxX = x;
     let boxY = y;
-    
+
     if (isMid && midOpacity > 0.01) {
       const scaleFactor = 1.0 + 0.15 * midOpacity;
       curBoxSize = boxSize * scaleFactor;
@@ -199,18 +199,18 @@ export function drawBoxArray(
 
     ctx.globalAlpha = elemOpacity;
 
-    
+
     ctx.fillStyle = isFound ? '#10b981' : isMid ? 'rgba(234, 179, 8, 0.12)' : isDimmed ? colors.dimmed : 'rgba(6, 182, 212, 0.05)';
     ctx.strokeStyle = isFound ? '#10b981' : isMid ? '#eab308' : isDimmed ? 'rgba(255, 255, 255, 0.04)' : 'rgba(6, 182, 212, 0.3)';
     ctx.lineWidth = isFound ? 2.5 : isMid ? 2.2 : isCompare ? 2.0 : 1;
 
-    
+
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, curBoxSize, curBoxSize, Math.max(3, boxSize * 0.15));
     ctx.fill();
     ctx.stroke();
 
-    
+
     if (boxSize >= 15) {
       ctx.fillStyle = isFound ? '#10b981' : isMid ? '#eab308' : isDimmed ? '#64748b' : '#38bdf8';
       ctx.font = `bold ${Math.min(15, curBoxSize * 0.45)}px monospace`;
@@ -219,7 +219,7 @@ export function drawBoxArray(
       ctx.fillText(String(frame.dataState[i]), boxX + curBoxSize / 2, boxY + curBoxSize / 2);
     }
 
-    
+
     if (boxSize >= 20) {
       ctx.fillStyle = isDimmed ? 'rgba(100, 116, 139, 0.3)' : '#64748b';
       ctx.font = `${Math.min(10, boxSize * 0.35)}px monospace`;
@@ -229,19 +229,19 @@ export function drawBoxArray(
       ctx.fillText(indexLabel, boxX + curBoxSize / 2, boxY + curBoxSize + 6);
     }
 
-    
+
     if (crossVal > 0.01) {
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
       ctx.lineWidth = 1.2;
       const pad = Math.max(2, boxSize * 0.12);
-      
-      
+
+
       ctx.beginPath();
       ctx.moveTo(boxX + pad, boxY + pad);
       ctx.lineTo(boxX + pad + (curBoxSize - 2 * pad) * crossVal, boxY + pad + (curBoxSize - 2 * pad) * crossVal);
       ctx.stroke();
 
-      
+
       ctx.beginPath();
       ctx.moveTo(boxX + curBoxSize - pad, boxY + pad);
       ctx.lineTo(boxX + curBoxSize - pad - (curBoxSize - 2 * pad) * crossVal, boxY + pad + (curBoxSize - 2 * pad) * crossVal);
@@ -251,7 +251,7 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
+
   if (low !== null && low !== undefined && lowOpacity > 0.01) {
     ctx.save();
     ctx.globalAlpha = lowOpacity;
@@ -259,13 +259,13 @@ export function drawBoxArray(
     const ptrY = y + boxSize + 20;
 
     ctx.fillStyle = '#3b82f6';
-    
+
     ctx.beginPath();
     ctx.moveTo(px, ptrY);
     ctx.lineTo(px - 5, ptrY + 6);
     ctx.lineTo(px + 5, ptrY + 6);
     ctx.fill();
-    
+
     ctx.font = `bold ${Math.min(9.5, boxSize * 0.35)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -273,38 +273,38 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
-  
+
+
   const hasHigh = high !== null && high !== undefined && highOpacity > 0.01;
   const hasMid = mid !== null && mid !== undefined && midOpacity > 0.01;
 
   if (hasHigh || hasMid) {
     ctx.save();
-    
-    
+
+
     const isSameIndex = hasHigh && hasMid && Math.abs(mid - high) < 0.1;
 
     if (isSameIndex) {
-      
+
       const px = startX + mid * (boxSize + gap) + boxSize / 2;
       const ptrY = y - 6;
       ctx.globalAlpha = Math.max(midOpacity, highOpacity);
 
-      
-      ctx.fillStyle = '#eab308'; 
+
+      ctx.fillStyle = '#eab308';
       ctx.beginPath();
       ctx.moveTo(px, ptrY);
       ctx.lineTo(px - 5, ptrY - 6);
       ctx.lineTo(px + 5, ptrY - 6);
       ctx.fill();
 
-      
+
       ctx.font = `bold ${Math.min(9.5, boxSize * 0.35)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(boxSize >= 30 ? 'MID & High' : 'M&H', px, ptrY - 8);
     } else {
-      
+
       if (hasHigh) {
         ctx.save();
         ctx.globalAlpha = highOpacity;
@@ -325,7 +325,7 @@ export function drawBoxArray(
         ctx.restore();
       }
 
-      
+
       if (hasMid) {
         ctx.save();
         ctx.globalAlpha = midOpacity;
@@ -349,7 +349,7 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
+
   if (hasMid && foundIdx !== Math.round(mid)) {
     ctx.save();
     ctx.globalAlpha = midOpacity;
@@ -373,7 +373,7 @@ export function drawBoxArray(
         const bubbleX = px - bubbleW / 2;
         const bubbleY = midTopY - 38;
 
-        
+
         ctx.fillStyle = 'rgba(234, 179, 8, 0.12)';
         ctx.strokeStyle = 'rgba(234, 179, 8, 0.55)';
         ctx.lineWidth = 1.2;
@@ -391,11 +391,11 @@ export function drawBoxArray(
     ctx.restore();
   }
 
-  
+
   if (foundIdx !== null && foundIdx !== undefined) {
     ctx.save();
     const fx = startX + foundIdx * (boxSize + gap) + boxSize / 2;
-    const fy = y - 42; 
+    const fy = y - 42;
 
     ctx.font = 'bold 11px sans-serif';
     const bText = boxSize >= 30 ? 'FOUND' : 'OK';
@@ -415,23 +415,23 @@ export function drawBoxArray(
     ctx.fill();
     ctx.stroke();
 
-    
+
     ctx.fillStyle = '#10b981';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(bText, bx + paddingX, fy + bH / 2);
 
-    
+
     const cx = bx + paddingX + textWidth + gapSize + iconW / 2;
     const cy = fy + bH / 2;
-    
-    
+
+
     ctx.fillStyle = '#10b981';
     ctx.beginPath();
     ctx.arc(cx, cy, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    
+
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
@@ -444,7 +444,7 @@ export function drawBoxArray(
 
     ctx.restore();
   } else if (frame.explanation.includes('Không tìm thấy')) {
-    
+
     ctx.save();
     ctx.font = 'bold 12px sans-serif';
     const nfText = boxSize >= 30 ? 'NOT FOUND' : 'FAIL';
@@ -455,7 +455,7 @@ export function drawBoxArray(
     const nfW = paddingX * 2 + textWidth + gapSize + iconW;
     const nfH = 24;
     const nfX = (w - nfW) / 2;
-    const nfY = y - 42; 
+    const nfY = y - 42;
 
     ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
     ctx.strokeStyle = '#ef4444';
@@ -465,23 +465,23 @@ export function drawBoxArray(
     ctx.fill();
     ctx.stroke();
 
-    
+
     ctx.fillStyle = '#ef4444';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(nfText, nfX + paddingX, nfY + nfH / 2);
 
-    
+
     const cx = nfX + paddingX + textWidth + gapSize + iconW / 2;
     const cy = nfY + nfH / 2;
 
-    
+
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
     ctx.arc(cx, cy, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    
+
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';

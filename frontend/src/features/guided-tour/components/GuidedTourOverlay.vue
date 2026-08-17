@@ -5,14 +5,14 @@
       class="guided-tour-overlay-root fixed inset-0 z-[9999] font-sans select-none"
       :class="{ 'flex items-center justify-center': !spotlightStyle }"
     >
-      
+
       <div
         class="absolute inset-0 transition-all duration-300"
         :class="spotlightStyle ? 'bg-transparent' : 'bg-bg-secondary backdrop-blur-[2px]'"
         aria-hidden="true"
       />
 
-      
+
       <div
         v-if="spotlightStyle"
         class="spotlight-highlight absolute border-2 border-accent-cyan/80 rounded-xl transition-all duration-300 pointer-events-none"
@@ -23,7 +23,7 @@
         </span>
       </div>
 
-      
+
       <VirtualPointer
         v-if="tourStore.virtualCursor"
         :x="tourStore.virtualCursor.x"
@@ -32,7 +32,7 @@
         :clicking="tourStore.virtualCursor.clicking"
       />
 
-      
+
       <Transition name="scale" mode="out-in">
         <div
           :key="tourStore.currentStepIndex"
@@ -42,20 +42,20 @@
           aria-modal="true"
           aria-label="Hướng dẫn sử dụng giao diện"
         >
-          
+
           <div class="flex gap-4 items-start">
-            
+
             <VirtualMascot :state="currentStep.avatarState || 'EXPLAINING'" class="mt-1 flex-shrink-0" />
 
-            
+
             <div class="flex-1 flex flex-col gap-2 min-w-0">
-              
+
               <div class="flex items-center justify-between">
                 <span class="text-[10px] font-mono font-bold tracking-widest text-accent-cyan uppercase">
                   Trợ lý ảo • {{ tourStore.currentStepIndex + 1 }} / {{ tourStore.currentSteps.length }}
                 </span>
-                
-                
+
+
                 <div v-if="isTyping" class="voice-wave flex items-end gap-0.5 h-3 ml-2" aria-hidden="true">
                   <span class="w-0.5 bg-accent-cyan animate-bar1"></span>
                   <span class="w-0.5 bg-accent-cyan animate-bar2"></span>
@@ -73,7 +73,7 @@
                 </div>
               </div>
 
-              
+
               <div class="flex flex-col gap-1.5 mt-1">
                 <h3 class="text-base font-bold text-text-primary tracking-tight flex items-start gap-1.5">
                   <BaseIcon v-if="currentStep.icon" :name="currentStep.icon" class="w-4 h-4 text-accent-cyan flex-shrink-0 mt-0.5" />
@@ -84,7 +84,7 @@
             </div>
           </div>
 
-          
+
           <div class="flex items-center justify-between mt-1 pt-4 border-t border-border-subtle">
             <button
               class="px-3 py-1.5 rounded-lg text-xs font-bold text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all cursor-pointer"
@@ -93,7 +93,7 @@
               Bỏ qua
             </button>
 
-            
+
             <button
               v-if="currentStep.actionScript && currentStep.actionScript.length > 0"
               class="px-3 py-1.5 rounded-lg text-xs font-bold bg-accent-yellow/20 text-accent-yellow border border-accent-yellow/30 hover:bg-accent-yellow/35 transition-all cursor-pointer flex items-center gap-1 shadow-lg shadow-accent-yellow/10"
@@ -195,7 +195,7 @@ function updateSpotlight(skipScroll = false) {
     height: `${rect.height + pad * 2}px`,
   };
 
-  
+
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   const cardWidth = Math.min(450, viewportWidth - 32);

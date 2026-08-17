@@ -38,16 +38,16 @@ describe('MonacoLineSyncerCoordinator Unit Tests', () => {
     });
 
     const coordinator = new MonacoLineSyncerCoordinator(mockEditor, mockVcrStore);
-    
-    
+
+
     clickCallback({
       target: {
-        type: 3, 
+        type: 3,
         position: { lineNumber: 10 }
       }
     });
 
-    expect(mockVcrStore.jumpToFrame).toHaveBeenCalledWith(1); 
+    expect(mockVcrStore.jumpToFrame).toHaveBeenCalledWith(1);
 
     coordinator.destroy();
   });

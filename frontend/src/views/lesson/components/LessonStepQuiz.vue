@@ -12,7 +12,7 @@
         <BaseIcon name="puzzle" class="w-4 h-4 text-accent" />
         <span>Kiểm Tra Trắc Nghiệm</span>
       </div>
-      
+
       <div class="w-full max-w-3xl flex flex-col gap-3">
         <div class="flex justify-between items-end">
           <h2 class="text-2xl font-black text-white tracking-tight">
@@ -24,7 +24,7 @@
         </div>
         <!-- Sleek Progress Bar -->
         <div class="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-          <div 
+          <div
             class="h-full rounded-full transition-all duration-700 ease-out"
             :class="answeredCount === questions.length ? 'bg-gradient-to-r from-vdsa-accent-green to-vdsa-green' : 'bg-gradient-to-r from-vdsa-accent to-indigo-400'"
             :style="{ width: `${(answeredCount / questions.length) * 100}%` }"
@@ -58,11 +58,11 @@
     <!-- Main Content Area -->
     <main class="relative z-10 flex-1 overflow-y-auto px-4 py-4 w-full scroll-smooth">
       <div v-if="questions.length > 0 && currentQuestion" class="max-w-3xl mx-auto flex flex-col gap-6 min-h-full pb-20">
-        
+
         <!-- Question Card -->
         <Transition name="fade-slide" mode="out-in">
           <div :key="currentQuestion.id" class="w-full flex flex-col gap-6">
-            
+
             <!-- The Question -->
             <div class="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
               <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-vdsa-accent to-purple-500 opacity-50 rounded-t-3xl"></div>
@@ -73,7 +73,7 @@
 
             <!-- Unanswered Warning -->
             <Transition name="fade">
-              <div v-if="showUnansweredWarning && unansweredIndices.includes(currentIndex) && !isSubmitted" 
+              <div v-if="showUnansweredWarning && unansweredIndices.includes(currentIndex) && !isSubmitted"
                    class="flex items-center gap-3 text-amber-400 bg-amber-400/10 border border-amber-400/20 backdrop-blur-md rounded-2xl px-5 py-3 shadow-lg shadow-amber-400/5">
                 <BaseIcon name="warning" class="w-5 h-5 shrink-0" />
                 <span class="text-sm font-semibold">Bạn chưa chọn đáp án cho câu hỏi này!</span>
@@ -97,7 +97,7 @@
                 :disabled="isSubmitted"
               >
                 <!-- Option Letter Bubble -->
-                <div 
+                <div
                   class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300"
                   :class="[
                     userAnswers[currentQuestion.id] === oIdx && !isSubmitted ? 'bg-accent text-white shadow-lg shadow-vdsa-accent/40' : '',
@@ -111,14 +111,14 @@
                   <span v-else-if="isSubmitted && userAnswers[currentQuestion.id] === oIdx && oIdx !== currentQuestion.correctIndex"><BaseIcon name="close" class="w-5 h-5" /></span>
                   <span v-else>{{ String.fromCharCode(65 + oIdx) }}</span>
                 </div>
-                
+
                 <span class="text-sm sm:text-base font-medium flex-1">{{ opt }}</span>
               </button>
             </div>
 
             <!-- Explanation Box -->
             <Transition name="fade-slide-up">
-              <div v-if="isSubmitted" 
+              <div v-if="isSubmitted"
                    class="mt-2 p-6 rounded-3xl border backdrop-blur-xl shadow-2xl relative overflow-hidden"
                    :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'border-vdsa-green/30 bg-vdsa-green/10' : 'border-vdsa-red/30 bg-vdsa-red/10'">
                 <div class="absolute top-0 left-0 w-1 h-full" :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'bg-vdsa-green' : 'bg-vdsa-red'"></div>
@@ -155,7 +155,7 @@
 
     <!-- Bottom Action Bar -->
     <div v-if="questions.length > 0" class="relative z-20 border-t border-white/5 bg-vdsa-bg-secondary/80 backdrop-blur-2xl px-6 py-4 flex items-center justify-between gap-4 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
-      
+
       <!-- Result Summary -->
       <div v-if="isSubmitted" class="flex-1">
         <div class="flex items-center gap-3">
@@ -172,7 +172,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Placeholder if not submitted -->
       <div v-else class="flex-1 hidden sm:block">
         <span class="text-xs font-semibold text-vdsa-muted">
@@ -191,7 +191,7 @@
           >
             <BaseIcon name="arrow-left" class="w-5 h-5" />
           </button>
-          
+
           <button
             @click="nextQuestion"
             :disabled="currentIndex === questions.length - 1"

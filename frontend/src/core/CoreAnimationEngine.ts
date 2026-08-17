@@ -9,7 +9,7 @@ export class CoreAnimationEngine {
   private renderCallbacks: Array<(deltaTime: number) => void> = [];
   private lastTimestamp = 0;
 
-  
+
 
 
   public registerRender(callback: (deltaTime: number) => void): void {
@@ -19,7 +19,7 @@ export class CoreAnimationEngine {
     }
   }
 
-  
+
 
 
   public unregisterRender(callback: (deltaTime: number) => void): void {
@@ -49,8 +49,8 @@ export class CoreAnimationEngine {
     const deltaTime = timestamp - this.lastTimestamp;
     this.lastTimestamp = timestamp;
 
-    
-    const clampedDelta = Math.min(deltaTime, 32); 
+
+    const clampedDelta = Math.min(deltaTime, 32);
 
     this.renderCallbacks.forEach(cb => {
       try {
@@ -63,11 +63,11 @@ export class CoreAnimationEngine {
     this.animationFrameId = requestAnimationFrame(this.loop);
   };
 
-  
+
 
 
   public static lerp(start: number, end: number, t: number): number {
-    
+
     const clampedT = Math.max(0, Math.min(1, t));
     return start + (end - start) * clampedT;
   }
@@ -79,7 +79,7 @@ export class CoreAnimationEngine {
     };
   }
 
-  
+
 
 
   public destroy(): void {

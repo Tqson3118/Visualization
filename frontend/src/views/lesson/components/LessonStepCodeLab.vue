@@ -13,7 +13,7 @@
       <div class="w-full lg:w-1/2 h-full flex flex-col border-r border-vdsa-border bg-vdsa-bg-secondary">
         <!-- Tabs -->
         <div class="flex items-center bg-vdsa-surface border-b border-vdsa-border px-2 h-[40px] shrink-0 overflow-x-auto custom-scrollbar">
-          <button 
+          <button
             @click="activeLeftTab = 'description'"
             class="flex items-center gap-1.5 px-3 py-1 text-[13px] font-semibold rounded-md transition-colors"
             :class="activeLeftTab === 'description' ? 'bg-vdsa-hover text-white' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover/50'"
@@ -21,7 +21,7 @@
             <BaseIcon name="document" class="w-3.5 h-3.5 text-accent" />
             Description
           </button>
-          <button 
+          <button
             v-if="activeTask?.hints && activeTask.hints.length > 0"
             @click="activeLeftTab = 'hints'"
             class="flex items-center gap-1.5 px-3 py-1 text-[13px] font-semibold rounded-md transition-colors ml-1"
@@ -36,10 +36,10 @@
         <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
           <div v-show="activeLeftTab === 'description'">
             <h1 class="text-2xl font-bold text-white mb-3">{{ currentTaskIndex + 1 }}. {{ problemTitle }}</h1>
-            
+
             <div v-if="Array.isArray(codelabTask) && codelabTask.length > 1" class="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">
-              <button 
-                v-for="(task, idx) in codelabTask" 
+              <button
+                v-for="(task, idx) in codelabTask"
                 :key="task.id || idx"
                 @click="currentTaskIndex = idx"
                 class="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors whitespace-nowrap flex items-center gap-2"
@@ -49,11 +49,11 @@
                 <BaseIcon v-if="completedTasks.has(idx)" name="check-circle" class="w-3.5 h-3.5 text-vdsa-green" />
               </button>
             </div>
-            
+
             <div class="flex gap-2 mb-6">
               <span class="px-2.5 py-1 rounded-full bg-vdsa-green/20 text-vdsa-green text-[11px] font-semibold">Easy</span>
             </div>
-            
+
             <div class="text-[14px] leading-relaxed text-vdsa-secondary space-y-4">
               <p class="whitespace-pre-line" v-html="formatMarkdown(activeTask?.description ?? '')"></p>
             </div>
@@ -124,7 +124,7 @@
         <div class="flex flex-col border-t border-vdsa-border bg-vdsa-bg transition-all duration-300" :class="isConsoleExpanded ? 'h-[280px]' : 'h-[40px]'">
           <!-- Console Header -->
           <div class="flex items-center px-3 h-[40px] bg-vdsa-surface border-b border-vdsa-border shrink-0 gap-4 cursor-pointer" @click="isConsoleExpanded = true">
-            <button 
+            <button
               @click.stop="isConsoleExpanded = true; activeConsoleTab = 'testcase'"
               class="flex items-center gap-1.5 text-xs font-semibold transition-colors"
               :class="activeConsoleTab === 'testcase' && isConsoleExpanded ? 'text-white' : 'text-vdsa-muted hover:text-white'"
@@ -132,7 +132,7 @@
               <BaseIcon name="check-circle" class="w-3.5 h-3.5 text-vdsa-green" />
               Testcase
             </button>
-            <button 
+            <button
               @click.stop="isConsoleExpanded = true; activeConsoleTab = 'result'"
               class="flex items-center gap-1.5 text-xs font-semibold transition-colors"
               :class="activeConsoleTab === 'result' && isConsoleExpanded ? 'text-white' : 'text-vdsa-muted hover:text-white'"
@@ -145,13 +145,13 @@
               <BaseIcon :name="isConsoleExpanded ? 'chevron-down' : 'chevron-up'" class="w-4 h-4" />
             </button>
           </div>
-          
+
           <!-- Console Content -->
           <div v-show="isConsoleExpanded" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
             <!-- Testcase Tab -->
             <div v-show="activeConsoleTab === 'testcase'">
                <div class="flex flex-wrap gap-2 mb-4">
-                 <button 
+                 <button
                     v-for="(tc, i) in sampleTestcases" :key="i"
                     @click="activeTestCaseIndex = i"
                     class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
@@ -186,7 +186,7 @@
                    {{ allPassed ? 'Accepted' : 'Wrong Answer' }}
                  </h3>
                  <div class="flex flex-wrap gap-2 mb-4">
-                   <button 
+                   <button
                       v-for="(res, i) in caseResults" :key="i"
                       @click="activeTestResultIndex = i"
                       class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
@@ -196,7 +196,7 @@
                       Case {{ i + 1 }}
                    </button>
                  </div>
-                 
+
                  <div v-if="caseResults[activeTestResultIndex]" class="space-y-4 pb-4">
                    <div v-if="activeTask?.testCases[activeTestResultIndex].isHidden" class="text-vdsa-muted text-sm italic">
                      Hidden testcase
@@ -235,15 +235,15 @@
             <span v-else>Saved</span>
           </div>
           <div class="flex items-center gap-2">
-            <button 
-              @click="runTestcases" 
+            <button
+              @click="runTestcases"
               :disabled="isRunning"
               class="px-5 py-1.5 rounded text-[13px] font-semibold transition-colors bg-vdsa-hover hover:bg-vdsa-active text-white disabled:opacity-50"
             >
               Run
             </button>
-            <button 
-              @click="submitSolution" 
+            <button
+              @click="submitSolution"
               :disabled="isSubmitting || !allPassed"
               class="px-5 py-1.5 rounded text-[13px] font-semibold transition-colors bg-vdsa-green hover:bg-vdsa-accent-green-light text-white disabled:opacity-50 flex items-center gap-1.5"
             >
@@ -342,7 +342,7 @@ async function runTestcases(): Promise<void> {
   isConsoleExpanded.value = true;
   activeConsoleTab.value = 'result';
   activeTestResultIndex.value = 0;
-  
+
   try {
     const result = await runCodelabTask(
       currentCode(),
@@ -414,12 +414,12 @@ async function submitSolution(): Promise<void> {
       isConsoleExpanded.value = true;
       return;
     }
-    
+
     if (Array.isArray(props.codelabTask)) {
       if (!completedTasks.value.has(currentTaskIndex.value)) {
         completedTasks.value.add(currentTaskIndex.value);
       }
-      
+
       if (completedTasks.value.size === props.codelabTask.length) {
         emit('completeLesson');
       } else {

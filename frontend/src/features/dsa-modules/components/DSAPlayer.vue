@@ -1,12 +1,12 @@
 <template>
   <div class="dsa-player-wrapper flex h-full w-full gap-4 relative" :class="{ 'theory-expanded-layout': isTheoryOpen && isDesktopWide }">
     <div class="flex-1 flex flex-col h-full w-full gap-2 min-w-0">
-      
+
       <template v-if="!algoStore.currentAlgorithm">
         <AlgorithmDashboard :allowedCategories="allowedCategories" @select="onAlgorithmSelected" />
       </template>
 
-      
+
       <template v-else>
         <DSAHeader
           :algorithm="algoStore.currentAlgorithm"
@@ -19,12 +19,12 @@
         />
 
         <div class="flex-1 flex gap-2 min-h-0 flex-col lg:flex-row">
-          
+
           <div class="flex-[65] lg:flex-[65] flex-none w-full lg:w-auto rounded-xl overflow-hidden border border-border-subtle shadow-lg relative">
             <AlgorithmVisualizer />
           </div>
 
-          
+
           <div class="flex-[35] lg:flex-[35] flex-none w-full lg:w-auto flex flex-col gap-2 min-h-0">
             <PseudocodeViewer
               v-if="algoStore.metadata"
@@ -41,13 +41,13 @@
           </div>
         </div>
 
-        
+
         <div v-if="animStore.currentFrame"
           class="h-10 rounded-xl overflow-hidden border border-border-subtle shadow-lg bg-bg-secondary flex items-center px-4">
           <span class="text-xs text-text-secondary">{{ animStore.currentFrame.explanation }}</span>
         </div>
 
-        
+
         <AnimationVcrControls
           :isPlaying="animStore.isPlaying"
           :currentIndex="animStore.currentIndex"
@@ -63,7 +63,7 @@
       </template>
     </div>
 
-    
+
     <TheoryCollapsiblePanel
       v-model:isOpen="isTheoryOpen"
       :document="dsaTheoryDoc"
@@ -174,7 +174,7 @@ watch(() => animStore.currentIndex, (newIdx) => {
 watch(() => algoStore.viewMode, (newMode) => {
   if (newMode === 'theory') {
     isTheoryOpen.value = true;
-    algoStore.setViewMode('simulation'); 
+    algoStore.setViewMode('simulation');
   }
 });
 

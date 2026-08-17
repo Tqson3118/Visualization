@@ -103,7 +103,7 @@ defineExpose({ resizeCanvas, syncTextToPlayground });
 }
 
 .canvas-grid {
-  background-image: 
+  background-image:
     linear-gradient(to right, var(--color-border-default) 0.5px, transparent 0.5px),
     linear-gradient(to bottom, var(--color-border-default) 0.5px, transparent 0.5px);
   background-size: 2rem 2rem;

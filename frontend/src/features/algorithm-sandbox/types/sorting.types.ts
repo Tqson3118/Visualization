@@ -31,24 +31,24 @@ export interface SortFrame {
   algorithm: SortAlgorithm;
   /** Trace Table: giá trị các biến điều khiển tại bước này (i, j, low, high, pivot, swaps...) */
   variables?: Record<string, string | number>;
-  
-  
+
+
   subArrays?: SubArray[];
-  
-  
+
+
   partitions?: Partition[];
 
-  
+
   heapSize?: number;
 
-  
-  radixBuckets?: number[][]; 
-  
+
+  radixBuckets?: number[][];
+
   radixBucketsWithIds?: Array<Array<{ id: number; value: number }>>;
-  activeDigitPlace?: number; 
+  activeDigitPlace?: number;
   radixStep?: "distribute" | "collect";
 
-  
+
   countArray?: number[];
   countingStep?: "count" | "accumulate" | "output";
   inputArray?: number[];
@@ -56,7 +56,7 @@ export interface SortFrame {
   outputArray?: Array<number | null>;
   outputArrayWithIds?: Array<{ id: number; value: number } | null>;
 
-  
+
   bucketSortBuckets?: number[][];
   bucketSortBucketsWithIds?: Array<Array<{ id: number; value: number }>>;
   bucketRangeLabels?: string[];

@@ -1,6 +1,6 @@
 <template>
   <div class="lesson-study-view flex h-[calc(100vh-64px)] w-full overflow-hidden bg-vdsa-bg-secondary font-sans">
-    
+
     <!-- LEFT SIDEBAR: Course Mini Map -->
     <aside class="w-72 lg:w-80 shrink-0 bg-vdsa-surface border-r border-vdsa-border flex flex-col h-full overflow-hidden shadow-xl z-30">
        <!-- Course Title & Search -->
@@ -20,18 +20,18 @@
                <span class="text-xs font-bold text-vdsa-secondary group-hover:text-white transition-colors uppercase tracking-wider line-clamp-2 pr-2">{{ mIdx + 1 }}. {{ module.title }}</span>
                <BaseIcon :name="expandedModules.includes(mIdx) ? 'chevron-up' : 'chevron-down'" class="w-4 h-4 text-vdsa-muted transition-transform duration-300 shrink-0" />
             </button>
-            
+
             <div v-if="expandedModules.includes(mIdx)" class="mt-1 ml-[11px] pl-4 border-l-2 border-vdsa-border space-y-1 py-1">
-               <button v-for="lesson in module.lessons" :key="lesson.id" 
+               <button v-for="lesson in module.lessons" :key="lesson.id"
                   @click="goToLesson(lesson.id)"
                   :disabled="lesson.locked"
                    class="w-full text-left py-2.5 px-3 rounded-xl transition-all relative flex items-center gap-3 group"
                    :class="lesson.id === lessonId ? 'bg-vdsa-accent/10 text-vdsa-accent font-bold ring-1 ring-vdsa-accent/40' : (lesson.locked ? 'text-vdsa-disabled cursor-not-allowed opacity-60' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover font-semibold')">
-                   
+
                    <!-- Timeline dot -->
                    <div class="w-[9px] h-[9px] rounded-full absolute -left-[21px] border-2 transition-colors z-10"
                         :class="lesson.id === lessonId ? 'bg-vdsa-accent border-vdsa-accent shadow-[0_0_8px_rgba(168,85,247,0.9)]' : 'bg-vdsa-surface border-vdsa-border group-hover:border-text-muted'"></div>
-                   
+
                    <span class="text-xs line-clamp-2 leading-snug">{{ lesson.title }}</span>
                    <BaseIcon
                      v-if="isLessonCompleted(lesson)"
@@ -185,20 +185,20 @@ const expandedModules = ref<number[]>([]);
 
 const groupedModules = computed(() => {
   if (!course.value?.lessons) return [];
-  
+
   const q = searchQuery.value.toLowerCase().trim();
   const map = new Map<string, { title: string, lessons: LessonDto[] }>();
-  
+
   course.value.lessons.forEach(l => {
     if (q && !l.title.toLowerCase().includes(q) && !(l.moduleTitle || '').toLowerCase().includes(q)) return;
-    
+
     const mTitle = l.moduleTitle || 'General';
     if (!map.has(mTitle)) {
       map.set(mTitle, { title: mTitle, lessons: [] });
     }
     map.get(mTitle)!.lessons.push(l);
   });
-  
+
   return Array.from(map.values());
 });
 

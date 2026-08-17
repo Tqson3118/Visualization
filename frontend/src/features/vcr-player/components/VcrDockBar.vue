@@ -1,6 +1,6 @@
 <template>
   <div class="vcr-dock-bar flex items-center justify-between gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 rounded-lg bg-bg-surface border border-border-default shadow-2xl backdrop-blur-xl w-full mx-auto font-sans select-none overflow-hidden">
-    
+
     <div class="relative shrink-0 font-mono">
       <select
         :value="vcrStore.playbackSpeed"
@@ -19,9 +19,9 @@
       </svg>
     </div>
 
-    
+
     <div class="flex items-center gap-1.5 shrink-0">
-      
+
       <button
         @click="vcrStore.stepPrev"
         :disabled="vcrStore.totalFrames === 0 || vcrStore.isAtStart"
@@ -32,7 +32,7 @@
         <BaseIcon name="step-backward" class="w-3.5 h-3.5" />
       </button>
 
-      
+
       <button
         @click="vcrStore.togglePlay"
         :disabled="vcrStore.totalFrames === 0"
@@ -46,7 +46,7 @@
         <BaseIcon v-else name="play" class="w-4 h-4 ml-0.5" />
       </button>
 
-      
+
       <button
         @click="vcrStore.stepNext"
         :disabled="vcrStore.totalFrames === 0 || (!vcrStore.isLooping && vcrStore.isAtEnd)"
@@ -57,7 +57,7 @@
         <BaseIcon name="step-forward" class="w-3.5 h-3.5" />
       </button>
 
-      
+
       <button
         @click="vcrStore.reset"
         :disabled="vcrStore.totalFrames === 0"
@@ -69,7 +69,7 @@
       </button>
     </div>
 
-    
+
     <div class="flex items-center gap-2 flex-1 min-w-[70px] shrink overflow-hidden">
       <input
         type="range"

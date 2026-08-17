@@ -6,7 +6,7 @@
         <span>Khái niệm cốt lõi</span>
       </h4>
       <div class="summary-card-body" v-html="renderMarkdown(document.sections[0]?.content || '')"></div>
-      
+
       <button class="read-more-premium-btn" @click="$emit('readMore')">
         <div class="flex items-center justify-center gap-1.5">
           <SvgIcon name="book" :size="13" color="white" />
@@ -15,7 +15,7 @@
       </button>
     </div>
 
-    
+
     <div class="key-terms-cloud mt-4" v-if="allTags.length > 0">
       <span class="text-[10px] text-text-muted uppercase tracking-wider block mb-2 font-bold">
         Từ khóa bài học (Click để highlight Code):

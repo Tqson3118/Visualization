@@ -91,7 +91,7 @@ describe('usePlaygroundStore', () => {
     expect(dup).toBeNull();
     expect(store.edges).toHaveLength(1);
 
-    
+
     const rev = store.addEdge(b.id, a.id);
     expect(rev).toBeNull();
     expect(store.edges).toHaveLength(1);
@@ -107,10 +107,10 @@ describe('usePlaygroundStore', () => {
     expect(store.edges[0].weight).toBe(42);
 
     store.updateEdgeWeight(edge.id, 0);
-    expect(store.edges[0].weight).toBe(42); 
+    expect(store.edges[0].weight).toBe(42);
 
     store.updateEdgeWeight(edge.id, 1000);
-    expect(store.edges[0].weight).toBe(42); 
+    expect(store.edges[0].weight).toBe(42);
   });
 
   it('cascade deletes edges when node is removed', () => {
@@ -125,7 +125,7 @@ describe('usePlaygroundStore', () => {
     expect(store.edges).toHaveLength(3);
     store.deleteNode(a.id);
     expect(store.nodes).toHaveLength(2);
-    expect(store.edges).toHaveLength(1); 
+    expect(store.edges).toHaveLength(1);
     expect(store.edges[0].from).toBe(b.id);
     expect(store.edges[0].to).toBe(c.id);
   });
@@ -172,15 +172,15 @@ describe('usePlaygroundStore', () => {
     expect(store.hoveredNodeId).toBe(a.id);
     expect(store.hoveredEdgeId).toBe(edge.id);
 
-    
+
     store.deleteEdge(edge.id);
     expect(store.hoveredEdgeId).toBeNull();
 
-    
+
     store.setHoveredNodeId(b.id);
     expect(store.hoveredNodeId).toBe(b.id);
-    
-    
+
+
     store.deleteNode(b.id);
     expect(store.hoveredNodeId).toBeNull();
   });
@@ -226,17 +226,17 @@ describe('GraphGeometryEngine', () => {
       20
     );
 
-    
+
     expect(arrow.start.x).toBeCloseTo(120, 0);
     expect(arrow.start.y).toBeCloseTo(100, 0);
-    
+
     expect(arrow.end.x).toBeCloseTo(280, 0);
     expect(arrow.end.y).toBeCloseTo(100, 0);
     expect(arrow.angle).toBeCloseTo(0, 1);
   });
 
   it('detects edge hit within threshold', () => {
-    
+
     const hit = GraphGeometryEngine.hitTestEdge({ x: 200, y: 103 }, testEdges, testNodes, 8);
     expect(hit).not.toBeNull();
     expect(hit!.id).toBe('e1');
@@ -280,12 +280,12 @@ describe('ForceDirectedEngine', () => {
     ];
     const edges: EdgeDTO[] = [];
 
-    
+
     for (let i = 0; i < 50; i++) {
       engine.tick(nodes, edges, 800, 500, null);
     }
 
-    
+
     const dist = Math.sqrt(
       (nodes[0].x - nodes[1].x) ** 2 +
       (nodes[0].y - nodes[1].y) ** 2
@@ -312,7 +312,7 @@ describe('ForceDirectedEngine', () => {
       (nodes[0].x - nodes[1].x) ** 2 +
       (nodes[0].y - nodes[1].y) ** 2
     );
-    
+
     expect(finalDist).toBeLessThan(initialDist);
   });
 
@@ -327,7 +327,7 @@ describe('ForceDirectedEngine', () => {
     const originalY = nodes[0].y;
     engine.tick(nodes, [], 800, 500, 'a');
 
-    
+
     expect(nodes[0].x).toBe(originalX);
     expect(nodes[0].y).toBe(originalY);
   });
@@ -424,6 +424,6 @@ describe('GraphParser', () => {
   it('handles single node with no edges', () => {
     const singleNode = [{ id: 'n1', label: 'A', x: 100, y: 100, radius: 20 }];
     const isolated = GraphParser.findIsolatedNodes(singleNode, []);
-    expect(isolated).toEqual([]); 
+    expect(isolated).toEqual([]);
   });
 });

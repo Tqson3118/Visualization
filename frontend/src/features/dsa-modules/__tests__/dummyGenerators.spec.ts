@@ -13,7 +13,7 @@ describe('dummyGenerators', () => {
     it('traverses in breadth-first order', () => {
       const result = generateDummyResult('bfs', [50, 30, 70]);
       const lastFrame = result.frames[result.frames.length - 1];
-      
+
       expect(lastFrame.dataState).toEqual([50, 30, 70]);
     });
   });
@@ -39,7 +39,7 @@ describe('dummyGenerators', () => {
       const lastFrame = result.frames[result.frames.length - 1];
       expect(lastFrame.treeNodes).toBeDefined();
 
-      
+
       const rootNode = lastFrame.treeNodes!.find(n => n.id === 1);
       const leftNode = lastFrame.treeNodes!.find(n => n.id === 2);
       const rightNode = lastFrame.treeNodes!.find(n => n.id === 3);
@@ -56,7 +56,7 @@ describe('dummyGenerators', () => {
       expect(result.algorithmId).toBe('sliding-window');
       expect(result.frames.length).toBeGreaterThan(0);
 
-      
+
       const stepWithWindow = result.frames.find(f => f.explanation.includes('Cửa sổ đạt kích thước'));
       expect(stepWithWindow).toBeDefined();
       expect(stepWithWindow!.highlights.low).toBe(0);
@@ -69,7 +69,7 @@ describe('dummyGenerators', () => {
       const result = generateDummyResult('monotonic-stack', [4, 5, 2, 10]);
       expect(result.algorithmId).toBe('monotonic-stack');
 
-      
+
       const pushFrame = result.frames.find(f => f.explanation.includes('Đẩy index'));
       expect(pushFrame).toBeDefined();
       expect(pushFrame!.dataState.length).toBeGreaterThan(0);

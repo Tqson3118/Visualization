@@ -19,26 +19,26 @@ export interface VcrBaseFrame {
 
 
 export const useVcrStore = defineStore('vcr-player', () => {
-  
+
   const sourceCode = ref<string>(DEFAULT_BUBBLE_SORT_CODE);
-  
+
   const code = sourceCode;
 
-  
+
   const rawInputArray = ref<string>('45, 12, 85, 32, 9, 60');
   const inputArray = computed<number[]>(() =>
     rawInputArray.value.split(',').map(num => parseInt(num.trim(), 10)).filter(num => !isNaN(num))
   );
 
-  
+
   const playbackFrames     = shallowRef<VcrBaseFrame[]>([]);
   const currentFrameIndex  = ref<number>(0);
   const isPlaying          = ref<boolean>(false);
-  const playbackSpeed      = ref<number>(1); 
+  const playbackSpeed      = ref<number>(1);
   const isLooping          = ref<boolean>(false);
   const compilationError   = ref<string | null>(null);
 
-  
+
   const currentFrame = computed<VcrBaseFrame | null>(() => {
     if (playbackFrames.value.length === 0) return null;
     const idx = currentFrameIndex.value;
@@ -51,10 +51,10 @@ export const useVcrStore = defineStore('vcr-player', () => {
   const isAtStart          = computed(() => currentFrameIndex.value === 0);
   const isAtEnd            = computed(() => currentFrameIndex.value >= totalFrames.value - 1);
 
-  
+
   const customCompileFn = ref<(() => void) | null>(null);
 
-  
+
   const compileAndLoad = () => {
     compilationError.value = null;
     try {
@@ -76,9 +76,9 @@ export const useVcrStore = defineStore('vcr-player', () => {
     }
   };
 
-  const play   = () => { 
-    if (playbackFrames.value.length === 0) compileAndLoad(); 
-    if (playbackFrames.value.length > 0) isPlaying.value = true; 
+  const play   = () => {
+    if (playbackFrames.value.length === 0) compileAndLoad();
+    if (playbackFrames.value.length > 0) isPlaying.value = true;
     else if (compilationError.value) {
       alert("LỖI BIÊN DỊCH CODE:\n\n" + compilationError.value);
     }
@@ -97,14 +97,14 @@ export const useVcrStore = defineStore('vcr-player', () => {
   const reset        = () => { currentFrameIndex.value = 0; isPlaying.value = false; };
   const jumpToFrame  = (index: number) => { if (index >= 0 && index < playbackFrames.value.length) currentFrameIndex.value = index; };
 
-  
+
   let timerId: ReturnType<typeof setInterval> | null = null;
   const stopTimer  = () => { if (timerId !== null) { clearInterval(timerId); timerId = null; } };
   const startTimer = () => { stopTimer(); timerId = setInterval(stepNext, 1000 / playbackSpeed.value); };
 
   watch([isPlaying, playbackSpeed], ([newPlaying]) => { newPlaying ? startTimer() : stopTimer(); });
 
-  
+
   return {
     sourceCode, code, rawInputArray, inputArray, playbackFrames, currentFrameIndex,
     isPlaying, playbackSpeed, isLooping, compilationError,

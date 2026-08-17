@@ -60,11 +60,11 @@ describe('useGuidedTourStore', () => {
   it('should complete tour when calling nextStep on the last step', () => {
     const store = useGuidedTourStore();
     store.startTour();
-    
+
     store.currentStepIndex = store.steps.length - 1;
-    
+
     const setItemSpy = vi.spyOn(localStorage, 'setItem');
-    
+
     store.nextStep();
     expect(store.isActive).toBe(false);
     expect(setItemSpy).toHaveBeenCalledWith('guided_tour_seen', 'true');
@@ -73,21 +73,21 @@ describe('useGuidedTourStore', () => {
   it('should go to previous step and prevent going below 0', () => {
     const store = useGuidedTourStore();
     store.startTour();
-    store.nextStep(); 
-    store.prevStep(); 
+    store.nextStep();
+    store.prevStep();
     expect(store.currentStepIndex).toBe(0);
 
-    store.prevStep(); 
+    store.prevStep();
     expect(store.currentStepIndex).toBe(0);
   });
 
   it('should skip tour and write to localStorage', () => {
     const store = useGuidedTourStore();
     const setItemSpy = vi.spyOn(localStorage, 'setItem');
-    
+
     store.startTour();
     store.skipTour();
-    
+
     expect(store.isActive).toBe(false);
     expect(setItemSpy).toHaveBeenCalledWith('guided_tour_seen', 'true');
   });
@@ -95,9 +95,9 @@ describe('useGuidedTourStore', () => {
   it('should automatically init and start tour if guided_tour_seen is not set', () => {
     const store = useGuidedTourStore();
     const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue(null);
-    
+
     store.initTour();
-    
+
     expect(getItemSpy).toHaveBeenCalledWith('guided_tour_seen');
     expect(store.isActive).toBe(true);
   });
@@ -105,9 +105,9 @@ describe('useGuidedTourStore', () => {
   it('should not start tour during init if guided_tour_seen is set to true', () => {
     const store = useGuidedTourStore();
     const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue('true');
-    
+
     store.initTour();
-    
+
     expect(getItemSpy).toHaveBeenCalledWith('guided_tour_seen');
     expect(store.isActive).toBe(false);
   });
@@ -116,21 +116,21 @@ describe('useGuidedTourStore', () => {
     it('should start page tour if not seen yet', () => {
       const store = useGuidedTourStore();
       const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue(null);
-      
+
       store.startPageTour('/sorting');
-      
+
       expect(getItemSpy).toHaveBeenCalledWith('page_tour_sorting_seen');
       expect(store.isActive).toBe(true);
       expect(store.activePageKey).toBe('/sorting');
-      expect(store.currentSteps.length).toBe(12); 
+      expect(store.currentSteps.length).toBe(12);
     });
 
     it('should not start page tour if already seen and not forced', () => {
       const store = useGuidedTourStore();
       const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue('true');
-      
+
       store.startPageTour('/sorting');
-      
+
       expect(getItemSpy).toHaveBeenCalledWith('page_tour_sorting_seen');
       expect(store.isActive).toBe(false);
     });
@@ -138,9 +138,9 @@ describe('useGuidedTourStore', () => {
     it('should start page tour if already seen but forced', () => {
       const store = useGuidedTourStore();
       const getItemSpy = vi.spyOn(localStorage, 'getItem').mockReturnValue('true');
-      
+
       store.startPageTour('/sorting', true);
-      
+
       expect(store.isActive).toBe(true);
       expect(store.activePageKey).toBe('/sorting');
     });
@@ -148,10 +148,10 @@ describe('useGuidedTourStore', () => {
     it('should mark page-specific tour as seen when completed', () => {
       const store = useGuidedTourStore();
       const setItemSpy = vi.spyOn(localStorage, 'setItem');
-      
+
       store.startPageTour('/sorting', true);
       store.completeTour();
-      
+
       expect(store.isActive).toBe(false);
       expect(setItemSpy).toHaveBeenCalledWith('page_tour_sorting_seen', 'true');
     });
@@ -159,17 +159,17 @@ describe('useGuidedTourStore', () => {
     it('should mark page-specific tour as seen when skipped', () => {
       const store = useGuidedTourStore();
       const setItemSpy = vi.spyOn(localStorage, 'setItem');
-      
+
       store.startPageTour('/sorting', true);
       store.skipTour();
-      
+
       expect(store.isActive).toBe(false);
       expect(setItemSpy).toHaveBeenCalledWith('page_tour_sorting_seen', 'true');
     });
 
     it('should correctly load tour steps for newly added academic routes', () => {
       const store = useGuidedTourStore();
-      
+
       const testCases = [
         { path: '/sorting', expectedLength: 12, firstTitle: '1. Bộ chuyển đổi Sandbox / Bài học' },
         { path: '/code-ide', expectedLength: 12, firstTitle: '1. Monaco Code Editor' },
@@ -196,13 +196,13 @@ describe('useGuidedTourStore', () => {
 
     it('should support action scripts and run simulation successfully', async () => {
       const store = useGuidedTourStore();
-      
+
       const dummyBtn = document.createElement('button');
       dummyBtn.id = 'dummy-btn';
       document.body.appendChild(dummyBtn);
 
       store.startPageTour('/sorting', true);
-      
+
       store.currentSteps[0].actionScript = [
         { type: 'click', targetSelector: '#dummy-btn' }
       ];
@@ -217,7 +217,7 @@ describe('useGuidedTourStore', () => {
 
       expect(store.isExecutingScript).toBe(false);
       expect(clickSpy).toHaveBeenCalled();
-      
+
       document.body.removeChild(dummyBtn);
     });
   });

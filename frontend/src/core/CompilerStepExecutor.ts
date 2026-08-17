@@ -190,15 +190,15 @@ export class CompilerStepExecutor {
     let inSwap = false;
     const highlighted: number[] = [];
 
-    
+
     const graphNodes = options?.graphNodes ?? [];
     const graphEdges = options?.graphEdges ?? [];
     const treeNodes = options?.treeNodes ?? [];
 
-    
+
     const mockArray = [...(options?.array ?? initialArray)];
 
-    
+
     const state = {
       array: mockArray,
       vars: {} as Record<string, number>,
@@ -232,7 +232,7 @@ export class CompilerStepExecutor {
       heapState: undefined as HeapSortState | undefined,
     };
 
-    
+
     const buildBaseSnapshot = (): CanvasStateSnapshot => ({
       array: [...state.array],
       graphNodes,
@@ -286,7 +286,7 @@ export class CompilerStepExecutor {
         : undefined,
     });
 
-    
+
     const commit = (partial: Partial<CanvasStateSnapshot>, description: string): void => {
       const lastFrame = frames[frames.length - 1];
       if (lastFrame && lastFrame.lineNumber === currentLine) {
@@ -308,7 +308,7 @@ export class CompilerStepExecutor {
       }
     };
 
-    
+
     const trackLine = (lineNum: number, variables: Record<string, unknown>) => {
       stepCount++;
       if (stepCount > CompilerStepExecutor.MAX_STEPS) {
@@ -357,15 +357,15 @@ export class CompilerStepExecutor {
       }
     };
 
-    
+
     const compare = (a: number, b: number) => {
       if (typeof a !== 'number' || typeof b !== 'number') return;
-      
+
       const desc = `So sánh phần tử tại vị trí ${a} (${state.array[a]}) và ${b} (${state.array[b]})`;
       commit({ comparingIndices: [a, b] }, desc);
     };
 
-    
+
     const swap = (a: number, b: number) => {
       if (typeof a !== 'number' || typeof b !== 'number') return;
       if (a < 0 || a >= state.array.length || b < 0 || b >= state.array.length) return;
@@ -380,7 +380,7 @@ export class CompilerStepExecutor {
       commit({ swappingIndices: [a, b], array: [...state.array] }, desc);
     };
 
-    
+
     const highlight = (a: number) => {
       if (typeof a !== 'number') return;
       if (a < 0 || a >= state.array.length) return;
@@ -591,7 +591,7 @@ export class CompilerStepExecutor {
       commit({ heapState: state.heapState }, `${phaseLabel} · heapSize=${st.heapSize} · active=${st.activeIdx}`);
     };
 
-    
+
     let processedCode = sourceCode
       .replace(/compare\s*\(\s*(?:arr|array)\[([^\]]+)\]\s*,\s*(?:arr|array)\[([^\]]+)\]\s*\)/gi, 'compare($1, $2)')
       .replace(/swap\s*\(\s*(?:arr|array)\[([^\]]+)\]\s*,\s*(?:arr|array)\[([^\]]+)\]\s*\)/gi, 'swap($1, $2)')
@@ -998,7 +998,7 @@ export class CompilerStepExecutor {
       const lineNum = index + 1;
 
       if (!trimmed || trimmed.startsWith('//')) {
-        return; 
+        return;
       }
 
       const swapRegex = /swap\s*\(?\s*arr\[(\d+)\]\s*,\s*arr\[(\d+)\]\s*\)?/i;
@@ -1075,7 +1075,7 @@ export class CompilerStepExecutor {
         const loopVars: Record<string, number> = {};
         const highlighted: number[] = [];
         let desc = `Bắt đầu vòng lặp: ${trimmed}`;
-        
+
         if (loopMatch) {
           const varName = loopMatch[1];
           const valStr = loopMatch[2];

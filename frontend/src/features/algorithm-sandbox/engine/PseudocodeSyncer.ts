@@ -22,7 +22,7 @@ export class PseudocodeSyncer {
     this.mappings = mappings;
   }
 
-  
+
 
 
   public getLineForStep(stepIndex: number): number | null {
@@ -30,7 +30,7 @@ export class PseudocodeSyncer {
     return found ? found.lineNumber : null;
   }
 
-  
+
 
 
   public getFirstStepForLine(lineNumber: number): number | null {
@@ -38,7 +38,7 @@ export class PseudocodeSyncer {
     return found ? found.stepIndex : null;
   }
 
-  
+
 
 
   public static highlightMonacoLine(
@@ -48,8 +48,8 @@ export class PseudocodeSyncer {
   ): string[] {
     if (!editorInstance) return previousDecorations;
 
-    
-    editorInstance.revealLineInCenter(lineNumber, 0); 
+
+    editorInstance.revealLineInCenter(lineNumber, 0);
 
     const newDecorations = [
       {
@@ -61,13 +61,13 @@ export class PseudocodeSyncer {
         },
         options: {
           isWholeLine: true,
-          className: 'monaco-pseudocode-active-line-glow', 
+          className: 'monaco-pseudocode-active-line-glow',
           marginClassName: 'monaco-pseudocode-gutter-decorator'
         }
       }
     ];
 
-    
+
     return editorInstance.deltaDecorations(previousDecorations, newDecorations);
   }
 }

@@ -25,7 +25,7 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
     // Both nodes should have repulsion forces (fx should be non-zero)
     expect(nodes[0].fx).not.toBe(0);
     expect(nodes[1].fx).not.toBe(0);
-    
+
     // Node A should be pushed left (negative fx), Node B pushed right (positive fx)
     expect(nodes[0].fx).toBeLessThan(0);
     expect(nodes[1].fx).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
     // Both nodes should have attraction forces
     expect(nodes[0].fx).not.toBe(0);
     expect(nodes[1].fx).not.toBe(0);
-    
+
     // Node A should be pulled right (positive fx), Node B pulled left (negative fx)
     expect(nodes[0].fx).toBeGreaterThan(0);
     expect(nodes[1].fx).toBeLessThan(0);
@@ -82,7 +82,7 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
 
     // Check stability
     expect(layout.isStable(nodes, 1.0)).toBe(true);
-    
+
     // Nodes should have moved from initial positions
     expect(nodes[0].x).not.toBe(100);
     expect(nodes[0].y).not.toBe(100);
@@ -106,17 +106,17 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
 
     // With higher kRepulsion, forces should be stronger
     const strongRepulsion = Math.abs(nodes[0].fx!);
-    
+
     // Compare with default settings
     const defaultLayout = new ForceDirectedLayout();
     const nodes2: GraphNode[] = [
       { id: 'A', x: 100, y: 100, fx: 0, fy: 0 },
       { id: 'B', x: 120, y: 100, fx: 0, fy: 0 }
     ];
-    
+
     defaultLayout.computePhysicsStep(nodes2, edges);
     const weakRepulsion = Math.abs(nodes2[0].fx!);
-    
+
     expect(strongRepulsion).toBeGreaterThan(weakRepulsion);
   });
 
@@ -145,7 +145,7 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
     // Heavier edge should create stronger attraction force
     const lightAttraction = Math.abs(nodes[0].fx!);
     const heavyAttraction = Math.abs(nodes[2].fx!);
-    
+
     expect(heavyAttraction).toBeGreaterThan(lightAttraction);
   });
 
@@ -176,13 +176,13 @@ describe('Sprint 5 - ForceDirectedLayout Physics Engine', () => {
 describe('Sprint 5 - CustomInputParser Graph Features', () => {
   it('Should parse adjacency list text format correctly', async () => {
     const { CustomInputParser } = await import('../engine/CustomInputParser');
-    
+
     const input = 'A-B:10, B-C:20, A-C:50';
     const graph = CustomInputParser.parseAdjacencyList(input);
 
     expect(graph.nodes).toHaveLength(3);
     expect(graph.nodes.map(n => n.id).sort()).toEqual(['A', 'B', 'C']);
-    
+
     expect(graph.edges).toHaveLength(3);
     expect(graph.edges[0]).toMatchObject({ sourceId: 'A', targetId: 'B', weight: 10 });
     expect(graph.edges[1]).toMatchObject({ sourceId: 'B', targetId: 'C', weight: 20 });
@@ -191,11 +191,11 @@ describe('Sprint 5 - CustomInputParser Graph Features', () => {
 
   it('Should throw error for invalid edge format', async () => {
     const { CustomInputParser } = await import('../engine/CustomInputParser');
-    
+
     expect(() => {
       CustomInputParser.parseAdjacencyList('A-B-10'); // Wrong format
     }).toThrow();
-    
+
     expect(() => {
       CustomInputParser.parseAdjacencyList('invalid');
     }).toThrow();
@@ -203,9 +203,9 @@ describe('Sprint 5 - CustomInputParser Graph Features', () => {
 
   it('Should handle empty input gracefully', async () => {
     const { CustomInputParser } = await import('../engine/CustomInputParser');
-    
+
     const graph = CustomInputParser.parseAdjacencyList('');
-    
+
     expect(graph.nodes).toHaveLength(0);
     expect(graph.edges).toHaveLength(0);
   });

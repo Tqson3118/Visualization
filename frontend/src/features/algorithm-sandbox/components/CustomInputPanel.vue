@@ -8,7 +8,7 @@
         </svg>
         <span class="text-xs font-bold uppercase tracking-wider text-text-primary">Trợ Lý Dựng Đồ Thị</span>
       </div>
-      
+
       <span class="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse"></span>
     </div>
 
@@ -80,7 +80,7 @@
         rows="3"
         class="import-textarea w-full border rounded-xl p-2.5 text-xs font-mono text-text-primary outline-none transition-all resize-none bg-black/20 border-white/5 focus:border-accent-cyan"
       ></textarea>
-      
+
       <!-- scroll-x container for parsed edges preview -->
       <div class="flex flex-col gap-1 mt-1">
         <label class="text-[9px] text-text-muted font-bold uppercase select-none">Liên kết nhận diện (scroll ngang)</label>
@@ -108,7 +108,7 @@
       <div class="text-[10px] font-bold text-text-secondary uppercase tracking-wider select-none">
         Trình sinh đồ thị (Generator)
       </div>
-      
+
       <div class="grid grid-cols-2 gap-3 items-center">
         <div class="flex items-center gap-2 justify-between">
           <span class="text-[9px] text-text-muted font-bold uppercase select-none">Số đỉnh</span>
@@ -133,7 +133,7 @@
           </select>
         </div>
       </div>
-      
+
       <div class="flex gap-2 mt-1">
         <button
           @click="generateCustomGraph"
@@ -145,7 +145,7 @@
           </svg>
           Sinh Đồ Thị
         </button>
-        
+
         <button
           @click="store.clearAll"
           class="clear-btn px-3 py-1.5 rounded-lg border border-white/5 text-accent-red hover:bg-accent-red/10 hover:border-accent-red/20 text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer bg-white/5"
@@ -219,7 +219,7 @@ watch(graphInputText, (newText) => {
   try {
     const parsedCurrent = CustomInputParser.parseAdjacencyList(currentSerialized);
     const parsedNew = CustomInputParser.parseAdjacencyList(newText);
-    const isSame = 
+    const isSame =
       parsedCurrent.nodes.length === parsedNew.nodes.length &&
       parsedCurrent.edges.length === parsedNew.edges.length &&
       parsedCurrent.edges.every((e, i) => {
@@ -271,7 +271,7 @@ watch([() => store.nodes, () => store.edges], () => {
   try {
     const parsedCurrent = CustomInputParser.parseAdjacencyList(graphInputText.value);
     const parsedNew = CustomInputParser.parseAdjacencyList(serialized);
-    const isSame = 
+    const isSame =
       parsedCurrent.nodes.length === parsedNew.nodes.length &&
       parsedCurrent.edges.length === parsedNew.edges.length &&
       parsedCurrent.edges.every((e, i) => {
@@ -309,12 +309,12 @@ function onAddNode() {
 function generateCustomGraph() {
   store.clearAll();
   const count = Math.min(20, Math.max(1, genNodeCount.value));
-  
+
   // Base rendering box is approximately 700x400
   const cx = 350;
   const cy = 230;
   const radius = 120;
-  
+
   // Create nodes in a circle
   const createdNodes: NodeDTO[] = [];
   for (let i = 0; i < count; i++) {
@@ -324,7 +324,7 @@ function generateCustomGraph() {
     const node = store.addNode(x, y);
     if (node) createdNodes.push(node);
   }
-  
+
   if (createdNodes.length === 0) return;
 
   // Guarantee fully connected graph (connect consecutively in a cycle)
