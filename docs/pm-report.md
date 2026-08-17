@@ -152,3 +152,27 @@ Chưa thể kết luận DONE: cần **PM cung cấp** (1) ngày bảo vệ chí
 ### 8.6 KẾT LUẬN BÀN GIAO: **PARTIAL**
 
 > Automated verification **PASS toàn bộ** (JSON, secret scan, dotnet build/test 237/237, FE build + vitest 23 files/207 tests, git clean + in sync). **Task 4 và Task 6 BLOCKED** chờ PM. Theo quy ước, trạng thái bàn giao = **PARTIAL** — chuyển sang **DONE** chỉ khi PM xác nhận/duyệt rõ 2 blocker deferred (OTP Gmail thật verified + cung cấp ngày bảo vệ/ngành học).
+### 8.7 Cập nhật batch 2 (17/08/2026) — XỬ LÝ BLOCKER SMTP KỸ THUẬT (commit 30e4316, pushed origin/dev)
+
+| Hạng mục | Kết quả |
+|---|---|
+| EmailOptions | MỚI `backend/src/DsaVisual.Application/Options/EmailOptions.cs` — map section `DSA:Email` (appsettings / env `DSA__Email__*`): SmtpHost, SmtpPort, SmtpUsername, SmtpPassword, From, UseMailHog (mặc định true = MailHog dev) |
+| SmtpClientFactory | MỚI `Services/SmtpClientFactory.cs` — tập trung AUTH/TLS: `UseMailHog=false` → `EnableSsl=true` (TLS/STARTTLS, Gmail 587) + `Credentials=NetworkCredential(username,password)` khi có đủ; `UseMailHog=true` → không AUTH/TLS (MailHog); Timeout 10s (GP-T2) |
+| AuthService / UserService | 3 điểm gửi email (reset password, mã 2FA, duyệt/từ chối GV) chuyển sang `SmtpClientFactory.Create(EmailOptions.FromConfiguration(config))` — KHÔNG còn `new SmtpClient(host,port)` raw, không credential ẩn |
+| Config mapping | appsettings.json (base): thêm SmtpUsername/SmtpPassword/UseMailHog=true (host rỗng = email tắt) · appsettings.Development.json: **MailHog** localhost:1025 UseMailHog=true (phục hồi email dev; bỏ hardcode gmail không AUTH) · appsettings.Production.json: **Gmail smtp.gmail.com:587 UseMailHog=false** (creds rỗng — qua env) · docker-compose: `DSA__Email__UseMailHog`=env default true + passthrough `DSA__Email__SmtpUsername/SmtpPassword` · backend/.env.example: tài liệu hoá; SETUP_TODO §10.1 cập nhật |
+| Secret | **SẠCH** — `SmtpPassword` chỉ là chuỗi rỗng `""`/`=` trong file cấu hình + text placeholder '<Gmail App Password>' trong docs; KHÔNG có giá trị mật thật trong diff/commit/log/report |
+| dotnet build | `dotnet build DsaVisual.sln` → **Build succeeded, 0 Warning(s), 0 Error(s), exit 0** |
+| dotnet test | **Unit 159/159 + Integration 78/78 = 237/237 PASS, exit 0** (chạy trên binary MỚI sau khi build PASS — vòng 1 build fail do thiếu using đã sửa) |
+| FE build + vitest | `npm run build` PASS (2.48s) + `npx vitest run` **23 files / 207 tests PASS, exit 0** |
+| Docker (4 nhóm) | (1) **compose Up**: neww-backend-1 :5000 healthy — (2) **Testcontainers**: mssql 2022 + ryuk spawn trong lúc `dotnet test` rồi tự dọn — (3) **legacy**: vdsa-database postgres:5433 + vdsa-redis:6379 Up (stack V1) — (4) **Exited**: neww-sqlserver-1, neww-mailhog-1, neww-frontend-1 (compose), vdsa-frontend/backend/judge0 (V1); ui-premium-* trạng thái Created (worktree khác) |
+| Git | **CLEAN — HEAD = origin/dev = 30e4316** |
+
+### 8.8 RÀNG BUỘC (giữ nguyên)
+
+- **KHÔNG** reset database; **KHÔNG** tắt 2FA; **KHÔNG** yêu cầu app password trong chat.
+- Task 4 OTP Gmail THẬT: runtime nay **SẴN SÀNG** (Production mặc định Gmail AUTH/TLS qua env `DSA__Email__SmtpUsername/SmtpPassword`) → chờ **PM xác nhận thủ công 3 điều**: (1) OTP đến Gmail thật, (2) verify lần đầu thành công, (3) dùng lại OTP bị từ chối.
+- Task 6 ngày bảo vệ + ngành học: **tiếp tục BLOCKED** cho tới khi PM cung cấp số liệu chính xác.
+
+### 8.9 KẾT LUẬN BÀN GIAO: **PARTIAL (giữ nguyên)**
+
+> Toàn bộ automated verification **PASS** trên code MỚI (build 0W/0E, 237/237 BE tests, FE build + 207 tests, secret scan sạch, git clean + HEAD=origin/dev). **DONE chỉ khi**: (a) Gmail SMTP AUTH chạy thực tế và PM xác nhận OTP flow 3/3, (b) Task 6 đã điền hoặc PM xác nhận chính thức deferred, (c) git clean + HEAD=origin/dev, (d) toàn bộ automated verification vẫn PASS.
