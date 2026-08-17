@@ -115,10 +115,15 @@ public sealed class ClassService(
             })
             .ToListAsync(ct);
 
+        // Curriculum: lấy theo thứ tự lộ trình (SortOrder), fallback CreatedAt cho legacy.
         var assignments = await db.ClassAssignments.AsNoTracking()
             .Where(a => a.ClassId == id)
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderBy(a => a.SortOrder)
+            .ThenBy(a => a.CreatedAt)
             .ToListAsync(ct);
+
+        // Draft gating: học viên (không quản lý) KHÔNG thấy items khi lộ trình chưa publish.
+        var showCurriculumToCaller = canManage || classRoom.CurriculumPublished;
 
         // findings-perf #1 (N+1): gom 2 batch query title (lessonIds/exerciseIds → ToDictionary) trước vòng lặp
         var lessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
@@ -135,8 +140,14 @@ public sealed class ClassService(
             : new Dictionary<int, string>();
 
         var assignmentDtos = new List<ClassAssignmentDto>();
-        foreach (var assignment in assignments)
+        foreach (var assignment in assignments.OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt))
         {
+            // Draft gating: bỏ qua toàn bộ items với caller không phải manager khi chưa publish.
+            if (!showCurriculumToCaller)
+            {
+                break;
+            }
+
             string? title = null;
             if (assignment.LessonId is { } lessonId)
             {
@@ -155,6 +166,7 @@ public sealed class ClassService(
                 Title = title,
                 DueAt = assignment.DueAt,
                 AllowLateSubmission = assignment.AllowLateSubmission,
+                SortOrder = assignment.SortOrder,
                 CreatedAt = assignment.CreatedAt
             });
         }
@@ -170,6 +182,9 @@ public sealed class ClassService(
             OwnerName = owner?.DisplayName ?? string.Empty,
             Status = classRoom.Status.ToString().ToLowerInvariant(),
             CreatedAt = classRoom.CreatedAt,
+            CurriculumTitle = classRoom.CurriculumTitle,
+            CurriculumDescription = classRoom.CurriculumDescription,
+            CurriculumPublished = classRoom.CurriculumPublished,
             Members = members,
             Assignments = assignmentDtos
         });
@@ -413,6 +428,11 @@ public sealed class ClassService(
             }
         }
 
+        // Curriculum: item mới xếp cuối lộ trình (sortOrder = max + 1)
+        var maxSortOrder = await db.ClassAssignments.AsNoTracking()
+            .Where(a => a.ClassId == id)
+            .MaxAsync(a => (int?)a.SortOrder, ct) ?? -1;
+
         db.ClassAssignments.Add(new ClassAssignment
         {
             ClassId = id,
@@ -420,6 +440,7 @@ public sealed class ClassService(
             ExerciseId = request.ExerciseId,
             DueAt = request.DueAt,
             AllowLateSubmission = request.AllowLateSubmission,
+            SortOrder = maxSortOrder + 1,
             CreatedAt = clock.UtcNow
         });
         await db.SaveChangesAsync(ct);
@@ -478,6 +499,244 @@ public sealed class ClassService(
 
         logger.LogInformation("Assignment {AssignId} removed from class {ClassId} by user {UserId}", assignId, id, userId);
         return Result.Ok();
+    }
+
+    // ── Lộ trình học (Curriculum) ────────────────────────────
+
+    public async Task<Result<ClassDetailDto>> UpdateCurriculumAsync(int userId, string role, int id, ClassCurriculumUpsertRequest request, CancellationToken ct)
+    {
+        if (!await EnsureCanManageAsync(userId, role, id, ct))
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền quản lý lớp này");
+        }
+
+        var classRoom = await db.Classes.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
+        if (classRoom is null)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.NOT_FOUND, "Lớp học không tồn tại");
+        }
+
+        if (request.Title is not null)
+        {
+            var title = request.Title.Trim();
+            if (title.Length > 200)
+            {
+                return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Tiêu đề lộ trình tối đa 200 ký tự", new() { ["title"] = ["Tiêu đề lộ trình tối đa 200 ký tự"] });
+            }
+
+            classRoom.CurriculumTitle = title;
+        }
+
+        if (request.Description is not null)
+        {
+            var description = request.Description.Trim();
+            if (description.Length > 500)
+            {
+                return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                    "Mô tả lộ trình tối đa 500 ký tự", new() { ["description"] = ["Mô tả lộ trình tối đa 500 ký tự"] });
+            }
+
+            classRoom.CurriculumDescription = description;
+        }
+
+        if (request.Published is { } published)
+        {
+            classRoom.CurriculumPublished = published;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Class {ClassId} curriculum updated by user {UserId}", id, userId);
+        return await GetByIdAsync(userId, role, id, ct);
+    }
+
+    public async Task<Result> ReorderCurriculumAsync(int userId, string role, int id, ClassCurriculumReorderRequest request, CancellationToken ct)
+    {
+        if (!await EnsureCanManageAsync(userId, role, id, ct))
+        {
+            return Result.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền quản lý lớp này");
+        }
+
+        var items = request.Items.DistinctBy(i => i.AssignmentId).ToList();
+        if (items.Count == 0)
+        {
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Danh sách thứ tự không được rỗng",
+                new() { ["items"] = ["Danh sách thứ tự không được rỗng"] });
+        }
+
+        var assignmentIds = items.Select(i => i.AssignmentId).ToList();
+        var assignments = await db.ClassAssignments
+            .Where(a => a.ClassId == id && assignmentIds.Contains(a.Id))
+            .ToListAsync(ct);
+
+        if (assignments.Count != items.Count)
+        {
+            return Result.Fail(ErrorCodes.NOT_FOUND, "Một số bài gán không thuộc lớp này");
+        }
+
+        foreach (var item in items)
+        {
+            var assignment = assignments.First(a => a.Id == item.AssignmentId);
+            assignment.SortOrder = item.SortOrder;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Class {ClassId} curriculum reordered by user {UserId} ({Count} items)", id, userId, items.Count);
+        return Result.Ok();
+    }
+
+    public async Task<Result<ClassCurriculumDto>> GetCurriculumAsync(int userId, string role, int id, CancellationToken ct)
+    {
+        var classRoom = await db.Classes.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
+        if (classRoom is null)
+        {
+            return Result<ClassCurriculumDto>.Fail(ErrorCodes.NOT_FOUND, "Lớp học không tồn tại");
+        }
+
+        var canManage = CanManage(userId, role, classRoom);
+        var isMember = await db.ClassMembers.AsNoTracking()
+            .AnyAsync(m => m.ClassId == id && m.UserId == userId, ct);
+        if (!canManage && !isMember)
+        {
+            return Result<ClassCurriculumDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem lộ trình của lớp này");
+        }
+
+        // Draft gating: học viên chỉ thấy lộ trình khi đã publish.
+        if (!canManage && !classRoom.CurriculumPublished)
+        {
+            return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
+            {
+                ClassId = id,
+                Title = classRoom.CurriculumTitle,
+                Description = classRoom.CurriculumDescription,
+                Published = false,
+                ProgressPct = 0,
+                Items = []
+            });
+        }
+
+        var assignments = await db.ClassAssignments.AsNoTracking()
+            .Where(a => a.ClassId == id)
+            .OrderBy(a => a.SortOrder)
+            .ThenBy(a => a.CreatedAt)
+            .ToListAsync(ct);
+
+        if (assignments.Count == 0)
+        {
+            return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
+            {
+                ClassId = id,
+                Title = classRoom.CurriculumTitle,
+                Description = classRoom.CurriculumDescription,
+                Published = classRoom.CurriculumPublished,
+                ProgressPct = 0,
+                Items = []
+            });
+        }
+
+        // Nạp tiêu đề thật + progress của học viên (dữ liệu thật — không hardcode).
+        var lessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
+        var exerciseIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
+
+        var lessonTitles = lessonIds.Count > 0
+            ? await db.Lessons.AsNoTracking().Where(l => lessonIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+            : new Dictionary<int, string>();
+        var exerciseTitles = exerciseIds.Count > 0
+            ? await db.Exercises.AsNoTracking().Where(e => exerciseIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+            : new Dictionary<int, string>();
+
+        var lessonProgress = lessonIds.Count > 0
+            ? await db.UserProgress.AsNoTracking()
+                .Where(p => p.UserId == userId && lessonIds.Contains(p.LessonId))
+                .ToListAsync(ct)
+            : new List<UserProgress>();
+        var lessonProgressByLesson = lessonProgress.ToDictionary(p => p.LessonId);
+
+        var exerciseDone = exerciseIds.Count > 0
+            ? await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && exerciseIds.Contains(s.ExerciseId) && s.Score > 0)
+                .Select(s => s.ExerciseId)
+                .Distinct()
+                .ToListAsync(ct)
+            : new List<int>();
+        var exerciseDoneSet = exerciseDone.ToHashSet();
+
+        var completedAssignments = new HashSet<int>();
+        foreach (var assignment in assignments)
+        {
+            if (assignment.LessonId is { } lessonId && lessonProgressByLesson.TryGetValue(lessonId, out var progress)
+                && (progress.CompletedAt != null || (progress.BestScore ?? 0) > 0))
+            {
+                completedAssignments.Add(assignment.Id);
+            }
+            else if (assignment.ExerciseId is { } exerciseId && exerciseDoneSet.Contains(exerciseId))
+            {
+                completedAssignments.Add(assignment.Id);
+            }
+        }
+
+        var firstIncompleteIndex = -1;
+        var itemDtos = new List<ClassCurriculumItemDto>();
+        for (var i = 0; i < assignments.Count; i++)
+        {
+            var assignment = assignments[i];
+            var isCompleted = completedAssignments.Contains(assignment.Id);
+            if (!isCompleted && firstIncompleteIndex < 0)
+            {
+                firstIncompleteIndex = i;
+            }
+
+            var title = assignment.LessonId is { } lid ? (lessonTitles.GetValueOrDefault(lid) ?? string.Empty)
+                : assignment.ExerciseId is { } eid ? (exerciseTitles.GetValueOrDefault(eid) ?? string.Empty)
+                : string.Empty;
+
+            itemDtos.Add(new ClassCurriculumItemDto
+            {
+                AssignmentId = assignment.Id,
+                LessonId = assignment.LessonId,
+                ExerciseId = assignment.ExerciseId,
+                Title = title,
+                ItemType = assignment.LessonId != null ? "lesson" : "exercise",
+                SortOrder = assignment.SortOrder,
+                DueAt = assignment.DueAt,
+                Status = "not_started",
+                BestScore = assignment.LessonId is { } lid2 && lessonProgressByLesson.TryGetValue(lid2, out var up)
+                    ? up.BestScore
+                    : null
+            });
+        }
+
+        // Trạng thái: items đã hoàn thành = completed; items sau vị trí đang dở = not_started;
+        // item đang dở đầu tiên = in_progress.
+        for (var i = 0; i < itemDtos.Count; i++)
+        {
+            if (completedAssignments.Contains(itemDtos[i].AssignmentId))
+            {
+                itemDtos[i].Status = "completed";
+            }
+            else if (i == firstIncompleteIndex)
+            {
+                itemDtos[i].Status = "in_progress";
+            }
+        }
+
+        var completedCount = completedAssignments.Count;
+        var progressPct = (int)Math.Round(completedCount * 100.0 / assignments.Count);
+
+        return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
+        {
+            ClassId = id,
+            Title = classRoom.CurriculumTitle,
+            Description = classRoom.CurriculumDescription,
+            Published = classRoom.CurriculumPublished,
+            ProgressPct = progressPct,
+            Items = itemDtos
+        });
     }
 
     // ── Báo cáo lớp ───────────────────────────────────────────

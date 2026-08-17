@@ -128,6 +128,37 @@ public class ClassesController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+
+    // ── Lộ trình học (Curriculum) ─────────────────────────────
+
+    /// <summary>Xem lộ trình học của lớp (học viên: status from real progress; manager: same).</summary>
+    [HttpGet("{id:int}/curriculum")]
+    public async Task<ActionResult<ClassCurriculumDto>> GetCurriculum([FromRoute] int id, CancellationToken ct)
+    {
+        var result = await _service.GetCurriculumAsync(CurrentUserId(), CurrentRole(), id, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>Teacher/Admin: tạo/đổi meta lộ trình + publish/unpublish (draft ẩn với học viên).</summary>
+    [HttpPut("{id:int}/curriculum")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<ClassDetailDto>> UpdateCurriculum(
+        [FromRoute] int id, [FromBody] ClassCurriculumUpsertRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateCurriculumAsync(CurrentUserId(), CurrentRole(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>Teacher/Admin: sắp xếp lại thứ tự items trong lộ trình.</summary>
+    [HttpPut("{id:int}/curriculum/reorder")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> ReorderCurriculum(
+        [FromRoute] int id, [FromBody] ClassCurriculumReorderRequest request, CancellationToken ct)
+    {
+        var result = await _service.ReorderCurriculumAsync(CurrentUserId(), CurrentRole(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     [HttpGet("{id:int}/report")]
     [Authorize(Roles = "TEACHER,ADMIN")]
     public async Task<ActionResult<ClassReportDto>> GetReport([FromRoute] int id, CancellationToken ct)

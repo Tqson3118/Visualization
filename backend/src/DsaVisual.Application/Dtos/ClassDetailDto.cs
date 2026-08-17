@@ -12,6 +12,12 @@ public sealed class ClassDetailDto
     public string OwnerName { get; set; } = string.Empty;
     public string Status { get; set; } = "open";
     public DateTime CreatedAt { get; set; }
+
+    // ── Learning Path / Curriculum (per-class) ──
+    public string? CurriculumTitle { get; set; }
+    public string? CurriculumDescription { get; set; }
+    public bool CurriculumPublished { get; set; } = true;
+
     public List<ClassMemberDto> Members { get; set; } = [];
     public List<ClassAssignmentDto> Assignments { get; set; } = [];
 }
@@ -34,5 +40,6 @@ public sealed class ClassAssignmentDto
     public string? Title { get; set; }
     public DateTime? DueAt { get; set; }
     public bool AllowLateSubmission { get; set; } = true;   // v2.15
+    public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; }
 }

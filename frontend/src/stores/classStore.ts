@@ -2,14 +2,25 @@ import { ref } from 'vue';
 import { defineStore } from 'pinia';
 
 import * as classesApi from '@/api/classes';
-import type { ClassAssignmentDto, ClassDto, ClassMemberDto } from '@/api/types';
+import type {
+  ClassAssignmentDto,
+  ClassCurriculumDto,
+  ClassCurriculumReorderItem,
+  ClassCurriculumUpsertRequest,
+  ClassDetailDto,
+  ClassDto,
+  ClassMemberDto,
+} from '@/api/types';
 
 /** Store classStore theo SDD §3.2 — Module H (lớp học) — triển khai thật với API /classes. */
 export const useClassStore = defineStore('classStore', () => {
   const classes = ref<ClassDto[]>([]);
-  const currentClass = ref<ClassDto | null>(null);
+  const currentClass = ref<ClassDetailDto | null>(null);
   const members = ref<ClassMemberDto[]>([]);
   const assignments = ref<ClassAssignmentDto[]>([]);
+  const curriculum = ref<ClassCurriculumDto | null>(null);
+  const curriculumLoading = ref(false);
+  const curriculumError = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -108,11 +119,52 @@ export const useClassStore = defineStore('classStore', () => {
     currentClass.value = null;
   }
 
+  /** Nạp lộ trình học của lớp (học viên: kèm status từ progress thật). */
+  async function fetchCurriculum(classId: number): Promise<void> {
+    curriculumLoading.value = true;
+    curriculumError.value = null;
+    try {
+      curriculum.value = await classesApi.fetchClassCurriculum(classId);
+    } catch (err) {
+      curriculumError.value = err instanceof Error ? err.message : 'Không thể tải lộ trình học';
+      throw err;
+    } finally {
+      curriculumLoading.value = false;
+    }
+  }
+
+  /** Teacher/Admin: cập nhật meta + publish/unpublish lộ trình. */
+  async function updateCurriculumMeta(
+    classId: number,
+    payload: ClassCurriculumUpsertRequest,
+  ): Promise<void> {
+    const detail = await classesApi.updateClassCurriculum(classId, payload);
+    currentClass.value = detail;
+    assignments.value = detail.assignments ?? [];
+    if (curriculum.value) {
+      curriculum.value = {
+        ...curriculum.value,
+        title: detail.curriculumTitle ?? null,
+        description: detail.curriculumDescription ?? null,
+        published: detail.curriculumPublished ?? true,
+      };
+    }
+  }
+
+  /** Teacher/Admin: sắp xếp lại items trong lộ trình. */
+  async function reorderCurriculum(classId: number, items: ClassCurriculumReorderItem[]): Promise<void> {
+    await classesApi.reorderClassCurriculum(classId, { items });
+    await Promise.all([reloadAssignments(classId), fetchCurriculum(classId).catch(() => undefined)]);
+  }
+
   return {
     classes,
     currentClass,
     members,
     assignments,
+    curriculum,
+    curriculumLoading,
+    curriculumError,
     loading,
     error,
     fetchClasses,
@@ -127,5 +179,8 @@ export const useClassStore = defineStore('classStore', () => {
     removeAssignment,
     removeMember,
     removeClass,
+    fetchCurriculum,
+    updateCurriculumMeta,
+    reorderCurriculum,
   };
 });
