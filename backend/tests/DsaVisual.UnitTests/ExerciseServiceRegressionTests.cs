@@ -387,4 +387,79 @@ public class ExerciseServiceRegressionTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.LADDER_LOCKED, result.ErrorCode);
     }
+
+    [Fact(DisplayName = "D4: SubmitAsync với Answers rỗng trả về VALIDATION_FAILED thay vì 500")]
+    public async Task Submit_EmptyAnswers_ReturnsValidationFailed()
+    {
+        var db = await SeedBaseAsync(nameof(Submit_EmptyAnswers_ReturnsValidationFailed));
+        var service = TestServices.CreateExerciseService(db, _clock);
+
+        var created = await service.CreateAsync(1, new ExerciseUpsertRequest
+        {
+            LessonId = 1,
+            Title = "MCQ Empty Answers",
+            Type = ExerciseType.Mcq,
+            MaxScore = 10,
+            Status = ExerciseStatus.Active,
+            Questions =
+            [
+                new QuestionUpsertDto
+                {
+                    Content = "1+1=?",
+                    Type = QuestionType.Single,
+                    Options = ["2", "3"],
+                    AnswerJson = "[0]",
+                    Points = 10,
+                    SortOrder = 0
+                }
+            ]
+        }, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.ErrorMessage);
+
+        var result = await service.SubmitAsync(1, created.Value!.Id, new SubmitRequest
+        {
+            Answers = []
+        }, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+    }
+
+    [Fact(DisplayName = "D4: SubmitAsync với Selected null không ném NullReferenceException")]
+    public async Task Submit_NullSelected_DoesNotThrow()
+    {
+        var db = await SeedBaseAsync(nameof(Submit_NullSelected_DoesNotThrow));
+        var service = TestServices.CreateExerciseService(db, _clock);
+
+        var created = await service.CreateAsync(1, new ExerciseUpsertRequest
+        {
+            LessonId = 1,
+            Title = "MCQ Null Selected",
+            Type = ExerciseType.Mcq,
+            MaxScore = 10,
+            Status = ExerciseStatus.Active,
+            Questions =
+            [
+                new QuestionUpsertDto
+                {
+                    Content = "1+1=?",
+                    Type = QuestionType.Single,
+                    Options = ["2", "3"],
+                    AnswerJson = "[0]",
+                    Points = 10,
+                    SortOrder = 0
+                }
+            ]
+        }, CancellationToken.None);
+        Assert.True(created.IsSuccess, created.ErrorMessage);
+
+        var result = await service.SubmitAsync(1, created.Value!.Id, new SubmitRequest
+        {
+            Answers = [new AnswerDto { QuestionId = created.Value.Questions[0].Id, Selected = null! }]
+        }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(0, result.Value!.Score);
+        Assert.False(result.Value.Passed);
+    }
 }

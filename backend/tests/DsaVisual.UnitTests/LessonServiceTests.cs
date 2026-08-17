@@ -343,4 +343,52 @@ public class LessonServiceTests
         var item = Assert.Single(result.Value);
         Assert.Equal("Bổ sung sau khi từ chối", item.RejectionReason);
     }
+
+    [Fact(DisplayName = "S6-1/2/3: GetByIdAsync sinh viên không được xem bài IsClassOnly (trả NOT_FOUND)")]
+    public async Task GetById_IsClassOnly_Student_ReturnsNotFound()
+    {
+        var (service, db) = await SetupAsync(nameof(GetById_IsClassOnly_Student_ReturnsNotFound));
+
+        db.Lessons.Add(new Lesson
+        {
+            Id = 97,
+            TopicId = 1,
+            Title = "Bài học nội bộ lớp",
+            ContentHtml = "<p>Nội bộ</p>",
+            Status = LessonStatus.Active,
+            IsClassOnly = true,
+            CreatedBy = 2,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetByIdAsync(1, "STUDENT", 97, true, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
+    }
+
+    [Fact(DisplayName = "S6-1/2/3: GetByIdAsync giáo viên xem được bài IsClassOnly")]
+    public async Task GetById_IsClassOnly_Teacher_ReturnsOk()
+    {
+        var (service, db) = await SetupAsync(nameof(GetById_IsClassOnly_Teacher_ReturnsOk));
+
+        db.Lessons.Add(new Lesson
+        {
+            Id = 96,
+            TopicId = 1,
+            Title = "Bài học nội bộ lớp cho GV",
+            ContentHtml = "<p>Nội bộ GV</p>",
+            Status = LessonStatus.Active,
+            IsClassOnly = true,
+            CreatedBy = 2,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetByIdAsync(2, "TEACHER", 96, true, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(96, result.Value!.Id);
+    }
 }

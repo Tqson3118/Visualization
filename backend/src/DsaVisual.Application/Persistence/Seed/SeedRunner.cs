@@ -190,7 +190,17 @@ public static class SeedRunner
             var lesson = await db.Lessons.FirstOrDefaultAsync(l => l.TopicId == topic.Id && l.Title == seed.Title, ct);
             if (lesson is not null)
             {
-                logger.LogInformation("Seed: Lessons bỏ qua (đã tồn tại) {Title}", seed.Title);
+                // Nếu lesson tồn tại nhưng status khác Active, cập nhật lại (Task 4: Seed Lessons Status=2)
+                if (lesson.Status != LessonStatus.Active)
+                {
+                    lesson.Status = LessonStatus.Active;
+                    logger.LogInformation("Seed: Cập nhật lesson {Title} từ {OldStatus} sang Active", seed.Title, lesson.Status);
+                    await db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    logger.LogInformation("Seed: Lessons bỏ qua (đã tồn tại) {Title}", seed.Title);
+                }
                 result[seed.Title] = lesson;
                 continue;
             }

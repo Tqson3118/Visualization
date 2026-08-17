@@ -110,10 +110,13 @@ public sealed class LessonService(
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
-        if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
+        if (!IsTeacherOrAdmin(role))
         {
-            // Student không được xem bản nháp/ẩn
-            return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+            // Student không được xem bản nháp/chờ duyệt/ẩn hoặc bài học chỉ dành riêng cho lớp học (S6-1/2/3)
+            if (lesson.Status != LessonStatus.Active || lesson.IsClassOnly)
+            {
+                return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+            }
         }
 
         return Result<LessonDto>.Ok(ToDto(lesson, includeContent: includeContent || IsTeacherOrAdmin(role)));

@@ -336,6 +336,15 @@ public sealed class ExerciseService(
             return Result<SubmitResultDto>.Fail(ErrorCodes.LADDER_LOCKED, "Chưa pass bậc trước — không mở bậc sau");
         }
 
+        // Guard null / empty answers (D4)
+        if (request?.Answers is null || request.Answers.Count == 0)
+        {
+            return Result<SubmitResultDto>.Fail(
+                ErrorCodes.VALIDATION_FAILED,
+                "Chưa có câu trả lời nào",
+                new() { ["answers"] = ["Danh sách câu trả lời không được để trống"] });
+        }
+
         var questions = exercise.Questions.OrderBy(q => q.SortOrder).ToList();
 
         // Duplicate QuestionId → 400 thay vì 500 (ToDictionary ném ArgumentException — F5-Minor)
@@ -882,19 +891,20 @@ public sealed class ExerciseService(
     {
         var answerElement = JsonSerializer.Deserialize<JsonElement>(question.AnswerJson);
         var correctAnswer = answerElement.Clone();
+        var selected = answer.Selected ?? [];
 
         return question.Type switch
         {
             QuestionType.Single => (
-                answer.Selected.Count == 1 && answer.Selected[0] == GetAnswerIndex(answerElement, 0),
+                selected.Count == 1 && selected[0] == GetAnswerIndex(answerElement, 0),
                 correctAnswer,
                 null),
             QuestionType.Multi => (
-                IsSameSet(answer.Selected, GetAnswerIndices(answerElement)),
+                IsSameSet(selected, GetAnswerIndices(answerElement)),
                 correctAnswer,
                 null),
             QuestionType.Boolean => (
-                answer.Selected.Count == 1 && answer.Selected[0] == GetAnswerIndex(answerElement, 0),
+                selected.Count == 1 && selected[0] == GetAnswerIndex(answerElement, 0),
                 correctAnswer,
                 null),
             QuestionType.Lab => GradeLab(answerElement, answer.LabAnswer, out var labExplanation),
