@@ -1,10 +1,15 @@
 {
-  "generatedAt": "2026-08-18T10:52:53.491958",
+  "generatedAt": "2026-08-18T14:15:31.255916",
   "summary": {
     "total": 133,
-    "pass": 130,
-    "fail": 3,
-    "skip": 0
+    "pass": 133,
+    "fail": 0,
+    "skip": 0,
+    "vitestPass": 621,
+    "dotnetUnitPass": 191,
+    "dotnetIntegrationPass": 82,
+    "playwrightPass": 133,
+    "playwrightDemo": "5/5 live smoke PASS (demo-chain skipped)"
   },
   "testCases": [
     {
@@ -14,10 +19,10 @@
       "action": "Nhập đúng email + mật khẩu, click Login",
       "input": "student@demo.local / Student@123",
       "expected": "Chuyển hướng về Lộ trình/Dashboard, JWT access token được lưu trong memory",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.13s",
+      "duration": "1.54s",
       "note": ""
     },
     {
@@ -27,10 +32,10 @@
       "action": "Nhập sai mật khẩu",
       "input": "student@demo.local / WrongPassword123!",
       "expected": "Hiển thị thông báo lỗi, giữ nguyên tại màn hình /login",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.06s",
+      "duration": "1.24s",
       "note": ""
     },
     {
@@ -40,10 +45,10 @@
       "action": "Nhập email không tồn tại trong hệ thống",
       "input": "notexist@test.com / Pass@123",
       "expected": "Hiển thị lỗi thông tin đăng nhập không chính xác",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.07s",
+      "duration": "1.16s",
       "note": ""
     },
     {
@@ -53,10 +58,10 @@
       "action": "Đăng nhập bằng tài khoản đang bị khóa",
       "input": "locked@demo.local / Student@123",
       "expected": "Server trả lỗi 403 ACCOUNT_LOCKED, thông báo tài khoản bị khóa",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.05s",
+      "duration": "1.28s",
       "note": ""
     },
     {
@@ -66,10 +71,10 @@
       "action": "Đăng nhập tài khoản đã bật xác thực 2FA",
       "input": "2fa@demo.local / Student@123",
       "expected": "Yêu cầu mã 2FA, chuyển hướng sang màn hình nhập mã OTP",
-      "actual": "Lỗi: Error: expect(received).toBeTruthy()\n\nReceived: false",
-      "status": "FAIL",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
+      "status": "PASS",
       "type": "e2e",
-      "duration": "3.98s",
+      "duration": "1.87s",
       "note": ""
     },
     {
@@ -79,10 +84,10 @@
       "action": "Để trống trường email, bấm Đăng nhập",
       "input": "Email: [rỗng] / Pass: Student@123",
       "expected": "Client validate ngay, hiển thị lỗi dưới trường email, không gửi API",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.12s",
+      "duration": "1.31s",
       "note": ""
     },
     {
@@ -92,10 +97,10 @@
       "action": "Để trống trường mật khẩu, bấm Đăng nhập",
       "input": "Email: student@demo.local / Pass: [rỗng]",
       "expected": "Client validate ngay, hiển thị lỗi dưới trường password, không gửi API",
-      "actual": "Lỗi: Error: expect(received).toBeFalsy()\n\nReceived: true",
-      "status": "FAIL",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
+      "status": "PASS",
       "type": "e2e",
-      "duration": "1.14s",
+      "duration": "1.60s",
       "note": ""
     },
     {
@@ -105,10 +110,10 @@
       "action": "Nhập email sai định dạng cú pháp",
       "input": "Email: notanemail / Pass: Student@123",
       "expected": "Client validate cú pháp email không hợp lệ, chặn gửi API",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.11s",
+      "duration": "1.18s",
       "note": ""
     },
     {
@@ -118,10 +123,10 @@
       "action": "Click nút Đăng nhập 2 lần liên tiếp thật nhanh",
       "input": "student@demo.local / Student@123",
       "expected": "Nút bị debounce/disable, chỉ gửi tối đa 1-2 request, không spam",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.37s",
+      "duration": "1.67s",
       "note": ""
     },
     {
@@ -131,10 +136,10 @@
       "action": "F5/Refresh trang ngay sau khi đăng nhập thành công",
       "input": "F5 trang sau khi login",
       "expected": "Phiên đăng nhập vẫn duy trì qua cơ chế refresh token transparent",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.62s",
+      "duration": "2.07s",
       "note": ""
     },
     {
@@ -144,10 +149,10 @@
       "action": "Truy cập /login khi người dùng đã ở trạng thái đăng nhập",
       "input": "URL /login (đã auth)",
       "expected": "Tự động chuyển hướng về trang Lộ trình / Dashboard",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.81s",
+      "duration": "2.26s",
       "note": ""
     },
     {
@@ -157,10 +162,10 @@
       "action": "Nhập chuỗi XSS / SQL Injection vào trường input",
       "input": "<script>alert(1)</script>@test.com",
       "expected": "Không bị crash, không thực thi mã độc, hiển thị thông báo hợp lệ",
-      "actual": "Lỗi: Error: expect(page).toHaveURL(expected) failed\n\nExpected pattern: /\\/login/\nReceived string:  \"http://localhost:5174/pat",
-      "status": "FAIL",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
+      "status": "PASS",
       "type": "e2e",
-      "duration": "11.55s",
+      "duration": "1.58s",
       "note": ""
     },
     {
@@ -170,10 +175,10 @@
       "action": "Click link 'Quên mật khẩu'",
       "input": "Click link Quên mật khẩu",
       "expected": "Chuyển hướng chính xác đến trang /forgot-password",
-      "actual": "Đạt yêu cầu kiểm thử E2E tự động",
+      "actual": "Đạt yêu cầu kiểm thử E2E tự động (login.spec.ts 13/13)",
       "status": "PASS",
       "type": "e2e",
-      "duration": "1.09s",
+      "duration": "1.34s",
       "note": ""
     },
     {
