@@ -1,4 +1,5 @@
 using DsaVisual.Application.Common;
+using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Services;
@@ -95,14 +96,16 @@ public class LessonAccessPolicyTests
     }
 
     [Fact]
-    public async Task GetLesson_StudentAccessClassOnly_Returns404()
+    public async Task GetList_StudentAccess_ExcludesClassOnlyAndDraftLessons()
     {
-        var (service, _) = await SetupAsync(nameof(GetLesson_StudentAccessClassOnly_Returns404));
+        var (service, _) = await SetupAsync(nameof(GetList_StudentAccess_ExcludesClassOnlyAndDraftLessons));
 
-        var result = await service.GetByIdAsync(1, "STUDENT", 4, includeContent: true, CancellationToken.None);
+        var result = await service.GetListAsync(1, "STUDENT", null, null, null, 1, 10, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!.Items);
+        Assert.Equal("Active Public Lesson", result.Value.Items[0].Title);
+        Assert.False(result.Value.Items[0].IsClassOnly);
     }
 
     [Theory]
