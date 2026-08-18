@@ -5,6 +5,7 @@ import '@/engines/catalog'; // side-effect: đăng ký 44 generator (GP-T4 cần
 import { defaultInput } from '@/engines/generators/helpers';
 import { catalogKeyToSortAlgorithm } from '../algorithm-sandbox/helpers/catalogKeyMap';
 import { legacyStepsToSortFrames } from './adapters/legacyStepAdapter';
+import type { Step } from '@/engines/core/types';
 import type { SortFrame } from '../algorithm-sandbox/types/sorting.types';
 
 /**
@@ -19,5 +20,16 @@ export function buildSortFramesFromCatalogKey(key: string): SortFrame[] | null {
   const generator = getSimulation(key);
   if (!generator) return null;
   const steps = generator.generate(defaultInput(generator));
+  return legacyStepsToSortFrames(steps, algorithm, { algorithmKey: key });
+}
+
+/**
+ * SortFrame[] từ steps engine ĐÃ generate (dùng trong SimulatorView khi steps đã sẵn
+ * qua useSimulation — tránh generate lại). Key phải thuộc 6 sort.* (renderer sandbox).
+ * Trả [] nếu key không có renderer sandbox.
+ */
+export function stepsToSortFrames(steps: Step[], key: string): SortFrame[] {
+  const algorithm = catalogKeyToSortAlgorithm(key);
+  if (!algorithm) return [];
   return legacyStepsToSortFrames(steps, algorithm, { algorithmKey: key });
 }
