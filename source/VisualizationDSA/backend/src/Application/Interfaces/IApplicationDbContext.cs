@@ -30,6 +30,12 @@ namespace VisualizationDSA.Application.Interfaces
         DbSet<User> Users { get; }
         DbSet<ClassroomEnrollment> ClassroomEnrollments { get; }
         DbSet<LessonReview> LessonReviews { get; }
+        DbSet<Quest> Quests { get; }
+        DbSet<UserQuest> UserQuests { get; }
+        DbSet<ShopItem> ShopItems { get; }
+        DbSet<UserInventory> UserInventory { get; }
+        DbSet<GemTransaction> GemTransactions { get; }
+        DbSet<CourseReview> CourseReviews { get; }
         
         DbSet<TEntity> Set<TEntity>() where TEntity : class;
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);

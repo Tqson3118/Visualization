@@ -58,21 +58,26 @@ const KPIS: Array<{ key: keyof AdminStatsDto; label: string }> = [
   { key: 'totalExercises', label: messages.admin.stats.totalExercises },
   { key: 'totalSimulations', label: messages.admin.stats.totalSimulations },
   { key: 'activeUsersToday', label: messages.admin.stats.activeToday },
+  { key: 'totalOrders', label: 'Giao dịch' },
+  { key: 'totalRevenue', label: 'Doanh thu' },
 ];
 
 /** Strip banner: block-token dữ liệu thật — 5 chỉ số đang theo dõi + index mono. */
 const stripBlocks = [true, true, true, true, true];
 
-// ── Bar chart 7 ngày (dữ liệu minh họa — backend chỉ trả KPI tức thời) ──
-const WEEK = [
-  { day: 'T2', value: 42 },
-  { day: 'T3', value: 55 },
-  { day: 'T4', value: 38 },
-  { day: 'T5', value: 61 },
-  { day: 'T6', value: 73 },
-  { day: 'T7', value: 50 },
-  { day: 'CN', value: 29 },
-];
+// ── Bar chart 7 ngày (dữ liệu THẬT từ backend revenueByDay — §1c) ──
+const revenueDays = computed(() => stats.value?.revenueByDay ?? []);
+const chartLabels = computed(() => revenueDays.value.map((d) => dayLabel(d.date)));
+const chartValues = computed(() => revenueDays.value.map((d) => d.revenue));
+const revenueTotal = computed(() => revenueDays.value.reduce((sum, d) => sum + (d.revenue ?? 0), 0));
+const orderTotal = computed(() => revenueDays.value.reduce((sum, d) => sum + (d.orders ?? 0), 0));
+
+/** yyyy-MM-dd → nhãn ngày ngắn (T2…CN) */
+function dayLabel(date: string): string {
+  const dt = new Date(date + 'T00:00:00');
+  if (Number.isNaN(dt.getTime())) return date.slice(5);
+  return dt.toLocaleDateString('vi-VN', { weekday: 'short' });
+}
 
 const weekOption = computed(() => {
   // Vùng dữ liệu LUÔN tối (quyết định #5) — palette đọc canvas vars, không theo theme.
@@ -92,13 +97,13 @@ const weekOption = computed(() => {
       textStyle: { color: text, fontSize: 12 },
       formatter: (params: Array<{ name: string; value: number }>) => {
         const item = params[0];
-        return item ? `${item.name}: <b>${item.value}</b> lượt` : '';
+        return item ? `${item.name}: <b>${formatNumber(item.value)}</b> đ` : '';
       },
     },
     grid: { left: 8, right: 8, top: 28, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category' as const,
-      data: WEEK.map((d) => d.day),
+      data: chartLabels.value,
       axisLabel: { color: muted, fontSize: 11 },
       axisLine: { lineStyle: { color: axis } },
       axisTick: { show: false },
@@ -111,10 +116,10 @@ const weekOption = computed(() => {
     series: [
       {
         type: 'bar' as const,
-        data: WEEK.map((d) => d.value),
+        data: chartValues.value,
         barWidth: 22,
         itemStyle: { color: block, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top' as const, color: muted, fontSize: 10 },
+        label: { show: true, position: 'top' as const, color: muted, fontSize: 10, formatter: (v: { value: number }) => formatNumber(v.value) },
       },
     ],
   };
@@ -274,11 +279,11 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
         <p class="admin-stats__note">
           <Info :size="14" class="admin-stats__note-icon" aria-hidden="true" />
           <span>
-            {{ messages.admin.stats.noteSimsPrefix }} <strong>{{ formatNumber(44) }}</strong> {{ messages.admin.stats.noteSimsSuffix }}
+            {{ messages.admin.stats.noteSimsPrefix }} <strong>{{ formatNumber(stats?.totalSimulations ?? 25) }}</strong> {{ messages.admin.stats.noteSimsSuffix }}
           </span>
         </p>
         <p class="admin-stats__note admin-stats__note--muted">
-          <span>{{ messages.admin.stats.noteMock }}</span>
+          <span>Doanh thu 7 ngày gần nhất: <strong>{{ formatNumber(revenueTotal) }}</strong> đ · {{ orderTotal }} đơn</span>
         </p>
       </div>
     </template>

@@ -51,6 +51,23 @@ export interface AdminStatsDto {
   totalExercises: number;
   totalSimulations: number;
   activeUsersToday: number;
+  /** §1c — thống kê giao dịch thật từ Order (GET /admin/stats mở rộng). */
+  totalOrders?: number;
+  totalRevenue?: number;
+  pendingOrders?: number;
+  completedOrders?: number;
+  cancelledOrders?: number;
+  revenueByDay?: Array<{ date: string; revenue: number; orders: number }>;
+  recentOrders?: Array<{
+    id: string;
+    userDisplayName: string;
+    email: string;
+    amount: number;
+    status: string;
+    paymentCode: string;
+    createdAt: string;
+    completedAt: string | null;
+  }>;
 }
 
 /** Báo cáo lỗi / vi phạm — GET /admin/bug-reports (v2.15: adminNote) */

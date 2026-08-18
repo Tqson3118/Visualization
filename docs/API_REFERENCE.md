@@ -705,6 +705,12 @@
 | 29 | Xem bài nộp code của lớp | /code-submissions | ✘ | ✔ | ✔ |
 | 30 | Vào node (trừ tim), xem tim | /me/hearts, /learning-path/*/enter | ✔ | ✔ | ✔ |
 | 31 | Làm Daily Quest và nhận thưởng | /me/quests | ✔ | ✔ | ✔ |
+
+> Phase A Real Data 100 (v2.16): controller contracts are implemented under source/VisualizationDSA/backend/src/WebApi/Controllers/.
+>
+> New endpoint groups: me gamification/quests/inventory, shop, premium, achievements, leaderboard, classes, topics, lessons, exercises, simulations, code-runs, benchmarks, admin stats, users, and settings.
+>
+> Paginated list responses use PagedResponse with items, page, pageSize, total, and totalPages. Authenticated endpoints use the existing JWT/cookie contract and standard error envelope.
 | 32 | Mua vật phẩm Shop bằng Gems | /shop/buy | ✔ | ✔ | ✔ |
 | 33 | Nâng cấp Premium (checkout QR MB Bank) | /premium/* | ✔ | ✔ | ✔ |
 | 34 | Xem Leaderboard | /leaderboard | ✔ | ✔ | ✔ |
