@@ -473,8 +473,10 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.SandboxType).HasMaxLength(50);
-                
-                
+                entity.HasOne(e => e.Codelab)
+                      .WithMany()
+                      .HasForeignKey(e => e.CodelabId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
 
             

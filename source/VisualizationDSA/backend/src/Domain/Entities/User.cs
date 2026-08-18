@@ -19,6 +19,12 @@ namespace VisualizationDSA.Domain.Entities
         public bool      IsPremium      { get; private set; }
         public string    Role           { get; private set; } = "Student";
 
+        // F9 (FR-10.1): Tim học — hồi theo giờ SERVER, 1 tim mỗi 30 phút, tối đa HeartsMax.
+        public const int HeartRegenIntervalMinutes = 30;
+        public int       Hearts         { get; private set; } = 10;
+        public int       HeartsMax      { get; private set; } = 10;
+        public DateTime? LastHeartAt    { get; private set; }
+
         
         
         
@@ -122,6 +128,25 @@ namespace VisualizationDSA.Domain.Entities
         {
             if (!string.IsNullOrWhiteSpace(newPasswordHash))
                 PasswordHash = newPasswordHash;
+        }
+
+        // F9 (FR-10.1): hồi Tim theo số khoảng 30 phút đã trôi qua kể từ lần trừ cuối, tối đa HeartsMax.
+        public void RegenHearts(DateTime now)
+        {
+            if (Hearts >= HeartsMax) return;
+            if (!LastHeartAt.HasValue)
+            {
+                LastHeartAt = now;
+                return;
+            }
+
+            var intervals = (int)((now - LastHeartAt.Value).TotalMinutes / HeartRegenIntervalMinutes);
+            if (intervals <= 0) return;
+
+            Hearts = Math.Min(HeartsMax, Hearts + intervals);
+            LastHeartAt = Hearts >= HeartsMax
+                ? null
+                : LastHeartAt.Value.AddMinutes(intervals * HeartRegenIntervalMinutes);
         }
 
         
