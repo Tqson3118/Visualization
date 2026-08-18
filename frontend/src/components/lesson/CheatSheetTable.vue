@@ -252,12 +252,14 @@ function referenceUrl(key: string): string | undefined {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-  padding: var(--space-xs) var(--space-sm);
+  padding: 3px 8px;
   border-radius: var(--radius-md);
   background: var(--color-canvas-ink);
-  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #38bdf8;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
 }

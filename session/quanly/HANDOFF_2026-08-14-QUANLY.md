@@ -1,56 +1,57 @@
-# HANDOFF — 14/08/2026 (quản lý tổng — phiên tiếp theo bắt đầu từ đây)
+# HANDOFF — 14/08/2026 (quản lý tổng — cập nhật cuối ngày ~13:00)
 
-> File này tóm tắt TOÀN BỘ trạng thái dự án tính đến 02:40 ngày 14/08. Phiên mới đọc file này + `docs/pm-decision-log-viewquality.md` là nắm hết, KHÔNG cần đọc lịch sử cũ.
+> File này tóm tắt TOÀN BỘ trạng thái dự án tính đến 13:00 ngày 14/08. Phiên mới đọc file này là nắm hết, KHÔNG cần đọc lịch sử cũ. Trạng thái verify bằng máy (SQL thật / test chạy lại / GitHub API).
 
 ## 1. DỰ ÁN
-- Đồ án tốt nghiệp FPT (GVHD Phạm Ngọc Ái Liên, lớp SD21361, 4 thành viên): **DSA-Visual** — học + trực quan hóa CTDL & giải thuật. Bảo vệ **cuối tháng 8/2026 (~2.5 tuần)**. **CẤM ghi "20 tuần/16 tuần" — chỉ 13 tuần.**
-- Nhóm: Mai Tiểu Bảo TD01287 (backend) · Thái Quang Sơn TD01282 (frontend) · Huỳnh Lê Minh Thư TD01131 (engine+test) · Trần Viết Tâm Phúc TD01261 (tài liệu).
-- Repo `Tqson3118/Visualization`, nhánh `dev` = tích hợp. **PR base `dev` KHÔNG main**. Commit-as: `.\commit-as.ps1 {son|bao|thu|phuc}` (FE→son, BE→bao, engine/test→thu, docs→phuc).
+- Đồ án tốt nghiệp FPT (GVHD Phạm Ngọc Ái Liên, lớp SD21361, 4 thành viên): **DSA-Visual**. Bảo vệ cuối tháng 8/2026 (~2 tuần). **CẤM ghi "20 tuần/16 tuần" — chỉ 13 tuần.**
+- Nhóm: Mai Tiểu Bảo (backend) · Thái Quang Sơn (frontend) · Huỳnh Lê Minh Thư (engine+test) · Trần Viết Tâm Phúc (tài liệu).
+- Repo `Tqson3118/Visualization`, PR base `dev` KHÔNG main. Commit-as: `.\commit-as.ps1 {son|bao|thu|phuc}`.
 
-## 2. TRẠNG THÁI TỔNG (verify 14/08 02:30 — dev @ d0895c6, đã push origin)
-- ✅ **H/J/K/L + canvas + MASTER view-quality ĐÃ MERGE XONG**: PR #1-18 (trừ #1 dev→main chờ user duyệt; #9-8-7... ma đã đóng).
-- ✅ **MASTER (PROMPT_VIEW_QUALITY_MASTER_V2)** — 36/36 view ĐẠT (hygiene ≥80 + không trục dưới sàn + đặc trưng ≥7; trước: ~60/100 hygiene / 2-3/10 đặc trưng). Phase 0 (PR #12: DESIGN-IDENTITY motif "Data Bench" + DESIGN.md 10 § + standard.md 10 trục + scorecard + EmptyState `[ ]` + @vue-flow/core lazy 154KB chunk, entry 108KB) → Phase 1 4 nhóm (PR #13-16: A 94-96.5 hero engine thật, B 84.5-88.5 path vue-flow, C 91-93.5 BlockToken + 1 hero-stat, D 92-93.5) → Phase 2 (PR #17-18: bổ sung Ladder/NodeHub/FinalTest + HelpView raw button + grep hội tụ emoji/gradient/spacing/icon = 0).
-- ✅ Test sau merge: vue-tsc sạch, vitest **95/95**, BE **137 unit + 77 integration = 214**; `npm run build` PASS.
-- ✅ **Docker LAPTOP đã deploy bản mới** (14/08 02:30): rebuild neww-frontend + neww-backend, 4/4 healthy. Verify thật trên browser: Home hero mới chạy engine thật (bubble bước 1/99), /path kicker mono mới, **/path/1 vue-flow 5 nodes/4 edges**, console 0 lỗi.
-- ✅ Quy tắc mới (13/08 tối): **folder `D:\FPT\neww\trees\` = nơi để file tạm/ghi chú phụ (pre-approve quyền)** — mọi session phải để file phụ TRONG trees/, evidence chính thức docs/work/<session>/, dọn temp trước khi báo xong (HANDOFF mục 5.0).
+## 2. TRẠNG THÁI TỔNG (dev @ 7140719 → + #22/#24/#25/#26 — tip mới nhất là merge #26; đã push, local sync)
+- ✅ **TẤT CẢ PR đã đóng/merge (trừ #1)**: #20 vis-upgrade · #21 seed-v2 · #23 system-logic-overhaul · #22 urgent-fix (rebase + 12 conflict) · #24 premium-lib · #25 fix 429 message · #26 fix rate-limit refresh. **#19 ui-premium ĐÃ ĐÓNG** (stale — tách 8 file additive → #24).
+- ✅ **DB thật**: migration `FullBusinessLogicAndClassOverhaul` (7 cột: AcademicDegree/ProfileLink/IsClassOnly/PublishedAt/RejectionReason/AllowLateSubmission/AdminNote) đã apply. Seed V2: Users 95, showcase@demo.local top 1 (Xp 2790, Level 6, premium 12 tháng).
+- ✅ **Deploy Docker 14/08**: daemon tắt → khởi động, rebuild FE+BE bản mới nhất, /health OK, login qua :8081 OK.
+- ✅ **Bug login 429 đã fix gốc** (PR #25 + #26): nguyên nhân = token cũ → refresh storm (/auth/refresh 401 × N) đốt hết quota sensitive 60/phút chung với login; refresh/logout giờ thuộc general limit (300/phút); FE redirect /login chỉ 1 lần; LoginView hiện message riêng khi 429.
+- ✅ **Test hiện tại**: FE **vitest 174/174** + build PASS · BE **148 unit + 78 integration** (perf#9 AdminStats FLAKY pre-existing — chạy lại lần 2 thường PASS; backlog stabilize).
 
-## 3. PROMPT SẴN SÀNG (session/quanly/)
-- **`PROMPT_VIEW_QUALITY_MASTER_V2.md`** — ĐÃ CHẠY XONG (không dùng lại). File tham khảo cấu trúc prompt chuẩn.
-- **`PROMPT_VISUALIZE_UPGRADE.md`** (MỚI 14/08, CHƯA CHẠY) — nâng cấp engine visualize, session riêng, worktree `D:\FPT\neww-engine`, nhánh `feature/vis-upgrade` → PR base dev. 4 task: (1) **trace-driven playback code user** (CodeRunner — "viết code tới đâu visual tới đó"; composable `useCodeTracePlayback`, sample 50k→3k frame, anti-hardcode test "sửa code → trace đổi"; sửa DUY NHẤT view CodeRunnerView), (2) **wrap layout mảng dài** (ArrayRenderer, n>36 nhiều hàng, index toàn cục), (3) **stack/queue "thở"** (useStructureTransition 200ms ease-out + prefers-reduced-motion), (4) graph meta.x/y tùy chọn. CẤM thêm thư viện. Lưu ý: chạy SAU Phase 1A/B merge (đã merge) — nhưng CodeRunnerView có thể bị MASTER session khác đụng → kiểm worktree trước.
-- **`PROMPT_M_FINAL_REVIEW.md`** — final review 7 trục trước bảo vệ (chạy sau khi visualize + tồn đọng dọn xong).
-- **`PROMPT_N_OPTIMIZATION.md`** — tối ưu theo backlog (sau M), đo trước/sau bắt buộc.
-- `PROMPT_I/II/FOUNDATION` — đã bị MASTER_V2 thay thế (đã chạy xong), KHÔNG chạy lại.
+## 3. QUY TRÌNH ĐÃ CHUẨN HÓA (bài học lớn nhất phiên)
+- **Skill `pm-prompt-std` nâng cấp**: BƯỚC 0 — audit code thật + DB thật (~20-30 file, chạy sqlcmd) TRƯỚC khi viết prompt; mục HIỆN TRẠNG (đã audit) + Thế mạnh GIỮ LẠI; task spec có số liệu (formula/ngưỡng/edge case + anti-hardcode test); TIÊU CHUẨN đo bằng máy (build/vitest/SQL/byte-diff); THỨ TỰ dependency + commit list viết sẵn; bảng delta khi nâng cấp prompt cũ. Tham chiếu: `session/PROMPT_VISUALIZE_UPGRADE_V2.md`, `session/PROMPT_UI_PREMIUM_ROUND2.md`, `session/PROMPT_K_SEED_PROD_V2.md` (bản đã nâng cấp — audit phát hiện 8 lỗi bản gốc).
+- **Review PR chuẩn**: verify bằng máy (chạy worktree + build + test + SQL + API), không tin claim trong PR body. Phát hiện mẫu: vue-tsc plain pass nhưng `npm run build` fail; 0 test mới cho 5 khối nghiệp vụ; 0 docs sync.
+- **Rebase + resolve conflict chuẩn**: worktree riêng → rebase → resolve từng conflict (ưu tiên giữ logic mới nhất + lấy UX cũ nếu tốt) → grep marker còn sót = 0 → build/test → force-push-with-lease → merge.
 
-## 4. TỒN ĐỌNG (thứ tự đề xuất)
-1. **QA Ollama cuối cho nhóm D + 3 view P2** (Ladder/NodeHub/FinalTest) — MASTER chưa kịp: chụp light+dark, 3 gate (7 tiêu chí + spacing + bản sắc) qua `qwen2.5vl:3b` (model chính KHÔNG đọc ảnh — phải qua Ollama hoặc pixel-data).
-2. **Lighthouse + axe-core** toàn 36 view (A11y ≥90 / Perf ≥80, axe 0 critical) — cần trước bảo vệ.
-3. **Gỡ 2 icon lib cũ**: `@lucide/vue` + `@phosphor-icons/vue` vẫn trong package.json (views chỉ dùng `lucide-vue-next` 32×, phosphor 0) — gỡ để sạch bundle + THIRD_PARTY.
-4. **Emoji 🪜 còn ở `LadderView.vue:85`** ("Practice Ladder" title) — thay icon lucide.
-5. **PR #1 dev→main** — chờ USER duyệt (không tự merge).
-6. **Chạy PROMPT_VISUALIZE_UPGRADE** (session riêng — có thể song song với 1-3 vì file khác: engines/ + CodeRunnerView; chú ý xung đột CodeRunnerView).
-7. **PROMPT_M** → **PROMPT_N** (backlog `docs/work/final-review-2/backlog.md` — nếu có).
-8. **18 ảnh báo cáo** (6 sơ đồ diagrams session + 12 màn UI) → docx pandoc (C:\Users\Administrator\AppData\Local\Pandoc\pandoc.exe) theo BAO_CAO.md; điền ngày bảo vệ (SETUP_TODO — cần user).
-9. **Diagrams session** (worktree `D:\FPT\neww-diagrams`, feature/diagrams — KHÔNG merge dev) — file tailieu/diagrams trong working tree chính vẫn là rác chưa commit, đừng đụng.
-10. 2FA cần SMTP thật (đang MailHog).
+## 4. PROMPT / SESSION
+| Prompt | Trạng thái |
+|---|---|
+| PROMPT_VIEW_QUALITY_MASTER_V2 | ✅ DONE + MERGED (36/36 view) |
+| PROMPT_VISUALIZE_UPGRADE_V2 | ✅ DONE + MERGED (PR #20 — trace playback, wrap, transition) |
+| PROMPT_K_SEED_PROD_V2 | ✅ DONE + MERGED (PR #21 — 95 users, showcase) |
+| PROMPT_UI_PREMIUM_ROUND2 | 🔒 PR #19 ĐÓNG — đã tách phần giá trị → PR #24 premium-lib MERGED |
+| PROMPT_M_FINAL_REVIEW | ⏳ CHƯA CHẠY — kế tiếp |
+| PROMPT_N_OPTIMIZATION | ⏳ sau M |
 
-## 5. MÔI TRƯỜNG & CÔNG CỤ (14/08)
-- **Docker laptop**: FE `http://localhost:8081` (nginx proxy /api → backend), BE `http://localhost:5000` (health `/health`), MailHog UI `:8025` (SMTP 1025), SQL Server 1433 (DsaVisual, sa/DsaVisual@Dev123, volume giữ data seed K). Rebuild: `docker compose build && docker compose up -d` (từ D:\FPT\neww).
-- Accounts: student `student@demo.local / Student@123` (premium, seed K: 8 student + 2 lớp); admin "Quản trị viên".
-- FE dev server riêng: `:5174` (5173 bị relay chiếm).
-- **GITHUB_TOKEN**: setx user-level — session mới lấy `$tok=[Environment]::GetEnvironmentVariable('GITHUB_TOKEN','User')`; dùng REST API (không có gh CLI): `Invoke-RestMethod api.github.com/repos/Tqson3118/Visualization/pulls -Headers @{Authorization="Bearer $tok";"User-Agent"="opencode"}`.
-- **EXA_API_KEY** hardcode `~/.config/opencode/opencode.jsonc` (6e92b042-...). Ollama `qwen2.5vl:3b` @ localhost:11434 (POST /api/generate, JSON {model, prompt, images:[base64], stream:false} — gọi RIÊNG từng gate, không gộp 3 câu).
-- MCP: github, exa, context7, playwright, chrome-devtools, memory, duckduckgo, fetch. **Memory MCP có thể fail store trong 1 số session (lỗi env)** — DESIGN.md/decision-log là nguồn chuẩn, không phụ thuộc memory.
-- Verify FE: `npx vue-tsc --noEmit` + `npx vitest run` (95) + `npm run build`. Verify BE: `dotnet build DsaVisual.sln` + `dotnet test` (214).
+## 5. TỒN ĐỌNG (thứ tự)
+1. **PR #1 dev→main** — chờ USER duyệt (không tự merge).
+2. **PROMPT_M** (final review 7 trục) → **PROMPT_N** (tối ưu backlog, đo trước/sau).
+3. **Backlog**: perf#9 flaky (stabilize — UTC midnight/ActiveUsersToday) · NU1903 SSH.NET (test-only) · UserInventory 66<80 (trần toán học, decision log seed-v2).
+4. **18 ảnh báo cáo** → docx pandoc (từ `tailieu/`, lệnh đúng: `& pandoc BAO_CAO.md -o BaoCaoDoAn.docx --toc` — pandoc resolve ảnh theo cwd); điền ngày bảo vệ (SETUP_TODO — cần user).
+5. **Dọn worktree đã merge/xong**: `trees/system-logic`, `trees/urgent-fix`, `trees/premium-lib`, `trees/ui-premium` (PR đóng) — `git worktree remove`; giữ `neww-diagrams` (chờ 6 ảnh, KHÔNG merge).
+6. 2FA cần SMTP thật (đang MailHog).
 
-## 6. BÀI HỌC (đã nhúng mọi prompt)
-1. KHÔNG nhúng file >5KB vào prompt task — chỉ trỏ đường dẫn (lỗi "task trả rỗng" 4/4 lần).
-2. PR base dev; commit-as đúng người; worktree riêng mỗi session (neww-q*, neww-engine...).
-3. Ollama 3 gate độc lập (7 tiêu chí / spacing / bản sắc) — không bù trừ; ≤2-5 vòng lặp fix, vòng không cải thiện → dừng + ghi lý do.
-4. Không tự chấm bài mình: dev → test → review độc lập.
-5. Decision log GHI TRƯỚC khi làm; lệch docs → task đồng bộ đi kèm.
-6. **Vệ sinh workspace**: file tạm → `D:\FPT\neww\trees\`; evidence → `docs/work/<session>/`; dọn temp trước báo xong; không rải file vào repo root.
-7. Quyết định xuyên-nhóm phải chốt trước khi chạy song song (bài học banner-ngẫu-nhiên).
-8. Verify phải ĐO ĐƯỢC (Lighthouse/axe/grep/computed-style/pixel-data) — không "nhìn ổn là ổn".
+## 6. MÔI TRƯỜNG & CÔNG CỤ
+- **Docker laptop**: FE `http://localhost:8081` (nginx proxy /api → backend), BE `:5000` (health `/health`), MailHog `:8025` (SMTP 1025), SQL Server 1433 (DsaVisual, sa/DsaVisual@Dev123). Rebuild: `docker compose build && docker compose up -d` từ `D:\FPT\neww`.
+- Accounts: student `student@demo.local/Student@123` (premium) · showcase `showcase@demo.local/Student@123` (Level 6, top 1) · teacher `teacher@demo.local/Teacher@123` · admin "Quản trị viên".
+- **Rate limit**: sensitive (login/register/2fa/reset/change-password/join) 60/phút/IP; refresh/logout → general 300/phút. 429 hiện message riêng (FE). Bị 429 → chờ 60s.
+- **GITHUB_TOKEN** setx user-level; REST API (không gh CLI). **EXA_API_KEY** hardcode opencode.jsonc. Ollama `qwen2.5vl:3b` @ localhost:11434. Word COM 16.0 có (render PDF docx).
+- Verify FE: `npm run build` (bắt buộc — vue-tsc plain KHÔNG đủ) + `npx vitest run` (174). Verify BE: `dotnet build` + `dotnet test` (148+78; perf#9 flaky → chạy lại lần 2).
+- Migration mới apply bằng: `dotnet ef database update --project src/DsaVisual.Application --startup-project src/DsaVisual.Api` (backend/ — đã cài dotnet-ef 10.0.10).
 
-## 7. GIT WORKTREES ĐANG TỒN TẠI
-`neww-diagrams` (feature/diagrams — KHÔNG merge) · `neww-seed` · `neww-teacher` (đã merge xong — có thể xóa) · `neww-qbase` (đã merge) · `neww-qa/qb/qc/qd/qp2` (MASTER — đã merge) · `neww-engine` (CHƯA tạo — cho visualize). Dọn worktree đã merge xong nếu cần: `git worktree remove`.
+## 7. GIT WORKTREES CÒN TỒN TẠI
+`trees/system-logic` · `trees/urgent-fix` · `trees/premium-lib` · `trees/ui-premium` (đều MERGED/ĐÓNG — dọn được) · `neww-diagrams` (feature/diagrams — KHÔNG merge, chờ ảnh) · `neww-seed/teacher/qbase/qa/qb/qc/qd/qp2/qdocs` (cũ, merge xong — dọn cuối đợt).
+
+## 8. BÀI HỌC (bổ sung phiên 14/08 chiều)
+1. **Số liệu thật > lời khai báo**: PR body nói "vue-tsc 0 lỗi" nhưng `npm run build` gãy 2 type error; "17/17 acceptance" nhưng 0 test BE mới. Luôn chạy lại build/test trong worktree.
+2. **PR cũ (stale)**: đừng merge nguyên khối — đóng + tách phần additive (file MỚI không conflict) thành PR nhỏ (#19 → #24).
+3. **Rate-limit sensitive + refresh storm**: refresh/logout không được chung partition với login (self-DoS); FE redirect phải singleton.
+4. **Rebase nhiều PR chồng nhau**: merge nhánh có logic nền trước (#23), nhánh sau rebase + resolve (ưu tiên logic mới + lấy UX cũ tốt); grep marker `<<<<<<<` = 0 trước khi build.
+5. **pandoc docx**: chạy từ `tailieu/` (resolve ảnh theo cwd) — chạy từ root = ảnh mất.
+6. **Docker deploy**: daemon có thể tắt (docker info fail) → khởi động Docker Desktop trước; backend KHÔNG auto-migrate khi start (chỉ khi `--seed`) → phải `dotnet ef database update` riêng.

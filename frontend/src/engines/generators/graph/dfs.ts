@@ -26,7 +26,7 @@ const SCHEMA: InputSchema = {
       { label: 'Tự sinh (custom)', value: 'custom' },
     ], default: 'custom', description: 'Mẫu đồ thị' },
     { name: 'directed', type: 'bool', label: 'Có hướng', default: true, description: 'Đồ thị có hướng hay vô hướng' },
-    { name: 'weighted', type: 'bool', label: 'Có trọng số', default: true, description: 'Các cạnh có trọng số hay không' },
+    { name: 'weighted', type: 'bool', label: 'Có trọng số', default: false, description: 'Các cạnh có trọng số hay không' },
     { name: 'vertices', type: 'int', label: 'Số đỉnh', min: 2, max: 50, default: 6, description: 'Số đỉnh của đồ thị' },
     { name: 'edges', type: 'int', label: 'Số cạnh', min: 1, max: 200, default: 8, description: 'Số cạnh khi dùng preset custom' },
     { name: 'source', type: 'int', label: 'Đỉnh nguồn', min: 0, max: 49, default: 0, description: 'Đỉnh bắt đầu duyệt' },

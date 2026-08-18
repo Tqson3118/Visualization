@@ -280,6 +280,7 @@ async function toggleHistory(): Promise<void> {
           <div class="code-runner__visual">
             <CanvasArea
               :structure="traceMode ? playbackStructure : simStore.currentStep?.structure ?? null"
+              :sim-key="key"
               :empty-text="'Canvas 2 chiều — đồng bộ theo trace code của bạn'"
             />
             <StatsBar

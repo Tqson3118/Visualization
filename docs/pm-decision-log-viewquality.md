@@ -520,3 +520,8 @@
 ## [2026-08-13] Resolve conflict nhánh D vs dev
 - Quyết định: Badge.vue — giữ ours (cả 2 đã có min-h-6, conflict chỉ comment). global.css — giữ theirs/dev (@layer base), nhất quán với resolve nhánh C.
 - Ảnh hưởng: Badge.vue, global.css (dev đã merge).
+
+## [2026-08-14 02:35] KẾT THÚC PHIÊN --auto PROMPT_VIEW_QUALITY_MASTER_V2
+- Quyết định: Phase 0 + Phase 1 (4 nhóm) + Phase 2 đã xong, tất cả merge dev (PR #12, #13, #14, #15, #16, #17, #18). 36/36 view ĐẠT (scorecard cuối đã commit). KHÔNG merge PR #1 (dev→main) — chờ vòng QA cuối (tồn đọng #1).
+- Ảnh hưởng: dev @ 528eeef (sau #18); worktree: neww-qbase (q0), neww-qa/b/c/d (Phase 1), neww-qp2 (P2), neww-qdocs (docs) — giữ nguyên cho phiên sau.
+- Tồn đọng chính: Ollama QA nhóm D + 3 view P2; Lighthouse/axe-core toàn 36 view; gỡ @lucide/vue + @phosphor-icons khỏi package.json; emoji trong contentHtml CMS; theme toggle wire <html>.

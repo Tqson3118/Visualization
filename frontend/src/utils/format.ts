@@ -21,8 +21,11 @@ const percentFormat = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0,
 });
 
-/** 1.234.567 */
-export function formatNumber(value: number): string {
+/** 1.234.567 — an toàn với null, undefined, NaN */
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || typeof value !== 'number' || Number.isNaN(value)) {
+    return '0';
+  }
   return numberFormat.format(value);
 }
 

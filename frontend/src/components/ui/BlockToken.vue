@@ -32,22 +32,22 @@ const blockClass = computed(() => {
 const valueClass = computed(() => {
   const base =
     props.size === 'sm'
-      ? 'font-mono text-sm font-medium'
-      : 'text-2xl font-semibold tracking-[-0.015em]';
-  if (props.tone === 'resolved') return `${base} text-resolved`;
-  if (props.tone === 'warning') return `${base} text-warning`;
-  return `${base} text-index-muted`;
+      ? 'font-mono text-sm font-semibold'
+      : 'text-2xl font-bold tracking-[-0.015em]';
+  if (props.tone === 'resolved') return `${base} text-emerald-400`;
+  if (props.tone === 'warning') return `${base} text-amber-400`;
+  return `${base} text-slate-100`;
 });
 </script>
 
 <template>
   <div
-    class="flex flex-col gap-1 rounded-lg border border-data-core/20 bg-canvas-ink px-4 py-3"
+    class="flex flex-col gap-1 rounded-lg border border-slate-700/50 bg-canvas-ink px-4 py-3"
     :class="size === 'sm' ? 'min-w-16' : 'min-w-28'"
   >
     <span v-if="label || index" class="flex items-center gap-1.5">
       <span aria-hidden="true" class="h-2 w-2 rounded-sm" :class="blockClass" />
-      <span class="font-mono text-xs text-index-muted">
+      <span class="font-mono text-xs text-slate-400">
         {{ label }}<template v-if="label && index"> · </template>{{ index }}
       </span>
     </span>

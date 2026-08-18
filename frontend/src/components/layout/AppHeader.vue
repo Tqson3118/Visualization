@@ -5,6 +5,7 @@
 // (nền #131614, accent #a855f7/#c084fc, mono kicker).
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Moon, Sun } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
@@ -23,6 +24,12 @@ const mobileNavOpen = ref(false);
 const sandboxOpen = ref(false);
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
+
+// Task 15C — nhãn nút đổi màu nền: mô tả hành động SẮP xảy ra khi bấm
+// (light → "sang tối", dark → "sang sáng") — icon hiển thị trạng thái đích.
+const themeToggleLabel = computed(() =>
+  ui.theme === 'light' ? messages.common.toDarkTheme : messages.common.toLightTheme,
+);
 
 // Quản trị: TEACHER → /admin/content (roles TEACHER|ADMIN); ADMIN → /admin/users
 const adminTarget = computed(() => ({ name: auth.role === 'TEACHER' ? 'admin-content' : 'admin-users' }));
@@ -92,6 +99,16 @@ async function onLogout(): Promise<void> {
       </nav>
 
       <div class="app-header__actions">
+        <button
+          type="button"
+          class="app-header__theme"
+          :title="themeToggleLabel"
+          :aria-label="themeToggleLabel"
+          @click="ui.toggleTheme()"
+        >
+          <Sun v-if="ui.theme === 'dark'" class="app-header__theme-icon" aria-hidden="true" />
+          <Moon v-else class="app-header__theme-icon" aria-hidden="true" />
+        </button>
         <HeartsGemsWidget v-if="auth.isAuthenticated" />
         <template v-if="!auth.isAuthenticated">
           <RouterLink class="app-header__login" :to="{ name: 'login' }">{{ messages.nav.login }}</RouterLink>
@@ -318,6 +335,50 @@ async function onLogout(): Promise<void> {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+
+/* Task 15C — nút đổi màu nền: icon 20px trong button 40px (interactive
+   sizing), pill, hover surface + primary, focus ring chuẩn. */
+.app-header__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.app-header__theme:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+
+.app-header__theme:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.app-header__theme-icon {
+  width: 20px;
+  height: 20px;
+  animation: theme-icon-pop 200ms ease;
+}
+
+/* Rotate + scale nhẹ khi đổi icon (reduced-motion đã được global.css cắt) */
+@keyframes theme-icon-pop {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
 }
 
 .app-header__login {

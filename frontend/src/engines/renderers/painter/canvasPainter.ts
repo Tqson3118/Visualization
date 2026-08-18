@@ -184,9 +184,10 @@ export class CanvasPainter {
   }
 
   /** Vẽ text — căn giữa mặc định; màu mặc định theo theme (--color-text-primary). */
-  text(text: string, x: number, y: number, style: TextStyle = {}): void {    const ctx = this.ctx;
+  text(text: string, x: number, y: number, style: TextStyle = {}): void {
+    const ctx = this.ctx;
     if (!ctx) return;
-    ctx.font = `${style.weight ?? 'normal'} ${style.size ?? 13}px sans-serif`;
+    ctx.font = `${style.weight ?? 'normal'} ${style.size ?? 13}px 'JetBrains Mono', 'Fira Code', ui-monospace, monospace`;
     ctx.fillStyle = style.color ?? CANVAS_COLORS.text;
     ctx.textAlign = style.align ?? 'center';
     ctx.textBaseline = style.baseline ?? 'middle';

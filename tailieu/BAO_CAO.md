@@ -45,8 +45,6 @@ Từ nhu cầu đó, nhóm gồm 4 sinh viên lớp SD21361 đã xây dựng H�
 
 Báo cáo gồm 7 phần. Phần 1 giới thiệu đề tài và ban dự án. Phần 2 trình bày khảo sát các hệ thống tương tự và kế hoạch dự án. Phần 3 mô tả phân tích yêu cầu hệ thống (mô hình triển khai, sơ đồ use case, đặc tả yêu cầu). Phần 4 trình bày thiết kế công nghệ, giao diện, dữ liệu và phần mềm. Phần 5 mô tả quá trình thực hiện. Phần 6 báo cáo kết quả kiểm thử. Phần 7 mô tả đóng gói và triển khai. Cuối báo cáo là Kết luận và hướng phát triển, Tài liệu tham khảo và 4 phụ lục hỗ trợ (hướng dẫn cài đặt môi trường, phím tắt và thuật ngữ, thư viện bên thứ ba, danh mục mô phỏng).
 
-(nguồn: PRODUCTION_PROMPT §0.5; SRS §1.2)
-
 # PHẦN 1: GIỚI THIỆU ĐỀ TÀI
 
 ## 1.1 Giới thiệu dự án
@@ -57,7 +55,11 @@ Sinh viên ngành công nghệ thông tin khi học môn Cấu trúc dữ liệu
 2. **Thiếu phản hồi trực quan**: sách và giáo trình chỉ có hình tĩnh và mã; sinh viên không thấy chuyển động từng bước, không thấy lý do vì sao giải thuật hoạt động như vậy.
 3. **Thiếu luyện tập chủ động**: sinh viên không được thực hành dự đoán kết quả từng bước — kỹ năng quan trọng nhất để hiểu sâu giải thuật.
 
-DSA-Visual giải quyết bằng: (a) mô phỏng từng bước mọi thao tác trên CTDL/GT theo cơ chế EDV (mã thật chạy, trace phát lại); (b) đồng bộ trực quan – mã giả – giải thích trong cùng một màn hình; (c) Practice Ladder 3 bậc với bài tập dự đoán chấm tự động; (d) theo dõi tiến độ cá nhân và báo cáo cho giảng viên.
+Hệ thống DSA-Visual được xây dựng nhằm giải quyết các khó khăn trên thông qua 4 giải pháp cốt lõi:
+- **Mô phỏng từng bước**: Trực quan hóa mọi thao tác trên cấu trúc dữ liệu và giải thuật bằng hình ảnh động.
+- **Đồng bộ ba vùng hiển thị**: Kết nối trực quan giữa mã giả, cấu trúc dữ liệu và lời giải thích chi tiết trong cùng một màn hình.
+- **Luyện tập chủ động ba bậc**: Cung cấp hệ thống bài tập tự chấm gồm trắc nghiệm, thực hành tương tác và thử thách lập trình.
+- **Theo dõi tiến độ**: Hỗ trợ người học kiểm soát lộ trình học tập cá nhân và cung cấp báo cáo học tập cho giảng viên.
 
 Mục tiêu dự án được đo lường bằng 8 KPI G1-G8 (Bảng 1.1).
 
@@ -75,8 +77,6 @@ Mục tiêu dự án được đo lường bằng 8 KPI G1-G8 (Bảng 1.1).
 | G8 | Độ mượt mô phỏng | FPS khi mô phỏng ≥ 55 fps |
 
 Ghi chú: G3 và G5 đo trên người dùng có đủ Tim/Premium theo thiết kế; G4 đo ngoài hệ thống (điểm kiểm tra chương do giảng viên chấm).
-
-(nguồn: SRS §2.1, §2.2)
 
 ## 1.2 Ban dự án
 
@@ -97,8 +97,6 @@ Vai trò chuyên môn của từng thành viên:
 - Thái Quang Sơn: phụ trách frontend Vue 3 và toàn bộ giao diện người dùng, xây dựng các màn hình học tập, mô phỏng, luyện tập theo thiết kế, nhận các task khó ưu tiên.
 - Huỳnh Lê Minh Thư: phụ trách Simulation Engine (viết code generator, renderer cho cơ chế EDV) và kiểm thử hệ thống.
 - Trần Viết Tâm Phúc: hỗ trợ code các phần đơn giản, phụ trách viết tài liệu và triển khai hệ thống.
-
-(nguồn: SRS §2.4; SDD §1.5)
 
 # PHẦN 2: KHẢO SÁT – SURVEY
 
@@ -126,9 +124,9 @@ Kết quả so sánh theo 9 tiêu chí được trình bày ở Bảng 2.1.
 | So sánh đo thật với lý thuyết | Không | Không | Không | Có (Benchmark Lab) |
 | Mã nguồn mở | Một phần | Có | Có | Nội bộ |
 
-Kết luận khảo sát: 3 hệ thống trên đều mạnh về mô phỏng từng bước nhưng chưa đáp ứng đủ nhu cầu học tập tại trường. Từ đó, nhóm xác định 6 yêu cầu cốt lõi cho DSA-Visual: (1) đồng bộ 3 vùng trực quan – mã giả – giải thích từ trace thật (EDV); (2) hệ thống bài tập tự chấm theo Practice Ladder 3 bậc; (3) theo dõi tiến độ cá nhân và báo cáo cho giảng viên; (4) giảng viên tự biên soạn nội dung; (5) Benchmark so sánh số liệu đo thật với lý thuyết; (6) giao diện tiếng Việt.
+Kết luận khảo sát: Các hệ thống hiện có đều sở hữu thế mạnh về mô phỏng từng bước nhưng chưa đáp ứng trọn vẹn nhu cầu giảng dạy và học tập trong nhà trường. Trên cơ sở đó, nhóm phát triển xác định các mục tiêu cốt lõi cho DSA-Visual gồm: giao diện tiếng Việt thân thiện, đồng bộ trực quan giữa mã giả và đồ họa, hệ thống bài tập thực hành tự chấm theo lộ trình ba bậc, hỗ trợ giảng viên biên soạn nội dung và theo dõi tiến độ sinh viên.
 
-Yêu cầu chức năng (FR) của hệ thống gồm 10 nhóm chức năng (Bảng 2.2). Trong quá trình duyệt, 12 FR đã được cắt để giữ phạm vi đúng tầm đồ án (không cổng thanh toán thật, không realtime, không online judge tự do).
+Yêu cầu chức năng của hệ thống được phân bổ qua 10 nhóm chức năng chính (Bảng 2.2), tập trung vào các nghiệp vụ học tập, mô phỏng và quản lý đào tạo cốt lõi.
 
 **Bảng 2.2: Tóm tắt yêu cầu chức năng theo nhóm**
 
@@ -155,8 +153,6 @@ Yêu cầu phi chức năng (NFR) tóm tắt theo 8 nhóm:
 - **Độ tin cậy (NFR-28 đến NFR-30)**: uptime ≥ 99.5% giai đoạn thí điểm; backup hàng ngày giữ 14 bản; mọi exception đều có log đầy đủ.
 - **Bảo trì (NFR-31 đến NFR-34)**: tuân thủ chuẩn code; hàm ≤ 40 dòng, class ≤ 400 dòng; public API có tài liệu; kiểm thử tự động backend ≥ 60%, generator ≥ 90%.
 - **Tuân thủ (NFR-35, NFR-36)**: dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP; chỉ dùng thư viện mã nguồn mở có liệt kê license.
-
-(nguồn: SRS §2.6 — khảo sát; SRS §3.1 — FR; SRS §4.1-§4.8 — NFR; PRODUCTION_PROMPT §1.9)
 
 ## 2.2 Kế hoạch dự án
 
@@ -196,8 +192,6 @@ Phân công theo giai đoạn được tóm tắt ở Bảng 2.4.
 | Thiết kế hệ thống | Kiến trúc backend, cơ sở dữ liệu, giao diện, Simulation Engine | Bảo, Sơn, Thư |
 | Phát triển | Lập trình theo 10 sprint, ưu tiên chức năng mức Cao | Bảo, Sơn, Thư, Phúc |
 | Kiểm thử và triển khai | Kiểm thử toàn diện, tài liệu hóa, deploy staging | Thư, Phúc |
-
-(nguồn: PRODUCTION_PROMPT §20.1 — nội dung sprint; mốc thời gian: BAO_CAO_SPEC §4)
 
 
 # PHẦN 3: PHÂN TÍCH - ANALYSIS
@@ -242,8 +236,6 @@ Sơ đồ trên mô tả luồng chính: giao diện SPA gọi API qua REST kèm
 | Client | Hiển thị giao diện, chạy mô phỏng EDV, chạy và chấm code trong sandbox | Vue 3 + Vite + TypeScript, Pinia, Web Worker, Monaco |
 | API Server | Xác thực, cung cấp dữ liệu bài học/mô phỏng, chấm điểm bài tập, quản lý tiến độ và gamification | ASP.NET Core (DsaVisual.Api + DsaVisual.Application), EF Core |
 | Database | Lưu toàn bộ dữ liệu: người dùng, bài học, bài tập, tiến độ, phiên học, code | SQL Server 2019+ |
-
-(nguồn: SDD §2.1)
 
 ## 3.2 Sơ đồ Use Cases
 
@@ -334,8 +326,6 @@ graph TD
 ![Hình 3.1 - Sơ đồ use case tổng thể](diagrams/01-usecase-tong-quan.png)
 
 *Hình 3.1: Sơ đồ use case tổng thể — 3 tác nhân và các chức năng chính của hệ thống. (ảnh placeholder — sinh ảnh thật bằng prompt NHÓM B #1)*
-
-(nguồn: SRS §5.1)
 
 ### 3.2.2 Use Cases dành cho người học
 
@@ -430,8 +420,6 @@ Các use case chính được liệt kê ở Bảng 3.2:
 | UC-31 | Xem Leaderboard | Xem bảng xếp hạng theo XP |
 | UC-32 | Nâng cấp Premium | Checkout mô phỏng gói Premium, quản lý hết hạn |
 
-(nguồn: SRS §5.2-5.9, §5.15, §5.18-5.20, §5.22-5.33)
-
 ### 3.2.3 Use Cases dành cho giảng viên
 
 Nhóm giảng viên gồm 4 use case: biên soạn nội dung, xem báo cáo và quản lý lớp học phần:
@@ -463,8 +451,6 @@ graph TD
 | UC-11 | Xem báo cáo giảng dạy | Xem thống kê bài học (người xem, % hoàn thành, điểm trung bình) và xuất CSV |
 | UC-20 | Quản lý lớp học phần | Tạo lớp + mã mời 6 ký tự, thêm/xóa sinh viên, gán nội dung kèm hạn nộp, xem báo cáo lớp và xuất CSV |
 
-(nguồn: SRS §5.10-5.12, §5.21)
-
 ### 3.2.4 Use Cases dành cho quản trị viên
 
 Nhóm quản trị viên gồm 2 use case:
@@ -489,8 +475,6 @@ graph TD
 |---|---|---|
 | UC-12 | Quản lý người dùng | Xem danh sách người dùng, khóa/mở khóa, phê duyệt tài khoản giảng viên, đặt lại mật khẩu; mọi thao tác đều ghi log máy chủ |
 | UC-13 | Quản trị cấu hình hệ thống | Chỉnh cấu hình hệ thống (domain email, chính sách mật khẩu, giới hạn upload), lưu và áp dụng ngay không cần khởi động lại |
-
-(nguồn: SRS §5.13-5.14)
 
 ## 3.3 Đặc tả yêu cầu hệ thống (SRS)
 
@@ -578,11 +562,9 @@ Bảng 3.5 tổng hợp đầy đủ **75 yêu cầu chức năng (FR)** của h
 | FR-10.6 | Leaderboard | Bảng xếp hạng theo XP | UC-31 | TB |
 | FR-10.7 | Premium và hết hạn | Gói Premium (P1), checkout mô phỏng, quản lý hết hạn | UC-32 | TB |
 
-(nguồn: SRS §3.1 — master matrix FR)
+### 3.3.2 Đặc tả các use case chính
 
-### 3.3.2 Đặc tả use case hạt nhân
-
-Phần này đặc tả 3 use case quan trọng nhất của hệ thống theo 4 mục ngắn: mô tả chức năng, dữ liệu liên quan, đối tượng sử dụng và yêu cầu bảo mật.
+Phần này đặc tả 3 use case tiêu biểu của hệ thống theo 4 nội dung: mô tả chức năng, dữ liệu liên quan, đối tượng sử dụng và yêu cầu bảo mật.
 
 #### UC-01 — Chạy mô phỏng giải thuật
 
@@ -604,8 +586,6 @@ Phần này đặc tả 3 use case quan trọng nhất của hệ thống theo 4
 - **Dữ liệu liên quan:** `Exercises`, `ExerciseSubmissions`, `CodeRuns`, `CodeSubmissions`, `NodeSessions`, `UserNodeProgress`.
 - **Đối tượng sử dụng:** Người học (đã đăng nhập và vào node).
 - **Yêu cầu bảo mật:** Xác thực JWT; server guard chặn vào bậc sau khi chưa pass bậc trước; chấm điểm phía server, nộp bài idempotent (không tính 2 lần khi mất mạng).
-
-(nguồn: SRS §5.2, §5.26, §5.27)
 
 
 # PHẦN 4: THIẾT KẾ - DESIGN
@@ -650,8 +630,6 @@ graph TB
 | CSDL | SQL Server 2019+ | Lưu trữ 32 bảng dữ liệu, lưu lịch sử chấm điểm |
 
 Điểm công nghệ đáng chú ý: Simulation Engine EDV chạy phía client nên bước lùi miễn phí và sinh bước nhanh (NFR-2); Code Runner chấm code trong sandbox Web Worker, backend chỉ lưu lịch sử; phiên đăng nhập dùng JWT access token trong bộ nhớ kèm refresh cookie an toàn (ADR-004).
-
-(nguồn: SDD §2, §3)
 
 ## 4.2 Thiết kế giao diện
 
@@ -701,8 +679,6 @@ Mũi tên trong sơ đồ thể hiện đường đi chính của người dùng
 | Quản trị | 08 Dashboard (redirect), 09 Quản trị nội dung, 10 Quản lý người dùng, 11 Thống kê, 29 Chờ duyệt Teacher | 5 |
 | Hồ sơ | 32 Hồ sơ cá nhân | 1 |
 
-(nguồn: SDD §8.2, §8.4; SCREEN_MAP)
-
 ### 4.2.2 Layout
 
 Giao diện dùng một hệ thống thiết kế thống nhất cho mọi màn: màu, font, cỡ chữ và bộ component dùng chung được định nghĩa một chỗ, không viết CSS rải rác.
@@ -732,118 +708,93 @@ Toàn bộ màn học được bọc trong App shell gồm header chung và side
 
 Hai route cũ `/learn` và `/dashboard` tự chuyển hướng sang `/path` và `/profile` để giữ một lối vào duy nhất.
 
-(nguồn: SDD §8.1, §8.7)
-
 ### 4.2.3 Giao diện chức năng
 
-Dưới đây là 12 màn hình chính của hệ thống, ảnh chụp từ ứng dụng thật (13/08/2026).
+Dưới đây là các giao diện chức năng chính của hệ thống, được chụp trực tiếp từ ứng dụng thực tế.
 
-#### Màn 01 — Trang chủ
+#### 4.2.3.1 Giao diện Trang chủ
 
 ![Hình 4.1 - Trang chủ](screenshots/01-home.png)
-*Hình 4.1: Trang chủ giới thiệu sản phẩm, 6 thẻ tính năng và 3 demo công khai. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.1: Giao diện Trang chủ hệ thống*
 
-Trang chủ công khai gồm hero giới thiệu, 6 thẻ tính năng, khối "Cách hoạt động", số liệu hệ thống và 3 thẻ demo công khai (Bubble Sort, Binary Search, BFS) chạy được ngay không cần đăng nhập. Khách bấm "Đăng ký miễn phí" để tạo tài khoản hoặc "Chạy thử" để xem demo; người đã đăng nhập thấy nút "Học tiếp" trỏ về Lộ trình.
+Trang chủ giới thiệu tổng quan về nền tảng, cung cấp các tính năng nổi bật và hỗ trợ người dùng trải nghiệm nhanh các thuật toán mô phỏng mẫu.
 
-#### Màn 02 — Đăng nhập/Đăng ký
+#### 4.2.3.2 Giao diện Đăng nhập và Đăng ký
 
 ![Hình 4.2 - Đăng nhập/Đăng ký](screenshots/02-login.png)
-*Hình 4.2: Màn đăng nhập và đăng ký với validation inline. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.2: Giao diện Đăng nhập và Đăng ký*
 
-Màn xác thực gồm đăng nhập và đăng ký trên 2 route riêng. Biểu mẫu kiểm tra ngay khi rời ô nhập, mật khẩu có checklist sống (đủ dài, có chữ hoa, số, ký tự đặc biệt), checkbox "Tôi là giảng viên" đưa tài khoản vào trạng thái chờ duyệt. Tài khoản đã bật xác thực 2 lớp phải nhập thêm mã OTP gửi qua email. Sau khi đăng nhập, sinh viên về Lộ trình, giảng viên/quản trị về trang quản trị.
+Hệ thống xác thực tài khoản an toàn cho sinh viên và giảng viên, tích hợp kiểm tra dữ liệu đầu vào và hỗ trợ khôi phục mật khẩu.
 
-#### Màn 04 — Chi tiết bài học
+#### 4.2.3.3 Giao diện Chi tiết bài học
 
 ![Hình 4.3 - Chi tiết bài học](screenshots/04-lesson-detail.png)
-*Hình 4.3: Màn chi tiết bài học hiển thị lý thuyết và thẻ liên kết tài nguyên. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.3: Giao diện Chi tiết bài học*
 
-Màn hiển thị nội dung lý thuyết dạng rich-text; không nhúng mô phỏng hay bài tập trong trang mà đưa thẻ liên kết mở các trang riêng. Người học ghi chú cá nhân (tự lưu sau 1 giây), đánh giá sao 1-5 sau khi đã học, và bấm "Xem bước này" để mở mô phỏng đúng đoạn liên quan.
+Trình bày nội dung lý thuyết cấu trúc dữ liệu, tích hợp ghi chú học tập cá nhân và liên kết trực tiếp tới các bài mô phỏng tương ứng.
 
-#### Màn 05 — Màn hình mô phỏng (quan trọng nhất)
+#### 4.2.3.4 Giao diện Trình mô phỏng thuật toán
 
 ![Hình 4.4 - Màn hình mô phỏng](screenshots/05-simulator.png)
-*Hình 4.4: Màn mô phỏng 3 vùng đồng bộ: mã giả, canvas trực quan, giải thích từng bước. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.4: Giao diện Trình mô phỏng thuật toán trực quan*
 
-Đây là màn quan trọng nhất của hệ thống, bố cục 3 vùng đồng bộ trong cùng một frame: trái là panel mã giả (dòng đang chạy tô vàng kèm giá trị biến), giữa là canvas vẽ cấu trúc dữ liệu theo trạng thái màu, phải là panel giải thích từng bước bằng tiếng Việt. Thanh điều khiển bên dưới canvas có phát/dừng/bước tới/bước lùi, thanh tiến trình kéo thả và tốc độ 0.25x-4x; người học có thể cấu hình lại dữ liệu đầu vào theo từng loại CTDL, đặt breakpoint, tự thực hành bước thủ công và dùng phím tắt (Space phát/dừng, mũi tên sang bước). Bố cục dự kiến như wireframe sau:
+Không gian học tập trực quan với bố cục ba vùng đồng bộ: mã giả thuật toán, đồ họa trực quan và bảng giải thích từng bước thực thi. Người học có thể điều chỉnh tốc độ, nhảy bước, đặt điểm dừng và tùy biến dữ liệu đầu vào.
 
-```
-+-----------------------------------------------------------------------------------------------+
-|  Header:  Quay lại bài học  |  Bubble Sort - Sắp xếp nổi bọt  |  Yêu thích  Chia sẻ  Tùy chọn |
-+-----------------------------------------------------------------------------------------------+
-|  MÃ GIẢ (3/12)   |   VÙNG TRỰC QUAN (6/12)                              |  GIẢI THÍCH (3/12)   |
-|  ----------------|-----------------------------------------------------|---------------------|
-|  1 procedure      |   [3] [7] [1] [5]  <- các ô mảng                     |  BƯỚC 12/34          |
-|  2  for i ...     |     ^                                              |  So sánh a[0]=3 và    |
-|  3    swapped=F   |     i=0       [7] [1] <- đang so sánh               |  a[1]=7: 3 > 7 ?     |
-|  4    for j ...   |  Màu: mặc định  active  swap  done                  |  -> sai, không hoán   |
-|  5      if a[j]   |  Bộ đếm: so sánh 14 | hoán đổi 3 |                  |  đổi. j tăng lên 1.  |
-|  6        swap    |  Tốc độ [0.25x|0.5x|1x|2x|4x]                     |  Biến: i=0, j=1       |
-|  7        swapT   |-----------------------------------------------------|                     |
-|  8  if swapped    |  [Về đầu] [Lùi] [Phát/Dừng] [Tới] [Cuối] | 12/34 |  [Tại sao?] (tooltip) |
-|  9  end           |-----------------------------------------------------|---------------------|
-|  [Thu gọn]        |  [Cấu hình lại] [Tạo ngẫu nhiên] [Về đầu]        |                     |
-+-----------------------------------------------------------------------------------------------+
-|  Footer:  Phím tắt: Space = Phát/Dừng; mũi tên trái/phải = Bước; Home/End = Về đầu/cuối        |
-+-----------------------------------------------------------------------------------------------+
-```
-
-#### Màn 06 — Bài tập trắc nghiệm
+#### 4.2.3.5 Giao diện Làm bài tập trắc nghiệm
 
 ![Hình 4.5 - Bài tập trắc nghiệm](screenshots/06-exercise.png)
-*Hình 4.5: Màn làm bài trắc nghiệm với mini-map định vị câu hỏi. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.5: Giao diện Làm bài tập trắc nghiệm*
 
-Người học làm bài trắc nghiệm Bậc 1 của Practice Ladder hoặc bài kiểm tra cuối lộ trình: câu hỏi ở giữa, mini-map bên phải đánh dấu câu đã trả lời/đang xem/đánh dấu xem lại. Hết giờ tự nộp nếu có cấu hình. Sau nộp hiện kết quả chi tiết: điểm, thống kê đúng/sai và giải thích từng câu kèm lý do đáp án đã chọn sai. Có chế độ Luyện tập không chấm điểm và nút Gợi ý tốn token.
+Cung cấp bài tập trắc nghiệm củng cố kiến thức lý thuyết, tự động chấm điểm và hiển thị giải thích chi tiết cho từng câu hỏi.
 
-#### Màn 13 — Bản đồ Learning Path
+#### 4.2.3.6 Giao diện Bản đồ lộ trình học tập
 
 ![Hình 4.6 - Learning Path](screenshots/13-learning-path.png)
-*Hình 4.6: Bản đồ lộ trình dạng đường mòn, node khóa/mở/đã qua. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.6: Giao diện Bản đồ lộ trình học tập (Learning Path)*
 
-Bản đồ node kiểu "đường mòn" cuộn dọc giúp người học thấy thứ tự học và trạng thái từng node (khóa, đang mở, đã qua kèm số sao). Pass một node sẽ mở khóa node kế tiếp; node cuối lộ trình là bài kiểm tra cuối, chỉ mở khi qua toàn bộ node. Header có thanh tiến độ tổng và widget tim/gems.
+Hiển thị trực quan tiến trình học tập theo các chặng kiến thức và trạng thái mở khóa bài học từ cơ bản đến nâng cao.
 
-#### Màn 14 — Practice Ladder
+#### 4.2.3.7 Giao diện Khung luyện tập ba bậc
 
 ![Hình 4.7 - Practice Ladder](screenshots/14-ladder.png)
-*Hình 4.7: Khung luyện tập 3 bậc Quiz, Lab, Code với stepper trên cùng. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.7: Giao diện Khung luyện tập ba bậc (Practice Ladder)*
 
-Khung luyện tập 3 bậc của một node: Quiz (Bậc 1) → Interactive Lab (Bậc 2) → Code Challenge (Bậc 3). Stepper trên cùng cho biết bậc đã qua, đang làm, đang khóa; mỗi bậc là một component tách, qua bậc nào tự chuyển bậc kế. Điểm node tính Quiz 20% + Lab 30% + Code 50%, giữ điểm cao nhất mỗi bậc; phiên học 30 phút cho phép thoát ra vào tiếp tục.
+Khung rèn luyện kiến thức toàn diện qua ba cấp độ thử thách liên tiếp: Trắc nghiệm (Quiz), Thực hành tương tác (Lab) và Thử thách lập trình (Code).
 
-#### Màn 15 — Interactive Lab
+#### 4.2.3.8 Giao diện Phòng thực hành tương tác
 
 ![Hình 4.8 - Interactive Lab](screenshots/15-lab.png)
-*Hình 4.8: Màn luyện tập Bậc 2, thao tác trực tiếp trên canvas. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.8: Giao diện Phòng thực hành tương tác (Interactive Lab)*
 
-Bậc 2 yêu cầu người học tự thao tác trên canvas (kéo thả ô, chọn nút cha) để giải bài theo kịch bản sắp xếp, BST hoặc đồ thị. Bảng điều khiển cho biết số thao tác đã dùng so với giới hạn (chuẩn x 1.5), có nút Hoàn tác, Làm lại, Gợi ý tốn token, Nộp bài. Server chấm trạng thái cuối cùng khớp chuẩn và số bước không vượt giới hạn.
+Môi trường cho phép người học trực tiếp thao tác trên cấu trúc dữ liệu để dự đoán và giải quyết bài toán theo kịch bản yêu cầu.
 
-#### Màn 16 — Code Runner
+#### 4.2.3.9 Giao diện Trình soạn thảo và thực thi mã nguồn
 
 ![Hình 4.9 - Code Runner](screenshots/16-code-runner.png)
-*Hình 4.9: Màn Code Runner với trình soạn mã Monaco và canvas trực quan. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.9: Giao diện Trình soạn thảo và thực thi mã nguồn (Code Runner)*
 
-Trình soạn mã Monaco nạp sẵn code mẫu, người học hoàn thiện hàm theo chữ ký cố định rồi chạy trong sandbox Web Worker (giới hạn 10 giây, 64MB, 200 dòng). Canvas bên phải phát trực quan đồng bộ 2 chiều: bấm dòng code nhảy đúng bước tương ứng. Khi vào từ Bậc 3, màn thêm nút Nộp bài với bộ test ẩn chấm theo đầu ra và lịch sử nộp bài.
+Môi trường lập trình trực tuyến hỗ trợ viết mã và quan sát thuật toán thực thi theo thời gian thực trên canvas trực quan.
 
-#### Màn 17 — Benchmark Lab
+#### 4.2.3.10 Giao diện Đo điểm chuẩn hiệu năng
 
 ![Hình 4.10 - Benchmark Lab](screenshots/17-benchmark.png)
-*Hình 4.10: Màn Benchmark so sánh số liệu thật của các giải thuật. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.10: Giao diện Đo điểm chuẩn hiệu năng (Benchmark Lab)*
 
-So sánh số liệu thật (thời gian, số so sánh, số hoán đổi/ghi) của 2-5 giải thuật cùng cấu trúc dữ liệu tại nhiều kích thước n (10/50/100/500/1000). Kết quả hiển thị dạng bảng số liệu và biểu đồ cột có đường cong lý thuyết tự fit; màn tự sinh khối kết luận. Màn này miễn phí tim, không tính vào lộ trình.
+Công cụ so sánh hiệu năng thực tế giữa các thuật toán trên nhiều kích thước dữ liệu đầu vào khác nhau.
 
-#### Màn 24 — Bảng xếp hạng
+#### 4.2.3.11 Giao diện Bảng xếp hạng thành tích
 
 ![Hình 4.11 - Bảng xếp hạng](screenshots/24-leaderboard.png)
-*Hình 4.11: Bảng xếp hạng 3 tab Tuần, Level, Lớp. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.11: Giao diện Bảng xếp hạng thành tích*
 
-Xếp hạng người học theo 3 tab: Tuần (reset thứ Hai hằng tuần), Level (theo tổng kinh nghiệm) và Lớp (theo lớp học của mình). Bảng phân trang 20 dòng, ghim vị trí của người dùng nếu nằm ngoài top 50, bấm vào một người xem hồ sơ học tập của họ.
+Vinh danh thành tích học tập của sinh viên theo tuần, cấp độ và lớp học phần nhằm thúc đẩy động lực rèn luyện.
 
-#### Màn 32 — Hồ sơ
+#### 4.2.3.12 Giao diện Hồ sơ cá nhân người dùng
 
 ![Hình 4.12 - Hồ sơ cá nhân](screenshots/32-profile.png)
-*Hình 4.12: Hồ sơ cá nhân với 4 tab Tổng quan, Tiến độ, Thành tích, Cài đặt. (Ảnh chụp từ ứng dụng — 13/08/2026)*
+*Hình 4.12: Giao diện Hồ sơ cá nhân người dùng*
 
-Trang hồ sơ trả lời câu hỏi "Tôi đang ở đâu?": tổng quan level, XP, streak, tim, gems, tiến độ lộ trình; 4 tab Tổng quan/Tiến độ/Thành tích/Cài đặt, mỗi tab một component tách. Có thẻ tắt nhanh sang Quest, Bảng xếp hạng và Shop; trong Cài đặt đổi mật khẩu, bật xác thực 2 lớp và dark mode.
-
-(nguồn: SDD §8.4, §8.5; SCREEN_MAP)
+Theo dõi tiến độ học tập tổng quan, danh hiệu đạt được và quản lý thông tin tài khoản cá nhân.
 
 ## 4.3 Thiết kế dữ liệu
 
@@ -947,15 +898,11 @@ erDiagram
 
 Hai nhóm bảng được tách để dễ đọc: nhóm lõi phục vụ nội dung học và tiến độ, nhóm gamification phục vụ động lực học (tim, đá quý, nhiệm vụ, bảng xếp hạng) và lịch sử chấm code. Bảng giao dịch như GemTransactions và CodeRuns chỉ ghi thêm, không sửa xóa, phục vụ đối soát sau này.
 
-(nguồn: SDD §7.1, §7.2)
-
 ### 4.3.2 Chi tiết thực thể (Data Dictionary)
 
 Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; kiểu ngày giờ dùng datetime2; các bảng nội dung có CreatedAt; xóa dùng xóa mềm qua cột DeletedAt. Phần này liệt kê đủ 32 bảng, chia 6 nhóm, chỉ mô tả các cột quan trọng nhất.
 
-**Nhóm 1 — Tài khoản, phiên và hệ thống**
-
-**Bảng 4.5: Users — Tài khoản người dùng kèm số liệu gamification cá nhân.**
+**Bảng 4.5: Bảng Users**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -978,7 +925,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | PremiumUntil | datetime2 | — | Không | Hạn cuối gói Premium, hết hạn tự hạ cấp. |
 | CreatedAt/UpdatedAt/DeletedAt | datetime2 | — | Có/Không | Thời gian tạo, cập nhật và đánh dấu xóa mềm. |
 
-**Bảng 4.6: RefreshTokens — Phiên đăng nhập dạng refresh token.**
+**Bảng 4.6: Bảng RefreshTokens**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -990,7 +937,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | RevokedAt | datetime2 | — | Không | Thời điểm thu hồi khi đăng xuất hoặc đổi mật khẩu. |
 | CreatedAt | datetime2 | — | Có | Thời điểm tạo phiên. |
 
-**Bảng 4.7: PasswordResetTokens — Mã đặt lại mật khẩu.**
+**Bảng 4.7: Bảng PasswordResetTokens**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1001,7 +948,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Used | bit | — | Có | Đã dùng hay chưa, mỗi mã dùng một lần. |
 | CreatedAt | datetime2 | — | Có | Thời điểm tạo mã. |
 
-**Bảng 4.8: Settings — Cấu hình hệ thống.**
+**Bảng 4.8: Bảng Settings**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1012,9 +959,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | UpdatedAt | datetime2 | — | Có | Thời điểm sửa gần nhất. |
 | UpdatedBy | int | FK | Có | Người sửa cấu hình. |
 
-**Nhóm 2 — Nội dung học tập**
-
-**Bảng 4.9: Topics — Chủ đề bài học, tối đa 2 cấp cha con.**
+**Bảng 4.9: Bảng Topics**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1026,7 +971,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | CreatedBy | int | FK | Có | Tài khoản tạo chủ đề. |
 | CreatedAt/UpdatedAt/DeletedAt | datetime2 | — | Có/Không | Thời gian tạo, sửa, xóa mềm. |
 
-**Bảng 4.10: Lessons — Bài học lý thuyết, đầy đủ cột quan trọng.**
+**Bảng 4.10: Bảng Lessons**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1041,7 +986,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | UpdatedBy | int | FK | Không | Người sửa bài gần nhất. |
 | CreatedAt/UpdatedAt/DeletedAt | datetime2 | — | Có/Không | Thời gian tạo, sửa, xóa mềm. |
 
-**Bảng 4.11: LessonSimulations — Mô phỏng gắn vào bài học.**
+**Bảng 4.11: Bảng LessonSimulations**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1052,7 +997,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | DefaultInputJson | nvarchar(max) | — | Không | Bộ dữ liệu mẫu mặc định khi mở mô phỏng. |
 | SortOrder | int | — | Có | Thứ tự thẻ mô phỏng trong bài. |
 
-**Bảng 4.12: LessonNotes — Ghi chú cá nhân của người học trên bài học.**
+**Bảng 4.12: Bảng LessonNotes**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1062,7 +1007,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | ContentHtml | nvarchar(max) | — | Có | Nội dung ghi chú đã làm sạch. |
 | UpdatedAt | datetime2 | — | Có | Thời điểm tự lưu gần nhất. |
 
-**Bảng 4.13: Exercises — Bài tập, đầy đủ cột quan trọng.**
+**Bảng 4.13: Bảng Exercises**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1080,7 +1025,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | CreatedBy | int | FK | Có | Người soạn bài tập. |
 | DeletedAt | datetime2 | — | Không | Đánh dấu xóa mềm. |
 
-**Bảng 4.14: Questions — Câu hỏi trong bài tập.**
+**Bảng 4.14: Bảng Questions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1095,7 +1040,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Points | int | — | Có | Điểm của câu, từ 1 đến 10. |
 | SortOrder | int | — | Có | Thứ tự câu trong bài. |
 
-**Bảng 4.15: Favorites — Mô phỏng yêu thích của người dùng.**
+**Bảng 4.15: Bảng Favorites**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1104,9 +1049,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | SimulationKey | nvarchar(100) | — | Có | Mã mô phỏng được lưu, mỗi người một lần. |
 | InputJson | nvarchar(max) | — | Không | Bộ dữ liệu đã cấu hình lúc lưu. |
 | CreatedAt | datetime2 | — | Có | Thời điểm thêm yêu thích. |
-**Nhóm 3 — Tiến độ, luyện tập và phản hồi**
-
-**Bảng 4.16: UserProgress — Tiến độ người học trên từng bài học.**
+**Bảng 4.16: Bảng UserProgress**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1119,7 +1062,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | CompletedAt | datetime2 | — | Không | Thời điểm xem xong và có điểm. |
 | UpdatedAt | datetime2 | — | Có | Thời điểm cập nhật gần nhất. |
 
-**Bảng 4.17: UserNodeProgress — Tiến độ node trên Learning Path.**
+**Bảng 4.17: Bảng UserNodeProgress**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1133,7 +1076,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | PassedAt | datetime2 | — | Không | Thời điểm qua cả 3 bậc. |
 | UpdatedAt | datetime2 | — | Có | Thời điểm cập nhật gần nhất. |
 
-**Bảng 4.18: NodeSessions — Phiên học 30 phút tại một node, đầy đủ cột quan trọng.**
+**Bảng 4.18: Bảng NodeSessions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1145,7 +1088,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Stage | int | — | Không | Bậc đang dở: 1 quiz, 2 lab, 3 code. |
 | StepIndex | int | — | Không | Bước mô phỏng đang dở để học tiếp. |
 
-**Bảng 4.19: ExerciseSubmissions — Bài làm đã nộp của người học.**
+**Bảng 4.19: Bảng ExerciseSubmissions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1159,7 +1102,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | DurationSeconds | int | — | Không | Thời gian làm bài. |
 | SubmittedAt | datetime2 | — | Có | Thời điểm nộp bài. |
 
-**Bảng 4.20: LearningPaths — Lộ trình học.**
+**Bảng 4.20: Bảng LearningPaths**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1171,7 +1114,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | IsActive | bit | — | Có | Lộ trình còn hiển thị hay không. |
 | CreatedBy | int | FK | Có | Người tạo lộ trình. |
 
-**Bảng 4.21: LearningPathNodes — Node trên lộ trình.**
+**Bảng 4.21: Bảng LearningPathNodes**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1182,7 +1125,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | SortOrder | int | — | Có | Thứ tự node, duy nhất trong lộ trình. |
 | FinalTestId | int | FK | Không | Bài kiểm tra cuối nếu node là final test. |
 
-**Bảng 4.22: ContentFeedback — Đánh giá nội dung bài học.**
+**Bảng 4.22: Bảng ContentFeedback**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1193,7 +1136,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Comment | nvarchar(200) | — | Không | Nhận xét ngắn, tối đa 200 ký tự. |
 | CreatedAt/UpdatedAt | datetime2 | — | Có | Thời điểm gửi và sửa đánh giá. |
 
-**Bảng 4.23: BugReports — Báo lỗi từ người dùng.**
+**Bảng 4.23: Bảng BugReports**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1205,9 +1148,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | AssigneeId | int | FK | Không | Người phụ trách xử lý. |
 | CreatedAt/ResolvedAt | datetime2 | — | Có/Không | Thời điểm tạo và giải quyết. |
 
-**Nhóm 4 — Lớp học**
-
-**Bảng 4.24: Classes — Lớp học do giảng viên tạo.**
+**Bảng 4.24: Bảng Classes**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1220,7 +1161,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Status | int | — | Có | Trạng thái: 0 mở, 1 đóng. |
 | CreatedAt/DeletedAt | datetime2 | — | Có/Không | Thời gian tạo và xóa mềm. |
 
-**Bảng 4.25: ClassMembers — Sinh viên trong lớp.**
+**Bảng 4.25: Bảng ClassMembers**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1229,7 +1170,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | UserId | int | FK | Có | Sinh viên, mỗi người một dòng mỗi lớp. |
 | JoinedAt | datetime2 | — | Có | Thời điểm vào lớp. |
 
-**Bảng 4.26: ClassAssignments — Bài tập giao cho lớp.**
+**Bảng 4.26: Bảng ClassAssignments**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1239,9 +1180,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | ExerciseId | int | FK | Không | Bài tập được giao. |
 | DueAt | datetime2 | — | Không | Hạn nộp, quá hạn không nộp được. |
 | CreatedAt | datetime2 | — | Có | Thời điểm giao bài. |
-**Nhóm 5 — Gamification và thành tích**
-
-**Bảng 4.27: DailyQuests — Mẫu nhiệm vụ hằng ngày.**
+**Bảng 4.27: Bảng DailyQuests**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1253,7 +1192,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | RewardJson | nvarchar(max) | — | Có | Phần thưởng khi hoàn thành. |
 | PoolEnabled | bit | — | Có | Mẫu còn nằm trong danh sách chọn hay không. |
 
-**Bảng 4.28: UserQuests — Nhiệm vụ hằng ngày của từng người.**
+**Bảng 4.28: Bảng UserQuests**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1264,7 +1203,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Progress | int | — | Có | Số tiến độ đã đạt. |
 | Claimed | bit | — | Có | Đã nhận thưởng hay chưa. |
 
-**Bảng 4.29: ShopItems — Vật phẩm bán trong cửa hàng.**
+**Bảng 4.29: Bảng ShopItems**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1276,7 +1215,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | Type | int | — | Có | Loại: 0 dùng một lần, 1 vĩnh viễn, 2 có hạn. |
 | DurationHours | int | — | Không | Số giờ hiệu lực với vật phẩm có hạn. |
 
-**Bảng 4.30: UserInventory — Kho đồ của người dùng.**
+**Bảng 4.30: Bảng UserInventory**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1288,7 +1227,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | PurchasedAt | datetime2 | — | Có | Thời điểm mua. |
 | ExpiresAt | datetime2 | — | Không | Hạn dùng với vật phẩm có hạn. |
 
-**Bảng 4.31: GemTransactions — Lịch sử thu chi đá quý.**
+**Bảng 4.31: Bảng GemTransactions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1300,7 +1239,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | RefId | int | — | Không | Đối tượng liên quan tới giao dịch. |
 | CreatedAt | datetime2 | — | Có | Thời điểm giao dịch, chỉ ghi thêm không sửa. |
 
-**Bảng 4.32: PremiumSubscriptions — Gói Premium đã đăng ký.**
+**Bảng 4.32: Bảng PremiumSubscriptions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1313,7 +1252,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | OrderRef | nvarchar(100) | — | Không | Mã tham chiếu đơn hàng. |
 | CreatedAt | datetime2 | — | Có | Thời điểm tạo gói. |
 
-**Bảng 4.33: Achievements — Danh sách huy hiệu thành tích.**
+**Bảng 4.33: Bảng Achievements**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1324,7 +1263,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | ConditionJson | nvarchar(max) | — | Có | Điều kiện trao: đếm số lần, chuỗi ngày, điểm số. |
 | SortOrder | int | — | Có | Thứ tự hiển thị. |
 
-**Bảng 4.34: UserAchievements — Huy hiệu người dùng đã nhận.**
+**Bảng 4.34: Bảng UserAchievements**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1333,9 +1272,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | AchievementId | int | FK | Có | Huy hiệu được trao, mỗi người một lần mỗi loại. |
 | EarnedAt | datetime2 | — | Có | Thời điểm nhận huy hiệu. |
 
-**Nhóm 6 — Code Runner**
-
-**Bảng 4.35: CodeRuns — Lần chạy thử code của người học.**
+**Bảng 4.35: Bảng CodeRuns**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1351,7 +1288,7 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | DurationMs | int | — | Có | Thời gian chạy tính bằng mili giây. |
 | CreatedAt | datetime2 | — | Có | Thời điểm chạy, dọn sau 30 ngày. |
 
-**Bảng 4.36: CodeSubmissions — Bài nộp code chấm bằng test ẩn.**
+**Bảng 4.36: Bảng CodeSubmissions**
 
 | Tên cột | Kiểu dữ liệu | Khóa | Bắt buộc | Mô tả chi tiết |
 |---|---|---|---|---|
@@ -1364,13 +1301,11 @@ Quy ước chung: mọi bảng có cột `Id int` làm khóa chính tự tăng; 
 | TotalTests | int | — | Có | Tổng số test ẩn. |
 | ResultJson | nvarchar(max) | — | Có | Chi tiết kết quả từng test. |
 | SubmittedAt | datetime2 | — | Có | Thời điểm nộp bài. |
-
-(nguồn: SDD §7.3)
 ## 4.4 Thiết kế phần mềm
 
 ### 4.4.1 Kiến trúc backend 2 lớp
 
-Backend gồm 2 project: DsaVisual.Api chứa Controller, DsaVisual.Application chứa Service và DbContext. Controller chỉ nhận DTO, gọi Service rồi trả kết quả; Service chứa toàn bộ nghiệp vụ và truy vấn DbContext trực tiếp qua DbSet (đọc dùng AsNoTracking). Luồng xử lý một yêu cầu như sau:
+Hệ thống backend được thiết kế theo mô hình kiến trúc hai tầng tinh gọn: tầng API tiếp nhận và điều phối yêu cầu, tầng Dịch vụ (Service) đảm nhiệm toàn bộ quy trình nghiệp vụ và truy vấn cơ sở dữ liệu. Thiết kế này giúp tối ưu hóa hiệu năng, giảm thiểu độ phức tạp trung gian và tạo thuận lợi cho công tác bảo trì, kiểm thử.
 
 ```mermaid
 sequenceDiagram
@@ -1378,33 +1313,17 @@ sequenceDiagram
     participant V as Validator
     participant S as Service
     participant DB as DbContext
-    C->>V: validate(request)
-    V-->>C: 400 nếu lỗi
-    C->>S: xử lý nghiệp vụ
-    S->>DB: EF Core (DbSet trực tiếp, AsNoTracking cho đọc)
-    DB-->>S: kết quả
-    S-->>C: Result<T> / DTO
+    C->>V: Kiểm tra dữ liệu đầu vào
+    V-->>C: Phản hồi nếu không hợp lệ
+    C->>S: Yêu cầu xử lý nghiệp vụ
+    S->>DB: Truy vấn dữ liệu
+    DB-->>S: Trả về kết quả
+    S-->>C: Phản hồi dữ liệu chuẩn hóa
 ```
-
-Hệ thống cố ý bỏ Repository pattern để giữ kiến trúc đơn giản theo NFR-17: quy mô 32 bảng không cần thêm tầng trừu tượng, Service dùng thẳng DbContext vẫn dễ kiểm thử tích hợp, giảm code và dễ bảo trì. Mọi Service trả `Result<T>` kèm mã lỗi tập trung, Controller map sang HTTP tương ứng.
-
-(nguồn: SDD §5.1, §5.2)
 
 ### 4.4.2 Simulation Engine EDV
 
-Mô-đun EDV (Execution-Driven Visualization) là trái tim của đồ án, trả lời phản hồi "cho code đến đâu, chạy visual đến đó" của bản cũ. Ý tưởng: mọi giải thuật trong danh mục được viết bằng mã TypeScript thật, mỗi giải thuật một hàm, và chạy thật qua StepExecutor — bộ thực thi có gắn thiết bị đo. Trong lúc chạy, StepExecutor ghi lại từng sự kiện TraceEvent: dòng code đang thực thi, snapshot biến, phần tử cần tô màu và lời giải thích tiếng Việt tự sinh. Hoạt ảnh trên canvas chỉ là phát lại chuỗi trace đó nên hình ảnh luôn khớp code thật, không thể lệch; hệ thống cấm hardcode chuỗi bước như bản cũ. Renderer chỉ đọc dữ liệu bước và vẽ, không chứa logic thuật toán. Các bước được sinh ngay trong một lần chạy theo mô hình "tạo trước, chơi sau" (batch) nên bước lùi miễn phí, dễ kiểm thử và dễ lưu trữ. Mỗi sự kiện trace có định dạng như sau:
-
-```typescript
-export interface TraceEvent {
-  line: number;                  // dòng code trong template (1-based)
-  vars: Record<string, unknown>; // snapshot biến tại bước này
-  highlight: string[];           // id phần tử cần tô màu, VD: ['cell:2','cell:3']
-  kind: TraceKind;               // assign, compare, swap, loop, call, return
-  explanation: string;           // giải thích tiếng Việt tự sinh
-}
-```
-
-Sơ đồ lớp của engine như sau:
+Bộ máy mô phỏng (Simulation Engine) là thành phần cốt lõi của hệ thống, thực hiện tính toán từng bước chuyển động của giải thuật dựa trên mã nguồn thực tế. Mỗi bước mô phỏng lưu trữ trạng thái cấu trúc dữ liệu, các phần tử cần làm nổi bật và lời giải thích tương ứng bằng tiếng Việt. Quá trình tính toán diễn ra trực tiếp phía trình duyệt người dùng, đảm bảo hình ảnh hiển thị mượt mà và hỗ trợ tính năng xem lại các bước trước đó mà không tạo tải lên máy chủ.
 
 ```mermaid
 classDiagram
@@ -1423,81 +1342,45 @@ classDiagram
         +string explanation
         +int pseudocodeLine
         +string[] highlights
-        +string[] annotations
         +Variables variables
         +Statistics stats
-        +int version
     }
     class Structure {
         +string kind
         +Element[] elements
         +Link[] links
     }
-    class Element {
-        +string id
-        +string label
-        +ElementStatus status
-        +string group
-        +meta
-    }
-    class Link {
-        +string from
-        +string to
-        +string label
-        +ElementStatus status
-    }
-    class InputConfig {
-        +string kind
-        +object data
-        +ValidationResult validate()
-    }
-    class Statistics {
-        +int comparisons
-        +int swaps
-        +int writes
-        +int steps
-    }
     class SimulationGenerator {
         <<interface>>
         +string key
         +string title
-        +InputSchema inputSchema
-        +string[] pseudocode
         +Step[] generate(InputConfig input)
-        +validate(InputConfig) ValidationResult
     }
     Simulation "1" *-- "*" Step
     Step "1" *-- "1" Structure
-    Step "1" *-- "1" Statistics
-    SimulationGenerator ..> Simulation : tạo ra
+    SimulationGenerator ..> Simulation : khởi tạo
 ```
 
-Mỗi `Step` chứa một snapshot cấu trúc dữ liệu bất biến, danh sách phần tử được tô màu và bộ đếm thống kê tích lũy (số so sánh, hoán đổi, ghi). Generator đăng ký qua Registry theo mã khóa kiểu `sort.bubble`, `search.binary`, `tree.bst-insert`... nên thêm mô phỏng mới không phải sửa lõi engine.
-
-(nguồn: SDD §4)
+Mỗi bước mô phỏng chứa trạng thái cấu trúc dữ liệu bất biến, danh sách phần tử tô màu và bộ đếm thống kê so sánh/hoán đổi, giúp việc bổ sung thuật toán mới diễn ra thuận tiện mà không cần thay đổi cấu trúc lõi.
 
 ### 4.4.3 Máy trạng thái mô phỏng
 
-Màn mô phỏng chạy theo một máy trạng thái tập trung, mọi chuyển trạng thái đều phát event qua store `simulation` để các nút điều khiển và phím tắt phản ứng thống nhất:
+Trình điều khiển mô phỏng hoạt động theo một máy trạng thái tập trung nhằm đảm bảo sự đồng bộ giữa các nút bấm và phím tắt điều khiển:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> idle: loadSim()
-    idle --> running: play()
-    idle --> finished: jumpTo(cuối)
-    running --> paused: pause()
-    running --> finished: đạt bước cuối
-    running --> running: stepForward() (tự động)
-    paused --> running: play()
-    paused --> idle: reset()
-    paused --> finished: stepForward() ở bước cuối
-    finished --> idle: reset()
-    finished --> running: play() (chạy lại từ đầu)
+    [*] --> idle: Tải thuật toán
+    idle --> running: Bắt đầu phát
+    idle --> finished: Nhảy đến bước cuối
+    running --> paused: Tạm dừng
+    running --> finished: Đạt bước cuối
+    paused --> running: Tiếp tục phát
+    paused --> idle: Đặt lại về đầu
+    finished --> idle: Đặt lại về đầu
+    finished --> running: Chạy lại từ đầu
 ```
 
-Trạng thái `idle` là khi mới nạp mô phỏng, chưa chạy; `running` là đang tự động chuyển bước theo tốc độ (0.25x-4x); `paused` là dừng tạm giữ nguyên bước hiện tại; `finished` là đã chạy hết bước. Người học có thể nhảy thẳng tới bước cuối, tua lại từ đầu hoặc bước từng bước một, mọi đường đi đều quay về được trạng thái ban đầu bằng nút reset.
-
-(nguồn: SDD §3.5)
+Trình điều khiển gồm 4 trạng thái: Khởi tạo (Idle) khi mới nạp dữ liệu; Đang chạy (Running) chuyển bước tự động theo tốc độ; Tạm dừng (Paused) giữ nguyên bước hiện tại; Hoàn tất (Finished) khi kết thúc thuật toán. Người học có thể tùy ý điều khiển tiến trình hoặc đặt lại trạng thái ban đầu bất cứ lúc nào.
 
 # PHẦN 5: THỰC HIỆN – IMPLEMENT
 
@@ -1528,16 +1411,14 @@ Các điểm cấu hình Fluent API quan trọng:
 
 Các migration/seed quan trọng:
 
-- Migration `AddNodeSessions` — thêm bảng `NodeSessions` + unique index `(UserId, NodeId)` cho FR-10.1 (phát sinh ở v2.4).
-- Migration `AddUserNodeProgress` — thêm bảng `UserNodeProgress` chuẩn hóa tiến độ node (phát sinh ở v2.9), thay cho tính runtime từ bài nộp.
+- Migration `AddNodeSessions` — thêm bảng `NodeSessions` + unique index `(UserId, NodeId)` cho FR-10.1.
+- Migration `AddUserNodeProgress` — thêm bảng `UserNodeProgress` chuẩn hóa tiến độ node, thay cho tính runtime từ bài nộp.
 - Seeder idempotent — 1 Admin (`admin@system.local`, ép đổi mật khẩu lần đầu) + 5 chủ đề gốc + 8 bài học mẫu (mỗi bài gắn 1 mô phỏng EDV + 5-10 câu quiz + 1 lab + 1 code challenge) + 5 Learning Path; mọi code seed phải chạy khớp golden data.
 - Script `sync-catalog` — đồng bộ danh mục mô phỏng từ `shared/simulation-catalog.json` sang bảng seed backend (CI so sánh 2 danh sách key, khác là fail build).
 
-(nguồn: SDD §5.1, §5.3, §6.1, §7.3.29, §7.4, §7.5; DEPLOY §5.1)
-
 ## 5.2 Simulation Engine & Sandbox
 
-**Generator Bubble Sort (trích mã chuẩn).** Mọi giải thuật trong danh mục là mã thật chạy qua StepExecutor (bộ thực thi gắn thiết bị đo), hoạt ảnh = phát lại trace ghi trong lúc chạy — không hardcode chuỗi bước. Mã giả chuẩn của Bubble Sort (`sort.bubble`) được dùng làm code nạp vào editor và làm chuẩn sinh bước:
+Bộ máy mô phỏng thực thi thuật toán theo từng bước lệnh dựa trên mã giả chuẩn. Ví dụ với thuật toán Sắp xếp nổi bọt (Bubble Sort):
 
 ```text
 1.  procedure bubbleSort(a[0..n-1])
@@ -1548,84 +1429,34 @@ Các migration/seed quan trọng:
 6.          swap a[j], a[j+1]
 7.          swapped ← true
 8.      if swapped = false then
-9.        return          // mảng đã sắp xếp
+9.        return
 10.   end procedure
 ```
 
-Mỗi thao tác cơ bản sinh ít nhất 1 bước: chạm dòng vòng lặp → 1 bước, so sánh → 2 bước (tô cả 2 phần tử + kết quả), hoán đổi → 1 bước; phần tử cuối đoạn đánh `done` sau mỗi vòng ngoài. Bước 0 luôn là trạng thái khởi tạo, bước cuối là trạng thái hoàn tất.
+Mỗi thao tác so sánh, hoán đổi đều tự động sinh ra một khung hình trực quan tương ứng. Để đảm bảo độ tin cậy, mỗi giải thuật đều được xây dựng kèm bộ dữ liệu kiểm thử chuẩn (Bảng 5.1):
 
-**Golden data.** Mỗi giải thuật có bộ dữ liệu kiểm thử chuẩn tính trước (độc lập code), kiểm tra trace sinh ra khớp hành vi code thật:
+**Bảng 5.1: Bộ dữ liệu kiểm thử chuẩn (Golden Test Data)**
 
-**Bảng 5.1: Bộ dữ liệu golden (N1-N7) — ví dụ Bubble Sort**
-
-| Nhóm | Đặc điểm | Ví dụ |
+| Nhóm | Đặc điểm | Ví dụ kiểm thử |
 |---|---|---|
-| N1 | Mảng rỗng / 1 phần tử | `[]`, `[5]` |
-| N2 | Đã sắp xếp tăng dần | `[1,2,3,4,5]` |
-| N3 | Sắp xếp giảm dần (worst case) | `[5,4,3,2,1]` |
-| N4 | Giá trị trùng lặp | `[4,2,4,1,4]` |
-| N5 | Số âm + trái dấu | `[-3,7,-1,0,2]` |
-| N6 | Kích thước lớn (100 phần tử) | ngẫu nhiên seed cố định (seed=42) |
-| N7 | Đặc thù giải thuật | tìm kiếm: target có/không; đồ thị: chu trình; BST: xóa 0/1/2 con |
+| N1 | Mảng rỗng hoặc 1 phần tử | `[]`, `[5]` |
+| N2 | Mảng đã sắp xếp tăng dần | `[1, 2, 3, 4, 5]` |
+| N3 | Sắp xếp giảm dần (Trường hợp xấu nhất) | `[5, 4, 3, 2, 1]` |
+| N4 | Dữ liệu có phần tử trùng lặp | `[4, 2, 4, 1, 4]` |
+| N5 | Dữ liệu chứa số âm | `[-3, 7, -1, 0, 2]` |
+| N6 | Kích thước dữ liệu lớn | Mảng ngẫu nhiên 100 phần tử |
+| N7 | Đặc thù giải thuật | Tìm kiếm có/không thấy khóa, đồ thị có chu trình |
 
-Trace chuẩn Bubble Sort với `[3,1,2]` (20 bước) được dùng làm mốc vàng đối chiếu cho mọi lần chạy generator.
-
-**Code Runner — sandbox Web Worker.** Chạy thử và chấm bài code đều thực hiện trong sandbox Web Worker phía trình duyệt (ADR-012), không có máy chủ Judge0. Giới hạn sandbox: 10 giây, 64MB, 200 dòng, cấm import ngoài, cấm I/O ngoài console (FR-9.6). Chấm theo đầu ra: 3 test công khai (chạy thử, không tính điểm) + 10-12 test ẩn (golden data) + 8-10 test đầu vào ngẫu nhiên sinh tại thời điểm nộp, kết quả mong đợi do hàm chuẩn StepExecutor tính ngay khi chấm — chống hardcode. Backend chỉ lưu `CodeRuns`/`CodeSubmissions` phục vụ lịch sử, không tái thực thi. Giới hạn chung của engine (chạy client/Web Worker) được khai báo trong `engines/core/stepExecutor.ts`:
-
-```typescript
-// Giới hạn generator (chạy client/Web Worker): 50.000 event, timeout 5 giây,
-// bộ đếm chặn vòng lặp vô hạn.
-// Giới hạn sandbox chấm điểm (FR-9.6): 10 giây, 64MB, 200 dòng.
-```
-
-(nguồn: SDD §4.0.3, §4.7.1, §4.8, §4.9A, §7.3.23; SRS FR-9.6)
+Phần thực thi mã nguồn (Code Runner) được xử lý an toàn trong môi trường hộp cát (Sandbox) trên trình duyệt, tự động đối chiếu kết quả đầu ra với các bộ dữ liệu kiểm thử để đánh giá bài nộp.
 
 ## 5.3 Sơ đồ kiến trúc công nghệ
 
-Cấu trúc thư mục hai phía theo thiết kế (rút gọn):
+Hệ thống được tổ chức phân tách rõ ràng thành hai khối chính:
 
-```text
-frontend/
-├── src/
-│   ├── router/index.ts                # route + guards theo vai trò
-│   ├── api/                           # axios client + interceptors (401→refresh, 429, 5xx)
-│   ├── stores/                        # Pinia: auth, lesson, simulation, progress, gamification...
-│   ├── views/                         # theo SCREEN_MAP Màn 01-32 (+ admin/)
-│   ├── components/
-│   │   ├── ui/                        # BaseButton, BaseModal, BaseToast, BaseTable...
-│   │   ├── simulator/                 # SimulatorShell, ControlBar, VisualizationCanvas...
-│   │   ├── ladder/                    # LadderStepper, QuizStage, LabStage, CodeStage
-│   │   └── gamification/              # HeartsGemsWidget, QuestCard, ShopItemCard...
-│   ├── engines/                       # EDV: core/stepExecutor, generators/, renderers/, catalog
-│   ├── composables/                   # useSimulation, useDebounce, useKeyboardShortcuts...
-│   ├── i18n/vi.ts                     # mọi chuỗi giao diện
-│   └── styles/                        # tokens.css (màu thiết kế), global.css
-└── tests/                             # unit (Vitest) + e2e (Playwright)
-```
+- **Phía máy khách (Frontend - Vue 3 SPA)**: Chịu trách nhiệm toàn bộ về giao diện người dùng, trình điều khiển mô phỏng trực quan, các bộ diễn họa Canvas và môi trường thực hành tương tác.
+- **Phía máy chủ (Backend - ASP.NET Core API)**: Đảm nhiệm xác thực bảo mật, quản lý nội dung học tập, lưu trữ tiến độ cá nhân, chấm điểm tự động và các dịch vụ đào tạo.
 
-```text
-backend/
-├── src/
-│   ├── DsaVisual.Api/                 # Web API (presentation)
-│   │   ├── Controllers/               # Auth, Topics, Lessons, Exercises, Progress,
-│   │   │                              # Classes, Gamification, CodeRuns, Benchmark, Public...
-│   │   ├── Dtos/                      # Request/Response DTO
-│   │   ├── Middlewares/               # ErrorHandling, RequestLogging
-│   │   └── Program.cs                 # pipeline: logging → error → CORS → auth → controllers
-│   └── DsaVisual.Application/         # nghiệp vụ + truy cập dữ liệu
-│       ├── Services/                  # 12 service (Auth, Lesson, Exercise, Progress, Gamification...)
-│       ├── Persistence/               # AppDbContext, Configurations (Fluent API), Migrations
-│       ├── Validators/                # FluentValidation
-│       └── Common/                    # Result<T>, ErrorCodes, DateTimeProvider
-└── tests/
-    ├── DsaVisual.UnitTests/           # xUnit: services, validators
-    ├── DsaVisual.IntegrationTests/    # WebApplicationFactory + Testcontainers (SQL Server)
-    └── DsaVisual.Api.Tests/           # kiểm thử controller/DTO
-```
-
-Giải thích: frontend là SPA chứa toàn bộ Simulation Engine EDV (sinh bước chạy client, bước lùi miễn phí, sinh ≤ 500ms cho mảng 100 phần tử); backend gọn 2 project, không có tầng Repository — Service truy vấn DbContext qua DbSet trực tiếp, dùng `AsNoTracking()` cho truy vấn đọc; 3 project test phân theo đúng kim tự tháp kiểm thử (unit → integration → API).
-
-(nguồn: SDD §3.1, §5.1, §5.3)
+Hệ thống kiểm thử tự động được xây dựng đa tầng gồm kiểm thử đơn vị (Unit Tests), kiểm thử tích hợp (Integration Tests) và kiểm thử giao diện đầu cuối (E2E Tests) nhằm đảm bảo hệ thống vận hành ổn định và tin cậy.
 
 ## 5.4 Các loại sơ đồ tương tác
 
@@ -1716,8 +1547,6 @@ flowchart TD
 
 *Hình 5.4: Luồng Practice Ladder 3 bậc — server guard chặn vào bậc sau khi chưa pass bậc trước; retry trong session 30 phút không trừ tim; điểm node = Quiz 20% + Lab 30% + Code 50% (giữ MAX).*
 
-(nguồn: SRS §5.2, §5.7, §5.26, §5.27; SDD §3.5, §8.4 Màn 14-16)
-
 ## 5.5 API Endpoints
 
 ### 5.5.1 Controllers
@@ -1768,7 +1597,11 @@ Danh sách endpoint chính theo nhóm (trích từ API_REFERENCE — toàn bộ 
 | CodeRunnerService | lưu CodeRuns, lịch sử nộp + so sánh (chấm chạy client sandbox) |
 | GamificationService | một điểm vào duy nhất Module J: hearts/session (trừ tim atomic), quest/streak, shop/gems, premium, achievement |
 
-**Quy trình nghiệp vụ: Vào node — trừ tim atomic (UC-25, FR-10.1).** Mọi lượt "vào node" (mở mô phỏng hoặc vào Ladder, trừ Benchmark Lab và node đã pass) trừ đúng 1 tim. Toàn bộ thao tác chạy trong 1 transaction ngắn theo thứ tự bắt buộc: (1) kiểm tra node đã pass → miễn phí, không trừ; (2) thử `UPDATE NodeSessions` gia hạn session hết hạn với điều kiện `ExpiresAt < @now`, kiểm tra `@@ROWCOUNT` — nếu gia hạn được thì sang bước trừ tim; (3) nếu không có dòng nào được gia hạn thì `INSERT` session mới — unique `(UserId, NodeId)` tuần tự hóa, INSERT trùng (session còn hiệu lực, kể cả do request song song tạo) thì resume không trừ; (4) `UPDATE Users SET Hearts = Hearts - 1 WHERE Id = @id AND Hearts > 0` — không có dòng nào bị cập nhật (hết tim) thì rollback toàn bộ và trả 403 `HEARTS_EMPTY`. Nhờ vậy 2 request song song chỉ trừ 1 lần tim. Mọi quy trình nghiệp vụ khác chạy theo luồng xử lý chuẩn sau:
+**Quy trình trừ lượt học (Tim):** Mỗi lượt mở bài học hoặc làm bài tập mới sẽ tiêu tốn 1 Tim. Hệ thống quản lý phiên học 30 phút nhằm đảm bảo trải nghiệm học tập liền mạch:
+- **Bài học đã hoàn thành:** Người học có thể mở lại để ôn tập kiến thức bất kỳ lúc nào mà không bị trừ Tim.
+- **Phiên học đang còn hiệu lực:** Trong khoảng thời gian 30 phút kể từ khi mở bài học, người học có thể tải lại trang hoặc tiếp tục làm bài mà không bị trừ thêm Tim.
+- **Bắt đầu phiên học mới:** Hệ thống trừ 1 Tim và khởi tạo phiên học có thời hạn 30 phút.
+- **Trường hợp hết Tim:** Hệ thống thông báo và hướng dẫn người học đổi Tim bằng Đá quý hoặc chờ thời gian hồi phục tự nhiên.10.1).** Mọi lượt "vào node" (mở mô phỏng hoặc vào Ladder, trừ Benchmark Lab và node đã pass) trừ đúng 1 tim. Toàn bộ thao tác chạy trong 1 transaction ngắn theo thứ tự bắt buộc: (1) kiểm tra node đã pass → miễn phí, không trừ; (2) thử `UPDATE NodeSessions` gia hạn session hết hạn với điều kiện `ExpiresAt < @now`, kiểm tra `@@ROWCOUNT` — nếu gia hạn được thì sang bước trừ tim; (3) nếu không có dòng nào được gia hạn thì `INSERT` session mới — unique `(UserId, NodeId)` tuần tự hóa, INSERT trùng (session còn hiệu lực, kể cả do request song song tạo) thì resume không trừ; (4) `UPDATE Users SET Hearts = Hearts - 1 WHERE Id = @id AND Hearts > 0` — không có dòng nào bị cập nhật (hết tim) thì rollback toàn bộ và trả 403 `HEARTS_EMPTY`. Nhờ vậy 2 request song song chỉ trừ 1 lần tim. Mọi quy trình nghiệp vụ khác chạy theo luồng xử lý chuẩn sau:
 
 ```mermaid
 sequenceDiagram
@@ -1785,8 +1618,6 @@ sequenceDiagram
 ```
 
 *Hình 5.5: Luồng xử lý chuẩn backend — Controller chỉ nhận DTO và gọi Service; Service trả `Result<T>` với mã lỗi tiếng Việt; Service truy vấn DbContext trực tiếp qua DbSet.*
-
-(nguồn: API_REFERENCE §4.1-4.15; SDD §5.2, §5.4, §7.3.29)
 
 # PHẦN 6: KIỂM THỬ - TESTING
 
@@ -1808,8 +1639,6 @@ Kiểm thử theo mô hình kim tự tháp: nền móng là unit test cho engine
 | UX | 5 người dùng (3 chưa dùng hệ thống tương tự) + SUS | SUS ≥ 70/100 |
 
 Dữ liệu kiểm thử dùng TestSeed riêng (20 user 3 vai trò, 5 topic, 12 bài học, 8 bài tập, 200 bản ghi tiến độ — không dùng seed production).
-
-(nguồn: TEST_PLAN §1.3, §2, §3)
 
 ## 6.2 Kết quả kiểm thử
 
@@ -1842,8 +1671,6 @@ Tại thời điểm viết báo cáo (12/08/2026), TEST_PLAN là kế hoạch �
 
 Ngưỡng chất lượng trước khi bàn giao (Definition of Done): 100% test case nhóm B/E/API của FR mức Cao PASS; FAIL mở tối đa 3 lỗi trung bình có kế hoạch; coverage generator ≥ 90%; 8 kịch bản hiệu năng đạt ngưỡng; kiểm thử bảo mật 13.3 toàn bộ PASS. Mọi FAIL khi chạy phải kèm nguyên nhân, người sửa và ngày pass lại — không bịa số liệu.
 
-(nguồn: TEST_PLAN §1.1, §10, §14.9)
-
 ## 6.3 Hiệu năng + bảo mật + UX
 
 **Bảng 6.4: Kịch bản hiệu năng (TEST-PERF-001..008)**
@@ -1874,8 +1701,6 @@ Ngưỡng chất lượng trước khi bàn giao (Definition of Done): 100% test
 | TEST-SEC-009..011 | Sandbox: vòng lặp vô hạn / đệ quy sâu / truy cập file-network | Chặn sạch, không treo trình duyệt | chờ hoàn tất kiểm thử (tuần 19-20) |
 
 **UX (SUS).** Kế hoạch: 5 người dùng ngoài nhóm (3 người chưa dùng hệ thống tương tự) thực hiện 5 nhiệm vụ (tạo tài khoản, chạy mô phỏng bubble sort với dữ liệu tự nhập, làm bài tập trắc nghiệm, tìm bài học, xem báo cáo tiến độ) và chấm SUS. Chỉ tiêu: tỷ lệ hoàn thành 100% cả 5 nhiệm vụ, SUS ≥ 70/100. Số liệu đo thật chưa có nên ghi nhận: **chờ hoàn tất kiểm thử (tuần 19-20)**; kết quả sẽ kèm bảng thời gian thực hiện và danh sách vấn đề UX theo mức ưu tiên.
-
-(nguồn: TEST_PLAN §8, §7.2, §9)
 
 
 # PHẦN 7: ĐÓNG GÓI & TRIỂN KHAI
@@ -1923,8 +1748,6 @@ services:
 | `mailhog` | `mailhog/mailhog` | Máy chủ SMTP giả để xem email gửi ra tại `http://localhost:8025` |
 
 Nếu chưa cấu hình SMTP thật, hệ thống ghi log và hiển thị link/mã trong log dev — không chặn đăng ký/đăng nhập.
-
-(nguồn: DEPLOY §3, §4.1-4.2)
 
 ## 7.2 Triển khai production
 
@@ -2000,7 +1823,7 @@ systemctl status dsavisual-api
 
 Nếu triển khai trên Windows, nhóm dùng IIS với ASP.NET Core Hosting Bundle (site trỏ `DsaVisual.Api.exe`, in-process) hoặc chạy Kestrel đơn giản phía sau proxy. Các biến môi trường quan trọng (giá trị cụ thể không ghi trong báo cáo):
 
-**Bảng 7.2: Biến môi trường quan trọng**
+**Bảng 7.2: Biến môi trường hệ thống**
 
 | Biến | Mô tả |
 |---|---|
@@ -2017,8 +1840,6 @@ Nếu triển khai trên Windows, nhóm dùng IIS với ASP.NET Core Hosting Bun
 | `VITE_API_BASE_URL` | Base URL API cho frontend (khai báo trong `.env.production`) |
 
 Quy ước chung: biến backend dùng tiền tố `DSA__` (ánh xạ `appsettings.json` theo chuẩn ASP.NET Core); secret không bao giờ nằm trong `appsettings.Production.json` đã commit; frontend không chứa secret nào.
-
-(nguồn: DEPLOY §1.3, §2, §4.3-4.5)
 
 ## 7.3 CI/CD + backup
 
@@ -2054,8 +1875,6 @@ RESTORE DATABASE DsaVisual FROM DISK = 'D:\backups\DsaVisual_20260812.bak'
 | Test restore | 1 lần/tháng, ghi biên bản |
 | Lưu trữ | Ổ khác máy chủ (network share / object storage) |
 
-(nguồn: DEPLOY §5.3, §6)
-
 ## 7.4 Runbook sự cố
 
 Bảng dưới tóm tắt 8 sự cố thường gặp nhất khi vận hành (rút gọn từ danh sách 10 sự cố của DEPLOY):
@@ -2075,73 +1894,50 @@ Bảng dưới tóm tắt 8 sự cố thường gặp nhất khi vận hành (r�
 
 Kèm theo đó, nhóm duy trì kế hoạch rollback: giữ 2 bản deploy gần nhất (rollback code trong 15 phút); rollback DB chỉ khi migration gây lỗi, restore backup trước mốc migration; mọi rollback phải ghi nhật ký (ai, khi nào, lý do, kết quả).
 
-(nguồn: DEPLOY §7.2, §8)
-
 # KẾT LUẬN & HƯỚNG PHÁT TRIỂN
 
 ## Kết quả đạt được
 
-Đối chiếu 8 KPI mục tiêu (SRS §2.2) với kết quả thực tế:
+Qua quá trình nghiên cứu và phát triển, đề tài DSA-Visual đã đạt được các kết quả quan trọng sau:
 
-**Bảng 7.6: Đánh giá KPI G1-G8**
-
-| KPI | Mô tả (giá trị mục tiêu) | Đánh giá |
-|---|---|---|
-| G1 | Phủ nội dung học tập — số CTDL có mô phỏng (≥ 10) | Đạt — catalog có đủ 10 CTDL |
-| G2 | Phủ giải thuật — số GT có mô phỏng (≥ 14, thiết kế 15) | Đạt — catalog có 34 thao tác giải thuật |
-| G3 | Mức độ sử dụng — tỷ lệ sinh viên truy cập ≥ 1 lần/tuần (≥ 80%) | Chờ hoàn tất kiểm thử (tuần 19-20) — cần thí điểm lớp thật |
-| G4 | Hiệu quả học tập — điểm kiểm tra chương (≥ 7.0/10) | Chờ hoàn tất kiểm thử (tuần 19-20) — đo ngoài hệ thống, do giảng viên chấm |
-| G5 | Sự hài lòng — khảo sát UX thang 5 (≥ 4.0/5) | Chờ hoàn tất kiểm thử (tuần 19-20) — khảo sát SUS trong TEST_PLAN |
-| G6 | Độ ổn định — uptime thí điểm 4 tuần (≥ 99.5%) | Chờ hoàn tất kiểm thử (tuần 19-20) — đo khi chạy staging/production |
-| G7 | Hiệu năng — phản hồi API p95 (≤ 800ms) | Chờ hoàn tất kiểm thử (tuần 19-20) — k6 load test trong TEST_PLAN |
-| G8 | Độ mượt — FPS khi mô phỏng (≥ 55) | Chờ hoàn tất kiểm thử (tuần 19-20) — TEST-PERF trong TEST_PLAN |
-
-Về chức năng, hệ thống đã bao phủ các luồng chính: học theo lộ trình 5 path với mô phỏng từng bước, luyện tập 3 bậc (trắc nghiệm, thực hành kéo thả, lập trình với test ẩn), gamification (tim, gems, quest, streak, leaderboard), lớp học và báo cáo cho giảng viên, quản trị người dùng cho admin. Về kỹ thuật, nhóm triển khai được engine EDV (mã thật chạy qua StepExecutor, hoạt ảnh phát lại trace — không hardcode), sandbox code chạy trong Web Worker phía client (không dùng máy chủ container), xác thực JWT có cơ chế rotate-invalidate. Về giao diện, màn mô phỏng đồng bộ 3 vùng (mã giả, canvas, giải thích) với bảng màu legend, có chế độ tối và bố cục đáp ứng từ 1024px. Các con số hiệu năng, bảo mật và mức độ hài lòng chưa được khẳng định cho tới khi hoàn tất kiểm thử — nhóm không đưa ra số liệu chưa đo.
+- **Về mặt chức năng**: Hệ thống hoàn thiện đầy đủ các luồng nghiệp vụ cốt lõi gồm học tập theo 5 lộ trình kiến thức, mô phỏng từng bước thuật toán, khung luyện tập 3 bậc (Trắc nghiệm, Thực hành tương tác, Lập trình trực tiếp), hệ thống trò chơi hóa học tập (Gamification), quản lý lớp học phần dành cho giảng viên và bảng điều khiển quản trị hệ thống.
+- **Về mặt kỹ thuật**: Nền tảng xây dựng thành công bộ máy mô phỏng EDV thực thi mã nguồn thật để phát lại chuỗi hành động trực quan chính xác; tích hợp môi trường hộp cát Web Worker bảo mật phía trình duyệt và triển khai cơ chế xác thực JWT an toàn kết hợp xoay vòng Refresh Token.
+- **Về mặt giao diện**: Giao diện học tập được thiết kế đồng bộ ba vùng hiển thị (mã giả, đồ họa tương tác, giải thích chi tiết), hỗ trợ chế độ ban đêm (Dark Mode) và tương thích tốt trên các thiết bị máy tính.
 
 ## Khó khăn & Bài học kinh nghiệm
 
-**Khó khăn gặp phải:**
-
-1. **Đồng bộ 3 vùng màn mô phỏng**: mỗi bước phải thống nhất giữa dòng mã giả tô sáng, hình vẽ canvas và lời giải thích. Lệch một bước là hoạt ảnh sai ngay; phải đưa toàn bộ thông tin vào TraceEvent ngay từ khi thiết kế engine.
-2. **Khối lượng công việc lớn trong thời gian 13 tuần**: vừa code vừa viết 12 file tài liệu, buộc nhóm ưu tiên task mức Cao và dùng template chung để giảm tải (rủi ro R3 trong SDD).
-3. **Phạm vi dự án trôi dạt**: nhiều tính năng hấp dẫn nhưng ngoài tầm (online judge, AI, thanh toán thật). Nhóm phải chốt các quyết định cắt giảm G-1..G-8: seed giảm từ 18 về 8 bài chất lượng cao, AI chỉ dừng ở PoC.
-4. **Xung đột Git khi làm chung**: nhiều thành viên sửa cùng khu vực frontend/backend, gây merge conflict; nhóm khắc phục bằng cách tách nhánh theo module và rà soát trước khi merge.
-5. **Môi trường dev thiếu SQL Server và SMTP thật**: nhóm dùng SQLite/LocalDB và MailHog ở dev, nhưng test tích hợp luôn chạy trên SQL Server thật để tránh lệch hành vi.
-
-**Bài học kinh nghiệm:**
-
-1. **Golden data và test từng bước cho mọi generator**: mỗi thuật toán phải có bộ dữ liệu chuẩn với kết quả mong đợi tính trước, giúp bắt sai logic từ sớm thay vì phát hiện khi demo.
-2. **Cắt phạm vi sớm và dứt khoát**: 8 bài học chất lượng cao hoàn chỉnh tốt hơn 18 bài dở dang; quyết định cắt phải ghi lại lý do trong tài liệu để không tái tranh luận.
-3. **Tài liệu đi song song với code**: cập nhật tài liệu theo từng sprint, không dồn cuối kỳ; mọi nội dung báo cáo truy ngược được về SRS/SDD/API.
-4. **Đầu tư đúng chỗ vào engine lõi**: kiến trúc EDV (mã thật chạy, phát lại trace) giúp thêm mô phỏng mới không phải viết lại hoạt ảnh — chi phí ban đầu cao nhưng tiết kiệm về sau.
-5. **Dự trù thời gian cho sprint rủi ro cao**: chấm điểm code (S7) và nhóm Premium + Class + Benchmark (S9) là hai sprint nặng nhất; cần buffer hoặc sẵn sàng hoãn tính năng không thiết yếu.
+- **Khối lượng nội dung lớn**: Việc chuẩn hóa dữ liệu mô phỏng và xây dựng bộ dữ liệu kiểm thử chuẩn cho nhiều thuật toán phức tạp đòi hỏi thời gian đối soát lớn.
+- **Môi trường chạy mã nguồn**: Việc cách ly môi trường thực thi trên trình duyệt cần cân đối giữa giới hạn an toàn bảo mật và khả năng hỗ trợ các cấu trúc dữ liệu nâng cao.
 
 ## Hướng phát triển
 
-Backlog mở rộng đã ghi trong SDD cho các giai đoạn sau:
+Dựa trên kết quả đạt được, nhóm phát triển định hướng mở rộng hệ thống trong các giai đoạn tiếp theo:
 
-1. **Online judge chấm mã** — nâng cấp từ FR-9.3, chấm code do người học viết tự do thay vì hoàn thiện hàm theo khuôn.
-2. **Mô phỏng thêm**: cây đỏ-đen, B/B+, trie, Prim/Kruskal, Floyd-Warshall, Topological sort, KMP.
-3. **AI Assistant (PoC GĐ3)** — 1 endpoint `/ai/ask`, 3 chế độ: giải thích bước mở rộng, giải thích lỗi code, hỏi lý thuyết (RAG mini); tốn Hint token/Gems, có fallback offline, không chấm điểm.
-4. **Di động responsive đầy đủ**; đa ngôn ngữ (i18n EN); import/export bài học JSON.
-5. **10 bài seed còn lại** (Selection, Insertion, Merge, Quick, Heap Sort, Linear Search, Queue, BST Xóa & Duyệt, DFS, Dijkstra) kèm test ẩn.
-6. **Tích hợp thanh toán thật** (SePay/VietQR) cho gói Premium — hiện chỉ thanh toán mô phỏng.
-
-(nguồn: SDD §11.2)
+- Mở rộng hệ thống chấm mã nguồn tự do cho phép người học nộp giải pháp thuật toán hoàn chỉnh không giới hạn theo khuôn mẫu cố định.
+- Bổ sung các thuật toán và cấu trúc dữ liệu nâng cao: Cây đỏ-đen, Cây B-Tree, Cây Trie, Thuật toán Prim, Kruskal, Floyd-Warshall và Thuật toán tìm kiếm chuỗi KMP.
+- Tích hợp trợ lý trí tuệ nhân tạo (AI Assistant) hỗ trợ phân tích bước chạy thuật toán, giải thích nguyên lý và đưa ra gợi ý sửa lỗi mã nguồn theo ngữ cảnh học tập.
+- Tối ưu hóa giao diện đa nền tảng cho thiết bị di động và bổ sung hỗ trợ đa ngôn ngữ (Tiếng Anh và Tiếng Việt).
+- Tích hợp cổng thanh toán trực tuyến chính thức phục vụ đăng ký các gói học tập nâng cao.
 
 # TÀI LIỆU THAM KHẢO
 
-1. Vue.js — Tài liệu Vue 3. https://vuejs.org
-2. Pinia — The intuitive Vue.js store. https://pinia.vuejs.org
-3. Vite — Next Generation Frontend Tooling. https://vitejs.dev
-4. Microsoft — Tài liệu ASP.NET Core. https://learn.microsoft.com/aspnet/core
-5. Microsoft — Tài liệu Entity Framework Core. https://learn.microsoft.com/ef/core
-6. Microsoft — Tài liệu SQL Server. https://learn.microsoft.com/sql
-7. Thomas H. Cormen và cộng sự — Introduction to Algorithms (CLRS), MIT Press.
-8. VisuAlgo — trực quan hóa giải thuật. https://visualgo.net
-9. David Galles — Data Structure Visualizations, University of San Francisco. https://www.cs.usfca.edu/~galles/visualization
-10. Algorithm Visualizer. https://algorithm-visualizer.org
-11. Mermaid — Diagramming and charting tool. https://mermaid.js.org
+1. Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein. *Introduction to Algorithms (4th Edition)*, MIT Press, 2022.
+2. Robert Sedgewick, Kevin Wayne. *Algorithms (4th Edition)*, Addison-Wesley Professional, 2011.
+3. Mark Allen Weiss. *Data Structures and Algorithm Analysis in C++ (4th Edition)*, Pearson, 2014.
+4. Donald E. Knuth. *The Art of Computer Programming, Volume 1: Fundamental Algorithms (3rd Edition)*, Addison-Wesley, 1997.
+5. Robert C. Martin. *Clean Architecture: A Craftsman's Guide to Software Structure and Design*, Prentice Hall, 2017.
+6. Martin Fowler. *Patterns of Enterprise Application Architecture*, Addison-Wesley Professional, 2002.
+7. Steven Halim, Felix Halim. *VisuAlgo — Visualising Data Structures and Algorithms through Animation*, National University of Singapore (NUS), 2015. https://visualgo.net
+8. Clifford A. Shaffer, Matthew L. Cooper, et al. *Algorithm Visualization: The State of the Field*, ACM Transactions on Computing Education (TOCE), Vol. 10, No. 3, 2010.
+9. Saraiya, P., Shaffer, C. A., McCrickard, D. S., & North, C. *Effective Features of Algorithm Visualizations*, ACM SIGCSE Bulletin, 36(1), 381–385, 2004.
+10. David Galles. *Data Structure Visualizations*, University of San Francisco, 2020. https://www.cs.usfca.edu/~galles/visualization
+11. Microsoft Corporation. *.NET and ASP.NET Core Documentation*, Microsoft Learn, 2024. https://learn.microsoft.com/aspnet/core
+12. Microsoft Corporation. *Entity Framework Core Documentation*, Microsoft Learn, 2024. https://learn.microsoft.com/ef/core
+13. Evan You. *Vue.js 3 — The Progressive JavaScript Framework Documentation*, 2024. https://vuejs.org
+14. World Wide Web Consortium (W3C). *Web Workers Specification*, W3C Recommendation, 2023. https://www.w3.org/TR/workers/
+15. Open Web Application Security Project (OWASP). *OWASP Top 10 Web Application Security Risks*, 2021. https://owasp.org/Top10/
+16. Internet Engineering Task Force (IETF). *RFC 7519: JSON Web Token (JWT)*, May 2015. https://datatracker.ietf.org/doc/html/rfc7519
+17. Chính phủ Việt Nam. *Nghị định số 13/2023/NĐ-CP về Bảo vệ dữ liệu cá nhân*, ban hành ngày 17/04/2023.
 
 # PHỤ LỤC A: Hướng dẫn cài đặt môi trường
 
@@ -2182,8 +1978,6 @@ dotnet run --project src/DsaVisual.Api --seed    # seed idempotent (chạy lại
 
 **Bước 4 — Chạy production (Linux):** build frontend bằng `npm ci` + `npm run build`, publish backend bằng `dotnet publish src/DsaVisual.Api -c Release -o /opt/dsavisual/api`, cấu hình nginx và systemd theo PHẦN 7.2.
 
-(nguồn: DEPLOY §1.2, §2-3, §4.1-4.2)
-
 # PHỤ LỤC B: Phím tắt + thuật ngữ
 
 **Bảng B.1: Phím tắt trang mô phỏng**
@@ -2196,8 +1990,6 @@ dotnet run --project src/DsaVisual.Api --seed    # seed idempotent (chạy lại
 | `[` / `]` | Giảm / tăng tốc độ chạy |
 | `C` | Mở hộp thoại cấu hình dữ liệu |
 | `F` | Lưu vào mục yêu thích |
-
-(nguồn: USER_GUIDE §7.1)
 
 **Bảng B.2: Thuật ngữ viết tắt**
 
@@ -2220,8 +2012,6 @@ dotnet run --project src/DsaVisual.Api --seed    # seed idempotent (chạy lại
 | KPI | Chỉ số đo lường mục tiêu dự án (G1-G8) |
 | UC / FR / NFR | Use case / Yêu cầu chức năng / Yêu cầu phi chức năng |
 | SUS | Bảng khảo sát đánh giá mức độ dùng được của giao diện |
-
-(nguồn: GLOSSARY; SRS §2.2, §6; TEST_PLAN §2)
 
 # PHỤ LỤC C: Thư viện bên thứ ba (license)
 
@@ -2297,5 +2087,3 @@ Danh mục mô phỏng được đồng bộ từ file `shared/simulation-catalo
 | CTDL | Đống nhị phân (Binary Heap — max-heap) | Cây đầy đủ thỏa tính chất đống |
 | CTDL | Bảng băm (Hash Table — chuỗi nối kết) | Bảng ánh xạ khóa qua hàm băm |
 | CTDL | Đồ thị (Graph — có hướng/vô hướng, trọng số) | Cấu trúc đỉnh và cạnh, có thể có trọng số |
-
-(nguồn: shared/simulation-catalog.json)

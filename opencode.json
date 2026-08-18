@@ -1,4 +1,60 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["celscin-magentic"]
+  "provider": {
+    "xkiro": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "xKiro AI",
+      "options": {
+        "baseURL": "https://api.xkiro.com/v1",
+        "apiKey": "sk-xt-883984d8bc705b0ec1a64cb20157b60616fd82f625f35c8f",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+      },
+      "models": {
+        "deepseek/deepseek-v4-pro": {
+          "name": "💻 Code - DeepSeek V4 Pro",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "deepseek/deepseek-v4-flash": {
+          "name": "📝 Assistant - DeepSeek V4 Flash",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "qwen/qwen3.8-max": {
+          "name": "🧠 Plan [Vision] - Qwen3.8 Max",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "qwen/qwen3.7-max": {
+          "name": "🕵️ Reviewer - Qwen3.7 Max",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "qwen/qwen3.7-plus": {
+          "name": "⚡ Speed - Qwen3.7 Plus",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "qwen/qwen3-coder-plus": {
+          "name": "⚡ Fast Code [Vision] - Qwen3 Coder Plus",
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        }
+      }
+    }
+  }
 }
