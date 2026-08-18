@@ -111,7 +111,7 @@
           </section>
 
           <!-- WHY CHOOSE THIS COURSE (timeline giữa + scroll reveal 2 chiều — giống Educative) -->
-          <section v-if="course.highlights.length" class="why-choose">
+          <section v-if="(course.highlights ?? []).length" class="why-choose">
             <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-2">Tại sao chọn lộ trình này?</h2>
             <p class="text-vdsa-muted text-sm mb-12">Kỹ năng Cấu trúc Dữ liệu không thể thiếu đối với mọi lập trình viên — từ phỏng vấn đến công việc thực tế.</p>
 
@@ -132,7 +132,7 @@
               </div>
 
               <div
-                v-for="(h, i) in course.highlights"
+                v-for="(h, i) in (course.highlights ?? [])"
                 :key="i"
                 v-reveal="i"
                 class="relative pb-28 last:pb-0"
@@ -231,10 +231,10 @@
           </section>
 
           <!-- TESTIMONIALS (từ backend — tùy biến theo khóa) -->
-          <section v-if="course.testimonials.length">
+          <section v-if="(course.testimonials ?? []).length">
             <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-6">Học viên nói gì về lộ trình</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <figure v-for="(t, i) in course.testimonials" :key="i" class="p-6 rounded-2xl border border-vdsa-border bg-vdsa-surface flex flex-col">
+              <figure v-for="(t, i) in (course.testimonials ?? [])" :key="i" class="p-6 rounded-2xl border border-vdsa-border bg-vdsa-surface flex flex-col">
                 <BaseIcon name="quote" class="w-6 h-6 text-vdsa-accent mb-3" />
                 <blockquote class="text-vdsa-secondary text-sm leading-relaxed flex-1">"{{ t.quote }}"</blockquote>
                 <figcaption class="mt-4 flex items-center gap-3">
