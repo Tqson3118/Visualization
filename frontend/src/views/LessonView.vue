@@ -83,7 +83,7 @@ async function onMarkViewed(): Promise<void> {
 <template>
   <main class="lesson-view container">
     <nav class="lesson-view__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path' }">Lộ trình</RouterLink>
+      <RouterLink :to="{ name: 'courses' }">Lộ trình</RouterLink>
       <span aria-hidden="true">/</span>
       <span>{{ lesson?.title ?? 'Bài học' }}</span>
     </nav>
@@ -94,7 +94,7 @@ async function onMarkViewed(): Promise<void> {
       title="Bài học không tồn tại"
       :description="error"
       action-label="Về lộ trình"
-      @action="router.push({ name: 'path' })"
+      @action="router.push({ name: 'courses' })"
     />
 
     <template v-else>
@@ -115,7 +115,7 @@ async function onMarkViewed(): Promise<void> {
             <Play :size="16" aria-hidden="true" />
             Học tiếp
           </Button>
-          <Button variant="ghost" @click="router.push({ name: 'path' })">
+          <Button variant="ghost" @click="router.push({ name: 'courses' })">
             <ArrowLeft :size="16" aria-hidden="true" />
             Về lộ trình
           </Button>

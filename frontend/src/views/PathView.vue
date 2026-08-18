@@ -194,7 +194,7 @@ function openFinalTest(): void {
       title="Lộ trình chưa có node"
       description="Quay lại sau khi nội dung được biên soạn."
       action-label="Về danh sách lộ trình"
-      @action="router.push({ name: 'path' })"
+      @action="router.push({ name: 'courses' })"
     />
 
     <template v-else>

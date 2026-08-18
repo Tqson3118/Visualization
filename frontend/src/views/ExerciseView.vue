@@ -48,14 +48,14 @@ function onPassed(): void {
 }
 
 function onFinished(): void {
-  router.push({ name: 'path' });
+  router.push({ name: 'courses' });
 }
 </script>
 
 <template>
   <main class="exercise container">
     <nav class="exercise__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'path' }">Lộ trình</RouterLink>
+      <RouterLink :to="{ name: 'courses' }">Lộ trình</RouterLink>
       <span aria-hidden="true">/</span>
       <span>Bài tập</span>
     </nav>
@@ -70,7 +70,7 @@ function onFinished(): void {
       title="Bài tập không tồn tại"
       :description="error"
       action-label="Về lộ trình"
-      @action="router.push({ name: 'path' })"
+      @action="router.push({ name: 'courses' })"
     />
 
     <template v-else>
