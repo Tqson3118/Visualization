@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Lesson, QuizQuestion, CodeLabTask } from '../types/lesson.types';
 import { fetchLessonProgress, saveLessonProgress, awardXp, fetchLessonDetail, getLessonAuthToken, type LessonDetailResponse } from '../services/lessonApi';
 import { statelessQuizApi } from '../../quiz-system/service/statelessQuizApi';
+import { parseSandboxDemo, parseSandboxSimulationKey } from '../utils/sandboxConfig';
 
 /** Thông tin bổ sung từ backend (không nằm trong Lesson local). */
 export interface LessonMeta {
@@ -86,6 +87,13 @@ export const useLessonStore = defineStore('lessonStudy', () => {
   }
 
   // ── Computed ──
+
+  /** SimulationKey của bài học (node LAB): đọc từ sandboxConfig (json simulationKey) hoặc demo cũ. */
+  const simulationKey = computed<string | null>(() => {
+    const cfg = lessonMeta.value?.sandboxConfig ?? '';
+    return parseSandboxSimulationKey(cfg) ?? parseSandboxDemo(cfg);
+  });
+
   const quizPassed = computed(() => {
     const questions = currentLesson.value?.quizQuestions;
     if (!questions || questions.length === 0 || quizScore.value === null) return false;
@@ -435,6 +443,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
   return {
     currentLesson,
     lessonMeta,
+    simulationKey,
     activeStep,
     isLoading,
     error,

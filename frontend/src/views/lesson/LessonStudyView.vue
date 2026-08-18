@@ -107,6 +107,7 @@
             v-if="!lessonStore.lessonMeta?.sandboxType || lessonStore.lessonMeta?.sandboxType === 'dsa'"
             :title="lessonStore.currentLesson.title"
             :content="lessonStore.currentLesson.theoryContent"
+            :simulation-key="lessonStore.simulationKey"
             @completeStep="onQuizComplete"
           />
 

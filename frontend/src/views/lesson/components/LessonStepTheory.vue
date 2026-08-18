@@ -11,6 +11,29 @@
       <h1 class="text-2xl font-black text-white tracking-tight">{{ title }}</h1>
     </div>
 
+    <div v-if="simulationKey && !visualizerOpen" class="flex items-center justify-start mb-4">
+      <button
+        type="button"
+        data-testid="run-simulation-btn"
+        class="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-vdsa-accent text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-vdsa-accent/30 cursor-pointer"
+        :aria-label="'Chạy thử thuật toán ' + simulationKey"
+        @click="visualizerOpen = true"
+      >
+        <BaseIcon name="play" class="w-4 h-4" />
+        <span>Chạy thử thuật toán</span>
+      </button>
+    </div>
+
+    <!-- Embedded shared visualizer (B3) — đóng về Lý thuyết KHÔNG mất progress -->
+    <div v-if="visualizerOpen" class="relative mb-6 h-[480px] rounded-xl overflow-hidden border border-vdsa-border" data-testid="embedded-visualizer">
+      <SharedVisualizerShell
+        :frames="frames"
+        :algorithm-key="simulationKey ?? undefined"
+        embedded
+        close-label="Về lý thuyết"
+        @close="visualizerOpen = false"
+      />
+    </div>
 
     <div class="prose prose-invert prose-indigo max-w-none text-sm space-y-4">
       <div v-html="formattedContent"></div>
@@ -31,18 +54,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import { sanitizeHtml } from '@/utils/sanitize';
+import SharedVisualizerShell from '../../../features/visual-shell/components/SharedVisualizerShell.vue';
+import { buildSortFramesFromCatalogKey } from '../../../features/visual-shell/buildFrames';
+import type { SortFrame } from '../../../features/algorithm-sandbox/types/sorting.types';
 
 const props = defineProps<{
   title: string;
   content: string;
+  /** Catalog key mô phỏng (VD 'sort.bubble') — chỉ hiện nút "Chạy thử thuật toán" khi có key (B3). */
+  simulationKey?: string | null;
 }>();
 
 defineEmits<{
   (e: 'completeStep'): void;
 }>();
+
+const visualizerOpen = ref(false);
+
+/** Frame từ engine generator: key → Step[] → LegacyStepAdapter → SortFrame[]. */
+const frames = computed<SortFrame[]>(() => {
+  if (!props.simulationKey) return [];
+  return buildSortFramesFromCatalogKey(props.simulationKey) ?? [];
+});
 
 /** Escape HTML để hiển thị an toàn — áp dụng cho TOÀN BỘ nội dung inline (chống stored XSS). */
 function escapeHtml(raw: string): string {
