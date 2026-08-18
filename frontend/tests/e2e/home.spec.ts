@@ -10,13 +10,16 @@ test.describe('TC-29~34: Trang chủ', () => {
     await expect(tryBtn).toBeVisible();
   });
 
-  test('TC-30: Guest không thấy nav Premium/Shop/Quest', async ({ page }) => {
+  test('TC-30: Guest thấy nav công khai, không thấy menu tài khoản/Admin', async ({ page }) => {
+    // Thiết kế 15/08 (AppHeader): nav công khai hiện cho mọi người — bấm mục cần
+    // đăng nhập thì router guard tự chuyển /login kèm redirect.
     await mockApi(page);
     await page.goto('/');
-    const shopLink = page.getByRole('link', { name: /^Cửa hàng$/i });
-    const questLink = page.getByRole('link', { name: /^Nhiệm vụ$/i });
-    expect(await shopLink.count()).toBe(0);
-    expect(await questLink.count()).toBe(0);
+    for (const name of ['Lộ trình', 'Mô phỏng', 'Lớp học', 'Thử thách', 'Cửa hàng']) {
+      await expect(page.getByRole('link', { name, exact: true }).first()).toBeVisible();
+    }
+    expect(await page.getByRole('button', { name: /Hồ sơ|Đăng xuất/i }).count()).toBe(0);
+    expect(await page.getByRole('link', { name: /Quản trị|Admin/i }).count()).toBe(0);
   });
 
   test('TC-31: Student authed → thấy nav đầy đủ', async ({ page }) => {
@@ -58,6 +61,9 @@ test.describe('TC-29~34: Trang chủ', () => {
     await mockApi(page);
     await page.goto('/');
     await page.waitForTimeout(500);
-    expect(errors.filter((e) => !e.includes('favicon'))).toHaveLength(0);
+    // 401 từ POST /auth/refresh lúc boot (guest) là thiết kế — AuthStore gọi refresh
+    // trước router guard; mock trả 401 khi chưa login (giống backend không có cookie).
+    const unexpected = errors.filter((e) => !e.includes('favicon') && !/401 \(Unauthorized\)/.test(e));
+    expect(unexpected).toHaveLength(0);
   });
 });

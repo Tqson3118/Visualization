@@ -599,6 +599,39 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 200, MOCK_COURSE_DETAIL);
       return;
     }
+
+    // ── Lesson Study (features/lesson/services/lessonApi.ts — /concepts/lessons/{id}) ──
+    if (method === 'GET' && /^\/concepts\/lessons\/[^/]+$/.test(path)) {
+      await json(route, 200, {
+        id: '1',
+        courseId: '1',
+        courseTitle: 'Lộ trình nền tảng DSA',
+        title: 'Sắp xếp nổi bọt (Bubble Sort)',
+        contentMd: '## Bubble Sort\nSo sánh các cặp liền kề và hoán đổi khi cần.',
+        sandboxType: 'dsa',
+        sandboxConfig: '',
+        quizId: null,
+        exerciseId: '1',
+        xpReward: 40,
+        orderIndex: 1,
+        status: 'active',
+        lastActiveFrameIndex: 0,
+        lastScrollPercent: 0,
+      });
+      return;
+    }
+    if (method === 'GET' && /^\/concepts\/auth\/progress\/[^/]+$/.test(path)) {
+      await json(route, 200, { hasWatchedVisualizer: false, quizScore: null, bestScore: 0, codelabCompleted: false, completed: false });
+      return;
+    }
+    if (method === 'POST' && /^\/concepts\/auth\/progress\/[^/]+$/.test(path)) {
+      await json(route, 200, { saved: true });
+      return;
+    }
+    if (method === 'POST' && path === '/concepts/auth/award-xp') {
+      await json(route, 200, { xpAwarded: 40, totalXp: 40 });
+      return;
+    }
     if (method === 'GET' && path === '/courses/feedback/mine') {
       await json(route, 200, []);
       return;
