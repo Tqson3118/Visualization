@@ -10,7 +10,7 @@
           @click="emit('step-back')"
         >
           <SkipBack :size="15" aria-hidden="true" />
-          <span>{{ messages.simulator.stepBack }}</span>
+          <span class="control-bar__btn-text">{{ messages.simulator.stepBack }}</span>
         </Button>
         <Button
           variant="ghost"
@@ -19,7 +19,7 @@
           :aria-label="messages.simulator.stepForward"
           @click="emit('step-forward')"
         >
-          <span>{{ messages.simulator.stepForward }}</span>
+          <span class="control-bar__btn-text">{{ messages.simulator.stepForward }}</span>
           <SkipForward :size="15" aria-hidden="true" />
         </Button>
         <Button
@@ -31,7 +31,7 @@
           @click="emit('play')"
         >
           <Play :size="15" aria-hidden="true" />
-          <span>{{ messages.simulator.play }}</span>
+          <span class="control-bar__btn-text">{{ messages.simulator.play }}</span>
         </Button>
         <Button
           v-else
@@ -42,7 +42,7 @@
           @click="emit('pause')"
         >
           <Pause :size="15" aria-hidden="true" />
-          <span>{{ messages.simulator.pause }}</span>
+          <span class="control-bar__btn-text">{{ messages.simulator.pause }}</span>
         </Button>
         <Button
           variant="ghost"
@@ -52,7 +52,7 @@
           @click="emit('reset')"
         >
           <RotateCcw :size="15" aria-hidden="true" />
-          <span>{{ messages.simulator.reset }}</span>
+          <span class="control-bar__btn-text">{{ messages.simulator.reset }}</span>
         </Button>
       </div>
 
@@ -169,5 +169,22 @@ function onSpeedChange(event: Event): void {
   color: var(--color-foreground);
   cursor: pointer;
   font-weight: 500;
+}
+
+@media (max-width: 520px) {
+  .control-bar {
+    padding: var(--space-xs) var(--space-sm);
+    overflow-x: auto;
+  }
+  .control-bar__btn-text {
+    display: none;
+  }
+  .control-bar__row {
+    gap: var(--space-xs);
+    justify-content: space-between;
+  }
+  .control-bar__speed {
+    margin-left: 0;
+  }
 }
 </style>

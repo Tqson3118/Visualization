@@ -5,10 +5,11 @@
 // An toàn: plain text / format='text' → escape HTML entities trước khi wrap (chống XSS);
 // format='html' (caller chỉ định) → render nguyên văn (chỉ dùng content đã sanitize backend).
 import { computed } from 'vue';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const props = withDefaults(
   defineProps<{
-    /** HTML thô từ backend/biên soạn — tin cậy khi format='html' (đã sanitize Ganss.Xss). */
+    /** HTML thô từ backend/biên soạn — được lọc an toàn qua DOMPurify. */
     contentHtml?: string;
     /** Alias của contentHtml — auto-detect (có <tag> thường & không có tag nguy hiểm → HTML). */
     content?: string;
@@ -47,12 +48,12 @@ const source = computed<string>(() => props.contentHtml || props.content || '');
 const rendered = computed<string>(() => {
   const raw = source.value;
   if (!raw) return '';
-  // format='html' (caller chỉ định) → tin cậy, render nguyên văn.
-  // Auto-detect: có tag HTML thường và KHÔNG có tag nguy hiểm → render nguyên văn.
+  // format='html' (caller chỉ định) → sanitize an toàn bằng DOMPurify.
+  // Auto-detect: có tag HTML thường và KHÔNG có tag nguy hiểm → sanitize an toàn bằng DOMPurify.
   const renderRaw =
     props.format === 'html' ||
     (props.format == null && HAS_HTML_TAG.test(raw) && !DANGEROUS_TAG.test(raw));
-  return renderRaw ? raw : textToParagraphs(escapeHtml(raw));
+  return renderRaw ? sanitizeHtml(raw) : textToParagraphs(escapeHtml(raw));
 });
 </script>
 

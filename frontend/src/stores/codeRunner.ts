@@ -159,6 +159,17 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     }
   }
 
+  function reset(): void {
+    editorCode.value = '';
+    runState.value = 'idle';
+    lastRun.value = null;
+    submissions.value = [];
+    lastOutput.value = null;
+    lastStats.value = null;
+    runError.value = null;
+    key.value = '';
+  }
+
   return {
     editorCode,
     runState,
@@ -173,5 +184,6 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     submit,
     fetchHistory,
     restoreTemplate,
+    reset,
   };
 });

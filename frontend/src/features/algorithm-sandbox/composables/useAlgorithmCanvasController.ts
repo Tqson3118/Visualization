@@ -1,4 +1,4 @@
-import { computed, onMounted, onBeforeUnmount, watch, type Ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, watch, getCurrentInstance, type Ref } from 'vue';
 import { useVcrStore } from '../../vcr-player/store/useVcrStore';
 import { CoreAnimationEngine } from '../../../core/CoreAnimationEngine';
 import { isPlaybackFrame } from '../../../core/CompilerStepExecutor';
@@ -69,22 +69,24 @@ export function useAlgorithmCanvasController(
     }
   });
 
-  onMounted(() => {
-    initializeItems(vcrStore.inputArray);
-    setTimeout(() => {
-      resizeCanvas();
-      canvas.value?.addEventListener('wheel', handleWheel, { passive: false });
-    }, 100);
-    startListening();
-    animationEngine = new CoreAnimationEngine();
-    animationEngine.registerRender(render);
-  });
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      initializeItems(vcrStore.inputArray);
+      setTimeout(() => {
+        resizeCanvas();
+        canvas.value?.addEventListener('wheel', handleWheel, { passive: false });
+      }, 100);
+      startListening();
+      animationEngine = new CoreAnimationEngine();
+      animationEngine.registerRender(render);
+    });
 
-  onBeforeUnmount(() => {
-    stopListening();
-    canvas.value?.removeEventListener('wheel', handleWheel);
-    animationEngine?.destroy();
-  });
+    onBeforeUnmount(() => {
+      stopListening();
+      canvas.value?.removeEventListener('wheel', handleWheel);
+      animationEngine?.destroy();
+    });
+  }
 
   return {
     camera,

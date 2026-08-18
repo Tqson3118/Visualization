@@ -1,4 +1,4 @@
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, getCurrentInstance } from "vue";
 import { useVcrStore } from "../../vcr-player";
 import type { SortAlgorithm, SortFrame } from "../types/sorting.types";
 import { generateBubbleSortFrames } from "../algorithms/bubbleSort";
@@ -93,11 +93,13 @@ export function useSortingAnimation() {
     recompileForAlgo(algo);
   }
 
-  onMounted(() => {
-    // Luôn khởi tạo frames của sorting khi view mount — kể cả khi store dùng chung
-    // đã chứa frames của feature khác (CodeEditor, Quiz...), tránh "sorting tab chết"
-    selectAlgorithm(selectedAlgo.value);
-  });
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      // Luôn khởi tạo frames của sorting khi view mount — kể cả khi store dùng chung
+      // đã chứa frames của feature khác (CodeEditor, Quiz...), tránh "sorting tab chết"
+      selectAlgorithm(selectedAlgo.value);
+    });
+  }
 
   return {
     selectedAlgo,

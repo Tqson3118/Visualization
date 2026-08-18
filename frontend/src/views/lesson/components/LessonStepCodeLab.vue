@@ -265,6 +265,7 @@ import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import type { CodeLabTask } from '../../../features/lesson/types/lesson.types';
 import { runCodelabTask, type CodelabCaseResult } from '../../../features/lesson/utils/codelabExecutor';
 import { submitCodelab } from '../../../features/lesson/services/lessonApi';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const props = withDefaults(defineProps<{
   problemTitle?: string;
@@ -314,7 +315,8 @@ const sampleTestcases = computed(() => (activeTask.value?.testCases ?? []).filte
 
 function formatMarkdown(text: string): string {
   if (!text) return '';
-  return text.replace(/`([^`]+)`/g, '<code class="bg-vdsa-surface text-vdsa-yellow px-1.5 py-0.5 rounded font-mono text-[13px]">$1</code>');
+  const converted = text.replace(/`([^`]+)`/g, '<code class="bg-vdsa-surface text-vdsa-yellow px-1.5 py-0.5 rounded font-mono text-[13px]">$1</code>');
+  return sanitizeHtml(converted);
 }
 
 function currentCode(): string {

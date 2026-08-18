@@ -157,6 +157,18 @@ export const useClassStore = defineStore('classStore', () => {
     await Promise.all([reloadAssignments(classId), fetchCurriculum(classId).catch(() => undefined)]);
   }
 
+  function reset(): void {
+    classes.value = [];
+    currentClass.value = null;
+    members.value = [];
+    assignments.value = [];
+    curriculum.value = null;
+    curriculumLoading.value = false;
+    curriculumError.value = null;
+    loading.value = false;
+    error.value = null;
+  }
+
   return {
     classes,
     currentClass,
@@ -182,5 +194,6 @@ export const useClassStore = defineStore('classStore', () => {
     fetchCurriculum,
     updateCurriculumMeta,
     reorderCurriculum,
+    reset,
   };
 });

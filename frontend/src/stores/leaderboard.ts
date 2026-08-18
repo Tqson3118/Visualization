@@ -63,5 +63,17 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     lastClassId.value = null;
   }
 
-  return { tab, rows, myRank, page, totalPages, loading, error, noClass, lastClassId, fetchBoard, setNoClass };
+  function reset(): void {
+    tab.value = 'week';
+    rows.value = [];
+    myRank.value = null;
+    page.value = 1;
+    totalPages.value = 1;
+    loading.value = false;
+    error.value = null;
+    noClass.value = false;
+    lastClassId.value = null;
+  }
+
+  return { tab, rows, myRank, page, totalPages, loading, error, noClass, lastClassId, fetchBoard, setNoClass, reset };
 });

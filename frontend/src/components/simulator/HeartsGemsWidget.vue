@@ -165,4 +165,15 @@ button.hearts-gems__chip { cursor: pointer; }
 .hearts-pop-leave-active { transition: opacity 150ms ease, transform 150ms ease; }
 .hearts-pop-enter-from,
 .hearts-pop-leave-to { opacity: 0; transform: translateY(-4px); }
+
+@media (max-width: 480px) {
+  .hearts-gems {
+    gap: 4px;
+  }
+  .hearts-gems__chip {
+    padding: 3px 6px;
+    gap: 3px;
+    font-size: 11px;
+  }
+}
 </style>

@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const route = useRoute();
 const router = useRouter();
@@ -153,7 +154,7 @@ async function onMarkViewed(): Promise<void> {
           </Card>
           <article
             class="lesson-view__theory"
-            v-html="lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>'"
+            v-html="sanitizeHtml(lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>')"
           />
         </section>
 
@@ -325,6 +326,20 @@ async function onMarkViewed(): Promise<void> {
 
 .lesson-view__quiz-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 .lesson-view__quiz-title { font-weight: 600; font-size: var(--text-sm); margin: 0; }
+
+@media (max-width: 640px) {
+  .lesson-view__hero {
+    padding: var(--space-md);
+  }
+  .lesson-view__hero-title {
+    font-size: var(--text-2xl);
+  }
+  .lesson-view__theory {
+    padding: var(--space-md);
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .lesson-view__quiz { transition: none; }

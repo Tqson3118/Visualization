@@ -17,7 +17,9 @@ public static class SmtpClientFactory
 {
     public static SmtpClient Create(EmailOptions email)
     {
-        var smtp = new SmtpClient(email.SmtpHost ?? string.Empty, email.SmtpPort)
+        var host = string.IsNullOrWhiteSpace(email.SmtpHost) ? "localhost" : email.SmtpHost;
+        var port = email.SmtpPort > 0 ? email.SmtpPort : 1025;
+        var smtp = new SmtpClient(host, port)
         {
             Timeout = 10_000,
             // SMTP thật → TLS bắt buộc (Gmail: cổng 587 = STARTTLS Explicit TLS)

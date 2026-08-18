@@ -33,6 +33,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const props = defineProps<{
   title: string;
@@ -129,6 +130,6 @@ const formattedContent = computed(() => {
         + '</code></pre>';
     }
   }
-  return html;
+  return sanitizeHtml(html);
 });
 </script>

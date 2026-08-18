@@ -761,10 +761,10 @@ public sealed class AuthService(
 
     private async Task SendResetPasswordEmailAsync(User user, string rawToken, CancellationToken ct)
     {
-        var smtpHost = config["DSA:Email:SmtpHost"];
+        var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
         var resetLink = $"{config["DSA:App:BaseUrl"] ?? "http://localhost:5173"}/reset-password?token={rawToken}";
 
-        if (string.IsNullOrWhiteSpace(smtpHost))
+        if (string.IsNullOrWhiteSpace(emailOpts.SmtpHost))
         {
             // SMTP chưa cấu hình → KHÔNG block luồng; KHÔNG log reset token/link (finding security#5)
             logger.LogWarning("SMTP chưa cấu hình — không gửi được email đặt lại mật khẩu cho user {UserId}", user.Id);
@@ -773,9 +773,9 @@ public sealed class AuthService(
 
         try
         {
-            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025));
+            using var smtp = SmtpClientFactory.Create(emailOpts);
             await smtp.SendMailAsync(
-                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
+                emailOpts.From ?? "no-reply@dsa-visual.local",
                 user.Email,
                 "Đặt lại mật khẩu — DSA Visual",
                 $"Nhấn link sau để đặt lại mật khẩu (hiệu lực 30 phút): {resetLink}", ct);
@@ -789,9 +789,9 @@ public sealed class AuthService(
 
     private async Task Send2FaCodeEmailAsync(User user, string code, CancellationToken ct)
     {
-        var smtpHost = config["DSA:Email:SmtpHost"];
+        var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
 
-        if (string.IsNullOrWhiteSpace(smtpHost))
+        if (string.IsNullOrWhiteSpace(emailOpts.SmtpHost))
         {
             // SMTP chưa cấu hình → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5)
             logger.LogWarning("SMTP chưa cấu hình — không gửi được mã 2FA cho user {UserId}", user.Id);
@@ -800,12 +800,9 @@ public sealed class AuthService(
 
         try
         {
-            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025))
-            {
-                Timeout = 10_000   // timeout ngắn — không giữ request (GP-T2)
-            };
+            using var smtp = SmtpClientFactory.Create(emailOpts);
             await smtp.SendMailAsync(
-                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
+                emailOpts.From ?? "no-reply@dsa-visual.local",
                 user.Email,
                 "Mã xác thực 2FA — DSA Visual",
                 $"Mã xác thực hai lớp (2FA) của bạn là: {code}\n\n" +

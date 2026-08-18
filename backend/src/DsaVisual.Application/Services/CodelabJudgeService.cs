@@ -122,7 +122,7 @@ public sealed class CodelabJudgeService
         {
             return new CodelabJudgeResult(true, $"Lỗi biên dịch code: {ex.Message}", false, null, []);
         }
-        catch (TimeoutException ex)
+        catch (TimeoutException)
         {
             return new CodelabJudgeResult(false, null, true, $"Hết thời gian chạy ({timeoutMs}ms) — code có thể bị vòng lặp vô hạn!", []);
         }
@@ -154,7 +154,7 @@ public sealed class CodelabJudgeService
             {
                 cases.Add(new CodelabCaseResult(false, ex.Message));
             }
-            catch (TimeoutException ex)
+            catch (TimeoutException)
             {
                 return new CodelabJudgeResult(false, null, true, $"Hết thời gian chạy ({timeoutMs}ms) — code có thể bị vòng lặp vô hạn!", cases);
             }

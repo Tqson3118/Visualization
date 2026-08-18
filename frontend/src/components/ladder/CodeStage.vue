@@ -56,6 +56,7 @@ const isPassed = computed(() => {
 });
 
 async function onSubmit(): Promise<void> {
+  if (submitting.value) return;
   if (!props.exerciseId) {
     ui.showToast('Bài tập này chưa được gắn exercise — chỉ chạy thử.', 'warning');
     return;

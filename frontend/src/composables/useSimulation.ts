@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue';
+import { getCurrentInstance, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useSimulationStore } from '@/stores/simulation';
@@ -16,16 +16,18 @@ export function useSimulation(key: string) {
     return store.loadSim(key, input);
   }
 
-  onMounted(() => {
-    void loadSim().catch(() => {
-      /* loadSim không reject — lỗi nằm trong loadError */
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      void loadSim().catch(() => {
+        /* loadSim không reject — lỗi nằm trong loadError */
+      });
     });
-  });
 
-  onUnmounted(() => {
-    // Dọn timer playback của store (SDD §3.5)
-    store.stopPlayback();
-  });
+    onUnmounted(() => {
+      // Dọn timer playback của store (SDD §3.5)
+      store.stopPlayback();
+    });
+  }
 
   return {
     ...state,

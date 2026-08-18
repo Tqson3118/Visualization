@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, readonly, ref, type Ref } from 'vue';
+import { getCurrentInstance, onMounted, onUnmounted, readonly, ref, type Ref } from 'vue';
 
 /**
  * useScrollReveal — IntersectionObserver wrapper (UI-PREMIUM 0C).
@@ -44,18 +44,20 @@ export function useScrollReveal(
     observer.observe(el);
   }
 
-  onMounted(() => {
-    if (reducedMotion) {
-      isVisible.value = true;
-      return;
-    }
-    observe();
-  });
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (reducedMotion) {
+        isVisible.value = true;
+        return;
+      }
+      observe();
+    });
 
-  onUnmounted(() => {
-    observer?.disconnect();
-    observer = null;
-  });
+    onUnmounted(() => {
+      observer?.disconnect();
+      observer = null;
+    });
+  }
 
   return { isVisible: readonly(isVisible) };
 }

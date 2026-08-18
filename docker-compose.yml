@@ -39,6 +39,8 @@ services:
       DSA__Email__SmtpPassword: "${DSA__EMAIL__SMTP_PASSWORD:-}"
     ports:
       - "5000:8080"   # host 5000 (DEPLOY §2.3) → container 8080
+    volumes:
+      - ./shared:/app/shared:ro
     depends_on:
       sqlserver:
         condition: service_healthy

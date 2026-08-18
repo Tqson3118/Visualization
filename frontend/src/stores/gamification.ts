@@ -141,6 +141,23 @@ export const useGamificationStore = defineStore('gamification', () => {
     }
   }
 
+  function reset(): void {
+    hearts.value = 0;
+    heartsMax.value = 5;
+    lastHeartAt.value = null;
+    gems.value = 0;
+    streakDays.value = 0;
+    freezeAvailable.value = 0;
+    xp.value = 0;
+    level.value = 1;
+    summary.value = null;
+    quests.value = [];
+    inventory.value = [];
+    achievements.value = [];
+    premium.value = null;
+    loading.value = false;
+  }
+
   return {
     hearts,
     heartsMax,
@@ -174,5 +191,6 @@ export const useGamificationStore = defineStore('gamification', () => {
     fetchAchievements,
     fetchStreak,
     fetchPremium,
+    reset,
   };
 });

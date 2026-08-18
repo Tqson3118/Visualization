@@ -78,6 +78,14 @@ export const useLessonStore = defineStore('lesson', () => {
     }
   }
 
+  function reset(): void {
+    topics.value = [];
+    lessonsByTopic.value = {};
+    currentLesson.value = null;
+    loading.value = false;
+    error.value = null;
+  }
+
   return {
     topics,
     lessonsByTopic,
@@ -89,5 +97,6 @@ export const useLessonStore = defineStore('lesson', () => {
     fetchLessons,
     fetchLesson,
     markViewed,
+    reset,
   };
 });

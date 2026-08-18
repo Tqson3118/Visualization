@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, type MaybeRef } from 'vue';
+import { getCurrentInstance, onMounted, onUnmounted, ref, type MaybeRef } from 'vue';
 
 export type ShortcutMap = Record<string, (event: KeyboardEvent) => void>;
 
@@ -26,6 +26,8 @@ export function useKeyboardShortcuts(map: ShortcutMap, enabled: MaybeRef<boolean
     }
   }
 
-  onMounted(() => window.addEventListener('keydown', handleKeydown));
-  onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
+  if (getCurrentInstance()) {
+    onMounted(() => window.addEventListener('keydown', handleKeydown));
+    onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
+  }
 }

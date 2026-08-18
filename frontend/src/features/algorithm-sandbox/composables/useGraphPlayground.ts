@@ -1,4 +1,4 @@
-import { ref, onMounted, onBeforeUnmount, type Ref } from "vue";
+import { ref, onMounted, onBeforeUnmount, getCurrentInstance, type Ref } from "vue";
 import { InteractivePlaygroundEngine, type Vertex } from "../engine/InteractivePlaygroundEngine";
 import { useGraphPhysics } from "./useGraphPhysics";
 import { useGraphInteraction } from "./useGraphInteraction";
@@ -79,16 +79,18 @@ export function useGraphPlayground(
     animFrameId = requestAnimationFrame(draw);
   }
 
-  onMounted(() => {
-    playgroundEngine = new InteractivePlaygroundEngine((v) => (vertices.value = v));
-    syncTextToPlayground();
-    draw();
-  });
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      playgroundEngine = new InteractivePlaygroundEngine((v) => (vertices.value = v));
+      syncTextToPlayground();
+      draw();
+    });
 
-  onBeforeUnmount(() => {
-    if (animFrameId !== null) cancelAnimationFrame(animFrameId);
-    stopLayoutLoop();
-  });
+    onBeforeUnmount(() => {
+      if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+      stopLayoutLoop();
+    });
+  }
 
   return {
     vertices, edges, selectedVertexId, draggingEdge, isDraggingVertex, draggedVertexId,

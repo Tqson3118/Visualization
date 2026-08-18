@@ -77,7 +77,7 @@ function toggleOption(questionIndex: number, optionIndex: number): void {
 }
 
 async function onSubmit(): Promise<void> {
-  if (!props.exercise) return;
+  if (!props.exercise || submitting.value) return;
   // Bug P2 #5: kiểm tra đã trả lời ĐỦ câu trước khi nộp — liệt kê câu thiếu thay vì để server trả 400
   // QUESTION_ANSWER_MISMATCH (SETUP_TODO §6.5).
   const unanswered = questions.value.map((_, idx) => idx).filter((idx) => !isAnswered(idx));

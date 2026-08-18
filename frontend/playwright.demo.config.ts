@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /demo-chain\.spec\.ts/,
+  testMatch: /(demo-chain|live-smoke-5-journeys)\.spec\.ts/,
   timeout: 240_000,
   expect: { timeout: 15_000 },
   retries: 0,

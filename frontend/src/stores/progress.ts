@@ -33,5 +33,12 @@ export const useProgressStore = defineStore('progress', () => {
     }
   }
 
-  return { overview, lessonProgress, reportData, loading, fetchOverview, fetchLessonProgress, fetchReport };
+  function reset(): void {
+    overview.value = null;
+    lessonProgress.value = {};
+    reportData.value = null;
+    loading.value = false;
+  }
+
+  return { overview, lessonProgress, reportData, loading, fetchOverview, fetchLessonProgress, fetchReport, reset };
 });

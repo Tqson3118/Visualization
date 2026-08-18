@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Asp.Versioning;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
@@ -19,9 +19,8 @@ namespace DsaVisual.Api.Controllers;
 [Authorize]
 public class ConceptsController(AppDbContext db) : ApiControllerBase
 {
-    // TẠM THỜI (xem trước bài): true = bỏ hết khóa node, mở toàn bộ bài học/quiz/assignment.
-    // Chuyển về false để bật lại khóa tuần tự bình thường.
-    private const bool DisableNodeLocks = true;
+    // true = bỏ hết khóa node; false = bật lại khóa tuần tự bình thường.
+    private static readonly bool DisableNodeLocks = false;
 
     private readonly AppDbContext _db = db;
 
@@ -98,30 +97,54 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .OrderBy(p => p.SortOrder)
             .ToListAsync(ct);
 
+        if (paths.Count == 0)
+        {
+            return Ok(new List<ConceptsCourseDto>());
+        }
+
+        var pathIds = paths.Select(p => p.Id).ToList();
+        var allNodes = await _db.LearningPathNodes.AsNoTracking()
+            .Where(n => pathIds.Contains(n.PathId))
+            .OrderBy(n => n.SortOrder)
+            .ToListAsync(ct);
+
+        var nodesByPath = allNodes.GroupBy(n => n.PathId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var allNodeIds = allNodes.Select(n => n.Id).ToList();
+        var passedNodeIds = allNodeIds.Count == 0
+            ? new HashSet<int>()
+            : (await _db.UserNodeProgress.AsNoTracking()
+                .Where(p => p.UserId == userId && allNodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Select(p => p.NodeId)
+                .ToListAsync(ct))
+                .ToHashSet();
+
+        var authorIds = paths.Where(p => p.AuthorId != null).Select(p => p.AuthorId!.Value).Distinct().ToList();
+        var authorsMap = authorIds.Count > 0
+            ? await _db.Users.AsNoTracking()
+                .Where(u => authorIds.Contains(u.Id) && u.DeletedAt == null)
+                .ToDictionaryAsync(u => u.Id, u => new CourseAuthorDto
+                {
+                    Name = u.DisplayName,
+                    AcademicDegree = u.AcademicDegree,
+                    Bio = u.TeacherBio,
+                    ProfileLink = u.ProfileLink,
+                    AvatarUrl = u.AvatarUrl
+                }, ct)
+            : new Dictionary<int, CourseAuthorDto>();
+
         var result = new List<ConceptsCourseDto>();
         foreach (var path in paths)
         {
-            var nodes = await _db.LearningPathNodes.AsNoTracking()
-                .Where(n => n.PathId == path.Id)
-                .OrderBy(n => n.SortOrder)
-                .ToListAsync(ct);
-
-            var completed = 0;
-            foreach (var node in nodes)
-            {
-                var passed = await _db.UserNodeProgress.AsNoTracking()
-                    .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
-                if (passed)
-                {
-                    completed++;
-                }
-            }
+            var nodes = nodesByPath.GetValueOrDefault(path.Id, []);
+            var completed = nodes.Count(n => passedNodeIds.Contains(n.Id));
 
             var xp = nodes.Sum(n => LessonXpByTitle.GetValueOrDefault(n.LessonId ?? 0, 100));
             var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
             var highlights = ParseHighlights(path.HighlightsJson);
             var testimonials = ParseTestimonials(path.TestimonialsJson);
-            var author = await CourseAuthorAsync(path.AuthorId, ct);
+            var author = path.AuthorId is { } aId ? authorsMap.GetValueOrDefault(aId) : null;
 
             result.Add(new ConceptsCourseDto
             {
@@ -167,17 +190,16 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .OrderBy(n => n.SortOrder)
             .ToListAsync(ct);
 
-        var completed = 0;
-        foreach (var node in nodes)
-        {
-            var passed = await _db.UserNodeProgress.AsNoTracking()
-                .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
-            if (passed)
-            {
-                completed++;
-            }
-        }
+        var nodeIds = nodes.Select(n => n.Id).ToList();
+        var passedNodeIds = nodeIds.Count == 0
+            ? new HashSet<int>()
+            : (await _db.UserNodeProgress.AsNoTracking()
+                .Where(p => p.UserId == userId && nodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Select(p => p.NodeId)
+                .ToListAsync(ct))
+                .ToHashSet();
 
+        var completed = nodes.Count(n => passedNodeIds.Contains(n.Id));
         var lessons = await BuildLessonsAsync(userId, nodes, ct);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
         return Ok(new ConceptsCourseDto
@@ -365,38 +387,57 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     private async Task<List<ConceptsLessonDto>> BuildLessonsAsync(
         int userId, List<LearningPathNode> nodes, CancellationToken ct)
     {
+        if (nodes.Count == 0)
+        {
+            return [];
+        }
+
+        var lessonIds = nodes.Where(n => n.LessonId != null).Select(n => n.LessonId!.Value).Distinct().ToList();
+        var lessonsMap = lessonIds.Count > 0
+            ? await _db.Lessons.AsNoTracking()
+                .Where(l => lessonIds.Contains(l.Id) && l.DeletedAt == null)
+                .ToDictionaryAsync(l => l.Id, ct)
+            : new Dictionary<int, Lesson>();
+
+        var topicIds = lessonsMap.Values.Select(l => l.TopicId).Distinct().ToList();
+        var topicsMap = topicIds.Count > 0
+            ? await _db.Topics.AsNoTracking()
+                .Where(t => topicIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, ct)
+            : new Dictionary<int, Topic>();
+
+        var nodeIds = nodes.Select(n => n.Id).ToList();
+        var exercisesList = await _db.Exercises.AsNoTracking()
+            .Where(e => e.NodeId != null && nodeIds.Contains(e.NodeId.Value) && e.DeletedAt == null)
+            .ToListAsync(ct);
+        var exercisesByNode = exercisesList
+            .GroupBy(e => e.NodeId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var passedNodeIds = (await _db.UserNodeProgress.AsNoTracking()
+            .Where(p => p.UserId == userId && nodeIds.Contains(p.NodeId) && p.Status == 2)
+            .Select(p => p.NodeId)
+            .ToListAsync(ct))
+            .ToHashSet();
+
         var result = new List<ConceptsLessonDto>();
         var prevPassed = true; // node đầu tiên luôn mở
         foreach (var node in nodes)
         {
-            Lesson? lesson = null;
-            if (node.LessonId is { } lessonId)
-            {
-                lesson = await _db.Lessons.AsNoTracking()
-                    .FirstOrDefaultAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
-            }
-
+            Lesson? lesson = node.LessonId is { } lessonId ? lessonsMap.GetValueOrDefault(lessonId) : null;
             var title = lesson?.Title ?? node.Title;
             var content = lesson?.ContentHtml ?? string.Empty;
 
             // Module title theo Topic của lesson (Module 1-4 của Grokking);
             // node KHÔNG có bài học (luyện tập tổng hợp / kiểm tra cuối) → nhóm module 5 "Kiểm tra cuối lộ trình"
             string moduleTitle = "Kiểm tra cuối lộ trình";
-            if (lesson?.TopicId is { } topicId)
+            if (lesson?.TopicId is { } topicId && topicsMap.TryGetValue(topicId, out var topic))
             {
-                var topic = await _db.Topics.AsNoTracking()
-                    .FirstOrDefaultAsync(t => t.Id == topicId, ct);
-                if (topic is not null)
-                {
-                    moduleTitle = topic.Name;
-                }
+                moduleTitle = topic.Name;
             }
 
             // Xác định loại node: Quiz exercise (MCQ) / Code exercise / Lab
-            var exercises = await _db.Exercises.AsNoTracking()
-                .Where(e => e.NodeId == node.Id && e.DeletedAt == null)
-                .ToListAsync(ct);
-
+            var exercises = exercisesByNode.GetValueOrDefault(node.Id, []);
             var quizEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.Mcq);
             var codeEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.Code);
             var labEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.SimulationLab);
@@ -424,8 +465,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 sandboxType = "dsa";
             }
 
-            var passed = await _db.UserNodeProgress.AsNoTracking()
-                .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
+            var passed = passedNodeIds.Contains(node.Id);
 
             result.Add(new ConceptsLessonDto
             {
@@ -439,7 +479,6 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 OrderIndex = node.SortOrder,
                 Status = passed ? "Completed" : "NotStarted",
                 ModuleTitle = moduleTitle,
-                // TẠM THỜI: DisableNodeLocks = true → mọi node mở (xem trước bài); tắt để khóa lại.
                 Locked = DisableNodeLocks ? false : !prevPassed && !passed
             });
             prevPassed = passed;
@@ -834,7 +873,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         // Ghi UserProgress nếu node có lesson
         if (node.LessonId is { } lessonId)
         {
-            var progress = await _db.UserProgress.AsNoTracking()
+            var progress = await _db.UserProgress
                 .FirstOrDefaultAsync(p => p.UserId == userId && p.LessonId == lessonId, ct);
             var now = DateTime.UtcNow;
             if (progress is null)
@@ -863,7 +902,6 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 }
 
                 progress.UpdatedAt = DateTime.UtcNow;
-                _db.UserProgress.Update(progress);
             }
         }
 
@@ -877,7 +915,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 .AnyAsync(e => e.NodeId == id && e.Type == ExerciseType.Code && e.DeletedAt == null, ct);
             if (!hasCodeExercise)
             {
-                var nodeProgress = await _db.UserNodeProgress.AsNoTracking()
+                var nodeProgress = await _db.UserNodeProgress
                     .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
                 if (nodeProgress is null)
                 {
@@ -899,12 +937,11 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                     nodeProgress.NodeScore = 100;
                     nodeProgress.PassedAt = DateTime.UtcNow;
                     nodeProgress.UpdatedAt = DateTime.UtcNow;
-                    _db.UserNodeProgress.Update(nodeProgress);
                 }
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return Ok(new { success = true });
     }
 

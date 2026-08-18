@@ -251,6 +251,22 @@ export const useSimulationStore = defineStore('simulation', () => {
     clearPlayback();
   }
 
+  /** Reset toàn bộ trạng thái sim (dùng khi logout / chuyển người dùng). */
+  function resetAll(): void {
+    clearPlayback();
+    currentSim.value = null;
+    steps.value = [];
+    currentIndex.value = 0;
+    speed.value = 1;
+    status.value = 'idle';
+    stats.value = { comparisons: 0, swaps: 0, writes: 0 };
+    inputConfig.value = null;
+    loading.value = false;
+    loadError.value = null;
+    breakpoints.value = new Set();
+    breakpointHit.value = null;
+  }
+
   return {
     currentSim,
     steps,
@@ -278,6 +294,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     stepBack,
     jumpTo,
     reset,
+    resetAll,
     setSpeed,
     toggleBreakpoint,
     stopPlayback,

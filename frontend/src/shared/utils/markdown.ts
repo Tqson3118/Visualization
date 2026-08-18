@@ -1,4 +1,5 @@
 import { parseEmojiToSvg } from '../../utils/emojiParser';
+import { sanitizeHtml } from '../../utils/sanitize';
 
 export function renderMarkdown(md: string): string {
   if (!md) return '';
@@ -39,5 +40,5 @@ export function renderMarkdown(md: string): string {
     return `<p class="text-text-secondary leading-relaxed mb-3 text-xs lg:text-sm">${paragraphLines}</p>`;
   });
 
-  return parseEmojiToSvg(renderedBlocks.join(''));
+  return sanitizeHtml(parseEmojiToSvg(renderedBlocks.join('')));
 }

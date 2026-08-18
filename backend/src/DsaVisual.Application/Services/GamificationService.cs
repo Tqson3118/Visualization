@@ -84,19 +84,34 @@ public sealed class GamificationService(
             .Select(p => new { p.Id, p.Title, p.Description, p.TopicId, p.SortOrder, p.IsActive })
             .ToListAsync(ct);
 
-        var summaries = new List<LearningPathSummaryDto>();
-        foreach (var p in paths)
+        if (paths.Count == 0)
         {
-            var nodes = await db.LearningPathNodes.AsNoTracking()
-                .Where(n => n.PathId == p.Id)
-                .OrderBy(n => n.SortOrder)
-                .Select(n => n.Id)
-                .ToListAsync(ct);
+            return Result<List<LearningPathSummaryDto>>.Ok([]);
+        }
 
-            var passed = nodes.Count == 0 ? 0 : await db.UserNodeProgress.AsNoTracking()
-                .CountAsync(up => up.UserId == userId && up.Status == 2 && nodes.Contains(up.NodeId), ct);
+        var pathIds = paths.Select(p => p.Id).ToList();
+        var allNodes = await db.LearningPathNodes.AsNoTracking()
+            .Where(n => pathIds.Contains(n.PathId))
+            .Select(n => new { n.Id, n.PathId })
+            .ToListAsync(ct);
 
-            summaries.Add(new LearningPathSummaryDto
+        var nodeIds = allNodes.Select(n => n.Id).ToList();
+        var passedNodeIds = nodeIds.Count == 0
+            ? new HashSet<int>()
+            : (await db.UserNodeProgress.AsNoTracking()
+                .Where(up => up.UserId == userId && up.Status == 2 && nodeIds.Contains(up.NodeId))
+                .Select(up => up.NodeId)
+                .ToListAsync(ct))
+                .ToHashSet();
+
+        var nodesByPath = allNodes.GroupBy(n => n.PathId)
+            .ToDictionary(g => g.Key, g => g.Select(n => n.Id).ToList());
+
+        var summaries = paths.Select(p =>
+        {
+            var nodes = nodesByPath.GetValueOrDefault(p.Id, []);
+            var passed = nodes.Count(id => passedNodeIds.Contains(id));
+            return new LearningPathSummaryDto
             {
                 Id = p.Id,
                 Title = p.Title,
@@ -105,8 +120,8 @@ public sealed class GamificationService(
                 SortOrder = p.SortOrder,
                 ProgressPct = nodes.Count == 0 ? 0 : (int)Math.Round(passed * 100.0 / nodes.Count),
                 NodeCount = nodes.Count
-            });
-        }
+            };
+        }).ToList();
 
         return Result<List<LearningPathSummaryDto>>.Ok(summaries);
     }

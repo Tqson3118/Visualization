@@ -125,7 +125,7 @@ onMounted(() => {
 });
 
 async function startNode(node: LearningPathNodeDto): Promise<void> {
-  if (node.status === 'locked') return;
+  if (node.status === 'locked' || enteringId.value !== null) return;
   enteringId.value = node.id;
   try {
     // Trừ tim (atomic server) — lỗi 403 HEARTS_EMPTY → modal hết tim (Màn 28)

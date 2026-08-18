@@ -162,19 +162,6 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
-  tourStore.startPageTour('/sorting');
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
-  // Dọn dẹp state của store dùng chung khi rời route:
-  // dừng timer VCR + xóa customCompileFn để không "hijack" compile của feature khác
-  vcrStore.pause();
-  vcrStore.customCompileFn = null;
-});
-
 // Dừng phát khi rời tab sorting (KeepAlive giữ component sống, timer VCR vẫn chạy nền)
 watch(activeTab, (tab) => {
   if (tab !== 'sorting') vcrStore.pause();

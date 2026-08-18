@@ -1,4 +1,4 @@
-﻿using System.Net.Mail;
+using System.Net.Mail;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
@@ -331,7 +331,9 @@ public sealed class UserService(
               (string.IsNullOrWhiteSpace(reason) ? string.Empty : $"\nLý do: {reason}") +
               "\n\n— DSA Visual";
 
-        if (string.IsNullOrWhiteSpace(smtpHost))
+        var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
+
+        if (string.IsNullOrWhiteSpace(emailOpts.SmtpHost))
         {
             // SMTP chưa cấu hình → ghi log dev, KHÔNG block luồng (SDD §5.6)
             logger.LogWarning("SMTP chưa cấu hình — email duyệt/từ chối giảng viên (dev) cho user {UserId}: {Subject}",
@@ -341,12 +343,9 @@ public sealed class UserService(
 
         try
         {
-            using var smtp = new SmtpClient(smtpHost, config.GetValue("DSA:Email:SmtpPort", 1025))
-            {
-                Timeout = 10_000   // timeout ngắn — không giữ request (GP-T2)
-            };
+            using var smtp = SmtpClientFactory.Create(emailOpts);
             await smtp.SendMailAsync(
-                config["DSA:Email:From"] ?? "no-reply@dsa-visual.local",
+                emailOpts.From ?? "no-reply@dsa-visual.local",
                 user.Email,
                 subject,
                 body, ct);

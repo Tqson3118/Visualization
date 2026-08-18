@@ -1,4 +1,6 @@
 using Asp.Versioning;
+using DsaVisual.Api.Dtos;
+using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
@@ -58,7 +60,7 @@ public class MeController(
             .AnyAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
         if (!lessonExists)
         {
-            return NotFound(new { error = new { code = "NOT_FOUND", message = "Bài học không tồn tại", field = (string?)null, details = Array.Empty<string>() } });
+            return NotFound(ErrorResponseDto.Create(ErrorCodes.NOT_FOUND, "Bài học không tồn tại"));
         }
 
         // Finding security#7: sanitize ContentHtml TRƯỚC khi lưu (cùng IHtmlSanitizer/whitelist

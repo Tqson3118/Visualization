@@ -54,6 +54,7 @@ describe('useGuidedTourStore - P0/P1 Tests', () => {
 
       const wrapper = mount(HelpButton, {
         props: { tourKey: '/sorting' },
+        global: { stubs: { BaseIcon: true } },
       });
 
       await wrapper.find('button').trigger('click');
@@ -66,6 +67,7 @@ describe('useGuidedTourStore - P0/P1 Tests', () => {
 
       const wrapper = mount(HelpButton, {
         props: { tourKey: '/sorting' },
+        global: { stubs: { BaseIcon: true } },
       });
 
       await wrapper.find('button').trigger('click');
@@ -80,7 +82,9 @@ describe('useGuidedTourStore - P0/P1 Tests', () => {
       const store = useGuidedTourStore();
       store.startTour();
 
-      const wrapper = mount(GuidedTourOverlay);
+      const wrapper = mount(GuidedTourOverlay, {
+        global: { stubs: { BaseIcon: true } },
+      });
 
       expect(wrapper.find('.guided-tour-overlay-root').exists()).toBe(true);
     });
@@ -89,7 +93,9 @@ describe('useGuidedTourStore - P0/P1 Tests', () => {
       const store = useGuidedTourStore();
       expect(store.isActive).toBe(false);
 
-      const wrapper = mount(GuidedTourOverlay);
+      const wrapper = mount(GuidedTourOverlay, {
+        global: { stubs: { BaseIcon: true } },
+      });
 
       expect(wrapper.find('.guided-tour-overlay-root').exists()).toBe(false);
     });

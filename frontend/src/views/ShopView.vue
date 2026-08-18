@@ -48,6 +48,7 @@ const canAfford = computed(() => (price: number) => gamification.gems >= price);
 const fillCount = computed(() => (3 - (items.value.length % 3)) % 3);
 
 async function buy(item: ShopItemDto): Promise<void> {
+  if (buyingId.value !== null) return;
   buyingId.value = item.id;
   try {
     await gamification.buyItem(item.id);
@@ -296,7 +297,7 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
                   <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
                 </span>
                 <Button
-                  :disabled="!canAfford(item.priceGems)"
+                  :disabled="!canAfford(item.priceGems) || buyingId !== null"
                   :loading="buyingId === item.id"
                   @click="buy(item)"
                 >
