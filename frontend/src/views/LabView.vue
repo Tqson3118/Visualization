@@ -86,7 +86,7 @@ const INFO_CARDS = [
       :initial-array="[5, 3, 8, 1, 9, 2]"
       :standard-steps="8"
       @passed="router.push({ name: 'ladder', params: { nodeId } })"
-      @view-theory="router.push({ name: 'node-hub', params: { topicId: '1', nodeId } })"
+      @view-theory="router.push({ name: 'simulator', params: { key: simKey } })"
     />
 
     <div class="lab-view__actions">

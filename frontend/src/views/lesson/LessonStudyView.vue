@@ -5,7 +5,7 @@
     <aside class="w-72 lg:w-80 shrink-0 bg-vdsa-surface border-r border-vdsa-border flex flex-col h-full overflow-hidden shadow-xl z-30">
        <!-- Course Title & Search -->
        <div class="p-4 lg:p-5 border-b border-vdsa-border shrink-0">
-         <h2 class="text-sm font-extrabold text-white mb-4 line-clamp-2">{{ course?.title || 'Đang tải khóa học...' }}</h2>
+         <h2 class="text-sm font-extrabold text-white mb-4 line-clamp-2">{{ course?.title || 'Đang tải lộ trình...' }}</h2>
          <!-- Search Box -->
          <div class="relative">
            <BaseIcon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vdsa-muted" />
@@ -56,8 +56,8 @@
     <div class="flex-1 flex flex-col h-full min-w-0">
       <header class="px-6 py-3 border-b border-vdsa-border bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-between shrink-0 shadow-lg z-20 flex-wrap gap-2">
         <div class="flex items-center gap-3 min-w-0">
-          <router-link :to="courseId ? `/courses/${courseId}` : '/courses'" class="text-xs font-semibold text-vdsa-muted hover:text-white transition-colors flex items-center gap-1 shrink-0">
-            <BaseIcon name="arrow-left" class="w-3.5 h-3.5" /> Thoát khóa học
+          <router-link :to="courseId ? `/path/${courseId}` : '/path'" class="text-xs font-semibold text-vdsa-muted hover:text-white transition-colors flex items-center gap-1 shrink-0">
+            <BaseIcon name="arrow-left" class="w-3.5 h-3.5" /> Thoát lộ trình
           </router-link>
           <span class="text-vdsa-disabled">|</span>
           <h2 class="text-sm font-extrabold text-white line-clamp-1" v-if="lessonStore.currentLesson">
@@ -95,9 +95,9 @@
         <div v-else-if="lessonStore.error && !lessonStore.currentLesson" class="w-full h-full flex flex-col items-center justify-center text-center px-6">
           <div class="text-5xl mb-4"><BaseIcon name="warning" class="w-14 h-14 text-vdsa-red mx-auto" /></div>
           <h3 class="text-xl font-bold text-vdsa-secondary">{{ lessonStore.error }}</h3>
-          <p class="text-vdsa-muted mt-2">Vui lòng quay lại khóa học và thử lại.</p>
-          <router-link :to="courseId ? `/courses/${courseId}` : '/courses'" class="mt-6 px-6 py-2.5 bg-accent text-white font-semibold rounded-xl hover:bg-vdsa-accent-dark transition-colors">
-            Quay lại khóa học
+          <p class="text-vdsa-muted mt-2">Vui lòng quay lại lộ trình và thử lại.</p>
+          <router-link :to="courseId ? `/path/${courseId}` : '/path'" class="mt-6 px-6 py-2.5 bg-accent text-white font-semibold rounded-xl hover:bg-vdsa-accent-dark transition-colors">
+            Quay lại lộ trình
           </router-link>
         </div>
 
@@ -133,7 +133,6 @@
       :xp-reward="lessonStore.currentLesson?.xpReward ?? 0"
       :quiz-id="lessonStore.lessonMeta?.quizId"
       :next-lesson-id="nextLessonId"
-      @go-quiz="goToQuiz"
       @go-next="goToNextLesson"
       @close="goBackToCourse"
     />
@@ -303,12 +302,6 @@ async function resolveNextLessonId(): Promise<string | null> {
   }
 }
 
-function goToQuiz(quizId: string): void {
-  showCompletionModal.value = false;
-  // Quiz được nhúng trong flow bài học (Theory → Quiz → CodeLab) — không có route quiz riêng.
-  void quizId;
-}
-
 function goToNextLesson(nextId: string): void {
   showCompletionModal.value = false;
   router.push({ name: 'lesson-study', params: { id: nextId }, query: courseId.value ? { courseId: courseId.value } : {} });
@@ -316,7 +309,7 @@ function goToNextLesson(nextId: string): void {
 
 function goBackToCourse(): void {
   showCompletionModal.value = false;
-  router.push(courseId.value ? `/courses/${courseId.value}` : '/courses');
+  router.push(courseId.value ? `/path/${courseId.value}` : '/path');
 }
 
 watch(lessonId, (id) => {

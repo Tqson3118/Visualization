@@ -15,11 +15,11 @@ test.describe('LIVE SMOKE TEST - 5 REAL USER JOURNEYS (E2E Browser Live)', () =>
     await page.waitForURL(/\/(courses|path|home)/, { timeout: 15_000 });
 
     // 1.2 Vào trang danh sách khóa học
-    await page.goto(`${BASE}/courses`);
+    await page.goto(`${BASE}/path`);
     await expect(page.locator('main').or(page.locator('.course-list-view')).or(page.locator('.courses-list-view')).first()).toBeVisible({ timeout: 10_000 });
 
     // 1.3 Xem chi tiết khóa học 1
-    await page.goto(`${BASE}/courses/1`);
+    await page.goto(`${BASE}/path/1`);
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
 
     // 1.4 Xem bài học số 1

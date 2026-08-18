@@ -23,21 +23,13 @@
           <span>Học bài tiếp theo</span>
           <BaseIcon name="arrow-right" class="w-4 h-4" />
         </button>
-        <button
-          v-if="quizId"
-          @click="$emit('go-quiz', quizId)"
-          class="w-full py-3 bg-gradient-to-r from-vdsa-accent to-vdsa-purple hover:from-vdsa-accent hover:to-vdsa-purple text-white font-bold rounded-2xl transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
-        >
-          <span>Làm bài trắc nghiệm liên kết</span>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        </button>
+        <!-- D3/Slice0.3: nút quiz cũ là dead-end (không có route quiz riêng; quiz đã nhúng
+             trong flow Theory→Quiz→CodeLab) → ẩn để tránh nút chết. -->
         <button
           @click="$emit('close')"
           class="w-full py-3 bg-vdsa-hover hover:bg-vdsa-hover text-white font-bold rounded-2xl transition-all border border-vdsa-border cursor-pointer"
         >
-          Quay lại khóa học
+          Quay lại lộ trình
         </button>
       </div>
     </div>
@@ -55,7 +47,6 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: 'go-quiz', quizId: string): void;
   (e: 'go-next', lessonId: string): void;
   (e: 'close'): void;
 }>();

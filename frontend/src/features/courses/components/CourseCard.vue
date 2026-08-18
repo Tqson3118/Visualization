@@ -64,7 +64,7 @@
           </div>
 
           <router-link
-            :to="`/courses/${course.id}`"
+            :to="{ name: 'course-detail', params: { id: course.id } }"
             class="px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg cursor-pointer"
             :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green hover:bg-vdsa-green text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent hover:bg-vdsa-accent text-white shadow-vdsa-accent/30')"
           >

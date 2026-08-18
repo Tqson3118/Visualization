@@ -54,7 +54,7 @@ test.describe('Ladder — Màn 14', () => {
     await page.locator('#password').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     // PR30: /path redirect → /courses (roadmap cũ thay bằng Grokking courses)
-    await expect(page).toHaveURL(/\/courses$/);
+    await expect(page).toHaveURL(/\/path$/);
 
     // Header: HeartsGemsWidget fetch GET /me/hearts (mock) → 10/10
     await expect(page.getByLabel('Tim: 10/10')).toBeVisible();
@@ -63,6 +63,6 @@ test.describe('Ladder — Màn 14', () => {
     // course-detail — luồng UI cũ đã bị thay bằng courses; contract API
     // POST /learning-path/{id}/nodes/{nodeId}/enter vẫn giữ (xem gamification.pr30.spec.ts).
     await page.goto('/path/1');
-    await expect(page).toHaveURL(/\/courses\/1$/);
+    await expect(page).toHaveURL(/\/path\/1$/);
   });
 });

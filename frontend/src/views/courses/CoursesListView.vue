@@ -41,7 +41,7 @@
           id="course-sort"
           v-model="selectedSort"
           class="appearance-none w-full sm:w-auto bg-vdsa-surface text-white border border-vdsa-border-strong rounded-full pl-4 pr-10 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-vdsa-accent/30 focus:border-vdsa-accent transition-all cursor-pointer"
-          aria-label="Sắp xếp khóa học"
+          aria-label="Sắp xếp lộ trình"
         >
           <option value="default">Mặc định</option>
           <option value="difficulty">Độ khó</option>
@@ -54,7 +54,7 @@
       </div>
     </div>
 
-    <div v-if="courseStore.isLoading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="status" aria-label="Đang tải khóa học">
+    <div v-if="courseStore.isLoading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="status" aria-label="Đang tải lộ trình">
       <div v-for="i in 4" :key="i" class="rounded-2xl overflow-hidden border border-vdsa-border-subtle bg-vdsa-surface">
         <div class="h-36 bg-vdsa-active animate-pulse"></div>
         <div class="p-4 space-y-3">
@@ -68,17 +68,17 @@
 
     <div v-else-if="sortedCourses.length === 0" class="empty-state text-center py-20 bg-vdsa-surface rounded-lg border border-vdsa-border mt-6" role="status">
       <div class="text-5xl mb-4" aria-hidden="true"><BaseIcon name="search" class="w-14 h-14 text-vdsa-muted mx-auto" /></div>
-      <h3 class="text-xl font-bold text-white">Không tìm thấy khóa học phù hợp</h3>
+      <h3 class="text-xl font-bold text-white">Không tìm thấy lộ trình phù hợp</h3>
       <p class="text-vdsa-secondary mt-2">Vui lòng thay đổi bộ lọc hoặc quay lại sau.</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="list" aria-label="Danh sách khóa học">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="list" aria-label="Danh sách lộ trình">
       <router-link
         v-for="course in paginatedCourses"
         :key="course.id"
         :to="{ name: 'course-detail', params: { id: course.id } }"
         class="course-card-link block"
-        :aria-label="`Xem chi tiết khóa học ${course.title}`"
+        :aria-label="`Xem chi tiết lộ trình ${course.title}`"
         role="listitem"
       >
         <CourseCard :course="course" />

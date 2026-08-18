@@ -4,7 +4,7 @@
     class="course-cover-svg w-full h-full block"
     preserveAspectRatio="xMidYMid slice"
     role="img"
-    :aria-label="`Ảnh bìa khóa học ${course.title}`"
+    :aria-label="`Ảnh bìa lộ trình ${course.title}`"
   >
     <defs>
       <linearGradient :id="gradId" x1="0" y1="0" x2="1" y2="1">

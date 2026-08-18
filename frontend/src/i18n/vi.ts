@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Mọi chuỗi giao diện — SDD §3.8.5: không nhúng chuỗi cứng ngoài file này.
  * MVP chỉ tiếng Việt (SDD §3.1).
  */
@@ -243,7 +243,7 @@ export const messages = {
       'Hệ thống bài học được thiết kế chuẩn sư phạm, dẫn dắt bạn qua 4 bước vững chắc: Lý thuyết, Trực quan hoá, Thực hành Code, Trắc nghiệm.',
     roadmapFeature1: 'Lộ trình từ cơ bản đến nâng cao (Mảng, Cây, Đồ thị, Quy hoạch động).',
     roadmapFeature2: 'Theo dõi tiến độ học tập chi tiết theo từng chủ đề.',
-    roadmapFeature3: 'Nhận chứng nhận khi hoàn thành khóa học.',
+    roadmapFeature3: 'Nhận chứng nhận khi hoàn thành lộ trình.',
     roadmapStepLabel: (n: number) => `BƯỚC ${n}`,
     roadmapStep1Title: 'Lý thuyết nền tảng',
     roadmapStep1Desc: 'Khái niệm cốt lõi & mã giả trực quan',
@@ -340,7 +340,7 @@ export const messages = {
     ctaBandTitle: 'Sẵn sàng bước vào vũ trụ thuật toán?',
     ctaBandDesc:
       'Hàng trăm cấu trúc dữ liệu, thuật toán và bài tập được trực quan hóa — bắt đầu miễn phí ngay hôm nay.',
-    ctaGoCourses: 'Đến khóa học Grokking',
+    ctaGoCourses: 'Đến Lộ trình Grokking',
     ctaGoSims: 'Xem tất cả mô phỏng',
     benchTitle: 'simulator://bubble-sort',
     benchReady: 'Đang khởi động engine…',

@@ -43,7 +43,7 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
     // Submit → mock POST /auth/register 201 → student → router.replace('/courses')
     // (PR30: /path redirect → /courses — roadmap cũ thay bằng Grokking courses)
     await page.getByRole('button', { name: 'Đăng ký', exact: true }).click();
-    await expect(page).toHaveURL(/\/courses$/);
+    await expect(page).toHaveURL(/\/path$/);
 
     // CoursesListView hiển thị tiêu đề ổn định (không phụ thuộc mock API)
     await expect(page.getByRole('heading', { name: 'Lộ trình học DSA' })).toBeVisible();
@@ -58,7 +58,7 @@ test.describe('Auth — TEST-UI-001 / TEST-UI-005', () => {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
 
     // Mock POST /auth/login → token + user → LoginView router.replace('/courses') (PR30 routing)
-    await expect(page).toHaveURL(/\/courses$/);
+    await expect(page).toHaveURL(/\/path$/);
     await expect(page.getByRole('heading', { name: 'Lộ trình học DSA' })).toBeVisible();
   });
 

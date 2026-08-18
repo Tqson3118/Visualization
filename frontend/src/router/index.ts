@@ -9,9 +9,7 @@ const RegisterView = () => import('@/views/RegisterView.vue');
 const ForgotPasswordView = () => import('@/views/ForgotPasswordView.vue');
 const ResetPasswordView = () => import('@/views/ResetPasswordView.vue');
 
-const PathRedirectView = () => import('@/views/PathRedirectView.vue');
-const PathView = () => import('@/views/PathView.vue');
-const NodeHubView = () => import('@/views/NodeHubView.vue');
+// PathRedirectView/PathView/NodeHubView — legacy flow không còn route dùng (D7: giữ file, bỏ import).
 const FinalTestView = () => import('@/views/FinalTestView.vue');
 
 const SimulationsView = () => import('@/views/SimulationsView.vue');
@@ -99,20 +97,21 @@ const router = createRouter({
       name: 'reset-password',
       component: ResetPasswordView,
     },
-    // Màn 03 — /learn (redirect /courses — 20.5.6)
+    // Màn 03 — /learn (alias → /path — D2)
     {
       path: '/learn',
-      redirect: '/courses',
+      redirect: '/path',
     },
-    // VDSA — Khóa học (bê từ VisualizationDSA-main): danh sách → chi tiết → học bài
+    // VDSA — Lộ trình (canonical: /path — D1). Tên nội bộ giữ 'courses'/'course-detail'.
     {
-      path: '/courses',
+      path: '/path',
       name: 'courses',
       component: () => import('@/views/courses/CoursesListView.vue'),
-      meta: { requiresAuth: true },
+      // D1: /path = entry công khai của flow lộ trình (guest xem danh sách; chi tiết/bài cần login).
+      meta: { public: true },
     },
     {
-      path: '/courses/:id',
+      path: '/path/:id',
       name: 'course-detail',
       component: () => import('@/views/courses/CourseDetailView.vue'),
       meta: { requiresAuth: true },
@@ -123,6 +122,15 @@ const router = createRouter({
       component: () => import('@/views/lesson/LessonStudyView.vue'),
       meta: { requiresAuth: true },
     },
+    // Alias cũ (D2 — không mất link cũ): /courses* → /path*
+    {
+      path: '/courses',
+      redirect: '/path',
+    },
+    {
+      path: '/courses/:id',
+      redirect: '/path/:id',
+    },
     // Màn 04 — Chi tiết bài học
     {
       path: '/learn/:lessonId',
@@ -130,24 +138,20 @@ const router = createRouter({
       component: LessonView,
       meta: { requiresAuth: true },
     },
-    // Route cũ (roadmap graph) — đã thay bằng khóa học VDSA → redirect sang /courses
+    // Legacy deep link roadmap — topicId cũ ≠ pathId mới: không mapping an toàn → /path (D2)
     {
-      path: '/path',
-      name: 'path',
-      redirect: '/courses',
+      path: '/path/:pathId/node/:nodeId',
+      name: 'node-hub',
+      redirect: '/path',
     },
+    // Alias tên cũ 'path-topic' (LadderView/FinalTestView/NodeHubView vẫn push the name) →
+    // course-detail (D2). Khai báo SAU course-detail để URL /path/:id match component trực tiếp.
     {
       path: '/path/:topicId',
       name: 'path-topic',
       redirect: (to) => ({ name: 'course-detail', params: { id: to.params.topicId } }),
     },
-    // Màn 31 — Node Hub (roadmap cũ → chi tiết khóa)
-    {
-      path: '/path/:topicId/node/:nodeId',
-      name: 'node-hub',
-      redirect: (to) => ({ name: 'course-detail', params: { id: to.params.topicId } }),
-    },
-    // Màn 30 — Kiểm tra cuối lộ trình
+    // Màn 30 — Kiểm tra cuối lộ trình (legacy compat — giữ live, D2)
     {
       path: '/path/:topicId/final-test',
       name: 'final-test',

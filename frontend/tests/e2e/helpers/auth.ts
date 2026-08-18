@@ -7,7 +7,7 @@
  */
 import { expect, type Page } from '@playwright/test';
 
-import { mockApi } from './mockApi';
+import { mockApi, type MockApiOptions } from './mockApi';
 
 export const E2E_EMAIL = 'e2e@test.edu';
 export const E2E_PASSWORD = 'E2e@12345';
@@ -16,8 +16,8 @@ export const E2E_PASSWORD = 'E2e@12345';
  * Mock API + mở /login + điền form + submit.
  * Mặc định chờ kết thúc ở /path (LoginView redirect mặc định — SDD §3.4).
  */
-export async function loginViaUi(page: Page, email = E2E_EMAIL, password = E2E_PASSWORD): Promise<void> {
-  await mockApi(page);
+export async function loginViaUi(page: Page, email = E2E_EMAIL, password = E2E_PASSWORD, options: MockApiOptions = {}): Promise<void> {
+  await mockApi(page, options);
   await page.goto('/login');
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(password);

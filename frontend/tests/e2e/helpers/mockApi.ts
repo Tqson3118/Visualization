@@ -277,10 +277,100 @@ const MOCK_EXERCISE = {
   ],
 };
 
+
+/** GET /concepts/courses & /concepts/courses/{id} — CoursesListView/CourseDetailView (B4).
+ *  Shape khớp CourseListDto/CourseDetailDto (src/services/courseApi.ts). */
+const MOCK_COURSE_LIST: Array<Record<string, unknown>> = [
+  {
+    id: '1',
+    title: 'Lộ trình nền tảng DSA',
+    description: 'Mảng, danh sách liên kết, ngăn xếp, hàng đợi và các thuật toán sắp xếp cơ bản.',
+    category: 'Algorithm',
+    difficulty: 'Beginner',
+    isPremium: false,
+    isPublished: true,
+    xpReward: 240,
+    totalLessons: 6,
+    completedLessons: 1,
+    progressPercent: 16,
+  },
+  {
+    id: '2',
+    title: 'Lộ trình Cây & Đồ thị',
+    description: 'BST, AVL, BFS/DFS, Dijkstra.',
+    category: 'Tree/Graph',
+    difficulty: 'Intermediate',
+    isPremium: true,
+    isPublished: true,
+    xpReward: 320,
+    totalLessons: 8,
+    completedLessons: 0,
+    progressPercent: 0,
+  },
+];
+
+const MOCK_COURSE_DETAIL: Record<string, unknown> = {
+  id: '1',
+  title: 'Lộ trình nền tảng DSA',
+  description:
+    'Bắt đầu từ Mảng, danh sách liên kết, ngăn xếp, hàng đợi rồi tới các thuật toán sắp xếp — mỗi chặng có lý thuyết, mô phỏng trực quan, quiz và codelab.',
+  category: 'Algorithm',
+  difficulty: 'Beginner',
+  isPremium: false,
+  isPublished: true,
+  progressPercent: 16,
+  xpReward: 240,
+  learningObjectives: ['Hiểu mảng và các thao tác cơ bản', 'Nắm vững Bubble/Selection/Insertion Sort'],
+  keyOutcomes: ['Giải được bài sắp xếp cơ bản', 'Nhận diện độ phức tạp O(n²)'],
+  rating: 4.8,
+  ratingCount: 12,
+  highlights: [
+    { title: 'Lý thuyết tinh gọn', description: 'Mỗi bài có bài giảng ngắn kèm mã giả trực quan.' },
+    { title: 'Mô phỏng từng bước', description: 'Chạy thử thuật toán ngay trong bài học.' },
+  ],
+  testimonials: [
+    { name: 'Minh Anh', role: 'Sinh viên', quote: 'Học sắp xếp rất dễ hiểu nhờ mô phỏng từng bước.' },
+  ],
+  author: {
+    name: 'Giảng viên DSA',
+    academicDegree: 'ThS. Khoa học Máy tính',
+    bio: 'Giảng viên Cấu trúc Dữ liệu & Giải thuật.',
+    profileLink: null,
+    avatarUrl: null,
+  },
+  lessons: [
+    {
+      id: '1',
+      title: 'Sắp xếp nổi bọt (Bubble Sort)',
+      moduleTitle: 'Chặng 1 — Sắp xếp',
+      contentMd: '## Bubble Sort\nSo sánh các cặp liền kề và hoán đổi khi cần.',
+      sandboxType: 'dsa',
+      sandboxConfig: '',
+      quizId: null,
+      xpReward: 40,
+      orderIndex: 1,
+      status: 'Active',
+    },
+    {
+      id: '2',
+      title: 'Tìm kiếm nhị phân',
+      moduleTitle: 'Chặng 2 — Tìm kiếm',
+      contentMd: '## Binary Search\nChia đôi không gian tìm kiếm mỗi bước.',
+      sandboxType: 'quiz',
+      sandboxConfig: '',
+      quizId: 'quiz-binary-1',
+      xpReward: 40,
+      orderIndex: 2,
+      status: 'Active',
+    },
+  ],
+};
 export interface MockApiOptions {
   /** Số tim ban đầu (GET /me/hearts) — mỗi POST enter trừ 1 (FR-10.1) */
   initialHearts?: number;
   heartsMax?: number;
+  /** Vai trò user trong mock (mặc định STUDENT) — spec teacher/admin dùng TEACHER/ADMIN */
+  role?: typeof MOCK_USER.role;
 }
 
 function json(route: Route, status: number, body: unknown): Promise<void> {
@@ -306,6 +396,8 @@ function apiError(route: Route, status: number, code: string, message: string): 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   let hearts = options.initialHearts ?? 10;
   const heartsMax = options.heartsMax ?? 10;
+  // User theo vai trò test (mặc định STUDENT — MOCK_USER).
+  const mockUser: UserSummary = options.role ? { ...MOCK_USER, role: options.role } : MOCK_USER;
   // Trạng thái phiên auth trong mock: MỞ ĐẦU chưa đăng nhập (mỗi test tạo page mới).
   // Boot app gọi POST /auth/refresh TRƯỚC router guard (G-BF2, src/main.ts) — nếu mock
   // luôn trả 200 thì app boot coi như đã authenticated → guard guestOnly/requiresAuth
@@ -326,7 +418,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 200, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
-        user: MOCK_USER,
+        user: mockUser,
       });
       return;
     }
@@ -336,7 +428,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 201, {
         accessToken: MOCK_ACCESS_TOKEN,
         expiresIn: 3600,
-        user: MOCK_USER,
+        user: mockUser,
       });
       return;
     }
@@ -351,7 +443,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
         accessToken: MOCK_ACCESS_TOKEN,
         refreshToken: 'e2e-refresh-token',
         expiresIn: 3600,
-        user: MOCK_USER,
+        user: mockUser,
       });
       return;
     }
@@ -361,7 +453,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
     if (method === 'GET' && path === '/auth/me') {
-      await json(route, 200, MOCK_USER);
+      await json(route, 200, mockUser);
       return;
     }
 
@@ -411,6 +503,11 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
 
     // ── Gamification (API_REFERENCE §4.14) ──
+    if (method === 'GET' && path === '/me/inventory') {
+      // AppHeader (global) fetch inventory trên mọi trang — mock rỗng (D4: tránh 404 console).
+      await json(route, 200, []);
+      return;
+    }
     if (method === 'GET' && path === '/me/hearts') {
       const body: HeartsStatusDto = { hearts, heartsMax, lastHeartAt: null, nextHeartAt: null };
       await json(route, 200, body);
@@ -489,6 +586,37 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
         rows: [],
         conclusion: null,
         measuredAt: '2026-08-12T00:00:00.000Z',
+      });
+      return;
+    }
+
+    // ── Courses/Lộ trình (courseApi — /concepts/courses*) — B4 ──
+    if (method === 'GET' && path === '/concepts/courses') {
+      await json(route, 200, MOCK_COURSE_LIST);
+      return;
+    }
+    if (method === 'GET' && /^\/concepts\/courses\/[^/]+$/.test(path)) {
+      await json(route, 200, MOCK_COURSE_DETAIL);
+      return;
+    }
+    if (method === 'GET' && path === '/courses/feedback/mine') {
+      await json(route, 200, []);
+      return;
+    }
+    if (method === 'POST' && path === '/courses/feedback') {
+      await json(route, 201, {
+        id: 1,
+        courseId: 1,
+        courseTitle: 'Lộ trình nền tảng DSA',
+        userId: 1,
+        userName: 'E2E Student',
+        type: 'Suggestion',
+        content: 'Góp ý E2E',
+        status: 'New',
+        replyText: null,
+        repliedByName: null,
+        repliedAt: null,
+        createdAt: '2026-08-12T00:00:00.000Z',
       });
       return;
     }

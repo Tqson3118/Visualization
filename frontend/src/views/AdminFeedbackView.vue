@@ -50,7 +50,7 @@ async function loadCourses() {
       await loadFeedback();
     }
   } catch {
-    error.value = 'Không tải được danh sách khóa học.';
+    error.value = 'Không tải được danh sách lộ trình.';
   }
 }
 
@@ -118,14 +118,14 @@ onMounted(loadCourses);
       <CardHeader>
         <CardTitle>Ý kiến học viên</CardTitle>
         <CardDescription>
-          Học viên gửi đóng góp ý kiến từ trang khóa học — giảng viên đọc, trả lời và đánh dấu xử lý.
+          Học viên gửi đóng góp ý kiến từ trang lộ trình — giảng viên đọc, trả lời và đánh dấu xử lý.
         </CardDescription>
       </CardHeader>
       <CardContent class="space-y-5">
         <!-- Filters -->
         <div class="flex flex-col md:flex-row md:items-center gap-4">
           <label class="flex items-center gap-3 text-sm">
-            <span class="font-medium text-muted-foreground shrink-0">Khóa học</span>
+            <span class="font-medium text-muted-foreground shrink-0">Lộ trình</span>
             <select
               v-model.number="courseId"
               @change="onCourseChange"
@@ -160,7 +160,7 @@ onMounted(loadCourses);
           v-else-if="filteredItems.length === 0"
           icon="message"
           title="Chưa có ý kiến nào"
-          description="Khi học viên gửi ý kiến từ trang khóa học, chúng sẽ hiển thị tại đây."
+          description="Khi học viên gửi ý kiến từ trang lộ trình, chúng sẽ hiển thị tại đây."
         />
 
         <!-- Feedback list -->
@@ -181,7 +181,7 @@ onMounted(loadCourses);
                 rows="2"
                 maxlength="2000"
                 class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary resize-none"
-                placeholder="Nhập câu trả lời (sẽ hiển thị cho học viên khi họ quay lại khóa học)..."
+                placeholder="Nhập câu trả lời (sẽ hiển thị cho học viên khi họ quay lại lộ trình)..."
               ></textarea>
               <div class="flex items-center gap-3 justify-between flex-wrap">
                 <select

@@ -35,9 +35,9 @@ async function onSubmit(): Promise<void> {
   submitting.value = true;
   try {
     await auth.login(form.email, form.password);
-    let redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/courses';
+    let redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/path';
     if (!redirect || redirect.startsWith('/login') || redirect.startsWith('/register')) {
-      redirect = '/courses';
+      redirect = '/path';
     }
     await router.replace(redirect);
   } catch {

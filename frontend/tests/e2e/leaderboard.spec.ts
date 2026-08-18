@@ -21,7 +21,7 @@ async function loginAndOpenLeaderboard(page: Page): Promise<void> {
   await page.locator('#password').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   // PR30: /path redirect → /courses
-  await expect(page).toHaveURL(/\/courses$/);
+  await expect(page).toHaveURL(/\/path$/);
   // SPA nav: mở menu user → "Bảng xếp hạng" (không reload → giữ phiên auth)
   await page.getByRole('button', { name: 'E2E Student' }).click();
   await page.getByRole('link', { name: 'Bảng xếp hạng' }).click();

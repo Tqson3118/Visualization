@@ -3,14 +3,14 @@
 
     <div v-if="loading" class="text-center py-32">
       <div class="inline-block w-8 h-8 border-4 border-accent/20 border-t-indigo-500 rounded-full animate-spin"></div>
-      <p class="text-vdsa-muted mt-4">Đang tải thông tin khóa học...</p>
+      <p class="text-vdsa-muted mt-4">Đang tải thông tin lộ trình...</p>
     </div>
 
     <div v-else-if="error" class="text-center py-32 container mx-auto max-w-2xl">
       <div class="text-5xl mb-4"><BaseIcon name="warning" class="w-14 h-14 text-vdsa-red mx-auto" /></div>
       <h3 class="text-xl font-bold text-vdsa-secondary">{{ error }}</h3>
       <p class="text-vdsa-muted mt-2">Vui lòng thử lại sau hoặc liên hệ hỗ trợ.</p>
-      <router-link to="/courses" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
+      <router-link to="/path" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
     </div>
 
     <div v-else-if="course">
@@ -18,7 +18,7 @@
       <div class="container mx-auto max-w-5xl px-4 pt-10 pb-12">
         <!-- Breadcrumb: Khóa học / <tên khóa> -->
         <nav class="flex items-center gap-2 text-sm text-vdsa-muted mb-6 justify-center" aria-label="Breadcrumb">
-          <router-link to="/courses" class="font-semibold hover:text-white transition-colors">Khóa học</router-link>
+          <router-link to="/path" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
           <BaseIcon name="chevron-right" class="w-3.5 h-3.5 text-vdsa-disabled" />
           <span class="text-vdsa-secondary font-medium truncate">{{ course.title }}</span>
         </nav>
@@ -58,7 +58,7 @@
               @click="showRegisterModal = true"
               class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer"
             >
-              Đăng ký khóa học <BaseIcon name="plus" class="w-4 h-4" />
+              Tham gia lộ trình <BaseIcon name="plus" class="w-4 h-4" />
             </button>
 
             <button
@@ -66,10 +66,10 @@
               @click="startLesson(course.lessons[0])"
               class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer"
             >
-              Start Learning <BaseIcon name="play" class="w-4 h-4" />
+              Bắt đầu học <BaseIcon name="play" class="w-4 h-4" />
             </button>
             <button @click="scrollToLessons" class="px-8 py-3.5 bg-vdsa-surface hover:bg-vdsa-accent/10 hover:text-vdsa-accent-light hover:border-vdsa-accent/50 text-white font-bold rounded-xl border border-vdsa-border transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer">
-              Nội dung khóa học <BaseIcon name="chevron-down" class="w-4 h-4" />
+              Nội dung lộ trình <BaseIcon name="chevron-down" class="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -112,7 +112,7 @@
 
           <!-- WHY CHOOSE THIS COURSE (timeline giữa + scroll reveal 2 chiều — giống Educative) -->
           <section v-if="course.highlights.length" class="why-choose">
-            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-2">Tại sao chọn khóa học này?</h2>
+            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-2">Tại sao chọn lộ trình này?</h2>
             <p class="text-vdsa-muted text-sm mb-12">Kỹ năng Cấu trúc Dữ liệu không thể thiếu đối với mọi lập trình viên — từ phỏng vấn đến công việc thực tế.</p>
 
             <div class="relative">
@@ -159,7 +159,7 @@
           <!-- COURSE CONTENT (curriculum kiểu Educative: đánh số + lesson count) -->
           <section id="course-lessons" class="scroll-mt-8">
             <div class="flex items-center justify-between gap-4 mb-2">
-              <h2 class="text-xl font-bold text-white uppercase tracking-wider">Nội dung khóa học</h2>
+              <h2 class="text-xl font-bold text-white uppercase tracking-wider">Nội dung lộ trình</h2>
               <button
                 v-if="modules.length > 1"
                 @click="toggleAllModules"
@@ -232,7 +232,7 @@
 
           <!-- TESTIMONIALS (từ backend — tùy biến theo khóa) -->
           <section v-if="course.testimonials.length">
-            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-6">Học viên nói gì về khóa học</h2>
+            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-6">Học viên nói gì về lộ trình</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <figure v-for="(t, i) in course.testimonials" :key="i" class="p-6 rounded-2xl border border-vdsa-border bg-vdsa-surface flex flex-col">
                 <BaseIcon name="quote" class="w-6 h-6 text-vdsa-accent mb-3" />
@@ -351,7 +351,7 @@
 
           <!-- RELATED COURSES (tự ẩn khi trống) -->
           <section v-if="relatedCourses.length">
-            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-6">Khóa học liên quan</h2>
+            <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-6">Lộ trình liên quan</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <router-link
                 v-for="rc in relatedCourses"
@@ -382,7 +382,7 @@
           <h3 class="text-xl font-bold text-white">Xác nhận đăng ký</h3>
         </div>
         <p class="text-vdsa-secondary mb-6 leading-relaxed">
-          Bạn có chắc muốn đăng ký khóa học <strong class="text-white">{{ course?.title }}</strong> này không?
+          Bạn có chắc muốn tham gia lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
         </p>
         <div class="flex gap-3 justify-end">
           <button
@@ -516,7 +516,7 @@ const relatedCourses = ref<Array<{ id: string; title: string; description: strin
 
 const courseObjectives = computed(() => course.value?.learningObjectives ?? []);
 const courseOutcomes = computed(() => (course.value?.keyOutcomes ?? []).map(text => ({
-  title: 'Kết quả sau khóa học',
+  title: 'Kết quả sau lộ trình',
   desc: text,
 })));
 
@@ -556,7 +556,7 @@ async function loadCourseDetail() {
     }
   } catch (err) {
     console.error('Failed to load course detail:', err);
-    error.value = 'Không tìm thấy khóa học này (Lỗi kết nối máy chủ).';
+    error.value = 'Không tìm thấy lộ trình này (Lỗi kết nối máy chủ).';
   } finally {
     loading.value = false;
   }
@@ -573,7 +573,8 @@ function startLesson(lesson: CourseLessonDto) {
   if (lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
   const hasPremium = false;
   if (course.value?.isPremium && !hasPremium) {
-    router.push({ name: 'checkout' });
+    // D3: không có route 'checkout' — dùng /premium (mở modal/trang nâng cấp).
+    router.push({ name: 'premium' });
     return;
   }
   router.push({ name: 'lesson-study', params: { id: lesson.id }, query: { courseId: course.value?.id } });

@@ -6,7 +6,7 @@
         :value="searchQuery"
         @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         type="text"
-        placeholder="Tìm kiếm khóa học..."
+        placeholder="Tìm kiếm lộ trình..."
         class="w-full px-4 py-2 pl-10 bg-vdsa-bg-secondary border border-vdsa-border-subtle rounded-xl text-sm text-white placeholder-text-muted focus:outline-none focus:border-vdsa-accent/50 transition-colors"
       />
       <BaseIcon name="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-vdsa-muted" />

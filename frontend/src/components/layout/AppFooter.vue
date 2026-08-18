@@ -42,9 +42,9 @@ import { RouterLink } from 'vue-router';
 
         <!-- Khóa học -->
         <div>
-          <h3 class="app-footer__heading">Khóa học</h3>
+          <h3 class="app-footer__heading">Lộ trình</h3>
           <ul class="app-footer__list">
-            <li><RouterLink to="/courses" class="app-footer__link">Lộ trình Grokking DSA</RouterLink></li>
+            <li><RouterLink to="/path" class="app-footer__link">Lộ trình Grokking DSA</RouterLink></li>
             <li><RouterLink to="/simulations" class="app-footer__link">Mô phỏng thuật toán</RouterLink></li>
             <li><RouterLink to="/classes" class="app-footer__link">Lớp học trực tuyến</RouterLink></li>
             <li><RouterLink to="/quests" class="app-footer__link">Thử thách &amp; Quest</RouterLink></li>
@@ -58,8 +58,8 @@ import { RouterLink } from 'vue-router';
           <ul class="app-footer__list">
             <li><RouterLink to="/simulations" class="app-footer__link">Trình mô phỏng từng bước</RouterLink></li>
             <li><RouterLink to="/simulations" class="app-footer__link">Phân tích độ phức tạp (Big O)</RouterLink></li>
-            <li><RouterLink to="/courses" class="app-footer__link">Code Lab chấm tự động</RouterLink></li>
-            <li><RouterLink to="/courses" class="app-footer__link">Trắc nghiệm lộ trình</RouterLink></li>
+            <li><RouterLink to="/path" class="app-footer__link">Code Lab chấm tự động</RouterLink></li>
+            <li><RouterLink to="/path" class="app-footer__link">Trắc nghiệm lộ trình</RouterLink></li>
           </ul>
         </div>
 
