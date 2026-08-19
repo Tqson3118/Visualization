@@ -125,22 +125,22 @@ const weekOption = computed(() => {
   };
 });
 
-// ── Donut phân bố vai trò (SVG tự vẽ — dữ liệu minh họa) ──
+// ── Donut phân bố vai trò (SVG tự vẽ — dữ liệu thật từ /admin/stats) ──
 // 3 màu ngôn ngữ dữ liệu (palette 6 màu — decision log 14/08): data-core/resolved/index-muted.
-const ROLES = [
-  { label: 'Student', value: 70 },
-  { label: 'Teacher', value: 20 },
-  { label: 'Admin', value: 10 },
-];
+const ROLES = computed(() => (stats.value?.roleDistribution ?? []).map((item) => ({
+  label: item.role,
+  value: item.count,
+})));
 
 const DONUT_R = 60;
 const DONUT_C = 80;
 const DONUT_COLORS = ['var(--data-core)', 'var(--resolved)', 'var(--index-muted)'];
 
 function donutSegments(): Array<{ color: string; d: string }> {
-  const total = ROLES.reduce((sum, r) => sum + r.value, 0);
+  const total = ROLES.value.reduce((sum, r) => sum + r.value, 0);
+  if (total <= 0) return [];
   let angle = -90;
-  return ROLES.map((role, idx) => {
+  return ROLES.value.map((role, idx) => {
     const start = angle;
     const sweep = (role.value / total) * 360;
     angle += sweep;
@@ -158,7 +158,15 @@ function donutSegments(): Array<{ color: string; d: string }> {
   });
 }
 
-const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumber(stats.value[key]) : '—');
+function rolePercentage(value: number): string {
+  const total = ROLES.value.reduce((sum, role) => sum + role.value, 0);
+  return total > 0 ? String(Math.round((value / total) * 100)) : '0';
+}
+
+const kpiValue = (key: keyof AdminStatsDto): string => {
+  const value = stats.value?.[key];
+  return typeof value === 'number' ? formatNumber(value) : '—';
+};
 </script>
 
 <template>
@@ -261,14 +269,14 @@ const kpiValue = (key: keyof AdminStatsDto): string => (stats.value ? formatNumb
           <h2 class="admin-stats__chart-title">{{ messages.admin.stats.roleTitle }}</h2>
           <svg :viewBox="`0 0 ${DONUT_C * 2} ${DONUT_C * 2}`" class="admin-stats__donut" role="img" :aria-label="messages.admin.stats.roleAria">
             <path v-for="seg in donutSegments()" :key="seg.d" :d="seg.d" :fill="seg.color" />
-            <text x="80" y="72" font-size="16" font-weight="600" text-anchor="middle" fill="#d9dde8">{{ ROLES[0].value }}%</text>
-            <text x="80" y="92" font-size="12" text-anchor="middle" fill="var(--index-muted)">{{ ROLES[0].label }}</text>
+            <text x="80" y="72" font-size="16" font-weight="600" text-anchor="middle" fill="#d9dde8">{{ rolePercentage(ROLES[0]?.value ?? 0) }}%</text>
+            <text x="80" y="92" font-size="12" text-anchor="middle" fill="var(--index-muted)">{{ ROLES[0]?.label ?? '—' }}</text>
           </svg>
           <ul class="admin-stats__legend">
             <li v-for="(role, idx) in ROLES" :key="role.label">
-              <span class="admin-stats__legend-dot" :style="{ background: DONUT_COLORS[idx] }" />
+              <span class="admin-stats__legend-dot" :style="{ background: DONUT_COLORS[idx % DONUT_COLORS.length] }" />
               <span class="admin-stats__legend-label">{{ role.label }}</span>
-              <span class="admin-stats__legend-value">{{ role.value }}%</span>
+              <span class="admin-stats__legend-value">{{ rolePercentage(role.value) }}%</span>
             </li>
           </ul>
         </div>
