@@ -18,6 +18,7 @@ namespace VisualizationDSA.WebApi.Controllers
     [ApiVersion("1.0")]
     [ApiController]
     [Route("api/v{version:apiVersion}/settings")]
+    [Route("api/v{version:apiVersion}/admin/settings")]
     [RequireJwtRole("Admin")]
     public class SettingsController : ControllerBase
     {

@@ -52,5 +52,11 @@ namespace VisualizationDSA.Domain.Entities
             
             TransactionReference = reference;
         }
+
+        public void SetDateRange(DateTime createdAt, DateTime? completedAt = null)
+        {
+            CreatedAt = createdAt;
+            if (completedAt.HasValue) CompletedAt = completedAt.Value;
+        }
     }
 }
