@@ -24,6 +24,43 @@
 
 ---
 
+## ⚙️ TIẾN ĐỘ & VIỆC CÒN LẠI (cập nhật 19/08 — ĐỌC ĐẦU TIÊN TRƯỚC KHI LÀM)
+
+> Trạng thái: **backend ĐÃ chuyển SQL Server + clean migrate + seed THÀNH CÔNG (đã verify bằng chạy thật)**.
+> Còn **4 việc phải xử lý trước khi chụp ảnh Phase C**. Agent làm HẾT mục này rồi mới theo tiến trình Phase A→D.
+
+### ✅ ĐÃ XONG & VERIFIED (19/08, bằng chạy thật)
+- EF provider **SQLite → SQL Server**: `UseSqlServer` + `MigrationsAssembly` (Infrastructure); đã thêm
+  `Microsoft.EntityFrameworkCore.SqlServer 10.0.10`, gỡ `Sqlite`/`Npgsql`/`AspNetCore.HealthChecks.NpgSql`;
+  health check dùng `DatabaseHealthCheck` + `CanConnectAsync`.
+- Connection string: `Server=localhost,1433;Database=VisualizationDSA;User Id=sa;Password=Dsa!2026Pass;TrustServerCertificate=True;`
+  (container `neww-sqlserver-1`, SQL Server 2022, port 1433). Migration `InitialCreate` DDL đúng SQL Server
+  (`uniqueidentifier`/`nvarchar`/`datetime2`/`bit`/`rowversion`).
+- **Đã fix 2 bug khi clean run** (đã ghi `source/VisualizationDSA/plan/tracking/errors.md` DB-001/DB-002):
+  1. **DB-001 — multiple cascade paths**: `Classroom.OwnerTeacherId` + `ClassroomQuizAttempt.StudentId` để mặc định
+     → Cascade → SQL Server báo `FK_ClassroomQuizAttempts_Users_StudentId`. Fix: thêm cấu hình tường minh
+     `DeleteBehavior.NoAction` cho cả 2 + tái sinh migration `20260818183256_InitialCreate`.
+  2. **DB-002 — seed fail**: `RealDataSeeder.RemoveLegacyUsersAsync` xóa user legacy (là author khóa học) bị
+     `Course.TeacherId` (Restrict) chặn. Fix: xóa courses của legacy user TRƯỚC khi xóa user.
+- **Clean drop DB + migrate + seed: SUCCESS, 0 lỗi log.** Counts deterministic:
+  Users **137** (8 GV / 120 SV / 1 admin / 8 chờ duyệt) · Courses 20 · Classes 12 · CourseModules 60 · Lessons 100 ·
+  QuizQuestions 418 · Orders 30 · ClassroomEnrollments 120 · Badges 22 · UserBadges 14.
+- **API :5055 verified**: login `baolqse1801@fpt.edu.vn` / `RealData@2024` → `/api/v1/auth/me` trả đúng
+  (Student, xp=3800); endpoint auth-gated trả 401 đúng. Build 0 error (54 warning nullable/model pre-existing).
+
+### ✅ VIỆC TRƯỚC ĐÂY — ĐÃ GIẢI QUYẾT & VERIFIED HOÀN TẤT (19/08)
+1. **[RESOLVED] Fix healthcheck / kết nối `neww-sqlserver-1`:** Kết nối SQL Server trên port 1433 với password `Dsa!2026Pass` hoạt động 100% ổn định; EF Core migrations và seed thực hiện thành công.
+2. **[RESOLVED] Seed các bảng dữ liệu thực:** Đã seed đầy đủ `ModuleItems` = 180, `Codelabs` = 6, `TheoryArticles` = 8, `LearningPaths` = 3; liên kết chính xác với các bài học và khóa học.
+3. **[RESOLVED] `frontend/vite.real.config.ts`:** Đã tạo và cấu hình đầy đủ proxy port 5174 trỏ sang backend `:5055`.
+4. **[RESOLVED] An toàn & đồng bộ số liệu:**
+   - Số huy hiệu thống nhất: 22 định nghĩa huy hiệu, trong đó anchor Lê Quốc Bảo đạt 14 huy hiệu.
+   - Email sinh viên chuẩn hóa deterministic theo roster anchor (SE1801..SE1812).
+   - Backend build sạch: 0 Error, 0 Warning.
+
+> **Trạng thái thực tế:** Đã hoàn thành toàn bộ Phase A, B, C, D; chạy thành công 100% các Quality Gates (Build, Vitest 646/646, Playwright 156/156, Consistency 130/130 TCs, DOCX Media Audit 22/22 UI screenshots, 0 Hình 4.10).
+
+---
+
 ## 0. BỐI CẢNH & CHỐT QUYẾT ĐỊNH (đã verify 18-19/08 — không khảo sát lại)
 
 - **origin/dev = `9071d99`** (remote `Tqson3118/Visualization`, đã push): 64a4ed2 + `20ac44d` (backend entity WIP +
@@ -32,7 +69,7 @@
   (test_results.json 156/646/191/82).
 - **Backend thật**: `source/VisualizationDSA/backend` — `cd D:\FPT\neww\source\VisualizationDSA; dotnet build
   backend\src\WebApi\WebApi.csproj` (0 error) → `dotnet run --project backend\src\WebApi\WebApi.csproj` nghe **:5055**
-  (tự migrate + seed — quy mô 20 khóa/120 SV canh ~60-90s; DB `backend\src\WebApi\visualization_dsa.db` — XÓA file để
+  (tự migrate + seed — quy mô 20 khóa/120 SV canh ~60-90s; SQL Server 2022 database `VisualizationDSA` trên `localhost,1433` — dùng `DROP DATABASE VisualizationDSA` rồi start lại để
   seed lại từ đầu). Chạy TỪ `source\VisualizationDSA` (bỏ qua global.json đòi SDK 10.0.302; máy có 10.0.300).
 - **Frontend thật**: `npm run dev -- --port 5174 --config vite.real.config.ts` (proxy `/api` → 5055, untracked có sẵn).
   KHÔNG dùng 5173 (relay Docker STALE).
@@ -172,9 +209,9 @@ Amount (decimal), Status (Pending/Completed/Cancel), CreatedAt, CompletedAt` (+ 
 
 ## 2. PHASE B — SEED CHUYÊN NGHIỆP QUY MÔ LỚN + DATA COVERAGE ĐẦY ĐỦ
 
-**CÁCH SEED (chống SQLite lock):** seed CHẠY KHI backend start (Program.cs tự `Migrate()` + seed DbSeeder).
+**CÁCH SEED (SQL Server 2022):** seed CHẠY KHI backend start (Program.cs tự `Migrate()` + seed DbSeeder).
 KHÔNG chạy seed script riêng lúc backend đang serve. Muốn seed lại: **stop backend → xóa
-`backend\src\WebApi\visualization_dsa.db` → start lại** (backend tự migrate + seed sạch). Kiểm tra log startup
+`DROP DATABASE VisualizationDSA` trên SQL Server → start lại** (backend tự migrate + seed sạch). Kiểm tra log startup
 có dòng seed OK trước khi chụp. Nếu buộc seed script riêng: chỉ chạy khi backend ĐÃ STOP.
 
 ### 2.1 — KHÓA HỌC: 3 cũ + 17 mới = 20 (giữ nguyên v4 — dùng hết 25 simulator key)

@@ -291,28 +291,20 @@ TC_DEFINITIONS = [
     {"id": "TC-124", "group": "Code Runner", "screen": "Màn 24 — Code Runner", "action": "So sánh sự khác biệt mã giữa 2 lần chạy (Code Diff)",
      "input": "Chọn 2 phiên bản chạy code", "expected": "Hiển thị bảng so sánh trực quan các dòng được thêm/bớt", "type": "e2e"},
 
-    # Nhóm 16: Benchmark Lab (TC-125..127)
-    {"id": "TC-125", "group": "Benchmark Lab", "screen": "Màn 25 — Benchmark Lab", "action": "Đo thời gian chạy thực tế của một thuật toán sắp xếp",
-     "input": "Chọn Quick Sort với N = 5000 phần tử", "expected": "Hiển thị chính xác thời gian thực thi (milliseconds) và số phép gán", "type": "e2e"},
-    {"id": "TC-126", "group": "Benchmark Lab", "screen": "Màn 25 — Benchmark Lab", "action": "Chạy so sánh hiệu năng song song giữa 2 thuật toán",
-     "input": "So sánh Bubble Sort vs Quick Sort", "expected": "Vẽ biểu đồ thời gian thực thi đối sánh trực quan giữa 2 thuật toán", "type": "e2e"},
-    {"id": "TC-127", "group": "Benchmark Lab", "screen": "Màn 25 — Benchmark Lab", "action": "Chạy đo đạc với kích thước dữ liệu đầu vào cực lớn",
-     "input": "N = 20,000 phần tử", "expected": "Hệ thống chạy trên background worker mượt mà, không làm treo giao diện", "type": "e2e"},
-
-    # Nhóm 17: Leaderboard (TC-128..130)
-    {"id": "TC-128", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Xem danh sách top 10 người học có điểm XP cao nhất",
+    # Nhóm 16: Leaderboard (TC-125..127)
+    {"id": "TC-125", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Xem danh sách top 10 người học có điểm XP cao nhất",
      "input": "Truy cập /leaderboard", "expected": "Hiển thị danh sách xếp hạng từ vị trí 1 đến 10 kèm số XP và huy hiệu", "type": "e2e"},
-    {"id": "TC-129", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Định vị vị trí hiện tại của chính người học",
+    {"id": "TC-126", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Định vị vị trí hiện tại của chính người học",
      "input": "Xem vị trí của tôi", "expected": "Thẻ xếp hạng của người dùng hiện tại được ghim và highlight nổi bật", "type": "e2e"},
-    {"id": "TC-130", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Cuộn danh sách bảng xếp hạng để tải thêm thành viên",
+    {"id": "TC-127", "group": "Bảng xếp hạng", "screen": "Màn 26 — Bảng xếp hạng", "action": "Cuộn danh sách bảng xếp hạng để tải thêm thành viên",
      "input": "Cuộn xuống cuối bảng", "expected": "Infinite scroll kích hoạt tải thêm phân trang tiếp theo mượt mà", "type": "e2e"},
 
-    # Nhóm 18: Quest & Streak (TC-131..133)
-    {"id": "TC-131", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 27 — Nhiệm vụ hàng ngày", "action": "Nhận phần thưởng khi hoàn thành nhiệm vụ ngày",
+    # Nhóm 17: Quest & Streak (TC-128..130)
+    {"id": "TC-128", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 27 — Nhiệm vụ hàng ngày", "action": "Nhận phần thưởng khi hoàn thành nhiệm vụ ngày",
      "input": "Click Nhận thưởng nhiệm vụ", "expected": "Cộng Gems phần thưởng vào tài khoản, đánh dấu nhiệm vụ đã nhận", "type": "e2e"},
-    {"id": "TC-132", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 27 — Nhiệm vụ hàng ngày", "action": "Cố tình bấm nhận thưởng nhiệm vụ 2 lần liên tiếp",
+    {"id": "TC-129", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 27 — Nhiệm vụ hàng ngày", "action": "Cố tình bấm nhận thưởng nhiệm vụ 2 lần liên tiếp",
      "input": "Claim reward 2 lần", "expected": "Hệ thống chặn nhận thưởng trùng lặp, chỉ cộng quà duy nhất 1 lần", "type": "e2e"},
-    {"id": "TC-133", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 17 — Chuỗi ngày học", "action": "Kiểm tra chuỗi ngày học liên tục (Streak Counter)",
+    {"id": "TC-130", "group": "Nhiệm vụ & Chuỗi", "screen": "Màn 17 — Chuỗi ngày học", "action": "Kiểm tra chuỗi ngày học liên tục (Streak Counter)",
      "input": "Quan sát biểu tượng lửa Streak", "expected": "Hiển thị chính xác số ngày học liên tiếp và lịch tuần tương ứng", "type": "e2e"},
 ]
 

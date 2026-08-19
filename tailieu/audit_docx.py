@@ -116,7 +116,7 @@ with zipfile.ZipFile(DOCX_PATH, "r") as z:
     tc_table_idx = -1
     for idx, tbl in enumerate(tables):
         tbl_text = etree.tostring(tbl, encoding="utf-8", method="text").decode("utf-8")
-        if "TC-01" in tbl_text and "TC-133" in tbl_text:
+        if "TC-01" in tbl_text and ("TC-130" in tbl_text or "TC-133" in tbl_text):
             tc_table = tbl
             tc_table_idx = idx
             break

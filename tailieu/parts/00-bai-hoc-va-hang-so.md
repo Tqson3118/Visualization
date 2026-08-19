@@ -1,4 +1,4 @@
-﻿# HỢP ĐỒNG VIẾT BÁO CÁO — HẰNG SỐ & BÀI HỌC CHUNG (SESSION A)
+# HỢP ĐỒNG VIẾT BÁO CÁO — HẰNG SỐ & BÀI HỌC CHUNG (SESSION A)
 
 > File này là nguồn chung cho MỌI task viết part của tailieu/BAO_CAO.md.
 > Mọi agent con PHẢI đọc file này trước khi viết. Mọi con số/tên trong đây là BẮT BUỘC, không được đổi.
@@ -151,5 +151,5 @@ MỤC LỤC (pandoc --toc tự sinh — không viết tay)
 
 ## 8. DANH SÁCH ẢNH PLACEHOLDER (đã có sẵn — trỏ đúng tên)
 
-12 màn (tailieu/placeholders/): 01-home.png, 02-login.png, 04-lesson-detail.png, 05-simulator.png, 06-exercise.png, 13-learning-path.png, 14-ladder.png, 15-lab.png, 16-code-runner.png, 17-benchmark.png, 24-leaderboard.png, 32-profile.png
+11 màn (tailieu/placeholders/): 01-home.png, 02-login.png, 04-lesson-detail.png, 05-simulator.png, 06-exercise.png, 13-learning-path.png, 14-ladder.png, 15-lab.png, 16-code-runner.png, 24-leaderboard.png, 32-profile.png
 6 sơ đồ (tailieu/placeholders/): 01-usecase-tong-quan.png, 02-usecase-hoc-vien.png, 03-usecase-giang-vien.png, 04-usecase-admin.png, 05-erd-tong-quan.png, 06-erd-chi-tiet.png

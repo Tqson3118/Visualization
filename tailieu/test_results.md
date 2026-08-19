@@ -1,12 +1,6 @@
 # KẾT QUẢ KIỂM THỬ — DSA-Visual
-**Ngày chạy**: 18/08/2026 14:15
-**Tổng**: 133 TC | ✅ PASS: 133 | ❌ FAIL: 0 | ⚠️ SKIP: 0
-
-## Suite phụ trợ
-- Vitest: 621 PASS
-- xUnit unit: 191 PASS
-- xUnit integration: 82 PASS
-- Playwright demo/live: 5/5 live smoke PASS (demo-chain skipped)
+**Ngày chạy**: 19/08/2026 07:26
+**Tổng**: 130 TC | ✅ PASS: 130 | ❌ FAIL: 0 | ⚠️ SKIP: 0
 
 ## Tóm tắt theo nhóm kiểm thử
 | Nhóm chức năng | Số lượng TC | Pass | Fail |
@@ -26,7 +20,6 @@
 | Quản trị | 7 | 7 | 0 |
 | Bảo mật RBAC | 7 | 7 | 0 |
 | Code Runner | 5 | 5 | 0 |
-| Benchmark Lab | 3 | 3 | 0 |
 | Bảng xếp hạng | 3 | 3 | 0 |
 | Nhiệm vụ & Chuỗi | 3 | 3 | 0 |
 

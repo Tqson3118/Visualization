@@ -43,7 +43,6 @@ DỮ LIỆU (nguồn docs/SRS.md §5.1 — KHÔNG được đổi tên):
   - UC-25 Học theo Learning Path
   - UC-26 Làm Practice Ladder
   - UC-27 Làm bài kiểm tra cuối lộ trình
-  - UC-28 Chạy Benchmark Lab
   - UC-29 Làm Daily Quest và giữ Streak
   - UC-30 Mua vật phẩm Gems Shop
   - UC-31 Xem Leaderboard
@@ -87,7 +86,6 @@ DỮ LIỆU (nguồn docs/SRS.md §5 — KHÔNG được đổi tên):
   - UC-25 Học theo Learning Path
   - UC-26 Làm Practice Ladder
   - UC-27 Làm bài kiểm tra cuối lộ trình
-  - UC-28 Chạy Benchmark Lab
   - UC-29 Làm Daily Quest và giữ Streak
   - UC-30 Mua vật phẩm Gems Shop
   - UC-31 Xem Leaderboard

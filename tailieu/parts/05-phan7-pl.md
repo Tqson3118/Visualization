@@ -234,7 +234,7 @@ Về chức năng, hệ thống đã bao phủ các luồng chính: học theo l
 2. **Cắt phạm vi sớm và dứt khoát**: 8 bài học chất lượng cao hoàn chỉnh tốt hơn 18 bài dở dang; quyết định cắt phải ghi lại lý do trong tài liệu để không tái tranh luận.
 3. **Tài liệu đi song song với code**: cập nhật tài liệu theo từng sprint, không dồn cuối kỳ; mọi nội dung báo cáo truy ngược được về SRS/SDD/API.
 4. **Đầu tư đúng chỗ vào engine lõi**: kiến trúc EDV (mã thật chạy, phát lại trace) giúp thêm mô phỏng mới không phải viết lại hoạt ảnh — chi phí ban đầu cao nhưng tiết kiệm về sau.
-5. **Dự trù thời gian cho sprint rủi ro cao**: chấm điểm code (S7) và nhóm Premium + Class + Benchmark (S9) là hai sprint nặng nhất; cần buffer hoặc sẵn sàng hoãn tính năng không thiết yếu.
+5. **Dự trù thời gian cho sprint rủi ro cao**: chấm điểm code (S7) và nhóm Premium + Class (S9) là hai sprint nặng nhất; cần buffer hoặc sẵn sàng hoãn tính năng không thiết yếu.
 
 ## Hướng phát triển
 

@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | API Reference |
-| Phiên bản | 1.7 |
-| Ngày cập nhật | 14/08/2026 |
+| Phiên bản | 1.8 |
+| Ngày cập nhật | 19/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
