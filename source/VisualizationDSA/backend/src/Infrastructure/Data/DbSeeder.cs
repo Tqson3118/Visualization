@@ -29,6 +29,7 @@ namespace VisualizationDSA.Infrastructure.Data
             try { await SeedQuizzesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedQuizzes Error]: {ex.Message}"); }
             try { await SeedCoursesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedCourses Error]: {ex}"); }
             try { await SeedSemanticGraphAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedGraph Error]: {ex.Message}"); }
+            try { await new RealDataSeeder(_context).SeedAsync(); } catch (Exception ex) { Console.WriteLine($"[RealData Error]: {ex}"); }
         }
 
         private async Task SeedBadgesAsync()
