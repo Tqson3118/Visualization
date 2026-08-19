@@ -25,7 +25,6 @@ namespace VisualizationDSA.Infrastructure.Data
         public async Task SeedAsync()
         {
             try { await SeedBadgesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedBadges Error]: {ex.Message}"); }
-            try { await SeedLeaderboardUsersAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedUsers Error]: {ex.Message}"); }
             try { await SeedQuizzesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedQuizzes Error]: {ex.Message}"); }
             try { await SeedCoursesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedCourses Error]: {ex}"); }
             try { await SeedSemanticGraphAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedGraph Error]: {ex.Message}"); }
@@ -687,7 +686,6 @@ namespace VisualizationDSA.Infrastructure.Data
             var users = new (string email, string username, string password, int xp, int level, int streak, string role)[]
             {
                 ("hungnv@fpt.edu.vn",             "Nguyễn Văn Hùng",          "RealData@2024", 9999, 10, 30, "Admin"),
-                ("admin@fpt.edu.vn",              "Nguyễn Văn Hùng",          "RealData@2024", 9999, 10, 30, "Admin"),
                 ("baolqse1801@fpt.edu.vn",        "Lê Quốc Bảo",              "RealData@2024", 3800, 10, 21, "Student"),
                 ("nhungtthse1802@fpt.edu.vn",     "Trần Thị Hồng Nhung",      "RealData@2024", 3550, 9,  28, "Student"),
                 ("ducpmse1803@fpt.edu.vn",        "Phạm Minh Đức",            "RealData@2024", 3200, 9,  14, "Student"),
@@ -762,18 +760,10 @@ namespace VisualizationDSA.Infrastructure.Data
             await _context.SaveChangesAsync();
         }
 
-        private static bool IsDevelopmentCredential(string email)
-        {
-            return email.Equals("admin@visualizationdsa.dev", StringComparison.OrdinalIgnoreCase)
-                || email.Equals("admin@gmail.com", StringComparison.OrdinalIgnoreCase)
-                || email.Equals("demo@visualizationdsa.dev", StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsDevelopmentCredential(string email) => false;
 
         private static string HashPasswordSHA256(string password)
-        {
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"));
-            return Convert.ToHexString(bytes).ToLowerInvariant();
-        }
+            => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
 
         private async Task SeedSemanticGraphAsync()
         {

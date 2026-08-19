@@ -699,7 +699,7 @@ export const messages = {
       roleAria: 'Biểu đồ phân bố vai trò',
       noteSimsPrefix: 'Tổng mô phỏng trong danh mục:',
       noteSimsSuffix: '(engines/catalog)',
-      noteMock: 'Dữ liệu doanh thu 7 ngày và cơ cấu người dùng được cập nhật trực tiếp từ hệ thống.',
+      noteLiveData: 'Dữ liệu doanh thu 7 ngày và cơ cấu người dùng được cập nhật trực tiếp từ hệ thống.',
       // Nguồn số liệu trực tiếp
       noteRefresh: 'Số liệu KPI lấy tại thời điểm mở trang — tải lại để xem giá trị mới.',
       // Nhãn biểu đồ

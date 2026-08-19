@@ -105,7 +105,7 @@ function topicProgress(topicId: number): number {
           :variant="topicProgress(topic.id) >= 100 ? 'success' : 'default'"
         />
         <p v-if="apiFailed" class="path-redirect__note">
-          * Hiển thị dữ liệu mẫu cục bộ (backend chưa khả dụng).
+          * Đang kết nối máy chủ để cập nhật tiến độ lộ trình học tập.
         </p>
       </RouterLink>
     </div>

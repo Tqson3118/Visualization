@@ -103,11 +103,25 @@ internal sealed class RealDataSeeder
 
     private async Task RemoveLegacyUsersAsync()
     {
-        var keep = Teachers.Select(t => t.Email).Concat(Anchors.Select(a => a.Email)).Concat(new[] { "hungnv@fpt.edu.vn" }).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var legacy = await _db.Users.Where(u => !keep.Contains(u.Email) && (u.Email.EndsWith("@visualizationdsa.dev") || u.Email == "admin@gmail.com")).ToListAsync();
+        var canonicalEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "hungnv@fpt.edu.vn"
+        };
+        foreach (var t in Teachers) canonicalEmails.Add(t.Email);
+        foreach (var a in Anchors) canonicalEmails.Add(a.Email);
+        for (var rank = 25; rank <= 120; rank++)
+        {
+            var className = Classes[(rank - 25) % Classes.Length];
+            var given = Given[rank % Given.Length];
+            var email = $"{Transliterate(given)}{rank:000}{className.ToLowerInvariant()}@fpt.edu.vn";
+            canonicalEmails.Add(email);
+        }
+        var pending = new[] { "ngocpttse@fpt.edu.vn", "quandmse@fpt.edu.vn", "lannttse@fpt.edu.vn", "binhhvse@fpt.edu.vn", "phucltse@fpt.edu.vn", "vutdse@fpt.edu.vn", "yenmtse@fpt.edu.vn", "sondcse@fpt.edu.vn" };
+        foreach (var p in pending) canonicalEmails.Add(p);
+
+        var legacy = await _db.Users.Where(u => !canonicalEmails.Contains(u.Email)).ToListAsync();
         if (legacy.Count == 0) return;
-        // Legacy users có thể là author khóa học (Course.TeacherId -> User là Restrict):
-        // xóa course (cascade module/item/lesson) của họ TRƯỚC, rồi mới xóa user.
+
         var legacyIds = legacy.Select(u => u.Id).ToList();
         var legacyCourses = await _db.Courses.Where(c => legacyIds.Contains(c.TeacherId)).ToListAsync();
         _db.Courses.RemoveRange(legacyCourses);
@@ -368,7 +382,7 @@ internal sealed class RealDataSeeder
         foreach (var key in favoriteKeys) if (!await _db.Favorites.AnyAsync(f => f.UserId == bao.Id && f.SimulationKey == key)) await _db.Favorites.AddAsync(new Favorite(bao.Id, key));
     }
 
-    private static string Hash(string password) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"))).ToLowerInvariant();
+    private static string Hash(string password) => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
     private static string Transliterate(string value)
     {
         var normalized = value.Normalize(NormalizationForm.FormD);
