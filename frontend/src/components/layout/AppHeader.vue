@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // AppHeader — thanh điều hướng chung (SDD §8.7 — navigation theo vai trò)
 // Tân trang 15/08: trong suốt (transparent) khi ở đầu trang chủ → glass blur + viền mờ
 // khi cuộn hoặc ở trang khác; palette "terminal dark" bê từ VisualizationDSA-main
@@ -21,7 +21,6 @@ const ui = useUiStore();
 const router = useRouter();
 const menuOpen = ref(false);
 const mobileNavOpen = ref(false);
-const sandboxOpen = ref(false);
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
@@ -69,27 +68,6 @@ async function onLogout(): Promise<void> {
       <nav class="app-header__nav" aria-label="Điều hướng chính">
         <RouterLink :to="{ name: 'courses' }" class="app-header__link">{{ messages.nav.path }}</RouterLink>
         <RouterLink :to="{ name: 'simulations' }" class="app-header__link">{{ messages.nav.simulations }}</RouterLink>
-        <div class="app-header__dropdown">
-          <button type="button" class="app-header__link app-header__dropdown-btn" :aria-expanded="sandboxOpen" @click="sandboxOpen = !sandboxOpen">
-            Sandbox <span class="app-header__caret">▾</span>
-          </button>
-          <Transition name="app-menu">
-            <div v-if="sandboxOpen" class="app-header__menu app-header__menu--sandbox">
-              <RouterLink :to="{ name: 'sorting-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Sorting Sandbox
-              </RouterLink>
-              <RouterLink :to="{ name: 'searching-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Searching Sandbox
-              </RouterLink>
-              <RouterLink :to="{ name: 'graph-playground' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Graph Playground
-              </RouterLink>
-              <RouterLink :to="{ name: 'stack-queue-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Stack &amp; Queue Sandbox
-              </RouterLink>
-            </div>
-          </Transition>
-        </div>
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
@@ -169,18 +147,6 @@ async function onLogout(): Promise<void> {
           <RouterLink :to="{ name: 'simulations' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             {{ messages.nav.simulations }}
           </RouterLink>
-          <RouterLink :to="{ name: 'sorting-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Sorting Sandbox
-          </RouterLink>
-          <RouterLink :to="{ name: 'searching-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Searching Sandbox
-          </RouterLink>
-          <RouterLink :to="{ name: 'graph-playground' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Graph Playground
-          </RouterLink>
-          <RouterLink :to="{ name: 'stack-queue-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Stack &amp; Queue Sandbox
-          </RouterLink>
           <RouterLink :to="{ name: 'classes' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Lớp học
           </RouterLink>
@@ -259,8 +225,7 @@ async function onLogout(): Promise<void> {
 .app-header__nav {
   display: flex;
   gap: 2rem; /* cách đều, thoáng giữa các mục */
-  /* KHÔNG dùng overflow-x: auto — nó buộc overflow-y thành auto → menu dropdown
-     Sandbox (absolute, tràn ra ngoài nav) bị CẮT. Desktop ≥ 900px nav vừa đủ chỗ. */
+  /* Giữ nav không cắt nội dung trên desktop. */
   overflow: visible;
 }
 
@@ -296,39 +261,6 @@ async function onLogout(): Promise<void> {
   text-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
 }
 .app-header__link.router-link-exact-active::after { right: 0; }
-
-/* Dropdown Sandbox (3 trang bê từ VisualizationDSA3) */
-.app-header__dropdown {
-  position: relative;
-  display: inline-flex;
-}
-
-.app-header__dropdown-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.app-header__caret {
-  font-size: 10px;
-  color: var(--hdr-muted);
-  transition: transform 150ms ease;
-}
-
-.app-header__dropdown:hover .app-header__caret,
-.app-header__dropdown-btn[aria-expanded='true'] .app-header__caret {
-  transform: rotate(180deg);
-}
-
-.app-header__menu--sandbox {
-  top: calc(100% + 8px);
-  left: 0;
-  right: auto;
-  min-width: 180px;
-}
 
 .app-header__actions {
   position: relative;
