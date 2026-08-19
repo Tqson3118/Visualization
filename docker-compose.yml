@@ -7,7 +7,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-DsaVisual@Dev123}   # placeholder dev — đổi khi deploy
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Dsa!2026Pass}   # local real-data SQL Server password
     ports:
       - "1433:1433"
     volumes:
@@ -30,7 +30,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       DSA__Jwt__Secret: ${DSA__Jwt__Secret:-change-me-dev-secret-0123456789abcdef}
-      ConnectionStrings__Default: Server=sqlserver;Database=DsaVisual;User Id=sa;Password=${MSSQL_SA_PASSWORD:-DsaVisual@Dev123};TrustServerCertificate=True
+      ConnectionStrings__Default: Server=sqlserver;Database=DsaVisual;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Dsa!2026Pass};TrustServerCertificate=True
       DSA__Cors__AllowedOrigins: http://localhost:8081
       DSA__Email__SmtpHost: mailhog
       DSA__Email__SmtpPort: "1025"

@@ -116,6 +116,31 @@ namespace VisualizationDSA.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // SQL Server: chống "multiple cascade paths" — Classroom.OwnerTeacherId không cascade
+            // (ClassroomQuizAttempt có 2 đường cascade tới Users nếu để Cascade).
+            modelBuilder.Entity<Classroom>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.OwnerTeacher)
+                    .WithMany()
+                    .HasForeignKey(e => e.OwnerTeacherId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // SQL Server: ClassroomQuizAttempt.StudentId phải NoAction (cùng bảng bị 2 cascade path tới Users).
+            modelBuilder.Entity<ClassroomQuizAttempt>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.ClassroomQuiz)
+                    .WithMany(c => c.Attempts)
+                    .HasForeignKey(e => e.ClassroomQuizId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Student)
+                    .WithMany()
+                    .HasForeignKey(e => e.StudentId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
             
             modelBuilder.Entity<ClassroomModule>(entity =>
             {
@@ -276,6 +301,14 @@ namespace VisualizationDSA.Infrastructure.Data
             modelBuilder.Entity<ClassroomEnrollment>(entity =>
             {
                 entity.HasIndex(e => new { e.ClassroomId, e.StudentId }).IsUnique();
+                entity.HasOne(e => e.Classroom)
+                    .WithMany(c => c.Enrollments)
+                    .HasForeignKey(e => e.ClassroomId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Student)
+                    .WithMany()
+                    .HasForeignKey(e => e.StudentId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // Chống race double-deduct XP khi reveal hint trả phí 2 request song song.
@@ -431,7 +464,7 @@ namespace VisualizationDSA.Infrastructure.Data
                 
                 entity.Property(e => e.LastActivityDate).IsRequired(false);
                 entity.Property(e => e.Role).IsRequired().HasMaxLength(20).HasDefaultValue("Student");
-                if (!Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     entity.Property<uint>("xmin")
                         .HasColumnType("xid")
@@ -534,7 +567,8 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 
                 var embeddingProp = entity.Property(e => e.Embedding);
-                if (Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true ||
+                    Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     embeddingProp.HasConversion(
                         v => v == null ? null : string.Join(",", v),
@@ -584,9 +618,13 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.Property(e => e.Path).HasMaxLength(500);
                 
                 var payloadProp = entity.Property(e => e.Payload);
-                if (!Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     payloadProp.HasColumnType("jsonb");
+                }
+                else if (Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    payloadProp.HasColumnType("nvarchar(max)");
                 }
             });
 
@@ -648,7 +686,7 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.HasOne(e => e.ParentComment)
                       .WithMany(c => c.Replies)
                       .HasForeignKey(e => e.ParentId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.NoAction);
             });
 
             

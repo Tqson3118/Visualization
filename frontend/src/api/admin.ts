@@ -45,6 +45,11 @@ export interface AdminUserDto {
   joinedClassesCount?: number;
 }
 
+export interface AdminRoleDistributionDto {
+  role: string;
+  count: number;
+}
+
 export interface AdminStatsDto {
   totalUsers: number;
   totalLessons: number;
@@ -57,6 +62,7 @@ export interface AdminStatsDto {
   pendingOrders?: number;
   completedOrders?: number;
   cancelledOrders?: number;
+  roleDistribution?: AdminRoleDistributionDto[];
   revenueByDay?: Array<{ date: string; revenue: number; orders: number }>;
   recentOrders?: Array<{
     id: string;
