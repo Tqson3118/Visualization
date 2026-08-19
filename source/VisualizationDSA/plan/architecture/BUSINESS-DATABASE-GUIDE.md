@@ -9,7 +9,7 @@
 1. [Tổng quan nghiệp vụ](#1-tổng-quan-nghiệp-vụ)
 2. [Nguyên tắc thiết kế Database](#2-nguyên-tắc-thiết-kế-database)
 3. [Sơ đồ quan hệ thực thể (ERD tóm tắt)](#3-sơ đồ-quan-hệ-thực-thể-erd-tóm-tắt)
-4. [Hướng dẫn chi tiết 40 Table](#4-hướng-dẫn-chi-tiết-40-table)
+4. [Hướng dẫn chi tiết 55 Table](#4-hướng-dẫn-chi-tiết-55-table)
 5. [Luồng nghiệp vụ chính](#5-luồng-nghiệp-vụ-chính)
 
 ---
@@ -21,24 +21,26 @@
 ### 🎯 Mục tiêu nghiệp vụ
 - **Học tập trực quan**: Sinh viên học DSA qua hoạt ảnh 60 FPS thay vì lý thuyết khô khan
 - **Hệ thống Giảng viên**: GV tạo khóa học, quiz, codelab, quản lý lớp học
-- **Hệ thống Admin**: Quản trị người dùng, quiz, hệ thống
-- **Gamification**: Tích lũy XP, lên level, streak, huy hiệu để động viên học
+- **Hệ thống Admin**: Quản trị người dùng, quiz, hệ thống, doanh thu và thống kê
+- **Gamification**: Tích lũy XP, lên level, streak, huy hiệu, nhiệm vụ ngày/tuần/tháng, cửa hàng gems
 - **Trắc nghiệm tương tác**: Kiểm tra kiến thức qua quiz trong bài giảng
 - **Thực hành Code**: Codelab chấm code thực tế qua Piston API
 
 ### 👥 Vai trò người dùng (Roles)
 | Vai trò | Quyền hạn |
 |---------|-----------|
-| **Student** | Học bài, làm quiz, codelab, xem tiến độ |
+| **Student** | Học bài, làm quiz, codelab, xem tiến độ, nhận nhiệm vụ, mua sắm gems |
 | **Teacher** | Tạo khóa học, quiz, codelab, quản lý lớp |
-| **Admin** | Quản lý người dùng, quiz, hệ thống, audit |
+| **PendingTeacher** | Giảng viên đăng ký chờ admin phê duyệt |
+| **Admin** | Quản lý người dùng, nội dung, hệ thống, tài chính đơn hàng, audit |
 
 ### 📊 Metrics theo dõi
 - **XP (Experience Point)**: Điểm kinh nghiệm tích lũy khi học
-- **Level**: Cấp độ (tính theo ngưỡng XP: 0, 100, 300, 600, 1000, 1500, 2200, 3000)
+- **Level**: Cấp độ (tính theo ngưỡng XP: 0, 100, 300, 600, 1000, 1500, 2200, 3000, 3800...)
 - **Streak**: Chuỗi ngày học liên tiếp
-- **Badges**: Huy hiệu đạt được khi đủ điều kiện
+- **Badges**: Huy hiệu đạt được khi đủ điều kiện (22 loại huy hiệu)
 - **Progress**: % hoàn thành bài học, module, khóa học
+- **Gems**: Đơn vị tiền tệ ảo nhận từ nhiệm vụ để đổi vật phẩm trong shop
 
 ---
 
@@ -57,7 +59,7 @@
 │     (Entities, Value Objects, Domain Services)       │
 ├─────────────────────────────────────────────────────┤
 │                   Infrastructure                      │
-│         (EF Core, PostgreSQL, Repositories)          │
+│         (EF Core, SQL Server 2022, Repositories)     │
 └─────────────────────────────────────────────────────┘
 ```
 
