@@ -209,7 +209,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           // ConfigJson từ SeedGrokkingData (assignment): { signature, language, testCases }
           codelabTask = {
             description: config.signature ?? detail.title,
-            initialCode: '// Viết code của bạn ở đây\nfunction solve() {\n  // TODO\n}',
+            initialCode: '// Viết code của bạn ở đây\nfunction solve() {\n  // Cài đặt giải thuật tại đây\n}',
             solution: '',
             entryFunction: config.testCases?.[0]?.entryFunction ?? 'solve',
             testCases: (config.testCases ?? []).map((tc: { name?: string; input?: string; expectedOutput?: string; isHidden?: boolean }) => ({

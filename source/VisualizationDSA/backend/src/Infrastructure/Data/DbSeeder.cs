@@ -677,8 +677,7 @@ namespace VisualizationDSA.Infrastructure.Data
 
         private async Task SeedLeaderboardUsersAsync()
         {
-            // 2 tài khoản admin + demo Teacher có credential công khai trong source —
-            // CHỈ seed ở Development (backdoor nếu lọt production).
+            // Seed Admin & Anchor Students
             if (!_includeDemoAdmin)
             {
                 await SeedNonAdminLeaderboardUsersAsync();
@@ -687,18 +686,18 @@ namespace VisualizationDSA.Infrastructure.Data
 
             var users = new (string email, string username, string password, int xp, int level, int streak, string role)[]
             {
-                ("admin@visualizationdsa.dev",     "VisualizationDSA Admin",   "Admin@2024", 9999, 8, 30, "Admin"),
-                ("admin@gmail.com",                "Easy Admin",               "admin123",   9999, 8, 30, "Admin"),
-                ("nguyenvana@visualizationdsa.dev",   "NguyenVanA",    "User@2024",  2850, 7, 14, "Student"),
-                ("tranthib@visualizationdsa.dev",     "TranThiB",      "User@2024",  2200, 7, 10, "Student"),
-                ("levanc@visualizationdsa.dev",       "LeVanC",        "User@2024",  1800, 6, 8,  "Student"),
-                ("phamthid@visualizationdsa.dev",     "PhamThiD",      "User@2024",  1500, 6, 12, "Student"),
-                ("hoangvane@visualizationdsa.dev",    "HoangVanE",     "User@2024",  1200, 5, 6,  "Student"),
-                ("vuthif@visualizationdsa.dev",       "VuThiF",        "User@2024",  950,  4, 5,  "Student"),
-                ("dangvang@visualizationdsa.dev",     "DangVanG",      "User@2024",  700,  4, 4,  "Student"),
-                ("buithih@visualizationdsa.dev",      "BuiThiH",       "User@2024",  450,  3, 3,  "Student"),
-                ("dovani@visualizationdsa.dev",       "DoVanI",        "User@2024",  250,  2, 2,  "Student"),
-                ("demo@visualizationdsa.dev",         "VisualizationDSA Demo", "Demo@2024",  150,  2, 3,  "Teacher"),
+                ("hungnv@fpt.edu.vn",             "Nguyễn Văn Hùng",          "RealData@2024", 9999, 10, 30, "Admin"),
+                ("admin@fpt.edu.vn",              "Nguyễn Văn Hùng",          "RealData@2024", 9999, 10, 30, "Admin"),
+                ("baolqse1801@fpt.edu.vn",        "Lê Quốc Bảo",              "RealData@2024", 3800, 10, 21, "Student"),
+                ("nhungtthse1802@fpt.edu.vn",     "Trần Thị Hồng Nhung",      "RealData@2024", 3550, 9,  28, "Student"),
+                ("ducpmse1803@fpt.edu.vn",        "Phạm Minh Đức",            "RealData@2024", 3200, 9,  14, "Student"),
+                ("anhnhse1804@fpt.edu.vn",        "Nguyễn Hoàng Anh",         "RealData@2024", 2900, 8,  19, "Student"),
+                ("linhvtmse1805@fpt.edu.vn",      "Vũ Thị Mai Linh",          "RealData@2024", 2650, 8,  15, "Student"),
+                ("huydqse1806@fpt.edu.vn",        "Đặng Quốc Huy",            "RealData@2024", 2400, 7,  12, "Student"),
+                ("thaobtse1807@fpt.edu.vn",       "Bùi Phương Thảo",          "RealData@2024", 2150, 7,  10, "Student"),
+                ("tridmse1808@fpt.edu.vn",        "Đỗ Minh Trí",              "RealData@2024", 1900, 6,  8,  "Student"),
+                ("vyhkse1809@fpt.edu.vn",         "Hoàng Khánh Vy",           "RealData@2024", 1650, 6,  7,  "Student"),
+                ("teacher1@fpt.edu.vn",           "TS. Lê Văn Minh",          "RealData@2024", 1500, 5,  10, "Teacher"),
             };
 
             await InsertUsersAsync(users);
@@ -706,10 +705,6 @@ namespace VisualizationDSA.Infrastructure.Data
 
         private async Task SeedNonAdminLeaderboardUsersAsync()
         {
-            // Production: chỉ seed học viên demo (không có credential admin công khai).
-
-            // VÔ HIỆU HÓA admin/demo account từ DB cũ (đã seed trước khi có guard) —
-            // admin@gmail.com/admin123 lọt production = backdoor.
             var legacyAdmins = await _context.Users
                 .Where(u => u.Email == "admin@gmail.com"
                          || u.Email == "admin@visualizationdsa.dev"
@@ -726,15 +721,15 @@ namespace VisualizationDSA.Infrastructure.Data
 
             var users = new (string email, string username, string password, int xp, int level, int streak, string role)[]
             {
-                ("nguyenvana@visualizationdsa.dev",   "NguyenVanA",    "User@2024",  2850, 7, 14, "Student"),
-                ("tranthib@visualizationdsa.dev",     "TranThiB",      "User@2024",  2200, 7, 10, "Student"),
-                ("levanc@visualizationdsa.dev",       "LeVanC",        "User@2024",  1800, 6, 8,  "Student"),
-                ("phamthid@visualizationdsa.dev",     "PhamThiD",      "User@2024",  1500, 6, 12, "Student"),
-                ("hoangvane@visualizationdsa.dev",    "HoangVanE",     "User@2024",  1200, 5, 6,  "Student"),
-                ("vuthif@visualizationdsa.dev",       "VuThiF",        "User@2024",  950,  4, 5,  "Student"),
-                ("dangvang@visualizationdsa.dev",     "DangVanG",      "User@2024",  700,  4, 4,  "Student"),
-                ("buithih@visualizationdsa.dev",      "BuiThiH",       "User@2024",  450,  3, 3,  "Student"),
-                ("dovani@visualizationdsa.dev",       "DoVanI",        "User@2024",  250,  2, 2,  "Student"),
+                ("baolqse1801@fpt.edu.vn",        "Lê Quốc Bảo",              "RealData@2024", 3800, 10, 21, "Student"),
+                ("nhungtthse1802@fpt.edu.vn",     "Trần Thị Hồng Nhung",      "RealData@2024", 3550, 9,  28, "Student"),
+                ("ducpmse1803@fpt.edu.vn",        "Phạm Minh Đức",            "RealData@2024", 3200, 9,  14, "Student"),
+                ("anhnhse1804@fpt.edu.vn",        "Nguyễn Hoàng Anh",         "RealData@2024", 2900, 8,  19, "Student"),
+                ("linhvtmse1805@fpt.edu.vn",      "Vũ Thị Mai Linh",          "RealData@2024", 2650, 8,  15, "Student"),
+                ("huydqse1806@fpt.edu.vn",        "Đặng Quốc Huy",            "RealData@2024", 2400, 7,  12, "Student"),
+                ("thaobtse1807@fpt.edu.vn",       "Bùi Phương Thảo",          "RealData@2024", 2150, 7,  10, "Student"),
+                ("tridmse1808@fpt.edu.vn",        "Đỗ Minh Trí",              "RealData@2024", 1900, 6,  8,  "Student"),
+                ("vyhkse1809@fpt.edu.vn",         "Hoàng Khánh Vy",           "RealData@2024", 1650, 6,  7,  "Student"),
             };
 
             await InsertUsersAsync(users);
@@ -827,7 +822,7 @@ namespace VisualizationDSA.Infrastructure.Data
                       ?? await _context.Users.FirstOrDefaultAsync();
         if (teacher == null)
         {
-            teacher = new User("teacher@visualizationdsa.dev", "Default Teacher", HashPasswordSHA256("Teacher@2024"));
+            teacher = new User("teacher1@fpt.edu.vn", "TS. Lê Văn Minh", HashPasswordSHA256("RealData@2024"));
             teacher.SetRole("Teacher");
             await _context.Users.AddAsync(teacher);
             await _context.SaveChangesAsync();

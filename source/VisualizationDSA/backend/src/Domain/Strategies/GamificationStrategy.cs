@@ -116,35 +116,38 @@ namespace VisualizationDSA.Domain.Strategies
 
         private static StatelessUserProfile BuildDemoProfile() => new()
         {
-            UserId = "demo-user",
-            Username = "VisualizationDSA Student",
-            TotalXp = 150,
-            CurrentLevel = 2,
-            LevelName = "Explorer",
-            StreakDays = 3,
+            UserId = "baolqse1801",
+            Username = "Lê Quốc Bảo",
+            TotalXp = 3800,
+            CurrentLevel = 10,
+            LevelName = "Legend",
+            StreakDays = 21,
             EarnedBadges = new List<StatelessBadgeDto>
             {
-                new() { Id = "first-steps", Name = "First Steps", Description = "Hoàn thành bài trắc nghiệm đầu tiên", Icon = "🎯", Color = "#22c55e", EarnedAt = "2026-06-01T10:00:00Z" }
+                new() { Id = "first-steps", Name = "First Steps", Description = "Hoàn thành bài trắc nghiệm đầu tiên", Icon = "🎯", Color = "#22c55e", EarnedAt = "2026-08-01T10:00:00Z" },
+                new() { Id = "sorting-wizard", Name = "Sorting Wizard", Description = "Hoàn thành 4 thuật toán sắp xếp", Icon = "⚡", Color = "#3b82f6", EarnedAt = "2026-08-05T14:30:00Z" },
+                new() { Id = "oop-guru", Name = "OOP Guru", Description = "Hiểu rõ Encapsulation & Inheritance", Icon = "🔐", Color = "#8b5cf6", EarnedAt = "2026-08-10T09:15:00Z" },
+                new() { Id = "solid-master", Name = "SOLID Master", Description = "Áp dụng đúng 5 nguyên lý SOLID", Icon = "🏛️", Color = "#f59e0b", EarnedAt = "2026-08-15T16:00:00Z" }
             },
             RecentActivity = new List<StatelessXpEvent>
             {
-                new() { Type = "QUIZ_COMPLETE", Amount = 50, Description = "Quiz 'Cơ bản về Sắp xếp' hoàn thành", Timestamp = "2026-06-05T08:30:00Z" },
-                new() { Type = "MODULE_FINISH", Amount = 100, Description = "Module OOP Visualization hoàn thành", Timestamp = "2026-06-04T14:20:00Z" },
+                new() { Type = "QUIZ_COMPLETE", Amount = 50, Description = "Quiz 'Bubble Sort Mastery' hoàn thành", Timestamp = "2026-08-18T08:30:00Z" },
+                new() { Type = "MODULE_FINISH", Amount = 100, Description = "Module '01. Cơ bản' hoàn thành", Timestamp = "2026-08-17T14:20:00Z" },
             }
         };
 
         private static List<StatelessLeaderboardEntry> BuildMockLeaderboard() => new()
         {
-            new() { Rank = 1, Username = "NguyenVanA",   TotalXp = 2850, Level = 7, LevelName = "Grandmaster", BadgeCount = 6, StreakDays = 14 },
-            new() { Rank = 2, Username = "TranThiB",     TotalXp = 2200, Level = 7, LevelName = "Grandmaster", BadgeCount = 5, StreakDays = 10 },
-            new() { Rank = 3, Username = "LeVanC",       TotalXp = 1800, Level = 6, LevelName = "Master",      BadgeCount = 5, StreakDays = 8  },
-            new() { Rank = 4, Username = "PhamThiD",     TotalXp = 1500, Level = 6, LevelName = "Master",      BadgeCount = 4, StreakDays = 12 },
-            new() { Rank = 5, Username = "HoangVanE",    TotalXp = 1200, Level = 5, LevelName = "Expert",      BadgeCount = 4, StreakDays = 6  },
-            new() { Rank = 6, Username = "VuThiF",       TotalXp = 950,  Level = 4, LevelName = "Practitioner",BadgeCount = 3, StreakDays = 5  },
-            new() { Rank = 7, Username = "DangVanG",     TotalXp = 700,  Level = 4, LevelName = "Practitioner",BadgeCount = 3, StreakDays = 4  },
-            new() { Rank = 8, Username = "BuiThiH",      TotalXp = 450,  Level = 3, LevelName = "Learner",     BadgeCount = 2, StreakDays = 3  },
-            new() { Rank = 9, Username = "DoVanI",        TotalXp = 250,  Level = 2, LevelName = "Explorer",    BadgeCount = 1, StreakDays = 2  },
-            new() { Rank = 10, Username = "VisualizationDSA Student", TotalXp = 150, Level = 2, LevelName = "Explorer", BadgeCount = 1, StreakDays = 3  },
+            new() { Rank = 1,  Username = "Lê Quốc Bảo",          TotalXp = 3800, Level = 10, LevelName = "Legend",       BadgeCount = 14, StreakDays = 21 },
+            new() { Rank = 2,  Username = "Trần Thị Hồng Nhung",  TotalXp = 3550, Level = 9,  LevelName = "Master",       BadgeCount = 12, StreakDays = 28 },
+            new() { Rank = 3,  Username = "Phạm Minh Đức",        TotalXp = 3200, Level = 9,  LevelName = "Master",       BadgeCount = 11, StreakDays = 14 },
+            new() { Rank = 4,  Username = "Nguyễn Hoàng Anh",     TotalXp = 2900, Level = 8,  LevelName = "Grandmaster",  BadgeCount = 10, StreakDays = 19 },
+            new() { Rank = 5,  Username = "Vũ Thị Mai Linh",      TotalXp = 2650, Level = 8,  LevelName = "Grandmaster",  BadgeCount = 9,  StreakDays = 15 },
+            new() { Rank = 6,  Username = "Đặng Quốc Huy",        TotalXp = 2400, Level = 7,  LevelName = "Expert",       BadgeCount = 8,  StreakDays = 12 },
+            new() { Rank = 7,  Username = "Bùi Phương Thảo",      TotalXp = 2150, Level = 7,  LevelName = "Expert",       BadgeCount = 7,  StreakDays = 10 },
+            new() { Rank = 8,  Username = "Đỗ Minh Trí",          TotalXp = 1900, Level = 6,  LevelName = "Practitioner", BadgeCount = 6,  StreakDays = 8  },
+            new() { Rank = 9,  Username = "Hoàng Khánh Vy",       TotalXp = 1650, Level = 6,  LevelName = "Practitioner", BadgeCount = 5,  StreakDays = 7  },
+            new() { Rank = 10, Username = "Ngô Gia Bảo",          TotalXp = 1400, Level = 5,  LevelName = "Learner",      BadgeCount = 4,  StreakDays = 5  },
         };
     }
 }

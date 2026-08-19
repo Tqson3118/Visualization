@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// AdminStatsView — Màn 11: 5 KPI + bar chart ECharts (VChartLazy, 7 ngày)
+// AdminStatsView — Màn 11: 7 KPI (1 Hero + 6 Level-1) + bar chart ECharts (VChartLazy, 7 ngày)
 // + donut SVG tự vẽ (phân bố vai trò).
 // View-quality 14/08 (Nhóm D): banner surface band + mono strip block-token;
-// 1 hero-stat (block-token tối) + 4 KPI level-1; 2 vùng biểu đồ LUÔN tối
+// 1 hero-stat (block-token tối) + 6 KPI level-1; 2 vùng biểu đồ LUÔN tối
 // canvas-ink, palette đọc CSS var (data-core/index-muted/canvas-ink) + text
 // #d9dde8 (engine canvasTheme.ts — decision log 14/08); error state + retry.
 import { computed, onMounted, ref } from 'vue';
@@ -51,8 +51,7 @@ function cssVar(name: string, fallback: string): string {
   return val || fallback;
 }
 
-// ── 5 KPI (AdminStatsDto: totalUsers/totalLessons/totalExercises/totalSimulations/activeUsersToday) ──
-// §6: tối đa 1 hero-stat/màn → totalUsers = hero (block-token tối); còn lại level-1.
+// ── 7 KPI (1 Hero: totalUsers + 6 Level-1: totalLessons, totalExercises, totalSimulations, activeUsersToday, totalOrders, totalRevenue) ──
 const KPIS: Array<{ key: keyof AdminStatsDto; label: string }> = [
   { key: 'totalLessons', label: messages.admin.stats.totalLessons },
   { key: 'totalExercises', label: messages.admin.stats.totalExercises },
@@ -62,8 +61,8 @@ const KPIS: Array<{ key: keyof AdminStatsDto; label: string }> = [
   { key: 'totalRevenue', label: 'Doanh thu' },
 ];
 
-/** Strip banner: block-token dữ liệu thật — 5 chỉ số đang theo dõi + index mono. */
-const stripBlocks = [true, true, true, true, true];
+/** Strip banner: block-token dữ liệu thật — 7 chỉ số đang theo dõi + index mono. */
+const stripBlocks = [true, true, true, true, true, true, true];
 
 // ── Bar chart 7 ngày (dữ liệu THẬT từ backend revenueByDay — §1c) ──
 const revenueDays = computed(() => stats.value?.revenueByDay ?? []);
@@ -200,7 +199,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => {
               <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
             </div>
           </div>
-          <p class="admin-stats__strip-caption">{{ messages.admin.stats.stripLabel(5) }}</p>
+          <p class="admin-stats__strip-caption">{{ messages.admin.stats.stripLabel(KPIS.length + 1) }}</p>
         </div>
       </div>
     </header>
@@ -209,7 +208,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => {
 
     <div v-if="loading" class="admin-stats__loading" aria-busy="true">
       <div class="admin-stats__kpis">
-        <Skeleton v-for="i in 5" :key="i" height="108px" />
+        <Skeleton v-for="i in (KPIS.length + 1)" :key="i" height="108px" />
       </div>
       <div class="admin-stats__charts">
         <Skeleton v-for="i in 2" :key="i" height="280px" />
@@ -224,7 +223,7 @@ const kpiValue = (key: keyof AdminStatsDto): string => {
     </div>
 
     <template v-else-if="stats">
-      <!-- 1 hero-stat (block-token tối) + 4 KPI level-1 — §6 -->
+      <!-- 1 hero-stat (block-token tối) + 6 KPI level-1 -->
       <div class="admin-stats__kpis">
         <Card class="admin-stats__hero">
           <CardHeader class="admin-stats__hero-head">

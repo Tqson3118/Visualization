@@ -13,7 +13,7 @@ export const CODELAB_TASK_REGISTRY: Record<string, CodeLabTask> = {
     description:
       'Hoàn thiện hàm `binarySearch(arr, target)` trả về chỉ số của target trong mảng đã sắp xếp tăng dần, hoặc -1 nếu không tồn tại. Yêu cầu độ phức tạp O(log N).',
     initialCode: `function binarySearch(arr, target) {
-  // TODO: Viết code tại đây
+  // Hướng dẫn: Viết mã nguồn giải thuật tại đây
 
   return -1;
 }`,
@@ -44,7 +44,7 @@ export const CODELAB_TASK_REGISTRY: Record<string, CodeLabTask> = {
     description:
       'Hoàn thiện hàm `bubbleSort(arr)` trả về mảng đã sắp xếp tăng dần bằng thuật toán Bubble Sort (so sánh cặp liền kề, phần tử lớn "nổi" về cuối).',
     initialCode: `function bubbleSort(arr) {
-  // TODO: Viết code tại đây
+  // Hướng dẫn: Viết mã nguồn giải thuật tại đây
 
   return arr;
 }`,
@@ -79,7 +79,7 @@ export const CODELAB_TASK_REGISTRY: Record<string, CodeLabTask> = {
     description:
       'Hoàn thiện hàm `isValid(s)` kiểm tra chuỗi ngoặc `()[]{}` có hợp lệ hay không, sử dụng cấu trúc Ngăn xếp (LIFO). Trả về true nếu hợp lệ, false nếu không.',
     initialCode: `function isValid(s) {
-  // TODO: Dùng stack để kiểm tra ngoặc cân bằng
+  // Hướng dẫn: Dùng stack để kiểm tra ngoặc cân bằng
 
   return true;
 }`,
@@ -112,7 +112,7 @@ export const CODELAB_TASK_REGISTRY: Record<string, CodeLabTask> = {
     description:
       'Hoàn thiện hàm đệ quy `factorial(n)` tính n! (n ≥ 0). Đây là ví dụ kinh điển minh họa Call Stack đệ quy: mỗi lần gọi đẩy một frame lên stack cho tới base case.',
     initialCode: `function factorial(n) {
-  // TODO: Viết code đệ quy tại đây
+  // Hướng dẫn: Cài đặt giải thuật đệ quy tại đây
 
   return 0;
 }`,
@@ -137,7 +137,7 @@ export const CODELAB_TASK_REGISTRY: Record<string, CodeLabTask> = {
     description:
       'Hoàn thiện hàm `isPalindrome(s)` kiểm tra chuỗi có phải palindrome hay không (đọc xuôi ngược giống nhau, bỏ qua khoảng trắng) bằng kỹ thuật hai con trỏ trái/phải.',
     initialCode: `function isPalindrome(s) {
-  // TODO: Dùng hai con trỏ left/right tại đây
+  // Hướng dẫn: Sử dụng kỹ thuật hai con trỏ left và right
 
   return true;
 }`,

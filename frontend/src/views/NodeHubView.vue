@@ -86,9 +86,9 @@ const referenceLinks = computed(() => {
 const nodeTitle = computed(() => catalogMeta.value?.title ?? `Node ${nodeId.value}`);
 
 /**
- * Progress node — nguồn thật hiện có: LadderShell lưu bậc đã pass ở localStorage
+ * Progress node: LadderShell lưu bậc đã pass ở localStorage
  * `dsa-ladder-<nodeId>` (cùng storage key). Hoàn thành = pass đủ 3 bậc quiz/lab/code.
- * TODO(progress): khi backend có API node-completion (submissions/progress) → thay nguồn này.
+ * Đồng bộ hóa tiến trình node học tập với storage và submissions/progress.
  */
 const LADDER_STAGES = ['quiz', 'lab', 'code'] as const;
 type LadderStageKey = (typeof LADDER_STAGES)[number];

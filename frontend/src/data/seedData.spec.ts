@@ -79,7 +79,7 @@ describe('seed data: simulation keys', () => {
       }
     }
 
-    // Bài không có simulation (VD: sliding-window) phải được đánh dấu TODO trong lessons.ts
+    // Bài không có simulation (VD: sliding-window) phải có mảng simulations rỗng trong lessons.ts
     expect(missing, `simulation key thiếu trong catalog: ${JSON.stringify(missing)}`).toEqual([]);
   });
 

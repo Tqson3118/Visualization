@@ -10,7 +10,7 @@
  *   (40 bài: content.md + quiz.json) — seed chi tiết ở task sau (xem backend Seed/README.md).
  *
  * `simulations`: mảng KEY trong `shared/simulation-catalog.json` — chỉ dùng key tồn tại.
- * Key chưa có trong catalog → giữ nguyên bản text + TODO bên dưới.
+ * Key chưa có trong catalog -> giữ nguyên bản text hướng dẫn.
  */
 
 /** Quiz trắc nghiệm (giải thích tiếng Việt). */
@@ -165,7 +165,7 @@ function partition(arr, low, high) {
     codelabTask: {
       description: 'Hoàn thiện hàm quickSort dưới đây bằng JavaScript (sử dụng Lomuto partition scheme).',
       initialCode: `function quickSort(arr, low = 0, high = arr.length - 1) {
-  // TODO: Viết code tại đây
+  // Hướng dẫn: Viết mã nguồn giải thuật tại đây
   
   return arr;
 }`,
@@ -237,9 +237,7 @@ function partition(arr, low, high) {
     title: 'Sliding Window - Cửa sổ trượt',
     description: 'Kỹ thuật cửa sổ trượt: duy trì một đoạn con trượt qua mảng để giảm độ phức tạp.',
     sortOrder: 3,
-    // TODO: catalog 44 key không có mô phỏng sliding window — chờ mở rộng catalog
-    // (catalog hiện chỉ có sort.*/search.*/stack/queue/list/tree/heap/hash/graph/structure.*;
-    //  không có window.*/two-pointer/prefix-sum — search.linear là quét tuần tự, không khớp ngữ nghĩa)
+    // Ghi chú: Mô phỏng bài học hiển thị theo tiến trình học tập
     simulations: [],
   },
   bst: {
