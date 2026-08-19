@@ -46,7 +46,9 @@ const userAvatarClass = computed(() => {
 });
 
 onMounted(() => {
-  void gamification.fetchInventory();
+  if (auth.isAuthenticated) {
+    void gamification.fetchInventory();
+  }
 });
 
 async function onLogout(): Promise<void> {
