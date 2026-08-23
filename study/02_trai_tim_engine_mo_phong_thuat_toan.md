@@ -36,17 +36,17 @@ Người học không thể hiểu bubble sort chỉ bằng pseudocode tĩnh. En
 ```mermaid
 flowchart LR
     subgraph Cat["Catalog (Single Source of Truth)"]
-        J[shared/simulation-catalog.json — 44 keys]
-        C[engines/catalog.ts — registerSimulation 44 factories]
-        J -. khớp 100% key, CI fail nếu lệch .-> C
+        J["shared/simulation-catalog.json — 44 keys"]
+        C["engines/catalog.ts — registerSimulation 44 factories"]
+        J -. "khớp 100% key, CI fail nếu lệch" .-> C
     end
-    R[engines/registry.ts — Map key→factory]
-    H[engines/generators/helpers.ts — buildGenerator + Trace + RNG]
-    G1[sort/bubble.ts — PSEUDO 9 dòng]
-    G2[sort/quick.ts — Lomuto]
-    G3[tree/bst.ts — 7 generators]
-    G4[graph/* — BFS/DFS/Dijkstra]
-    T[engines/core/types.ts — Step/Structure/Element]
+    R["engines/registry.ts — Map key→factory"]
+    H["engines/generators/helpers.ts — buildGenerator + Trace + RNG"]
+    G1["sort/bubble.ts — PSEUDO 9 dòng"]
+    G2["sort/quick.ts — Lomuto"]
+    G3["tree/bst.ts — 7 generators"]
+    G4["graph/* — BFS/DFS/Dijkstra"]
+    T["engines/core/types.ts — Step/Structure/Element"]
     C --> R
     H --> G1 & G2 & G3 & G4
     G1 & G2 & G3 & G4 --> T
@@ -86,15 +86,15 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    E[Editor — code người dùng] --> W[compileWorker (Web Worker)]
-    W --> B[Babel AST instrumentation]
-    B --> X[stepExecutor — Trace + guards]
-    X -->|TraceEvent line/vars/highlight| T[TraceEvent[]]
-    T --> S[useCodeTracePlayback — sampling maxFrames 3000]
-    S --> F[Structure frames kind=array]
-    F --> CA2[CanvasArea — cùng renderer array]
-    X -. timeout 5s / MAX_STEPS 10000 / 1M ticks .-> ERR[error → null]
-    S -. step ceil len/maxFrames, luôn giữ event cuối .-> F
+    E["Editor — code người dùng"] --> W["compileWorker (Web Worker)"]
+    W --> B["Babel AST instrumentation"]
+    B --> X["stepExecutor — Trace + guards"]
+    X -->|"TraceEvent line/vars/highlight"| T["TraceEvent[]"]
+    T --> S["useCodeTracePlayback — sampling maxFrames 3000"]
+    S --> F["Structure frames kind=array"]
+    F --> CA2["CanvasArea — cùng renderer array"]
+    X -. "timeout 5s / MAX_STEPS 10000 / 1M ticks" .-> ERR["error → null"]
+    S -. "step ceil len/maxFrames, luôn giữ event cuối" .-> F
 
     style W fill:#f59e0b,stroke:#d97706,color:#fff
     style S fill:#8b5cf6,stroke:#7c3aed,color:#fff

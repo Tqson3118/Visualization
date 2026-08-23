@@ -590,6 +590,7 @@
     mermaid.initialize({
       startOnLoad: false,
       theme: 'dark',
+      securityLevel: 'loose',
       themeVariables: {
         darkMode: true,
         background: '#0b1120',
@@ -842,10 +843,17 @@
       });
 
       // Run Mermaid Safely
-      try {
-        mermaid.run();
-      } catch (err) {
-        console.warn('Mermaid rendering issue:', err);
+      if (window.mermaid) {
+        try {
+          const p = mermaid.run({ querySelector: '.mermaid' });
+          if (p && typeof p.catch === 'function') {
+            p.catch(err => {
+              console.warn('Mermaid rendering issue (ignored):', err);
+            });
+          }
+        } catch (err) {
+          console.warn('Mermaid rendering issue:', err);
+        }
       }
     }
 

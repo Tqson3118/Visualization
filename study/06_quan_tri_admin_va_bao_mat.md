@@ -40,14 +40,14 @@ Chặng 6 gom **quản trị** và **bảo mật** vì chúng cùng boundary.
 ```mermaid
 flowchart LR
     subgraph B["Browser → API"]
-        R[Request] --> JWT[JWT Validation — issuer/audience/lifetime/key]
-        JWT --> RL[RateLimiter — fixed-window per IP]
-        RL --> VAL[FluentValidation — DTO]
-        VAL --> XS[XSS HtmlSanitizer — Ganss.Xss whitelist]
-        XS --> CTRL[Controller — Authorize Roles ADMIN]
-        CTRL --> SVC[Service — EnsurePrimaryAdmin]
+        R["Request"] --> JWT["JWT Validation — issuer/audience/lifetime/key"]
+        JWT --> RL["RateLimiter — fixed-window per IP"]
+        RL --> VAL["FluentValidation — DTO"]
+        VAL --> XS["XSS HtmlSanitizer — Ganss.Xss whitelist"]
+        XS --> CTRL["Controller — Authorize Roles ADMIN"]
+        CTRL --> SVC["Service — EnsurePrimaryAdmin"]
     end
-    R -. fails .-> E[Error Envelope {error:{code,message,field}}]
+    R -. "fails" .-> E["Error Envelope {error:{code,message,field}}"]
 
     style JWT fill:#ef4444,stroke:#dc2626,color:#fff
     style VAL fill:#f59e0b,stroke:#d97706,color:#fff
@@ -61,7 +61,7 @@ sequenceDiagram
     participant A as Admin
     participant V as AdminUsersView
     participant X as Axios (Bearer ADMIN)
-    participant UC as UsersController [Authorize ADMIN]
+    participant UC as UsersController - Authorize ADMIN
     participant US as UserService
     participant DB as Users
 

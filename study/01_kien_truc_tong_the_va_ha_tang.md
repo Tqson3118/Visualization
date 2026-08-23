@@ -37,11 +37,11 @@ Nếu không hiểu **hệ thống phân tầng thế nào và một request đi
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — Vue 3 SPA (Vite)"]
-        V[Views / Features / Components]
-        R[Vue Router — createWebHistory + beforeEach]
-        P[Pinia Stores — auth/gamification/lesson/simulation]
-        RES[Security & Resilience Layer\n(Circuit Breaker + Retry + ErrorBoundary + XSS Guard)]
-        C[Axios Client — withCredentials + interceptors]
+        V["Views / Features / Components"]
+        R["Vue Router — createWebHistory + beforeEach"]
+        P["Pinia Stores — auth/gamification/lesson/simulation"]
+        RES["Security & Resilience Layer<br/>(Circuit Breaker + Retry + ErrorBoundary + XSS Guard)"]
+        C["Axios Client — withCredentials + interceptors"]
         V --> R
         R --> P
         P --> RES
@@ -49,21 +49,21 @@ flowchart TB
     end
 
     subgraph BE["Backend — ASP.NET Core .NET 10 (4-Layer Defense)"]
-        MW[Lớp 1: Middleware Pipeline\n(RateLimiting + ForwardedHeaders + ErrorHandling)]
-        CTRL[Lớp 2: Controller & Auth\n(Authorize Roles + ApiControllerBase)]
-        VAL[Lớp 3: Validation & Sanitization\n(FluentValidation + Ganss.Xss Whitelist)]
-        SVC[Lớp 4: Domain Business Rules\n(Application Services + Entity Invariants)]
-        EF[EF Core AppDbContext — DbSet 33 bảng]
+        MW["Lớp 1: Middleware Pipeline<br/>(RateLimiting + ForwardedHeaders + ErrorHandling)"]
+        CTRL["Lớp 2: Controller & Auth<br/>(Authorize Roles + ApiControllerBase)"]
+        VAL["Lớp 3: Validation & Sanitization<br/>(FluentValidation + Ganss.Xss Whitelist)"]
+        SVC["Lớp 4: Domain Business Rules<br/>(Application Services + Entity Invariants)"]
+        EF["EF Core AppDbContext — DbSet 33 bảng"]
         MW --> CTRL --> VAL --> SVC --> EF
     end
 
     subgraph INFRA["Infra & Data"]
-        SQL[(SQL Server)]
-        SMTP[SMTP / MailHog — OTP & Reset]
-        SERI[Serilog Structured Logging]
+        SQL[("SQL Server")]
+        SMTP["SMTP / MailHog — OTP & Reset"]
+        SERI["Serilog Structured Logging"]
     end
 
-    C -->|JSON + Bearer access JWT + Cookie refresh| MW
+    C -->|"JSON + Bearer access JWT + Cookie refresh"| MW
     EF --> SQL
     SVC --> SMTP
     MW --> SERI
@@ -90,7 +90,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant B as Browser (F5)
-    participant M as main.ts:bootstrap()
+    participant M as main.ts - bootstrap()
     participant P as Pinia auth store
     participant CK as Cookie refresh_token (HttpOnly)
     participant API as POST /api/v1/auth/refresh

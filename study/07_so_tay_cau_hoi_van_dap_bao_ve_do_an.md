@@ -31,17 +31,17 @@ Hội đồng không hỏi "hệ thống có gì" mà hỏi "tại sao làm vậ
 
 ```mermaid
 graph TD
-    B[Vue 3 + TypeScript + Pinia + Router] --> V[Views / Features / Components]
-    V -->|Axios JSON + Bearer + Cookie| W[ASP.NET Core .NET 10 /api/v1]
-    V -. realtime chưa chứng minh .-> H[SignalR Hub — Leaderboard/Notification]
-    W --> A[Application — DTOs/Services/Validators]
-    A --> D[Domain — Entities 33 bảng]
-    A --> I[Infra — EF Core + AppDbContext]
-    I --> P[(SQL Server)]
-    I --> X[SMTP/MailHog + VietQR offline + CodeRuns lưu trace]
-    D --> F[AlgorithmResult / FrameDto]
+    B["Vue 3 + TypeScript + Pinia + Router"] --> V["Views / Features / Components"]
+    V -->|"Axios JSON + Bearer + Cookie"| W["ASP.NET Core .NET 10 /api/v1"]
+    V -. "realtime chưa chứng minh" .-> H["SignalR Hub — Leaderboard/Notification"]
+    W --> A["Application — DTOs/Services/Validators"]
+    A --> D["Domain — Entities 33 bảng"]
+    A --> I["Infra — EF Core + AppDbContext"]
+    I --> P[("SQL Server")]
+    I --> X["SMTP/MailHog + VietQR offline + CodeRuns lưu trace"]
+    D --> F["AlgorithmResult / FrameDto"]
     F --> V
-    W --> C[RateLimiter + Ganss.Xss + Serilog + ForwardedHeaders]
+    W --> C["RateLimiter + Ganss.Xss + Serilog + ForwardedHeaders"]
 
     style B fill:#0ea5e9,stroke:#0284c7,color:#fff
     style W fill:#10b981,stroke:#059669,color:#fff

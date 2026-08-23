@@ -38,13 +38,13 @@ Không có vòng lặp này, retention thấp và không có doanh thu.
 
 ```mermaid
 flowchart LR
-    L[Learn — hoàn thành Lesson/Quiz] --> X[XPs + LevelUp]
-    L --> Q[Quest progress]
-    Q --> G[Gems earn]
-    G --> S[Shop buy — avatar/frame]
-    S --> I[Inventory]
-    I --> LB[Leaderboard — TotalXP]
-    G --> P[Premium — VietQR pay]
+    L["Learn — hoàn thành Lesson/Quiz"] --> X["XPs + LevelUp"]
+    L --> Q["Quest progress"]
+    Q --> G["Gems earn"]
+    G --> S["Shop buy — avatar/frame"]
+    S --> I["Inventory"]
+    I --> LB["Leaderboard — TotalXP"]
+    G --> P["Premium — VietQR pay"]
     P --> LB
     LB --> L
 

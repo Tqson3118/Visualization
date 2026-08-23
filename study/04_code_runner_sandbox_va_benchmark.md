@@ -32,16 +32,16 @@ Không có hai tính năng này, hệ thống không chứng minh được ngư�
 
 ```mermaid
 flowchart TB
-    E[Monaco/Textarea — code] --> R[stores/codeRunner.ts — run(code,input)]
-    R --> W[compileWorker — Worker thread]
-    W --> B[Babel AST parse + instrument compare/swap/array]
-    B --> X[stepExecutor — interpret + Trace]
+    E["Monaco/Textarea — code"] --> R["stores/codeRunner.ts — run(code,input)"]
+    R --> W["compileWorker — Worker thread"]
+    W --> B["Babel AST parse + instrument compare/swap/array"]
+    B --> X["stepExecutor — interpret + Trace"]
     X --> G{Guards}
-    G -->|MAX_STEPS 10k / loop 1M / 5s deadline| OK[TraceEvent[]]
-    G -->|vượt ngưỡng| ERR[error/timeout → null]
-    OK --> T[PlaybackFrame / Structure frames]
-    T --> V[CodeRunnerView — VCR + Canvas]
-    OK -. best-effort .-> A[POST /api/v1/code-runs {trace, stats} → DB TraceJson]
+    G -->|"MAX_STEPS 10k / loop 1M / 5s deadline"| OK["TraceEvent[]"]
+    G -->|"vượt ngưỡng"| ERR["error/timeout → null"]
+    OK --> T["PlaybackFrame / Structure frames"]
+    T --> V["CodeRunnerView — VCR + Canvas"]
+    OK -. "best-effort" .-> A["POST /api/v1/code-runs {trace, stats} → DB TraceJson"]
     ERR --> V
 
     style W fill:#f59e0b,stroke:#d97706,color:#fff
