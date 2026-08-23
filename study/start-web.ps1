@@ -1,7 +1,10 @@
-# PowerShell Start Script for Study Web Portal
+# PowerShell launcher for Study Web Portal
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location "$scriptDir\web"
+
 Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "  KHOI CHAY STUDY WEB PORTAL (MOBILE & DESKTOP)" -ForegroundColor Yellow
+Write-Host "  KHOI CHAY STUDY WEB PORTAL (MOBILE & DESKTOP)" -ForegroundColor Green
 Write-Host "========================================================" -ForegroundColor Cyan
 
-Set-Location -Path "$PSScriptRoot\web"
+node build-data.js
 node server.js
