@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // AppHeader — thanh điều hướng chung (SDD §8.7 — navigation theo vai trò)
 // Tân trang 15/08: trong suốt (transparent) khi ở đầu trang chủ → glass blur + viền mờ
 // khi cuộn hoặc ở trang khác; palette "terminal dark" bê từ VisualizationDSA-main
@@ -10,7 +10,7 @@ import { Moon, Sun } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
-import { avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
+import { avatarImageUrl, avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
 import { messages } from '@/i18n/vi';
 import HeartsGemsWidget from '@/components/simulator/HeartsGemsWidget.vue';
 import brandLogo from '@/assets/brand-logo.png';
@@ -21,7 +21,6 @@ const ui = useUiStore();
 const router = useRouter();
 const menuOpen = ref(false);
 const mobileNavOpen = ref(false);
-const sandboxOpen = ref(false);
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
@@ -31,8 +30,8 @@ const themeToggleLabel = computed(() =>
   ui.theme === 'light' ? messages.common.toDarkTheme : messages.common.toLightTheme,
 );
 
-// Quản trị: TEACHER → /admin/content (roles TEACHER|ADMIN); ADMIN → /admin/users
-const adminTarget = computed(() => ({ name: auth.role === 'TEACHER' ? 'admin-content' : 'admin-users' }));
+// Quản trị & Soạn bài: TEACHER & ADMIN → /studio (curriculum-studio)
+const studioTarget = computed(() => ({ name: 'curriculum-studio' }));
 
 const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
 const equippedAvatar = computed(() => equippedItem(gamification.inventory, 'avatar'));
@@ -47,7 +46,9 @@ const userAvatarClass = computed(() => {
 });
 
 onMounted(() => {
-  void gamification.fetchInventory();
+  if (auth.isAuthenticated) {
+    void gamification.fetchInventory();
+  }
 });
 
 async function onLogout(): Promise<void> {
@@ -69,32 +70,11 @@ async function onLogout(): Promise<void> {
       <nav class="app-header__nav" aria-label="Điều hướng chính">
         <RouterLink :to="{ name: 'courses' }" class="app-header__link">{{ messages.nav.path }}</RouterLink>
         <RouterLink :to="{ name: 'simulations' }" class="app-header__link">{{ messages.nav.simulations }}</RouterLink>
-        <div class="app-header__dropdown">
-          <button type="button" class="app-header__link app-header__dropdown-btn" :aria-expanded="sandboxOpen" @click="sandboxOpen = !sandboxOpen">
-            Sandbox <span class="app-header__caret">▾</span>
-          </button>
-          <Transition name="app-menu">
-            <div v-if="sandboxOpen" class="app-header__menu app-header__menu--sandbox">
-              <RouterLink :to="{ name: 'sorting-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Sorting Sandbox
-              </RouterLink>
-              <RouterLink :to="{ name: 'searching-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Searching Sandbox
-              </RouterLink>
-              <RouterLink :to="{ name: 'graph-playground' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Graph Playground
-              </RouterLink>
-              <RouterLink :to="{ name: 'stack-queue-sandbox' }" class="app-header__menu-item" @click="sandboxOpen = false">
-                Stack &amp; Queue Sandbox
-              </RouterLink>
-            </div>
-          </Transition>
-        </div>
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
-        <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__link">
-          {{ messages.nav.admin }}
+        <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
+          {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
         </RouterLink>
       </nav>
 
@@ -123,7 +103,20 @@ async function onLogout(): Promise<void> {
               :aria-label="auth.user?.displayName ?? 'Hồ sơ'"
               @click="menuOpen = !menuOpen"
             >
-              {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+              <img
+                v-if="equippedAvatar && avatarImageUrl(equippedAvatar.itemKey)"
+                :src="avatarImageUrl(equippedAvatar.itemKey)"
+                :alt="equippedAvatar.name"
+                class="app-header__user-avatar-image"
+              />
+              <img
+                v-else-if="auth.user?.avatarUrl"
+                :src="auth.user.avatarUrl"
+                :alt="auth.user.displayName ?? 'Avatar'"
+                class="app-header__user-avatar-image"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+              <span v-else>{{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}</span>
             </button>
           </span>
           <Transition name="app-menu">
@@ -169,18 +162,6 @@ async function onLogout(): Promise<void> {
           <RouterLink :to="{ name: 'simulations' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             {{ messages.nav.simulations }}
           </RouterLink>
-          <RouterLink :to="{ name: 'sorting-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Sorting Sandbox
-          </RouterLink>
-          <RouterLink :to="{ name: 'searching-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Searching Sandbox
-          </RouterLink>
-          <RouterLink :to="{ name: 'graph-playground' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Graph Playground
-          </RouterLink>
-          <RouterLink :to="{ name: 'stack-queue-sandbox' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Stack &amp; Queue Sandbox
-          </RouterLink>
           <RouterLink :to="{ name: 'classes' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Lớp học
           </RouterLink>
@@ -190,8 +171,8 @@ async function onLogout(): Promise<void> {
           <RouterLink :to="{ name: 'shop' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Cửa hàng
           </RouterLink>
-          <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            {{ messages.nav.admin }}
+          <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
+            {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
           </RouterLink>
         </nav>
       </Transition>
@@ -259,8 +240,7 @@ async function onLogout(): Promise<void> {
 .app-header__nav {
   display: flex;
   gap: 2rem; /* cách đều, thoáng giữa các mục */
-  /* KHÔNG dùng overflow-x: auto — nó buộc overflow-y thành auto → menu dropdown
-     Sandbox (absolute, tràn ra ngoài nav) bị CẮT. Desktop ≥ 900px nav vừa đủ chỗ. */
+  /* Giữ nav không cắt nội dung trên desktop. */
   overflow: visible;
 }
 
@@ -296,39 +276,6 @@ async function onLogout(): Promise<void> {
   text-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
 }
 .app-header__link.router-link-exact-active::after { right: 0; }
-
-/* Dropdown Sandbox (3 trang bê từ VisualizationDSA3) */
-.app-header__dropdown {
-  position: relative;
-  display: inline-flex;
-}
-
-.app-header__dropdown-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.app-header__caret {
-  font-size: 10px;
-  color: var(--hdr-muted);
-  transition: transform 150ms ease;
-}
-
-.app-header__dropdown:hover .app-header__caret,
-.app-header__dropdown-btn[aria-expanded='true'] .app-header__caret {
-  transform: rotate(180deg);
-}
-
-.app-header__menu--sandbox {
-  top: calc(100% + 8px);
-  left: 0;
-  right: auto;
-  min-width: 180px;
-}
 
 .app-header__actions {
   position: relative;
@@ -464,6 +411,8 @@ async function onLogout(): Promise<void> {
 }
 
 /* Avatar theme theo itemKey đang trang bị — gradient tối + chữ sáng */
+.app-header__user-avatar-image { width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block; }
+
 .app-header__user-avatar--cyber { background: linear-gradient(135deg, #0e7490, #155e75); color: #a5f3fc; }
 .app-header__user-avatar--gold { background: linear-gradient(135deg, #b45309, #92400e); color: #fef3c7; }
 .app-header__user-avatar--neon { background: linear-gradient(135deg, #be185d, #6b21a8); color: #fbcfe8; }

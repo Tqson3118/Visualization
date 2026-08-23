@@ -45,14 +45,9 @@ namespace VisualizationDSA.WebApi.Controllers
         private async Task<(IActionResult? Block, Guid UserId)> GetCurrentUserAndCheckAsync(Guid id)
         {
             var userIdStr = JwtHelper.ExtractSubFromToken(Request);
-            // Admin memory (admin-user-001/002) không phải GUID — cho qua để bypass IsAdmin.
             if (JwtHelper.IsAdmin(Request))
                 return (null, Guid.Empty);
-            // demo-user-001 (dev) không phải GUID — map sang GUID cố định để demo vẫn sửa được codelab.
-            var resolved = userIdStr == "demo-user-001"
-                ? Guid.Parse("00000000-0000-0000-0000-000000000001")
-                : Guid.TryParse(userIdStr, out var g) ? g : Guid.Empty;
-            if (resolved == Guid.Empty)
+            if (!Guid.TryParse(userIdStr, out var resolved) || resolved == Guid.Empty)
                 return (Unauthorized(), Guid.Empty);
             return (await RequireCodelabOwnershipAsync(id, resolved), resolved);
         }
@@ -90,16 +85,9 @@ namespace VisualizationDSA.WebApi.Controllers
         public async Task<IActionResult> CreateCodelab([FromBody] CreateCodelabCommand command)
         {
             var userIdStr = JwtHelper.ExtractSubFromToken(Request);
-            // Admin: KHÔNG tin OwnerId client gửi — cố định null (admin-owned, chỉ Admin sửa).
-            // Trước đây admin (sub không GUID) giữ nguyên OwnerId client → gán codelab cho học viên.
             if (JwtHelper.IsAdmin(Request))
             {
                 command.OwnerId = null;
-            }
-            // demo-user-001 (dev) không phải GUID — map sang GUID cố định.
-            else if (userIdStr == "demo-user-001")
-            {
-                command.OwnerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
             }
             else if (Guid.TryParse(userIdStr, out var ownerId))
             {
@@ -107,8 +95,7 @@ namespace VisualizationDSA.WebApi.Controllers
             }
             else
             {
-                // Fail-closed: sub không phải GUID (không admin/demo) → KHÔNG tin OwnerId client.
-                command.OwnerId = null;
+                return Unauthorized();
             }
             var id = await _mediator.Send(command);
             return Ok(new { id });

@@ -50,6 +50,20 @@ namespace VisualizationDSA.Infrastructure.Data
         public DbSet<CodelabHintReveal> CodelabHintReveals { get; set; }
         public DbSet<QuizXpGrant> QuizXpGrants { get; set; }
         public DbSet<CodelabSubmission> CodelabSubmissions { get; set; }
+        public DbSet<Quest> Quests { get; set; }
+        public DbSet<UserQuest> UserQuests { get; set; }
+        public DbSet<ShopItem> ShopItems { get; set; }
+        public DbSet<UserInventory> UserInventory { get; set; }
+        public DbSet<GemTransaction> GemTransactions { get; set; }
+        public DbSet<CourseReview> CourseReviews { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
+        public DbSet<Favorite> Favorites { get; set; }
+        public DbSet<StageProgress> StageProgresses { get; set; }
+        public DbSet<LearningPath> LearningPaths { get; set; }
+        public DbSet<LearningPathNode> LearningPathNodes { get; set; }
+        public DbSet<UserNodeProgress> UserNodeProgresses { get; set; }
+        public DbSet<NodeSession> NodeSessions { get; set; }
+        public DbSet<LessonNote> LessonNotes { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -100,6 +114,31 @@ namespace VisualizationDSA.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(o => o.ModuleItemId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // SQL Server: chống "multiple cascade paths" — Classroom.OwnerTeacherId không cascade
+            // (ClassroomQuizAttempt có 2 đường cascade tới Users nếu để Cascade).
+            modelBuilder.Entity<Classroom>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.OwnerTeacher)
+                    .WithMany()
+                    .HasForeignKey(e => e.OwnerTeacherId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // SQL Server: ClassroomQuizAttempt.StudentId phải NoAction (cùng bảng bị 2 cascade path tới Users).
+            modelBuilder.Entity<ClassroomQuizAttempt>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.ClassroomQuiz)
+                    .WithMany(c => c.Attempts)
+                    .HasForeignKey(e => e.ClassroomQuizId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Student)
+                    .WithMany()
+                    .HasForeignKey(e => e.StudentId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             
@@ -262,6 +301,14 @@ namespace VisualizationDSA.Infrastructure.Data
             modelBuilder.Entity<ClassroomEnrollment>(entity =>
             {
                 entity.HasIndex(e => new { e.ClassroomId, e.StudentId }).IsUnique();
+                entity.HasOne(e => e.Classroom)
+                    .WithMany(c => c.Enrollments)
+                    .HasForeignKey(e => e.ClassroomId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Student)
+                    .WithMany()
+                    .HasForeignKey(e => e.StudentId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // Chống race double-deduct XP khi reveal hint trả phí 2 request song song.
@@ -277,6 +324,128 @@ namespace VisualizationDSA.Infrastructure.Data
             {
                 entity.HasIndex(e => new { e.UserId, e.QuizKey }).IsUnique();
             });
+            // ── Quest / UserQuest / Shop / Inventory / Gem / CourseReview (Phase A §1b) ──
+            modelBuilder.Entity<Quest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.QuestKey).IsUnique();
+                entity.Property(e => e.QuestKey).IsRequired().HasMaxLength(120);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Period).IsRequired().HasMaxLength(20);
+            });
+
+            modelBuilder.Entity<UserQuest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.QuestId }).IsUnique();
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(30).HasDefaultValue("NotStarted");
+                entity.HasOne(e => e.Quest).WithMany().HasForeignKey(e => e.QuestId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ShopItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Slot).IsRequired().HasMaxLength(30);
+            });
+
+            modelBuilder.Entity<UserInventory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Equipped).HasDefaultValue(false);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Item).WithMany().HasForeignKey(e => e.ItemId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GemTransaction>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Type).IsRequired().HasMaxLength(20);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            });
+
+            modelBuilder.Entity<CourseReview>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.CourseId, e.UserId }).IsUnique();
+                entity.Property(e => e.Rating).HasDefaultValue(5);
+                entity.Property(e => e.Comment).HasMaxLength(2000);
+                entity.HasOne(e => e.Course).WithMany().HasForeignKey(e => e.CourseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Course>(entity =>
+            {
+                entity.Property(e => e.Rating).HasPrecision(3, 1);
+                entity.Property(e => e.LearningObjectives).HasMaxLength(4000);
+                entity.Property(e => e.KeyOutcomes).HasMaxLength(4000);
+                entity.Property(e => e.Highlights).HasMaxLength(4000);
+            });
+
+            modelBuilder.Entity<SystemSetting>(entity =>
+            {
+                entity.HasKey(e => e.Key);
+                entity.Property(e => e.Value).IsRequired();
+            });
+
+            // ── WIP: entity của các stream khác (Favorites/LearningPath/Ladder/Notes) — đã có bảng qua migration, cần đăng ký model ──
+            modelBuilder.Entity<Favorite>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.SimulationKey }).IsUnique();
+                entity.Property(e => e.SimulationKey).IsRequired().HasMaxLength(120);
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StageProgress>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.LessonId, e.Stage }).IsUnique();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Lesson).WithMany().HasForeignKey(e => e.LessonId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<LearningPath>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            });
+
+            modelBuilder.Entity<LearningPathNode>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.LearningPathId, e.OrderIndex }).IsUnique();
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.HasOne(e => e.LearningPath).WithMany(p => p.Nodes).HasForeignKey(e => e.LearningPathId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Lesson).WithMany().HasForeignKey(e => e.LessonId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<UserNodeProgress>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.NodeId }).IsUnique();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Node).WithMany().HasForeignKey(e => e.NodeId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<NodeSession>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.NodeId }).IsUnique();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Node).WithMany().HasForeignKey(e => e.NodeId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<LessonNote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.LessonId }).IsUnique();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Lesson).WithMany().HasForeignKey(e => e.LessonId).OnDelete(DeleteBehavior.Cascade);
+            });
+
             base.OnModelCreating(modelBuilder);
 
             
@@ -295,7 +464,7 @@ namespace VisualizationDSA.Infrastructure.Data
                 
                 entity.Property(e => e.LastActivityDate).IsRequired(false);
                 entity.Property(e => e.Role).IsRequired().HasMaxLength(20).HasDefaultValue("Student");
-                if (!Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     entity.Property<uint>("xmin")
                         .HasColumnType("xid")
@@ -398,7 +567,8 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 
                 var embeddingProp = entity.Property(e => e.Embedding);
-                if (Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true ||
+                    Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     embeddingProp.HasConversion(
                         v => v == null ? null : string.Join(",", v),
@@ -448,9 +618,13 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.Property(e => e.Path).HasMaxLength(500);
                 
                 var payloadProp = entity.Property(e => e.Payload);
-                if (!Database.IsSqlite())
+                if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     payloadProp.HasColumnType("jsonb");
+                }
+                else if (Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    payloadProp.HasColumnType("nvarchar(max)");
                 }
             });
 
@@ -512,7 +686,7 @@ namespace VisualizationDSA.Infrastructure.Data
                 entity.HasOne(e => e.ParentComment)
                       .WithMany(c => c.Replies)
                       .HasForeignKey(e => e.ParentId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.NoAction);
             });
 
             

@@ -76,6 +76,19 @@ public static class SeedRunner
         // Seed hoạt động người dùng demo (SDD §7.5): 8 student @university.edu.vn + achievements/progress/submissions + quest/gems/inventory/favorites/feedback + 2 lớp học (chỉ khi bảng trống).
         await SeedDemoActivity.SeedAsync(db, clock, logger, ct);
 
+        // Đảm bảo teacher@demo.local luôn có đủ 1000 Gems và 10 Hearts để demo Studio/Shop
+        var teacher = await db.Users.FirstOrDefaultAsync(u => u.Email == "teacher@demo.local", ct);
+        if (teacher is not null)
+        {
+            teacher.Gems = 1000;
+            teacher.Hearts = 10;
+            teacher.HeartsMax = 10;
+            teacher.AvatarUrl ??= "/assets/avatars/cyber-hacker.svg";
+            teacher.IsActive = true;
+            teacher.DeletedAt = null;
+            await db.SaveChangesAsync(ct);
+        }
+
         if (tx is not null)
         {
             await tx.CommitAsync(ct);
@@ -101,12 +114,24 @@ public static class SeedRunner
             if (exists)
             {
                 var user = await db.Users.FirstAsync(u => u.Email == email, ct);
+                user.PasswordHash = PasswordHasher.Hash(seed.DevPassword);
+                user.IsActive = true;
+                user.DeletedAt = null;
                 if (user.IsPrimaryAdmin)
                 {
                     adminId = user.Id;
                 }
 
-                logger.LogInformation("Seed: Users bỏ qua (đã tồn tại) {Email}", email);
+                // Teacher demo luôn có đủ dữ liệu để trình diễn Teacher Studio/Shop trên máy dev.
+                if (email == "teacher@demo.local")
+                {
+                    user.Gems = Math.Max(user.Gems, 1000);
+                    user.AvatarUrl ??= "/assets/avatars/cyber-hacker.svg";
+                }
+                user.UpdatedAt = now;
+                await db.SaveChangesAsync(ct);
+
+                logger.LogInformation("Seed: Users cập nhật mật khẩu DEV & trạng thái {Email}", email);
                 continue;
             }
 
@@ -121,6 +146,8 @@ public static class SeedRunner
                 Hearts = 10,
                 HeartsMax = 10,
                 LastHeartAt = now,
+                Gems = seed.Email == "teacher@demo.local" ? 1000 : 0,
+                AvatarUrl = seed.Email == "teacher@demo.local" ? "/assets/avatars/cyber-hacker.svg" : null,
                 CreatedAt = now
             };
             db.Users.Add(entity);
@@ -622,10 +649,14 @@ public static class SeedRunner
     {
         foreach (var item in SeedData.ShopItems)
         {
-            var exists = await db.ShopItems.AnyAsync(i => i.ItemKey == item.ItemKey, ct);
-            if (exists)
+            var existing = await db.ShopItems.FirstOrDefaultAsync(i => i.ItemKey == item.ItemKey, ct);
+            if (existing is not null)
             {
-                logger.LogInformation("Seed: ShopItems bỏ qua (đã tồn tại) {ItemKey}", item.ItemKey);
+                if (existing.Type != item.Type)
+                {
+                    existing.Type = item.Type;
+                    logger.LogInformation("Seed: ShopItems cập nhật Type cho {ItemKey} -> {Type}", item.ItemKey, item.Type);
+                }
                 continue;
             }
 

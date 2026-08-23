@@ -42,6 +42,7 @@ const AdminSettingsView = () => import('@/views/AdminSettingsView.vue');
 const AdminContentView = () => import('@/views/AdminContentView.vue');
 const AdminLadderView = () => import('@/views/AdminLadderView.vue');
 const AdminFeedbackView = () => import('@/views/AdminFeedbackView.vue');
+const TeacherStudioView = () => import('@/views/TeacherStudioView.vue');
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -309,10 +310,47 @@ const router = createRouter({
       component: ClassReportView,
       meta: { requiresAuth: true },
     },
+    // Teacher Studio — entry riêng cho giảng viên, Admin vẫn vào Admin Console
+    // Studio Lộ trình & Soạn bài — entry thống nhất cho Teacher và Admin
+    {
+      path: '/studio',
+      name: 'curriculum-studio',
+      component: AdminContentView,
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+    },
+    {
+      path: '/studio/lessons/new',
+      name: 'studio-lesson-new',
+      component: () => import('@/views/admin/AdminLessonEditorView.vue'),
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+    },
+    {
+      path: '/studio/lessons/:id/edit',
+      name: 'studio-lesson-edit',
+      component: () => import('@/views/admin/AdminLessonEditorView.vue'),
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+    },
+    // Alias / Redirects cũ (tương thích ngược hoàn toàn)
+    {
+      path: '/teacher',
+      redirect: '/studio',
+    },
+    {
+      path: '/admin/content',
+      redirect: '/studio',
+    },
+    {
+      path: '/admin/content/lessons/new',
+      redirect: '/studio/lessons/new',
+    },
+    {
+      path: '/admin/content/lessons/:id/edit',
+      redirect: (to) => `/studio/lessons/${to.params.id}/edit`,
+    },
     // Màn 09/10/11 + N-5/N-6 — Admin
     {
       path: '/admin',
-      redirect: '/admin/users',
+      redirect: (to) => ({ name: 'admin-users', query: to.query }),
     },
     {
       path: '/admin/users',
@@ -324,7 +362,7 @@ const router = createRouter({
       path: '/admin/stats',
       name: 'admin-stats',
       component: AdminStatsView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      meta: { requiresAuth: true, roles: ['ADMIN'] },
     },
     {
       path: '/admin/settings',
@@ -333,22 +371,12 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['ADMIN'] },
     },
     {
-      path: '/admin/content',
-      name: 'admin-content',
-      component: AdminContentView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
-    },
-    {
       path: '/admin/ladder',
-      name: 'admin-ladder',
-      component: AdminLadderView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      redirect: { path: '/studio', query: { tab: 'exercises' } },
     },
     {
       path: '/admin/feedback',
-      name: 'admin-feedback',
-      component: AdminFeedbackView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      redirect: { path: '/studio', query: { tab: 'feedback' } },
     },
     // Màn 12 — Trang phụ trợ (công khai)
     {

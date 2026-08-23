@@ -45,12 +45,35 @@ export interface AdminUserDto {
   joinedClassesCount?: number;
 }
 
+export interface AdminRoleDistributionDto {
+  role: string;
+  count: number;
+}
+
 export interface AdminStatsDto {
   totalUsers: number;
   totalLessons: number;
   totalExercises: number;
   totalSimulations: number;
   activeUsersToday: number;
+  /** §1c — thống kê giao dịch thật từ Order (GET /admin/stats mở rộng). */
+  totalOrders?: number;
+  totalRevenue?: number;
+  pendingOrders?: number;
+  completedOrders?: number;
+  cancelledOrders?: number;
+  roleDistribution?: AdminRoleDistributionDto[];
+  revenueByDay?: Array<{ date: string; revenue: number; orders: number }>;
+  recentOrders?: Array<{
+    id: string;
+    userDisplayName: string;
+    email: string;
+    amount: number;
+    status: string;
+    paymentCode: string;
+    createdAt: string;
+    completedAt: string | null;
+  }>;
 }
 
 /** Báo cáo lỗi / vi phạm — GET /admin/bug-reports (v2.15: adminNote) */
@@ -84,6 +107,34 @@ export async function updateBugReport(
   return getData<BugReportDto>({ method: 'PUT', url: ADMIN_ENDPOINTS.bugReport(id), data: payload });
 }
 
+export interface AdminCreateUserPayload {
+  displayName: string;
+  email: string;
+  password: string;
+  role: AdminRole;
+  department?: string;
+  staffCode?: string;
+}
+
+export interface AdminUpdateUserPayload {
+  displayName: string;
+  role?: AdminRole;
+  isActive?: boolean;
+  department?: string;
+  staffCode?: string;
+  academicDegree?: string;
+  profileLink?: string;
+  teacherBio?: string;
+}
+
+export async function createUser(payload: AdminCreateUserPayload): Promise<AdminUserDto> {
+  return getData<AdminUserDto>({ method: 'POST', url: ADMIN_ENDPOINTS.users, data: payload });
+}
+
+export async function updateUser(id: number, payload: AdminUpdateUserPayload): Promise<AdminUserDto> {
+  return getData<AdminUserDto>({ method: 'PUT', url: ADMIN_ENDPOINTS.user(id), data: payload });
+}
+
 export async function fetchUsers(params: { role?: string; status?: string; q?: string; page?: number } = {}): Promise<PagedResponse<AdminUserDto>> {
   return getData<PagedResponse<AdminUserDto>>({ method: 'GET', url: ADMIN_ENDPOINTS.users, params });
 }
@@ -97,7 +148,7 @@ export async function setUserStatus(id: number, payload: { isActive: boolean }):
   await client.put(ADMIN_ENDPOINTS.userStatus(id), payload);
 }
 
-export async function setUserRole(id: number, payload: { role: 'STUDENT' | 'TEACHER' }): Promise<void> {
+export async function setUserRole(id: number, payload: { role: 'STUDENT' | 'TEACHER' | 'ADMIN' }): Promise<void> {
   await client.put(ADMIN_ENDPOINTS.userRole(id), payload);
 }
 
@@ -105,8 +156,8 @@ export async function approveTeacher(id: number, payload: { approve: boolean; re
   await client.post(ADMIN_ENDPOINTS.approveTeacher(id), payload);
 }
 
-export async function resetUserPassword(id: number): Promise<void> {
-  await client.post(ADMIN_ENDPOINTS.resetPassword(id));
+export async function resetUserPassword(id: number, newPassword?: string): Promise<void> {
+  await client.post(ADMIN_ENDPOINTS.resetPassword(id), newPassword ? { newPassword } : {});
 }
 
 export async function deleteUser(id: number): Promise<void> {

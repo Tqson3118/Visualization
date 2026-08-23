@@ -58,7 +58,6 @@ graph LR
     NODE --> LADDER[/ladder/:nodeId/]
     LADDER --> LAB[/ladder/:nodeId/lab/]
     LADDER --> CODE[/code/:key/]
-    NODE --> BENCH[/benchmark/:k1/:k2/]
     PATH --> FINAL[/path/:topicId/final-test/]
     PATH --> CHEAT[/cheatsheet/]
     CHEAT --> SIM
@@ -84,7 +83,7 @@ Mũi tên trong sơ đồ thể hiện đường đi chính của người dùng
 |---|---|---|
 | Công khai | 01 Trang chủ, 02 Đăng nhập/Đăng ký, 12 Trợ giúp | 3 |
 | Học tập | 03 Danh sách bài học (redirect), 04 Chi tiết bài học, 13 Learning Path, 18 CheatSheet, 30 Final Test, 31 Node Hub | 6 |
-| Mô phỏng | 05 Simulator, 17 Benchmark Lab, 33 Khám phá | 3 |
+| Mô phỏng | 05 Simulator, 33 Khám phá | 2 |
 | Luyện tập | 06 Bài tập trắc nghiệm, 07 Dự đoán bước (sáp nhập Bậc 2), 14 Practice Ladder, 15 Interactive Lab, 16 Code Runner | 5 |
 | Gamification | 22 Shop, 23 Daily Quest, 24 Leaderboard, 25 Premium, 26 Checkout (modal), 27 Quản lý gói, 28 Modal Hết tim | 7 |
 | Lớp học | 19 Danh sách lớp, 20 Chi tiết lớp, 21 Báo cáo lớp | 3 |
@@ -211,11 +210,6 @@ Bậc 2 yêu cầu người học tự thao tác trên canvas (kéo thả ô, ch
 *Hình 4.9: Màn Code Runner với trình soạn mã Monaco và canvas trực quan. (ảnh placeholder — chụp thật thay sau)*
 
 Trình soạn mã Monaco nạp sẵn code mẫu, người học hoàn thiện hàm theo chữ ký cố định rồi chạy trong sandbox Web Worker (giới hạn 10 giây, 64MB, 200 dòng). Canvas bên phải phát trực quan đồng bộ 2 chiều: bấm dòng code nhảy đúng bước tương ứng. Khi vào từ Bậc 3, màn thêm nút Nộp bài với bộ test ẩn chấm theo đầu ra và lịch sử nộp bài.
-
-#### Màn 17 — Benchmark Lab
-
-![Hình 4.10 - Benchmark Lab](placeholders/17-benchmark.png)
-*Hình 4.10: Màn Benchmark so sánh số liệu thật của các giải thuật. (ảnh placeholder — chụp thật thay sau)*
 
 So sánh số liệu thật (thời gian, số so sánh, số hoán đổi/ghi) của 2-5 giải thuật cùng cấu trúc dữ liệu tại nhiều kích thước n (10/50/100/500/1000). Kết quả hiển thị dạng bảng số liệu và biểu đồ cột có đường cong lý thuyết tự fit; màn tự sinh khối kết luận. Màn này miễn phí tim, không tính vào lộ trình.
 

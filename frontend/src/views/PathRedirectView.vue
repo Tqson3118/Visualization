@@ -13,6 +13,7 @@ import { Route } from 'lucide-vue-next';
 import * as gamificationApi from '@/api/gamification';
 import type { LearningPathSummaryDto } from '@/api/gamification';
 import { useProgressStore } from '@/stores/progress';
+import { allowLocalFallbacks } from '@/config/runtime';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -52,7 +53,9 @@ const displayTopics = computed(() => {
   if (paths.value.length > 0) {
     return paths.value.map((p) => ({ id: p.id, name: p.title, description: p.description, progressPct: p.progressPct }));
   }
-  return LOCAL_TOPICS.map((t) => ({ id: t.id, name: t.name, description: t.description, progressPct: 0 }));
+  return allowLocalFallbacks
+    ? LOCAL_TOPICS.map((t) => ({ id: t.id, name: t.name, description: t.description, progressPct: 0 }))
+    : [];
 });
 
 function topicProgress(topicId: number): number {
@@ -105,7 +108,7 @@ function topicProgress(topicId: number): number {
           :variant="topicProgress(topic.id) >= 100 ? 'success' : 'default'"
         />
         <p v-if="apiFailed" class="path-redirect__note">
-          * Hiển thị dữ liệu mẫu cục bộ (backend chưa khả dụng).
+          * Đang kết nối máy chủ để cập nhật tiến độ lộ trình học tập.
         </p>
       </RouterLink>
     </div>

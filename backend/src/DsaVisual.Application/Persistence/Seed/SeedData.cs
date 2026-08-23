@@ -117,14 +117,14 @@ public static class SeedData
 
     public static readonly IReadOnlyList<SeedShopItem> ShopItems =
     [
-        new("avatar-cyber-hacker", "Cyber Hacker", 100, Type: 0),
-        new("avatar-gold-knight", "Golden Knight", 200, Type: 0),
-        new("avatar-neon-ninja", "Neon Ninja", 150, Type: 0),
-        new("avatar-wizard", "Code Wizard", 250, Type: 0),
-        new("avatar-ai-bot", "AI Companion", 50, Type: 0),
-        new("frame-neon", "Neon Border", 300, Type: 1),
-        new("frame-gold", "Royal Gold", 500, Type: 1),
-        new("frame-cyber", "Cyberpunk Frame", 400, Type: 1),
+        new("avatar-cyber-hacker", "Cyber Hacker", 100, Type: 1),
+        new("avatar-gold-knight", "Golden Knight", 200, Type: 1),
+        new("avatar-neon-ninja", "Neon Ninja", 150, Type: 1),
+        new("avatar-wizard", "Code Wizard", 250, Type: 1),
+        new("avatar-ai-bot", "AI Companion", 50, Type: 1),
+        new("frame-neon", "Neon Border", 300, Type: 2),
+        new("frame-gold", "Royal Gold", 500, Type: 2),
+        new("frame-cyber", "Cyberpunk Frame", 400, Type: 2),
     ];
 
     /// <summary>

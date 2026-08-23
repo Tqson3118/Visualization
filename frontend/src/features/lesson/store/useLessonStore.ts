@@ -88,10 +88,34 @@ export const useLessonStore = defineStore('lessonStudy', () => {
 
   // ── Computed ──
 
+  const attachedSimulationKeys = ref<string[]>([]);
+
   /** SimulationKey của bài học (node LAB): đọc từ sandboxConfig (json simulationKey) hoặc demo cũ. */
   const simulationKey = computed<string | null>(() => {
     const cfg = lessonMeta.value?.sandboxConfig ?? '';
-    return parseSandboxSimulationKey(cfg) ?? parseSandboxDemo(cfg);
+    return parseSandboxSimulationKey(cfg) ?? parseSandboxDemo(cfg) ?? (attachedSimulationKeys.value[0] || null);
+  });
+
+  /** Tất cả simulation keys đính kèm bài học */
+  const simulationKeys = computed<string[]>(() => {
+    const list: string[] = [];
+    const cfg = lessonMeta.value?.sandboxConfig ?? '';
+    const single = parseSandboxSimulationKey(cfg) ?? parseSandboxDemo(cfg);
+    if (single && !list.includes(single)) list.push(single);
+    if (cfg) {
+      try {
+        const parsed = JSON.parse(cfg);
+        if (Array.isArray(parsed.simulationKeys)) {
+          for (const k of parsed.simulationKeys) {
+            if (typeof k === 'string' && !list.includes(k)) list.push(k);
+          }
+        }
+      } catch {}
+    }
+    for (const k of attachedSimulationKeys.value) {
+      if (!list.includes(k)) list.push(k);
+    }
+    return list;
   });
 
   const quizPassed = computed(() => {
@@ -209,7 +233,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           // ConfigJson từ SeedGrokkingData (assignment): { signature, language, testCases }
           codelabTask = {
             description: config.signature ?? detail.title,
-            initialCode: '// Viết code của bạn ở đây\nfunction solve() {\n  // TODO\n}',
+            initialCode: '// Viết code của bạn ở đây\nfunction solve() {\n  // Cài đặt giải thuật tại đây\n}',
             solution: '',
             entryFunction: config.testCases?.[0]?.entryFunction ?? 'solve',
             testCases: (config.testCases ?? []).map((tc: { name?: string; input?: string; expectedOutput?: string; isHidden?: boolean }) => ({
@@ -286,6 +310,11 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         const lesson = await buildLessonFromApi(detail);
         if (requestId !== lessonLoadRequestId) return;
         currentLesson.value = lesson;
+        if ((detail as any).simulations && Array.isArray((detail as any).simulations)) {
+          attachedSimulationKeys.value = (detail as any).simulations.map((s: any) => s.simulationKey || s);
+        } else {
+          attachedSimulationKeys.value = [];
+        }
         lessonMeta.value = {
           courseId: detail.courseId,
           courseTitle: detail.courseTitle,
@@ -444,6 +473,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     currentLesson,
     lessonMeta,
     simulationKey,
+    simulationKeys,
     activeStep,
     isLoading,
     error,

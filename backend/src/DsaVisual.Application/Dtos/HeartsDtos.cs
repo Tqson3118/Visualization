@@ -7,6 +7,7 @@ public sealed class HeartsStatusDto
     public int HeartsMax { get; set; }
     public DateTime LastHeartAt { get; set; }
     public int NextHeartInSeconds { get; set; }
+    public int Gems { get; set; }
 }
 
 /// <summary>Phiên làm bài trong node — API_REFERENCE.md §3.12/§4.14.</summary>

@@ -217,7 +217,8 @@ function historyPassed(item: SubmissionSummaryDto): boolean {
             {{ item.correct ? 'Đúng' : 'Sai' }}
           </Badge>
           <p class="quiz-stage__explain-text">{{ item.explanation }}</p>
-          <p v-if="!item.correct" class="quiz-stage__explain-answer">
+          <p class="quiz-stage__explain-answer">
+            <template v-if="!item.correct">Đáp án của bạn: {{ (answers[idx] ?? []).map((i) => questions[idx]?.options[i] ?? `#${i + 1}`).join(', ') || 'Chưa trả lời' }} · </template>
             Đáp án đúng: {{ (item.correctAnswer ?? []).map((i) => questions[idx]?.options[i] ?? `#${i + 1}`).join(', ') }}
           </p>
         </li>

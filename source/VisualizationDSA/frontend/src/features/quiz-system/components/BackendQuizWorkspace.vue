@@ -170,8 +170,8 @@
       </div>
 
       
-      <div v-if="isUsingFallback" class="fallback-notice">
-        <BaseIcon name="warning" class="w-3.5 h-3.5 inline mr-1 align-middle" />Đang hiển thị quiz mẫu. Kết nối server để tải quiz đầy đủ.
+      <div v-if="store.isBackendQuizError" class="fallback-notice">
+        <BaseIcon name="warning" class="w-3.5 h-3.5 inline mr-1 align-middle" />Không thể tải quiz từ máy chủ.
         <button @click="store.loadQuizCatalog()" class="fallback-notice__retry">Thử kết nối lại</button>
       </div>
 
@@ -224,21 +224,7 @@ const selectedTopic = ref('Tất cả');
 const searchQuery = ref('');
 
 
-const FALLBACK_QUIZZES: StatelessQuizSummary[] = [
-  { id: 'fallback-dsa-1', title: 'Thuật toán Sắp xếp cơ bản', topic: 'DSA', difficulty: 'easy', xpReward: 50, questionCount: 5 },
-  { id: 'fallback-dsa-2', title: 'Cấu trúc dữ liệu Stack & Queue', topic: 'DSA', difficulty: 'medium', xpReward: 80, questionCount: 5 },
-  { id: 'fallback-oop-1', title: 'OOP: Kế thừa và Đa hình', topic: 'OOP', difficulty: 'medium', xpReward: 80, questionCount: 5 },
-  { id: 'fallback-solid-1', title: 'Nguyên lý SOLID cơ bản', topic: 'SOLID', difficulty: 'hard', xpReward: 120, questionCount: 5 },
-  { id: 'fallback-patterns-1', title: 'Design Patterns: Singleton & Factory', topic: 'Patterns', difficulty: 'medium', xpReward: 100, questionCount: 5 },
-  { id: 'fallback-di-1', title: 'Dependency Injection & IoC', topic: 'DI', difficulty: 'hard', xpReward: 120, questionCount: 5 },
-];
-
-const effectiveQuizzes = computed<StatelessQuizSummary[]>(() => {
-  if (store.quizCatalog.length > 0) return store.quizCatalog;
-  return FALLBACK_QUIZZES;
-});
-
-const isUsingFallback = computed(() => store.quizCatalog.length === 0);
+const effectiveQuizzes = computed<StatelessQuizSummary[]>(() => store.quizCatalog);
 
 const availableTopics = computed(() => {
   const topics = new Set(effectiveQuizzes.value.map(q => q.topic));
@@ -275,11 +261,6 @@ const displayedQuizzes = computed(() => {
 });
 
 function handleQuizClick(quiz: StatelessQuizSummary): void {
-  if (isUsingFallback.value) {
-    // QZ-055: gán qua action — không mutation state store trực tiếp từ component.
-    store.setBackendQuizError('Cần kết nối server để làm quiz. Vui lòng khởi động backend.');
-    return;
-  }
   store.startBackendQuiz(quiz.id);
 }
 

@@ -163,7 +163,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
     options
-        .UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
         // WIP stream khác đã thêm migration mới (CodelabId/Hearts/...) nhưng chưa cập nhật
         // ModelSnapshot → Migrate() ném PendingModelChangesWarning (error mặc định EF Core 9).
         // DB local rỗng, chuỗi migration tự thỏa model → suppress để migrate+seed chạy được.
@@ -191,9 +191,6 @@ if (builder.Environment.IsProduction() &&
         "Jwt:Key phải được cấu hình bằng chuỗi bí mật thực (không dùng placeholder) khi chạy Production.");
 }
 VisualizationDSA.Domain.JwtSigningConfig.Configure(jwtKey);
-
-// Tài khoản demo/admin mặc định CHỈ ở Development (tránh backdoor credential công khai ở production).
-VisualizationDSA.Domain.Strategies.StatelessAuthStrategy.EnableDemoAccounts = builder.Environment.IsDevelopment();
 
 
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -412,9 +409,11 @@ try
         
         context.Database.Migrate();
         
-        var seeder = new DbSeeder(context, includeDemoAdmin: app.Environment.IsDevelopment());
+        var seeder = new RealDataSeeder(
+            context,
+            scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
         await seeder.SeedAsync();
-        Console.WriteLine("[DB SEEDER SUCCESS]: Đã nạp thành công 11 khóa học và 12 bài Quiz!");
+        Console.WriteLine("[REAL DATA SEEDER SUCCESS]: Real-data seed completed; verify counts from the database before capture.");
     }
 }
 catch (Exception ex)

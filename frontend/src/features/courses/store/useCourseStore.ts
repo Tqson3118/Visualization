@@ -97,6 +97,13 @@ export const useCourseStore = defineStore('course', () => {
     return courses.value.find(c => c.id === id);
   }
 
+  function updateCourseLessons(courseId: string, lessons: any[]) {
+    const existing = courses.value.find(c => String(c.id) === String(courseId));
+    if (existing) {
+      existing.lessons = lessons as any;
+    }
+  }
+
   function getCourseProgress(courseId: string): CourseProgress {
     const course = getCourseById(courseId);
     if (!course) {
@@ -110,47 +117,73 @@ export const useCourseStore = defineStore('course', () => {
       };
     }
 
+    const storedCourseProgress = localStorage.getItem(`course_progress_${courseId}`);
+    const storedCompleted = localStorage.getItem(`course_completed_${courseId}`);
 
-    // Lưu ý: API list `/concepts/courses` KHÔNG trả lessons (chỉ totalLessons) —
-    // phải null-safe để tránh crash khi iterate.
     const lessons = course.lessons ?? [];
     let completedCount = 0;
     const completedLessonIds: string[] = [];
     let xpEarned = 0;
 
-    for (const lesson of lessons) {
-
-      const key = `lesson_progress_${lesson.id}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          // Bài được coi là hoàn thành khi: cờ completed (lưu bởi lesson flow — bao gồm
-          // cả bài không có codelab) HOẶC codelabCompleted (dữ liệu cũ).
-          const isDone = data.completed === true || data.codelabCompleted === true;
-          if (isDone) {
-            completedCount++;
-            completedLessonIds.push(lesson.id);
-            xpEarned += data.xpAwarded ?? 0;
+    if (lessons.length > 0) {
+      for (const lesson of lessons) {
+        const key = `lesson_progress_${lesson.id}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            const isDone = data.completed === true || data.codelabCompleted === true;
+            if (isDone) {
+              completedCount++;
+              completedLessonIds.push(lesson.id);
+              xpEarned += data.xpAwarded ?? 0;
+            }
+          } catch (e) {
+            console.warn(`Không đọc được dữ liệu tiến độ lesson "${lesson.id}" từ localStorage:`, e);
           }
-        } catch (e) {
-          console.warn(`Không đọc được dữ liệu tiến độ lesson "${lesson.id}" từ localStorage:`, e);
         }
       }
+    } else if (storedCourseProgress) {
+      try {
+        const parsed = JSON.parse(storedCourseProgress);
+        return {
+          courseId,
+          completedLessonIds: parsed.completedLessonIds || [],
+          totalLessons: course.totalLessons || parsed.totalLessons || 0,
+          progressPercent: parsed.progressPercent || 0,
+          xpEarned: parsed.xpEarned || 0,
+          isCompleted: parsed.progressPercent === 100 || storedCompleted === 'true',
+        };
+      } catch {}
     }
 
-    const progressPercent = (course.totalLessons > 0 ? course.totalLessons : lessons.length) > 0
-      ? Math.round((completedCount / (course.totalLessons > 0 ? course.totalLessons : lessons.length)) * 100)
-      : 0;
+    const total = course.totalLessons > 0 ? course.totalLessons : lessons.length;
+    let progressPercent = 0;
+    if (total > 0) {
+      progressPercent = Math.min(100, Math.round((completedCount / total) * 100));
+    }
+    if (storedCompleted === 'true' || (total > 0 && completedCount >= total)) {
+      progressPercent = 100;
+    }
 
-    return {
+    const isCompleted = progressPercent === 100 || storedCompleted === 'true';
+
+    const result: CourseProgress = {
       courseId,
       completedLessonIds,
-      totalLessons: course.totalLessons,
+      totalLessons: total,
       progressPercent,
       xpEarned,
-      isCompleted: progressPercent === 100,
+      isCompleted,
     };
+
+    if (completedCount > 0) {
+      try {
+        localStorage.setItem(`course_progress_${courseId}`, JSON.stringify(result));
+      } catch {}
+    }
+
+    return result;
   }
 
   function setCategory(category: string) {
@@ -240,6 +273,7 @@ export const useCourseStore = defineStore('course', () => {
     loadCourses,
     getCourseById,
     getCourseProgress,
+    updateCourseLessons,
     setCategory,
     setDifficulty,
     setSearchQuery,

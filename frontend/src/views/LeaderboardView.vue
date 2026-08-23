@@ -3,7 +3,7 @@
 // View-quality C (DESIGN.md §1/§6): hero = surface band level-2 (không gradient/blob),
 // rank = block-token tối canvas-ink + index mono header, chart top-10 = vùng dữ liệu LUÔN tối,
 // reorder TransitionGroup easing chuẩn enter/exit, EmptyState chung + copy §9 + nút retry/CTA.
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronLeft, ChevronRight, Flame, Trophy } from 'lucide-vue-next';
 
@@ -34,27 +34,46 @@ const tabs: Array<{ key: 'week' | 'level' | 'class'; label: string }> = [
   { key: 'class', label: 'Lớp' },
 ];
 
-onMounted(() => {
+const selectedClassId = ref<number | null>(null);
+
+onMounted(async () => {
   void board.fetchBoard('week');
   if (gamification.gems === 0 && gamification.hearts === 0) void gamification.fetchAll();
+  if (auth.isAuthenticated) {
+    try {
+      await classStore.fetchClasses();
+      if (classStore.classes.length > 0) {
+        selectedClassId.value = classStore.classes[0].id;
+      }
+    } catch {
+      // Bỏ qua lỗi tải lớp nếu chưa có
+    }
+  }
 });
 
 async function switchTab(key: string): Promise<void> {
   if (key === 'class') {
-    // G-F3E-NEW-2: tab Lớp phải gửi classId — lấy lớp hiện tại; chưa có → EmptyState, không gọi API.
     const classId = await resolveClassId();
     if (classId === null) {
       board.setNoClass();
       return;
     }
+    selectedClassId.value = classId;
     void board.fetchBoard('class', classId);
     return;
   }
   if (key === 'week' || key === 'level') void board.fetchBoard(key);
 }
 
+function onClassChange(): void {
+  if (selectedClassId.value) {
+    void board.fetchBoard('class', selectedClassId.value);
+  }
+}
+
 /** Lớp dùng cho tab Lớp: currentClass → lớp đầu tiên user đang tham gia → tải danh sách lớp nếu chưa có. */
 async function resolveClassId(): Promise<number | null> {
+  if (selectedClassId.value) return selectedClassId.value;
   if (classStore.currentClass) return classStore.currentClass.id;
   if (classStore.classes.length > 0) return classStore.classes[0].id;
   try {
@@ -190,6 +209,23 @@ const boardChartOption = computed(() => {
 
     <!-- Tabs shadcn: Tuần / Level / Lớp (giữ logic fetchBoard + phân trang) -->
     <Tabs :tabs="tabs" :model-value="board.tab" @change="switchTab" />
+
+    <!-- Class Selector Dropdown for Tab 'class' -->
+    <div
+      v-if="board.tab === 'class' && classStore.classes.length > 0"
+      class="flex items-center gap-3 p-3 rounded-xl bg-vdsa-surface border border-vdsa-border -mt-2 mb-2"
+    >
+      <span class="text-xs font-bold text-vdsa-secondary uppercase">Chọn Lớp học:</span>
+      <select
+        v-model="selectedClassId"
+        class="bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-accent cursor-pointer"
+        @change="onClassChange"
+      >
+        <option v-for="c in classStore.classes" :key="c.id" :value="c.id">
+          {{ c.name }} ({{ c.inviteCode }})
+        </option>
+      </select>
+    </div>
 
     <!-- Loading lần đầu: chưa có dữ liệu → Skeleton. Đổi tab: giữ bảng cũ để reorder. -->
     <div v-if="board.loading && board.rows.length === 0" class="leaderboard__loading" aria-busy="true">

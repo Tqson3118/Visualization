@@ -18,14 +18,16 @@ namespace VisualizationDSA.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
+        private readonly IPasswordHasher _passwordHasher;
 
         
         private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
 
-        public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
+        public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IPasswordHasher? passwordHasher = null)
         {
             _unitOfWork = unitOfWork;
             _configuration = configuration;
+            _passwordHasher = passwordHasher ?? new VisualizationDSA.Domain.Security.BcryptPasswordHasher();
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -202,26 +204,11 @@ namespace VisualizationDSA.Infrastructure.Services
         }
 
         
-        private static string HashPassword(string password)
-            => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+        private string HashPassword(string password)
+            => _passwordHasher.Hash(password);
 
-        private static bool VerifyPassword(string password, string passwordHash)
-        {
-            if (passwordHash.StartsWith("$2a$") || passwordHash.StartsWith("$2b$") || passwordHash.StartsWith("$2y$"))
-            {
-                try
-                {
-                    return BCrypt.Net.BCrypt.Verify(password, passwordHash);
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-            var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"));
-            var sha256Hash = Convert.ToHexString(bytes).ToLowerInvariant();
-            return sha256Hash == passwordHash;
-        }
+        private bool VerifyPassword(string password, string passwordHash)
+            => _passwordHasher.Verify(password, passwordHash);
 
         private static UserDto MapToUserDto(User user) => new()
         {

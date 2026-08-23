@@ -168,6 +168,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* HUD không phụ thuộc chiều cao renderer: header và controls luôn là các vùng cố định. */
+.shared-visualizer-shell > :first-child { flex: 0 0 auto; min-height: 48px; }
+.shared-visualizer-shell > :nth-child(2) { flex: 1 1 auto; min-height: 220px; }
+.shared-visualizer-shell > :nth-last-child(2),
+.shared-visualizer-shell > :last-child { flex: 0 0 auto; }
+
 .shell-drawer-enter-active,
 .shell-drawer-leave-active {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);

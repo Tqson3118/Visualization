@@ -179,4 +179,12 @@ public class ClassesController(
 
         return File(result.Value!.Content, result.Value.ContentType, result.Value.FileName);
     }
+
+    [HttpPost("{id:int}/import-course/{courseId:int}")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<ClassDetailDto>> ImportCourse([FromRoute] int id, [FromRoute] int courseId, CancellationToken ct)
+    {
+        var result = await _service.ImportCourseAsync(CurrentUserId(), CurrentRole(), id, courseId, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
 }

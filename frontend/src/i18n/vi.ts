@@ -699,14 +699,13 @@ export const messages = {
       roleAria: 'Biểu đồ phân bố vai trò',
       noteSimsPrefix: 'Tổng mô phỏng trong danh mục:',
       noteSimsSuffix: '(engines/catalog)',
-      noteMock: 'Biểu đồ 7 ngày + vai trò là dữ liệu minh họa — backend hiện chỉ trả KPI tức thời.',
-      // FIX R1 — microcopy nguồn số liệu + cách làm mới
+      noteLiveData: 'Dữ liệu doanh thu 7 ngày và cơ cấu người dùng được cập nhật trực tiếp từ hệ thống.',
+      // Nguồn số liệu trực tiếp
       noteRefresh: 'Số liệu KPI lấy tại thời điểm mở trang — tải lại để xem giá trị mới.',
-      // Task 3a (ui-redesign) — nhãn biểu đồ vùng tối
+      // Nhãn biểu đồ
       weekTag: '7 NGÀY',
-      weekUnit: 'lượt',
-      // FIX A5 — nhãn dữ liệu minh họa ngay trên mỗi biểu đồ (chart sample)
-      sampleTag: 'Dữ liệu mẫu',
+      weekUnit: 'VNĐ',
+      sampleTag: 'Dữ liệu trực tiếp',
       roleTooltip: (label: string, pct: number) => `${label} — ${pct}%`,
       loadError: 'Không thể tải thống kê.',
       stripLabel: (n: number) => `${String(n).padStart(2, '0')} CHỈ SỐ THEO DÕI`,
@@ -934,7 +933,7 @@ export const messages = {
     detailOpen: 'Đang mở',
     detailClosed: 'Đã đóng',
     detailSettingsDanger: 'Nguy hiểm',
-    detailSettingsNote: 'Xóa lớp sẽ ẩn lớp khỏi mọi thành viên (xóa mềm).',
+    detailSettingsNote: 'Xóa lớp sẽ ẩn lớp khỏi mọi thành viên',
     detailDeleteBtn: 'Xóa lớp này',
     detailDeleteTitle: 'Xóa lớp',
     detailDeleteConfirm: (name: string) => `Xóa lớp "${name}"? Hành động này không thể hoàn tác.`,

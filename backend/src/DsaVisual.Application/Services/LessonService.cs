@@ -46,6 +46,15 @@ public sealed class LessonService(
             // loại bài IsClassOnly (nội bộ lớp, truy cập qua ClassAssignment)
             query = query.Where(l => l.Status == LessonStatus.Active && !l.IsClassOnly);
         }
+        else if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase))
+        {
+            // Giảng viên xem danh sách bài học do chính mình tạo
+            query = query.Where(l => l.CreatedBy == userId);
+            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<LessonStatus>(status, true, out var statusFilter))
+            {
+                query = query.Where(l => l.Status == statusFilter);
+            }
+        }
         else if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<LessonStatus>(status, true, out var statusFilter))
         {
             query = query.Where(l => l.Status == statusFilter);
@@ -76,6 +85,7 @@ public sealed class LessonService(
                 Status = l.Status.ToString().ToLowerInvariant(),
                 IsClassOnly = l.IsClassOnly,
                 PublishedAt = l.PublishedAt,
+                CreatedBy = l.CreatedBy,
                 SimulationCount = l.LessonSimulations.Count,
                 ExerciseCount = l.Exercises.Count(e => e.DeletedAt == null),
                 Progress = isStudent
@@ -107,6 +117,12 @@ public sealed class LessonService(
         if (lesson is null)
         {
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && lesson.CreatedBy != userId)
+        {
+            // Giảng viên chỉ xem được bài học do chính mình tạo
+            return Result<LessonDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài học của giảng viên khác");
         }
 
         if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
@@ -301,6 +317,7 @@ public sealed class LessonService(
                 Status = l.Status.ToString().ToLowerInvariant(),
                 IsClassOnly = l.IsClassOnly,
                 PublishedAt = l.PublishedAt,
+                CreatedBy = l.CreatedBy,
                 SimulationCount = l.LessonSimulations.Count,
                 ExerciseCount = l.Exercises.Count(e => e.DeletedAt == null)
             })
@@ -506,8 +523,7 @@ public sealed class LessonService(
     // ── Private ─────────────────────────────────────────────
 
     /// <summary>
-    /// v2.15: trạng thái khi TẠO MỚI — Admin gán tùy ý; Teacher: classOnly → Active ngay,
-    /// public → PendingReview (phải qua Admin duyệt).
+    /// Trạng thái khi TẠO MỚI — Admin và Teacher có quyền xuất bản Active hoặc lưu Draft trực tiếp.
     /// </summary>
     private static LessonStatus ResolveCreateStatus(string role, LessonStatus requested, bool isClassOnly)
     {
@@ -518,7 +534,7 @@ public sealed class LessonService(
 
         if (isClassOnly)
         {
-            return LessonStatus.Active;
+            return requested == LessonStatus.Draft ? LessonStatus.Draft : LessonStatus.Active;
         }
 
         return requested is LessonStatus.Active or LessonStatus.PendingReview
@@ -527,9 +543,7 @@ public sealed class LessonService(
     }
 
     /// <summary>
-    /// v2.15: trạng thái khi SỬA — Admin gán tùy ý; Teacher: classOnly → Active ngay;
-    /// public: giữ Active nếu đang Active (sửa nội dung không gỡ bài đã duyệt), nếu yêu cầu
-    /// chuyển trạng thái khác (kể cả Active từ Draft) → PendingReview.
+    /// Trạng thái khi SỬA — Admin duyệt trực tiếp; Teacher chuyển sang Public → PendingReview.
     /// </summary>
     private static LessonStatus ResolveUpdateStatus(string role, Lesson lesson, LessonStatus requested, bool isClassOnly)
     {
@@ -540,7 +554,7 @@ public sealed class LessonService(
 
         if (isClassOnly)
         {
-            return LessonStatus.Active;
+            return requested == LessonStatus.Draft ? LessonStatus.Draft : LessonStatus.Active;
         }
 
         if (lesson.Status == LessonStatus.Active && requested == LessonStatus.Active)
@@ -636,6 +650,7 @@ public sealed class LessonService(
         RejectionReason = lesson.RejectionReason,
         PublishedAt = lesson.PublishedAt,
         SortOrder = lesson.SortOrder,
+        CreatedBy = lesson.CreatedBy,
         Simulations = lesson.LessonSimulations
             .OrderBy(s => s.SortOrder)
             .Select(s => new SimulationRefDto { SimulationKey = s.SimulationKey, Title = s.Title })

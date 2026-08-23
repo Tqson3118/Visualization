@@ -132,6 +132,58 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
         return Ok(result);
     }
 
+    /// <summary>GV xem tất cả ý kiến của các khóa mình quản lý (hoặc admin xem tất cả).</summary>
+    [HttpGet("feedback/for-teacher")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<List<CourseFeedbackDto>>> GetTeacherFeedback(
+        [FromQuery] int? courseId,
+        [FromQuery] string? status,
+        [FromQuery] string? type,
+        CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+
+        var query = _db.CourseFeedback.AsNoTracking();
+
+        if (role == "TEACHER")
+        {
+            var myCourseIds = await _db.LearningPaths.AsNoTracking()
+                .Where(p => p.CreatedBy == userId || p.AuthorId == userId)
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+            query = query.Where(f => myCourseIds.Contains(f.CourseId));
+        }
+
+        if (courseId is { } cId)
+        {
+            query = query.Where(f => f.CourseId == cId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && TryParseStatus(status, out var statusFilter))
+        {
+            query = query.Where(f => f.Status == statusFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            var parsedType = ParseType(type);
+            query = query.Where(f => f.Type == parsedType);
+        }
+
+        var items = await query
+            .OrderByDescending(f => f.CreatedAt)
+            .Take(200)
+            .ToListAsync(ct);
+
+        var result = new List<CourseFeedbackDto>();
+        foreach (var item in items)
+        {
+            result.Add(await ToDtoAsync(item, ct));
+        }
+        return Ok(result);
+    }
+
     public sealed class CourseFeedbackReplyRequest
     {
         public string? Status { get; set; }

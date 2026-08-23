@@ -126,3 +126,8 @@ export async function reorderClassCurriculum(
 ): Promise<void> {
   await client.put(CLASS_ENDPOINTS.curriculumReorder(id), payload);
 }
+
+/** Teacher/Admin: Nhập nhanh toàn bộ bài học từ một Lộ trình có sẵn vào lớp. */
+export async function importCourseToClass(id: number, courseId: number): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'POST', url: `/classes/${id}/import-course/${courseId}` });
+}

@@ -5,7 +5,7 @@
 // đổi border); mã mời = block-token tối canvas-ink (quyết định #4/#5).
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { GraduationCap, KeyRound, Plus, UserRound, Users } from 'lucide-vue-next';
+import { BarChart3, GraduationCap, KeyRound, Plus, UserRound, Users } from 'lucide-vue-next';
 
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
@@ -212,11 +212,23 @@ async function createClass(): Promise<void> {
             <Users :size="13" aria-hidden="true" />
             {{ messages.classes.members(cls.memberCount) }}
           </span>
-          <!-- Mã mời = block-token tối (dữ liệu tuần tự — quyết định #4/#5) -->
-          <span v-if="isManagerOf(cls)" class="classes__invite-chip" :title="messages.classes.inviteLabel">
-            <KeyRound :size="12" aria-hidden="true" />
-            <code>{{ cls.inviteCode }}</code>
-          </span>
+          <div class="flex items-center gap-2">
+            <!-- Nút xem Báo cáo & Thống kê dành cho Giáo viên -->
+            <Button
+              v-if="isManagerOf(cls)"
+              size="sm"
+              variant="ghost"
+              class="text-xs h-7 gap-1"
+              @click.stop="router.push({ name: 'class-report', params: { id: String(cls.id) } })"
+            >
+              <BarChart3 :size="13" /> Thống kê lớp
+            </Button>
+            <!-- Mã mời = block-token tối (dữ liệu tuần tự — quyết định #4/#5) -->
+            <span v-if="isManagerOf(cls)" class="classes__invite-chip" :title="messages.classes.inviteLabel">
+              <KeyRound :size="12" aria-hidden="true" />
+              <code>{{ cls.inviteCode }}</code>
+            </span>
+          </div>
         </footer>
       </Card>
     </div>

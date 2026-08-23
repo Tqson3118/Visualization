@@ -21,6 +21,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import { CATALOG } from '@/engines/catalog';
+import { allowLocalFallbacks } from '@/config/runtime';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,8 +39,9 @@ onMounted(async () => {
     const fetched = await fetchLocalFinalTest();
     exercise.value = fetched;
   } catch {
-    // Fallback: đề mẫu tổng hợp từ catalog
-    exercise.value = buildLocalFinalTest();
+    if (allowLocalFallbacks) {
+      exercise.value = buildLocalFinalTest();
+    }
   } finally {
     loading.value = false;
   }
@@ -51,7 +53,8 @@ async function fetchLocalFinalTest(): Promise<ExerciseDto> {
   const exercises = await exercisesApi.fetchExercises({ stage: 1 });
   if (exercises.length > 0) return exercisesApi.fetchExercise(exercises[0].id);
   void pathId;
-  return buildLocalFinalTest();
+  if (allowLocalFallbacks) return buildLocalFinalTest();
+  throw new Error('No final test is available from the API');
 }
 
 function buildLocalFinalTest(): ExerciseDto {

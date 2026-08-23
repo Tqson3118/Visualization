@@ -47,8 +47,11 @@ export const useGamificationStore = defineStore('gamification', () => {
       hearts.value = status.hearts;
       heartsMax.value = status.heartsMax;
       lastHeartAt.value = status.lastHeartAt;
+      if (typeof status.gems === 'number') {
+        gems.value = status.gems;
+      }
     } catch {
-      // API lỗi → giữ giá trị cục bộ (fallback 5 tim)
+      // API failure is not a local/demo data source; keep the unavailable state.
     }
   }
 
@@ -58,6 +61,9 @@ export const useGamificationStore = defineStore('gamification', () => {
       summary.value = await gamificationApi.fetchGamificationSummary();
       xp.value = summary.value.xp;
       level.value = summary.value.level;
+      if (typeof summary.value.gems === 'number') {
+        gems.value = summary.value.gems;
+      }
     } catch {
       summary.value = null;
     }
@@ -127,7 +133,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     try {
       premium.value = await gamificationApi.fetchPremiumStatus();
     } catch {
-      premium.value = { isPremium: false, plan: null, expiresAt: null };
+      premium.value = null;
     }
   }
 

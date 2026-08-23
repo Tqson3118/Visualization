@@ -110,9 +110,30 @@ namespace VisualizationDSA.Domain.Entities
 
         public void SetRole(string role)
         {
-            if (role == "Student" || role == "Teacher" || role == "Admin")
+            if (role == "Student" || role == "Teacher" || role == "Admin" || role == "PendingTeacher")
                 Role = role;
         }
+
+        /// <summary>Seed: đặt lại tổng XP (dùng khi seed lại DB sạch).</summary>
+        public void SetTotalXP(int xp)
+        {
+            TotalXP = Math.Max(0, xp);
+            CurrentLevel = 1;
+            _checkLevelUp();
+        }
+
+        /// <summary>Seed: đặt streak chính xác.</summary>
+        public void SetStreakDays(int streak) => StreakDays = Math.Max(0, streak);
+
+        /// <summary>Seed: đặt tim chính xác.</summary>
+        public void SetHearts(int hearts)
+        {
+            Hearts = Math.Clamp(hearts, 0, HeartsMax);
+            LastHeartAt = Hearts >= HeartsMax ? null : DateTime.UtcNow;
+        }
+
+        /// <summary>Seed: ghi ngày hoạt động cuối (để streak không bị reset khi login).</summary>
+        public void SetLastActivityDate(DateTime? when) => LastActivityDate = when;
 
         
         

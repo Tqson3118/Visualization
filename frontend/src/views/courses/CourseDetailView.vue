@@ -32,23 +32,12 @@
             {{ course.description }}
           </p>
 
-          <!-- Stats: rating thật (AVG ContentFeedback) + lessons/quiz/lab/XP thật -->
+          <!-- Stats: lessons/quiz/lab/XP thật -->
           <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-6 text-sm text-vdsa-muted font-medium">
-            <span v-if="course.rating > 0" class="flex items-center gap-2" :title="`${course.ratingCount} lượt đánh giá`">
-              <span class="text-vdsa-yellow font-bold text-base">{{ course.rating.toFixed(1) }}</span>
-              <span class="flex items-center gap-0.5">
-                <BaseIcon v-for="s in 5" :key="s" name="star"
-                  class="w-4 h-4"
-                  :class="s <= Math.round(course.rating) ? 'text-vdsa-yellow' : 'text-vdsa-disabled'"
-                  fill="currentColor"
-                />
-              </span>
-              <span>({{ course.ratingCount }} đánh giá)</span>
-            </span>
-              <span class="flex items-center gap-1.5"><BaseIcon name="book-open" class="w-4 h-4 text-vdsa-purple-light" /> {{ course.lessons.length }} Bài học</span>
-              <span v-if="quizCount > 0" class="flex items-center gap-1.5"><BaseIcon name="quiz" class="w-4 h-4 text-vdsa-purple-light" /> {{ quizCount }} Quiz</span>
-              <span v-if="labCount > 0" class="flex items-center gap-1.5"><BaseIcon name="code-ide" class="w-4 h-4 text-vdsa-purple-light" /> {{ labCount }} Bài tập</span>
-              <span class="flex items-center gap-1.5"><BaseIcon name="zap" class="w-4 h-4 text-vdsa-purple-light" /> {{ xpTotal }} XP</span>
+            <span class="flex items-center gap-1.5"><BaseIcon name="book-open" class="w-4 h-4 text-vdsa-purple-light" /> {{ course.lessons.length }} Bài học</span>
+            <span v-if="quizCount > 0" class="flex items-center gap-1.5"><BaseIcon name="quiz" class="w-4 h-4 text-vdsa-purple-light" /> {{ quizCount }} Quiz</span>
+            <span v-if="labCount > 0" class="flex items-center gap-1.5"><BaseIcon name="code-ide" class="w-4 h-4 text-vdsa-purple-light" /> {{ labCount }} Bài tập</span>
+            <span class="flex items-center gap-1.5"><BaseIcon name="zap" class="w-4 h-4 text-vdsa-purple-light" /> {{ xpTotal }} XP</span>
           </div>
 
           <!-- Actions: Start Learning / Course Content cạnh nhau, căn giữa -->
@@ -538,6 +527,9 @@ async function loadCourseDetail() {
       ...data,
       coverImage: data.coverImageUrl ?? data.coverImage,
     } as unknown as CourseDetailDto;
+    if (course.value.lessons) {
+      courseStore.updateCourseLessons(courseId, course.value.lessons);
+    }
     expandedModules.value = course.value.lessons.length ? [0] : [];
     updateTimelineFill();
 

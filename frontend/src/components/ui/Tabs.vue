@@ -39,14 +39,15 @@ const activeKey = computed({
 
 <template>
   <div class="w-full">
-    <TabsRoot v-model="activeKey">
+    <TabsRoot :model-value="activeKey" @update:model-value="(val: any) => { emit('update:modelValue', String(val)); emit('change', String(val)); }">
       <TabsList class="h-auto w-full justify-start overflow-x-auto rounded-none border-b bg-transparent p-0">
         <TabsTrigger
           v-for="tab in tabs"
           :key="tab.key"
           :value="tab.key"
           :disabled="tab.disabled"
-          class="min-h-9 rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+          class="min-h-9 rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none cursor-pointer"
+          @click="emit('update:modelValue', tab.key); emit('change', tab.key)"
         >
           {{ tab.label }}
           <Badge v-if="tab.badge !== undefined" variant="primary" class="ml-1">

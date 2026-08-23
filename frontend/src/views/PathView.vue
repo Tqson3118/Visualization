@@ -13,6 +13,7 @@ import { useUiStore } from '@/stores/ui';
 import * as gamificationApi from '@/api/gamification';
 import type { LearningPathNodeDto } from '@/api/gamification';
 import { CATALOG } from '@/engines/catalog';
+import { allowLocalFallbacks } from '@/config/runtime';
 import Button from '@/components/ui/Button.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -101,7 +102,11 @@ async function load(): Promise<void> {
     nodes.value = applyLocalProgress(path.nodes);
   } catch {
     apiFailed.value = true;
-    nodes.value = applyLocalProgress(localNodes());
+    if (!allowLocalFallbacks) {
+      nodes.value = [];
+      return;
+    }
+    nodes.value = allowLocalFallbacks ? applyLocalProgress(localNodes()) : [];
   } finally {
     loading.value = false;
   }
@@ -134,7 +139,7 @@ async function startNode(node: LearningPathNodeDto): Promise<void> {
     void router.push({ name: 'node-hub', params: { topicId: String(topicId.value), nodeId: String(node.id) } });
   } catch {
     // Fallback: không có backend → mở thẳng Node Hub (demo cục bộ không trừ tim)
-    if (apiFailed.value) {
+    if (apiFailed.value && allowLocalFallbacks) {
       markLocalPassed(node.id);
       void router.push({ name: 'node-hub', params: { topicId: String(topicId.value), nodeId: String(node.id) } });
     } else {

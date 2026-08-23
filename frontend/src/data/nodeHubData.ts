@@ -4,6 +4,7 @@
  * mẫu ngay cả khi backend chưa khả dụng (ghi chú: không phải dữ liệu chính thức).
  */
 
+/** Demo-only seed mapping. Production callers must use API-provided lessonId. */
 export const TOPIC_NODE_LESSONS: Record<number, Record<number, number>> = {
   // Topic 1 — Sắp xếp & Tìm kiếm: node 1..8 → lesson 1..8 (seed)
   1: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8 },

@@ -285,4 +285,112 @@ public class LessonServiceTests
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
         Assert.Equal(0, await db.BugReports.CountAsync());
     }
+
+    // ── Phân quyền sở hữu (Teacher Ownership) ────────────────
+
+    [Fact]
+    public async Task Update_DifferentTeacher_ReturnsForbidden()
+    {
+        var (service, db) = await SetupAsync(nameof(Update_DifferentTeacher_ReturnsForbidden));
+        // Lesson Id 1 có CreatedBy = 1
+        // User 2 (Teacher khác) cố gắng sửa bài học của User 1
+        var request = BuildUpsertRequest(1, LessonStatus.Active);
+        var result = await service.UpdateAsync(2, "TEACHER", 1, request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Delete_DifferentTeacher_ReturnsForbidden()
+    {
+        var (service, db) = await SetupAsync(nameof(Delete_DifferentTeacher_ReturnsForbidden));
+        // User 2 (Teacher khác) cố gắng xóa bài học của User 1
+        var result = await service.DeleteAsync(2, "TEACHER", 1, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Update_OwnerTeacher_Succeeds()
+    {
+        var (service, db) = await SetupAsync(nameof(Update_OwnerTeacher_Succeeds));
+        // User 1 là chủ sở hữu bài học 1
+        var request = BuildUpsertRequest(1, LessonStatus.Active);
+        var result = await service.UpdateAsync(1, "TEACHER", 1, request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(1, result.Value!.CreatedBy);
+    }
+
+    [Fact]
+    public async Task Update_Admin_CanUpdateAnyTeacherLesson()
+    {
+        var (service, db) = await SetupAsync(nameof(Update_Admin_CanUpdateAnyTeacherLesson));
+        // Admin (User 99) có thể sửa bài học của bất kỳ ai
+        var request = BuildUpsertRequest(1, LessonStatus.Active);
+        var result = await service.UpdateAsync(99, "ADMIN", 1, request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Delete_Admin_CanDeleteAnyTeacherLesson()
+    {
+        var (service, db) = await SetupAsync(nameof(Delete_Admin_CanDeleteAnyTeacherLesson));
+        // Admin (User 99) có thể xóa bài học của bất kỳ ai
+        var result = await service.DeleteAsync(99, "ADMIN", 2, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task GetList_AsTeacher_ReturnsOnlyOwnLessons()
+    {
+        var (service, db) = await SetupAsync(nameof(GetList_AsTeacher_ReturnsOnlyOwnLessons));
+        // Seed thêm bài học của Teacher 2 (User 2)
+        db.Lessons.Add(new Lesson
+        {
+            Id = 10,
+            TopicId = 1,
+            Title = "Bài của Giáo viên 2",
+            ContentHtml = "<p>Nội dung</p>",
+            Status = LessonStatus.Active,
+            CreatedBy = 2,
+            CreatedAt = _clock.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        // Teacher 1 gọi GetListAsync → Chỉ nhận các bài do Teacher 1 tạo (CreatedBy == 1)
+        var result = await service.GetListAsync(1, "TEACHER", null, null, null, 1, 20, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.All(result.Value!.Items, item => Assert.Equal(1, item.CreatedBy));
+        Assert.DoesNotContain(result.Value.Items, item => item.Id == 10);
+    }
+
+    [Fact]
+    public async Task GetById_AsTeacher_OtherTeacherLesson_ReturnsForbidden()
+    {
+        var (service, db) = await SetupAsync(nameof(GetById_AsTeacher_OtherTeacherLesson_ReturnsForbidden));
+        // Lesson 1 có CreatedBy = 1
+        // Teacher 2 gọi GetByIdAsync trên Lesson 1 → 403 FORBIDDEN
+        var result = await service.GetByIdAsync(2, "TEACHER", 1, true, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task GetById_AsAdmin_AnyTeacherLesson_ReturnsOk()
+    {
+        var (service, db) = await SetupAsync(nameof(GetById_AsAdmin_AnyTeacherLesson_ReturnsOk));
+        // Lesson 1 có CreatedBy = 1
+        // Admin (User 99) gọi GetByIdAsync trên Lesson 1 → 200 OK
+        var result = await service.GetByIdAsync(99, "ADMIN", 1, true, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value!.Id);
+    }
 }

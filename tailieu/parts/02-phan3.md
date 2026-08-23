@@ -85,7 +85,6 @@ graph TD
         Y[UC-25 Học theo Learning Path]
         Z[UC-26 Làm Practice Ladder]
         AA[UC-27 Làm bài kiểm tra cuối lộ trình]
-        AB[UC-28 Chạy Benchmark Lab]
         AC[UC-29 Làm Daily Quest và giữ Streak]
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
@@ -161,7 +160,6 @@ graph TD
         Y[UC-25 Học theo Learning Path]
         Z[UC-26 Làm Practice Ladder]
         AA[UC-27 Làm bài kiểm tra cuối lộ trình]
-        AB[UC-28 Chạy Benchmark Lab]
         AC[UC-29 Làm Daily Quest và giữ Streak]
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
@@ -222,7 +220,6 @@ Các use case chính được liệt kê ở Bảng 3.2:
 | UC-25 | Học theo Learning Path | Chọn lộ trình, xem bản đồ node, vào node đang mở (trừ tim), pass node để mở khóa node kế |
 | UC-26 | Làm Practice Ladder | Chuỗi 3 bậc Quiz → Lab → Code; pass bậc trước mới mở bậc sau, retry trong phiên miễn phí |
 | UC-27 | Làm bài kiểm tra cuối lộ trình | Làm final test sau khi pass toàn bộ node, ngưỡng pass ≥ 70% |
-| UC-28 | Chạy Benchmark Lab | So sánh nhiều giải thuật trên nhiều kích thước dữ liệu, đối chiếu overlay lý thuyết |
 | UC-29 | Làm Daily Quest và giữ Streak | Nhận thử thách hằng ngày, hoàn thành để giữ chuỗi ngày học liên tục |
 | UC-30 | Mua vật phẩm Gems Shop | Dùng gems đổi vật phẩm (tim, streak freeze...) trong cửa hàng |
 | UC-31 | Xem Leaderboard | Xem bảng xếp hạng theo XP |
@@ -334,8 +331,6 @@ Bảng 3.5 tổng hợp đầy đủ **75 yêu cầu chức năng (FR)** của h
 | FR-3.15 | Điểm dừng có điều kiện | Dừng mô phỏng khi gặp điều kiện do người học chỉ định | UC-01 | TB |
 | FR-3.16 | Kiểm tra nhanh sau mô phỏng | Mini quiz ngắn sau khi xem xong mô phỏng | UC-01 | TB |
 | FR-3.18 | Chế độ tối | Giao diện tối cho toàn hệ thống | — | TB |
-| FR-3.20 | Benchmark Lab | Chạy so sánh nhiều giải thuật trên 1 kích thước dữ liệu | UC-28 | TB |
-| FR-3.20b | Benchmark đa kích thước | So sánh trên nhiều kích thước, hiển thị overlay lý thuyết | UC-28 | TB |
 | FR-4.1 | Quản lý bài tập | CRUD bài tập cho giảng viên (loại, câu hỏi, đáp án, bậc Ladder) | UC-10 | Cao |
 | FR-4.2 | Làm bài tập trắc nghiệm | Bậc 1 Quiz: trả lời, nộp, chấm điểm tự động, hiển thị giải thích | UC-06 | Cao |
 | FR-4.3 | Bài tập dự đoán bước | Bậc 2 Lab: chấm trạng thái cuối + giới hạn số bước | UC-07 | TB |

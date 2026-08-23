@@ -4,9 +4,11 @@ namespace DsaVisual.Application.Dtos;
 public sealed class PremiumStatusDto
 {
     public string? PlanId { get; set; }
+    public string? Plan => PlanId;
     public DateTime? StartedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
     public string Status { get; set; } = "none";   // none/active/expired
+    public bool IsPremium => Status == "active";
 }
 
 /// <summary>Nâng cấp Premium — POST /premium/upgrade {planId} (checkout mô phỏng).</summary>

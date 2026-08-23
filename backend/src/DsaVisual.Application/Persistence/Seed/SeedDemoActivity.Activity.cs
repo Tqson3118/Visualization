@@ -286,7 +286,7 @@ public static partial class SeedDemoActivity
                 var (xp, gemsEarned) = await SumClaimedRewardsAsync(db, user.Id, quests.Values, ct);
                 var gemsSpent = await SumInventorySpendAsync(db, user.Id, items.Values, ct);
                 user.Xp = xp;
-                user.Gems = gemsEarned - gemsSpent;
+                user.Gems = user.Email == "teacher@demo.local" ? Math.Max(gemsEarned - gemsSpent, 1000) : (gemsEarned - gemsSpent);
                 user.StreakDays = plan.StreakDays;
                 user.LastActivityDate = todayLocal;
                 user.StreakLastProcessed = todayLocal;
@@ -466,7 +466,7 @@ public static partial class SeedDemoActivity
                 await db.SaveChangesAsync(ct);
                 var (_, gemsEarned) = await SumClaimedRewardsAsync(db, user.Id, quests.Values, ct);
                 var gemsSpent = await SumInventorySpendAsync(db, user.Id, items.Values, ct);
-                user.Gems = gemsEarned - gemsSpent;
+                user.Gems = user.Email == "teacher@demo.local" ? Math.Max(gemsEarned - gemsSpent, 1000) : (gemsEarned - gemsSpent);
                 user.UpdatedAt = clock.UtcNow;
                 logger.LogInformation(
                     "Seed: UserInventory {Email}: {Added} thêm → Gems={Gems} (earn={Earned}, spend={Spent})",

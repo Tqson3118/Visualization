@@ -18,6 +18,17 @@ namespace VisualizationDSA.Domain.Entities
         public DateTime CreatedAt { get; private set; }
         public bool IsDeleted { get; private set; }
 
+        // ── Metadata mở rộng (FE CourseDetailView: rating, testimonials, objectives, xpReward) ──
+        public decimal Rating { get; private set; } = 0;
+        public int RatingCount { get; private set; } = 0;
+        /// <summary>JSON array string — ["objectives"]</summary>
+        public string LearningObjectives { get; private set; } = "[]";
+        /// <summary>JSON array string — ["outcomes"]</summary>
+        public string KeyOutcomes { get; private set; } = "[]";
+        /// <summary>JSON array string — [{title,description}]</summary>
+        public string Highlights { get; private set; } = "[]";
+        public int XpReward { get; private set; } = 0;
+
         public virtual User Teacher { get; private set; } = null!;
         public virtual ICollection<CourseModule> Modules { get; private set; }
 
@@ -73,6 +84,17 @@ namespace VisualizationDSA.Domain.Entities
         public void Unpublish()
         {
             IsPublished = false;
+        }
+
+        /// <summary>Cập nhật metadata mở rộng (rating/testimonials/objectives...) — dùng khi seed.</summary>
+        public void SetMetadata(decimal rating, int ratingCount, string learningObjectives, string keyOutcomes, string highlights, int xpReward)
+        {
+            Rating = rating;
+            RatingCount = ratingCount;
+            LearningObjectives = string.IsNullOrWhiteSpace(learningObjectives) ? "[]" : learningObjectives;
+            KeyOutcomes = string.IsNullOrWhiteSpace(keyOutcomes) ? "[]" : keyOutcomes;
+            Highlights = string.IsNullOrWhiteSpace(highlights) ? "[]" : highlights;
+            XpReward = xpReward;
         }
 
         public void Delete()

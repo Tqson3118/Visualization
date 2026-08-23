@@ -1,14 +1,10 @@
 <script setup lang="ts">
-// AdminLadderView — Màn N-6: soạn node (gắn quiz/lab/code) — dạng cơ bản:
-// danh sách node + chọn exercise gắn vào.
-// View-quality 14/08 (Nhóm D): banner surface band level-2; node row qua
-// Button.vue (grep `<button` raw = 0); node-id = block-token tối index mono
-// (dữ liệu tuần tự — quyết định #4); bỏ hover-lift/gradient; error state + retry.
 import { computed, onMounted, ref } from 'vue';
-import { Check, Info, Link2, ListOrdered, RefreshCw } from 'lucide-vue-next';
+import { Check, Code, FileText, HelpCircle, Info, Link2, ListOrdered, Plus, RefreshCw, Trash2, Unlink, Upload, Pencil } from 'lucide-vue-next';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseSummaryDto } from '@/api/exercises';
+import * as lessonsApi from '@/api/lessons';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
 import AdminNav from '@/components/admin/AdminNav.vue';
@@ -16,12 +12,23 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ExerciseBuilderModal from '@/components/admin/ExerciseBuilderModal.vue';
 
 const ui = useUiStore();
 
 const exercises = ref<ExerciseSummaryDto[]>([]);
+const lessonsList = ref<Array<{ id: number; title: string }>>([]);
 const loading = ref(true);
 const loadError = ref(false);
+
+const exerciseTab = ref<'all' | 'quiz' | 'code'>('all');
+
+// Modals state
+const exerciseModalOpen = ref(false);
+const editingExerciseId = ref<number | null>(null);
+const builderDefaultNodeId = ref<number | null>(null);
+const builderDefaultStage = ref<number | null>(null);
+const builderDefaultTab = ref<'quiz' | 'code' | 'import-csv' | null>(null);
 
 const NODES = Array.from({ length: 8 }, (_, i) => ({
   id: i + 1,
@@ -29,14 +36,19 @@ const NODES = Array.from({ length: 8 }, (_, i) => ({
   stage: ((i % 3) + 1) as 1 | 2 | 3,
 }));
 
-const selectedNode = ref<number | null>(null);
+const selectedNode = ref<number | null>(1);
 const selectedExercise = ref<number | null>(null);
 
 async function load(): Promise<void> {
   loading.value = true;
   loadError.value = false;
   try {
-    exercises.value = await exercisesApi.fetchExercises({});
+    const [exs, lessonPage] = await Promise.all([
+      exercisesApi.fetchExercises({}),
+      lessonsApi.fetchLessons({}).catch(() => ({ items: [] })),
+    ]);
+    exercises.value = exs;
+    lessonsList.value = (lessonPage.items || []).map((l) => ({ id: l.id, title: l.title }));
   } catch {
     loadError.value = true;
     exercises.value = [];
@@ -53,16 +65,28 @@ const stageLabel: Record<number, string> = {
   3: messages.admin.ladder.stage[3],
 };
 
+const filteredExercises = computed(() => {
+  if (exerciseTab.value === 'quiz') {
+    return exercises.value.filter((e) => e.type === 'MCQ' || e.stage === 1);
+  }
+  if (exerciseTab.value === 'code') {
+    return exercises.value.filter((e) => e.type === 'CODE' || e.stage === 3);
+  }
+  return exercises.value;
+});
+
 const nodeExercises = computed(() => {
-  const map = new Map<number, ExerciseSummaryDto | null>();
-  for (const node of NODES) {
-    const ex = exercises.value.find((e) => e.nodeId === node.id);
-    map.set(node.id, ex ?? null);
+  const map = new Map<number, ExerciseSummaryDto[]>();
+  for (const node of NODES) map.set(node.id, []);
+  for (const ex of exercises.value) {
+    if (ex.nodeId !== null && map.has(ex.nodeId)) {
+      map.get(ex.nodeId)!.push(ex);
+    }
   }
   return map;
 });
 
-// Số exercise đã gắn vào từng node (đếm từ list exercises đã fetch — không gọi API mới).
+// Số exercise đã gắn vào từng node
 const nodeExerciseCounts = computed(() => {
   const counts = new Map<number, number>();
   for (const node of NODES) counts.set(node.id, 0);
@@ -72,8 +96,7 @@ const nodeExerciseCounts = computed(() => {
   return counts;
 });
 
-// Số user đã qua từng node (tổng completedByUserCount của exercise gắn node — field
-// optional, backend deploy song song; chưa có field thì badge hiển thị 0).
+// Số user đã qua từng node
 const nodePassedUserCounts = computed(() => {
   const counts = new Map<number, number>();
   for (const node of NODES) counts.set(node.id, 0);
@@ -83,23 +106,74 @@ const nodePassedUserCounts = computed(() => {
   return counts;
 });
 
+function openCreateQuiz(nodeId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultNodeId.value = nodeId ?? (selectedNode.value || 1);
+  builderDefaultStage.value = 1;
+  builderDefaultTab.value = 'quiz';
+  exerciseModalOpen.value = true;
+}
+
+function openCreateCode(nodeId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultNodeId.value = nodeId ?? (selectedNode.value || 1);
+  builderDefaultStage.value = 3;
+  builderDefaultTab.value = 'code';
+  exerciseModalOpen.value = true;
+}
+
+function openImportCsv(nodeId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultNodeId.value = nodeId ?? (selectedNode.value || 1);
+  builderDefaultStage.value = 1;
+  builderDefaultTab.value = 'import-csv';
+  exerciseModalOpen.value = true;
+}
+
+function openEditExercise(ex: ExerciseSummaryDto): void {
+  editingExerciseId.value = ex.id;
+  builderDefaultNodeId.value = ex.nodeId;
+  builderDefaultStage.value = ex.stage || (ex.type === 'CODE' ? 3 : 1);
+  builderDefaultTab.value = ex.type === 'CODE' ? 'code' : 'quiz';
+  exerciseModalOpen.value = true;
+}
+
 async function attach(): Promise<void> {
   if (selectedNode.value === null || selectedExercise.value === null) return;
   try {
-    // Backend: cập nhật nodeId của exercise (PUT /exercises/{id})
     await exercisesApi.updateExercise(selectedExercise.value, { nodeId: selectedNode.value });
     ui.showToast(messages.admin.ladder.attachToast(selectedExercise.value, selectedNode.value), 'success');
-    // Reload để map cập nhật
-    exercises.value = await exercisesApi.fetchExercises({});
+    void load();
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.admin.ladder.attachFailed, 'error');
+  }
+}
+
+async function detach(ex: ExerciseSummaryDto): Promise<void> {
+  try {
+    await exercisesApi.updateExercise(ex.id, { nodeId: null });
+    ui.showToast(`Đã gỡ bài tập "${ex.title}" khỏi Node!`, 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể gỡ bài tập.', 'error');
+  }
+}
+
+async function deleteExerciseItem(ex: ExerciseSummaryDto): Promise<void> {
+  if (!confirm(`Bạn có chắc muốn xóa bài tập "${ex.title}"?`)) return;
+  try {
+    await exercisesApi.deleteExercise(ex.id);
+    ui.showToast('Đã xóa bài tập thành công!', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể xóa bài tập.', 'error');
   }
 }
 </script>
 
 <template>
   <main class="admin-ladder container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
+    <!-- Banner -->
     <header class="admin-ladder__hero">
       <div class="admin-ladder__hero-inner">
         <div class="admin-ladder__hero-main">
@@ -108,105 +182,240 @@ async function attach(): Promise<void> {
               <ListOrdered :size="12" /> {{ messages.admin.badge }}
             </Badge>
           </div>
-          <h1 class="admin-ladder__title">{{ messages.admin.ladder.title }}</h1>
-          <p class="admin-ladder__sub">{{ messages.admin.ladder.subtitle }}</p>
+          <h1 class="admin-ladder__title">Quản lý Node Ladder & Soạn Bài tập</h1>
+          <p class="admin-ladder__sub">Tạo bài Quiz trắc nghiệm, bài tập Code IDE và gán vào các bậc của từng Node trong lộ trình.</p>
         </div>
       </div>
     </header>
 
     <AdminNav active="ladder" />
 
-    <div class="admin-ladder__note">
-      <Info :size="16" class="admin-ladder__note-icon" aria-hidden="true" />
-      <p class="admin-ladder__note-text">{{ messages.admin.ladder.note }}</p>
+    <!-- Action Toolbar for Teacher -->
+    <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border">
+      <div class="flex items-center gap-2">
+        <Button variant="primary" size="md" @click="openCreateQuiz()">
+          <HelpCircle :size="16" /> + Tạo Quiz Trắc Nghiệm (Stage 1)
+        </Button>
+        <Button variant="secondary" size="md" @click="openCreateCode()">
+          <Code :size="16" /> + Tạo Bài Tập Code (Stage 3)
+        </Button>
+        <Button variant="ghost" size="md" @click="openImportCsv()">
+          <Upload :size="16" /> 📥 Nhập Quiz từ CSV
+        </Button>
+      </div>
+
+      <div class="text-xs text-vdsa-muted font-semibold">
+        Tổng số: <span class="text-white font-bold">{{ exercises.length }}</span> bài tập trong hệ thống
+      </div>
     </div>
 
     <div v-if="loading" class="admin-ladder__loading" aria-busy="true">
       <Skeleton v-for="i in 6" :key="i" height="56px" />
     </div>
 
-    <div v-else class="admin-ladder__grid">
-      <!-- Danh sách node -->
-      <div class="admin-ladder__nodes">
-        <h2 class="admin-ladder__subtitle">{{ messages.admin.ladder.nodeList }}</h2>
-        <ul class="admin-ladder__node-list">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Cột trái: 8 Nodes Ladder (4 cột trên 12) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-extrabold text-white uppercase tracking-wider">Bản đồ 8 Node Ladder</h2>
+          <span class="text-xs text-vdsa-muted">Chọn node để xem bài đã gán</span>
+        </div>
+
+        <ul class="space-y-2">
           <li v-for="node in NODES" :key="node.id">
-            <Button
-              variant="secondary"
-              class="admin-ladder__node"
-              :class="{ 'admin-ladder__node--selected': selectedNode === node.id }"
-              :aria-pressed="selectedNode === node.id"
+            <button
+              type="button"
+              class="w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3"
+              :class="selectedNode === node.id ? 'bg-vdsa-accent/15 border-vdsa-accent shadow-md ring-1 ring-vdsa-accent/40' : 'bg-vdsa-surface border-vdsa-border hover:bg-vdsa-hover'"
               @click="selectedNode = node.id"
             >
-              <span class="admin-ladder__node-id" aria-hidden="true">{{ node.id }}</span>
-              <span class="admin-ladder__node-stage">{{ stageLabel[node.stage] }}</span>
-              <Badge variant="secondary" class="admin-ladder__node-count">
-                {{ messages.admin.ladder.exercisesCount(nodeExerciseCounts.get(node.id) ?? 0) }}
-              </Badge>
-              <Badge variant="secondary" class="admin-ladder__node-passed">
-                {{ messages.admin.ladder.passedUsersCount(nodePassedUserCounts.get(node.id) ?? 0) }}
-              </Badge>
-              <Badge v-if="nodeExercises.get(node.id)" variant="success" class="admin-ladder__node-badge">
-                <Check :size="12" /> {{ messages.admin.ladder.attached }}
-              </Badge>
-              <Badge v-else variant="muted" class="admin-ladder__node-badge">
-                {{ messages.admin.ladder.empty }}
-              </Badge>
-            </Button>
+              <div class="flex items-center gap-3">
+                <span class="w-7 h-7 rounded-lg bg-vdsa-bg-secondary text-white font-mono font-bold text-xs flex items-center justify-center border border-vdsa-border">
+                  #0{{ node.id }}
+                </span>
+                <div>
+                  <div class="text-sm font-bold text-white">Node {{ node.id }}</div>
+                  <div class="text-xs text-vdsa-muted">{{ stageLabel[node.stage] }}</div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <Badge :variant="(nodeExerciseCounts.get(node.id) ?? 0) > 0 ? 'success' : 'secondary'">
+                  {{ (nodeExerciseCounts.get(node.id) ?? 0) }} bài tập
+                </Badge>
+              </div>
+            </button>
           </li>
         </ul>
       </div>
 
-      <!-- Gắn bài tập -->
-      <div class="admin-ladder__attach">
-        <h2 class="admin-ladder__subtitle">
-          <Link2 :size="16" class="admin-ladder__subtitle-icon" aria-hidden="true" />
-          {{ messages.admin.ladder.attachTitle }}
-        </h2>
-
-        <div v-if="loadError" class="admin-ladder__error" role="alert">
-          <p class="admin-ladder__error-text">{{ messages.admin.ladder.loadErrorText }}</p>
-          <Button size="sm" variant="secondary" @click="load">
-            <RefreshCw :size="14" /> {{ messages.admin.ladder.retry }}
-          </Button>
-        </div>
-
-        <EmptyState
-          v-else-if="exercises.length === 0"
-          icon="puzzle"
-          :title="messages.admin.ladder.emptyTitle"
-          :description="messages.admin.ladder.emptyDesc"
-        />
-
-        <template v-else>
-          <div class="admin-ladder__field">
-            <label class="label" for="node-select">{{ messages.admin.ladder.nodeLabel }}</label>
-            <select id="node-select" v-model="selectedNode" class="input">
-              <option :value="null" disabled>{{ messages.admin.ladder.nodePlaceholder }}</option>
-              <option v-for="node in NODES" :key="node.id" :value="node.id">
-                Node {{ node.id }} — {{ stageLabel[node.stage] }}
-              </option>
-            </select>
+      <!-- Cột phải: Chi tiết Node đang chọn & Danh sách bài tập (7 cột trên 12) -->
+      <div class="lg:col-span-7 space-y-6">
+        <!-- Panel bài tập của Node đang chọn -->
+        <div v-if="selectedNode !== null" class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4">
+          <div class="flex items-center justify-between border-b border-vdsa-border pb-3">
+            <div>
+              <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                <ListOrdered :size="18" class="text-vdsa-accent" />
+                Nội dung của Node {{ selectedNode }} ({{ stageLabel[((selectedNode - 1) % 3) + 1] }})
+              </h3>
+              <p class="text-xs text-vdsa-muted mt-0.5">Các bài tập học viên sẽ làm khi vượt qua node này</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="secondary" @click="openCreateQuiz(selectedNode)">
+                <Plus :size="14" /> Thêm Quiz
+              </Button>
+              <Button size="sm" variant="secondary" @click="openCreateCode(selectedNode)">
+                <Plus :size="14" /> Thêm Code
+              </Button>
+              <Button size="sm" variant="secondary" @click="openImportCsv(selectedNode)">
+                <Upload :size="14" /> 📥 Nhập / Mẫu CSV
+              </Button>
+            </div>
           </div>
 
-          <div class="admin-ladder__field">
-            <label class="label" for="exercise-select">{{ messages.admin.ladder.exerciseLabel }}</label>
-            <select id="exercise-select" v-model="selectedExercise" class="input">
-              <option :value="null" disabled>{{ messages.admin.ladder.exercisePlaceholder }}</option>
-              <option v-for="ex in exercises" :key="ex.id" :value="ex.id">
-                #{{ ex.id }} — {{ ex.title }} ({{ ex.type }}, stage {{ ex.stage }})
-              </option>
-            </select>
+          <!-- Danh sách bài tập đã gán vào Node -->
+          <div v-if="(nodeExercises.get(selectedNode) ?? []).length === 0" class="py-6 text-center text-xs text-vdsa-muted border border-dashed border-vdsa-border rounded-xl">
+            Node {{ selectedNode }} chưa có bài tập nào. Hãy bấm nút tạo bài hoặc gán bài tập từ danh sách bên dưới!
           </div>
 
-          <div class="admin-ladder__actions">
-            <Button :disabled="selectedNode === null || selectedExercise === null" @click="attach">
-              <Link2 :size="16" /> {{ messages.admin.ladder.attachBtn }}
+          <div v-else class="space-y-2">
+            <div
+              v-for="ex in nodeExercises.get(selectedNode)"
+              :key="ex.id"
+              class="p-3 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border flex items-center justify-between gap-3"
+            >
+              <div class="flex items-center gap-2.5">
+                <span class="p-2 rounded-lg bg-vdsa-surface text-vdsa-purple-light border border-vdsa-border">
+                  <Code v-if="ex.type === 'CODE'" :size="16" />
+                  <HelpCircle v-else :size="16" />
+                </span>
+                <div>
+                  <h4 class="text-xs font-bold text-white">{{ ex.title }}</h4>
+                  <div class="text-[11px] text-vdsa-muted flex items-center gap-2 mt-0.5">
+                    <span>{{ ex.type }}</span>
+                    <span>·</span>
+                    <span>Tối đa {{ ex.maxScore }} điểm</span>
+                    <span>·</span>
+                    <span>{{ ex.durationMinutes > 0 ? `${ex.durationMinutes} phút` : 'Không giới hạn' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <Button size="sm" variant="ghost" title="Chỉnh sửa" @click="openEditExercise(ex)">
+                  <Pencil :size="14" />
+                </Button>
+                <Button size="sm" variant="ghost" title="Gỡ khỏi Node này" @click="detach(ex)">
+                  <Unlink :size="14" /> Gỡ
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Attach Row -->
+          <div class="pt-3 border-t border-vdsa-border flex flex-col sm:flex-row items-center gap-2.5">
+            <div class="flex-1 w-full">
+              <select
+                v-model="selectedExercise"
+                class="w-full bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-accent"
+              >
+                <option :value="null">-- Chọn bài tập có sẵn để gán vào Node {{ selectedNode }} --</option>
+                <option v-for="ex in exercises" :key="ex.id" :value="ex.id">
+                  #{{ ex.id }} - {{ ex.title }} ({{ ex.type }}) {{ ex.nodeId ? `[Đang ở Node ${ex.nodeId}]` : '[Chưa gán]' }}
+                </option>
+              </select>
+            </div>
+            <Button size="sm" variant="primary" :disabled="selectedExercise === null" @click="attach">
+              <Link2 :size="14" /> Gán vào Node {{ selectedNode }}
             </Button>
           </div>
-        </template>
+        </div>
+
+        <!-- Bảng Tất Cả Bài Tập Trong Hệ Thống -->
+        <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-vdsa-border pb-3">
+            <h3 class="text-sm font-extrabold text-white uppercase tracking-wider">
+              Tất cả bài tập trong hệ thống ({{ filteredExercises.length }})
+            </h3>
+
+            <!-- Sub Filter -->
+            <div class="flex bg-vdsa-bg-secondary p-1 rounded-lg border border-vdsa-border text-xs">
+              <button
+                type="button"
+                class="px-3 py-1 rounded font-semibold transition-colors"
+                :class="exerciseTab === 'all' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+                @click="exerciseTab = 'all'"
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1 rounded font-semibold transition-colors"
+                :class="exerciseTab === 'quiz' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+                @click="exerciseTab = 'quiz'"
+              >
+                Quiz
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1 rounded font-semibold transition-colors"
+                :class="exerciseTab === 'code' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+                @click="exerciseTab = 'code'"
+              >
+                Code Lab
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+            <div
+              v-for="ex in filteredExercises"
+              :key="ex.id"
+              class="p-3.5 rounded-xl bg-vdsa-bg border border-vdsa-border hover:border-vdsa-accent/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            >
+              <div class="flex items-start gap-3">
+                <span class="p-2 rounded-lg bg-vdsa-surface text-vdsa-purple-light border border-vdsa-border shrink-0 mt-0.5">
+                  <Code v-if="ex.type === 'CODE'" :size="16" />
+                  <HelpCircle v-else :size="16" />
+                </span>
+                <div>
+                  <h4 class="text-xs font-bold text-white">{{ ex.title }}</h4>
+                  <div class="text-[11px] text-vdsa-muted flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" size="sm">{{ ex.type }}</Badge>
+                    <Badge v-if="ex.nodeId" variant="primary" size="sm">Gán ở Node {{ ex.nodeId }}</Badge>
+                    <Badge v-else variant="muted" size="sm">Chưa gán Node</Badge>
+                    <span>·</span>
+                    <span>{{ ex.maxScore }} điểm</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 self-end sm:self-center">
+                <Button size="sm" variant="ghost" @click="openEditExercise(ex)">
+                  <Pencil :size="13" /> Sửa
+                </Button>
+                <Button size="sm" variant="danger" @click="deleteExerciseItem(ex)">
+                  <Trash2 :size="13" /> Xóa
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Modal Soạn Bài Tập (Quiz / Code / CSV) -->
+    <ExerciseBuilderModal
+      :open="exerciseModalOpen"
+      :exercise-id="editingExerciseId"
+      :default-node-id="builderDefaultNodeId"
+      :default-stage="builderDefaultStage"
+      :default-tab="builderDefaultTab"
+      :lessons="lessonsList"
+      @close="exerciseModalOpen = false"
+      @saved="load"
+    />
   </main>
 </template>
 
@@ -216,10 +425,9 @@ async function attach(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  max-width: 1000px;
+  max-width: 1200px;
 }
 
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
 .admin-ladder__hero {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--card-raised);
@@ -238,152 +446,9 @@ async function attach(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  min-width: 0;
 }
 
-.admin-ladder__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-ladder__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-ladder__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-/* ── Info banner ── */
-.admin-ladder__note {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.admin-ladder__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--info); }
-
-.admin-ladder__note-text { margin: 0; font-size: var(--text-sm); color: var(--foreground-secondary); }
-
-.admin-ladder__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-ladder__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); align-items: start; }
-
-/* ── Panels ── */
-.admin-ladder__nodes,
-.admin-ladder__attach {
-  padding: var(--space-md);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.admin-ladder__attach { display: flex; flex-direction: column; gap: var(--space-md); }
-
-.admin-ladder__subtitle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0 0 var(--space-md);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-}
-
-.admin-ladder__subtitle-icon { color: var(--foreground-secondary); }
-
-/* ── Error ── */
-.admin-ladder__error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
-  background: color-mix(in srgb, var(--destructive) 8%, transparent);
-  border-radius: var(--radius-md);
-}
-
-.admin-ladder__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
-
-/* ── Node list ── */
-.admin-ladder__node-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-/* Node row = Button.vue (outline md) — chỉ override layout, không đè padding */
-.admin-ladder__node {
-  width: 100%;
-  justify-content: flex-start;
-  border-color: var(--border);
-  color: var(--foreground);
-  transition: border-color 150ms, background-color 150ms;
-}
-
-.admin-ladder__node:hover { border-color: var(--border-strong); }
-
-.admin-ladder__node--selected {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 7%, var(--card));
-  box-shadow: 0 0 0 1px var(--primary);
-}
-
-.admin-ladder__node--selected:hover { border-color: var(--primary); }
-
-/* Node-id = block-token tối + index mono (dữ liệu tuần tự — quyết định #4) */
-.admin-ladder__node-id {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 var(--space-xs);
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(66, 85, 255, 0.3);
-  background: var(--canvas-ink);
-  color: var(--data-core);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.admin-ladder__node-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Count badges nằm cạnh stage; badge trạng thái (đã gắn/trống) giữ margin-left:auto đẩy phải */
-.admin-ladder__node-count,
-.admin-ladder__node-passed { flex-shrink: 0; }
-
-.admin-ladder__node-badge { margin-left: auto; flex-shrink: 0; }
-
-/* ── Attach panel ── */
-.admin-ladder__field { display: flex; flex-direction: column; gap: var(--space-xs); }
-
-/* Select chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
-.admin-ladder__field .input {
-  background: var(--card);
-  border-color: var(--border);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  transition: border-color 150ms;
-}
-
-.admin-ladder__actions { display: flex; justify-content: flex-end; }
-
-@media (max-width: 800px) {
-  .admin-ladder__grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 640px) {
-  .admin-ladder__hero { padding: var(--space-lg); }
-}
+.admin-ladder__hero-badges { display: flex; gap: var(--space-sm); }
+.admin-ladder__title { font-size: var(--text-4xl); font-weight: 600; margin: 0; color: var(--foreground); }
+.admin-ladder__sub { color: var(--foreground-secondary); font-size: var(--text-sm); margin: 0; }
 </style>

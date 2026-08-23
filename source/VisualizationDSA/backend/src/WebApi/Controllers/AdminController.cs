@@ -11,6 +11,7 @@ using VisualizationDSA.Infrastructure.Data;
 using VisualizationDSA.WebApi.Filters;
 
 using VisualizationDSA.Domain;
+using VisualizationDSA.Domain.Interfaces;
 
 namespace VisualizationDSA.WebApi.Controllers
 {
@@ -28,6 +29,7 @@ namespace VisualizationDSA.WebApi.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly StatelessAuthStrategy _authStrategy;
         private readonly QuizBankStrategy _quizBank;
+        private readonly IPasswordHasher _passwordHasher;
 
         // A2-GUARD: Rate limit impersonation để tránh lạm dụng (5 lần/phút/admin).
         private static readonly ConcurrentDictionary<string, (DateTime WindowStart, int Count)> _impersonationRateLimiter = new();
@@ -37,11 +39,13 @@ namespace VisualizationDSA.WebApi.Controllers
         public AdminController(
             ApplicationDbContext dbContext,
             StatelessAuthStrategy authStrategy,
-            QuizBankStrategy quizBank)
+            QuizBankStrategy quizBank,
+            IPasswordHasher passwordHasher)
         {
             _dbContext = dbContext;
             _authStrategy = authStrategy;
             _quizBank = quizBank;
+            _passwordHasher = passwordHasher;
         }
 
 
@@ -254,7 +258,7 @@ namespace VisualizationDSA.WebApi.Controllers
                 return BadRequest(new { error = "USER_EXISTS", message = "Email hoặc Username đã được sử dụng." });
             }
 
-             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
+             var passwordHash = _passwordHasher.Hash(request.Password);
             var newUser = new User(request.Email, request.Username, passwordHash);
             
             newUser.SetRole(request.Role);
@@ -377,7 +381,7 @@ namespace VisualizationDSA.WebApi.Controllers
                 return NotFound(new { error = "USER_NOT_FOUND", message = "Không tìm thấy người dùng." });
             }
 
-            var newHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12);
+            var newHash = _passwordHasher.Hash(request.NewPassword);
             user.ChangePassword(newHash);
             await _dbContext.SaveChangesAsync();
 

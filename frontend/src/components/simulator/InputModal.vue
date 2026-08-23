@@ -150,7 +150,7 @@ function onSubmit(): void {
           <input
             :id="`inp-${field.name}`"
             class="input"
-            :value="Array.isArray(form[field.name]) ? (form[field.name] as unknown[]).join(', ') : ''"
+            :value="Array.isArray(form[field.name]) ? (form[field.name] as unknown[]).join(', ') : (form[field.name] !== undefined && form[field.name] !== null ? String(form[field.name]) : '')"
             :placeholder="arrayPlaceholder(field.type)"
             @input="form[field.name] = ($event.target as HTMLInputElement).value"
           />

@@ -33,37 +33,13 @@ import { ChevronDown, ChevronRight, ChevronUp, ExternalLink, Share2, Star } from
 import Button from '@/components/ui/Button.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 import Tooltip from '@/components/ui/Tooltip.vue';
-// D6b: shared sandbox shell — VcrDockBar + SortingVisualizerDispatcher qua LegacyStepAdapter.
-import SharedVisualizerShell from '@/features/visual-shell/components/SharedVisualizerShell.vue';
-import { useVcrStore } from '@/features/vcr-player/store/useVcrStore';
-import { stepsToSortFrames } from '@/features/visual-shell/buildFrames';
-import { catalogKeyToSortAlgorithm } from '@/features/algorithm-sandbox/helpers/catalogKeyMap';
-import type { SortFrame } from '@/features/algorithm-sandbox/types/sorting.types';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
-// D6b: VCR store dùng chung cho sort.* (shared sandbox shell).
-const vcrStore = useVcrStore();
 
 const key = computed(() => String(route.params.key ?? ''));
-
-/** Key thuộc 6 sort.* có renderer sandbox → dùng SharedVisualizerShell (D6b). */
-const isSandboxSortKey = computed(() => catalogKeyToSortAlgorithm(key.value) !== null);
-
-/** SortFrame[] từ engine steps (adapter) — chỉ khi key sort.*, còn lại giữ legacy renderer. */
-const sortFrames = computed<SortFrame[]>(() => {
-  if (!isSandboxSortKey.value) return [];
-  return stepsToSortFrames(steps.value, key.value);
-});
-
-/** Đồng bộ shell (vcrStore) → currentStep engine (pseudocode/explain/legend) cho sort.* key. */
-const shellActiveLine = computed(() => {
-  const idx = vcrStore.currentFrameIndex;
-  return steps.value[idx]?.pseudocodeLine ?? 0;
-});
-const shellVariables = computed(() => steps.value[vcrStore.currentFrameIndex]?.variables ?? {});
 
 const isDemoKey = computed(() => getCatalogMeta(key.value)?.demoAllowed === true);
 const isDemo = computed(() => !auth.isAuthenticated);
@@ -102,32 +78,6 @@ const {
   breakpointHit,
   toggleBreakpoint,
 } = useSimulation(key.value);
-
-// ⚠ TDZ: watch immediate phải đặt SAU destructure useSimulation (steps chưa tồn tại
-// khi callback chạy ngay trong setup) — nếu đặt trước, mọi trang sort.* crash
-// "Cannot access 'steps' before initialization" khi mount.
-// Khi sort.* key: giữ vcrStore.currentFrameIndex đồng bộ với simulationStore.currentIndex
-// (để pseudocode/explain không lệch khi dùng VcrDockBar).
-watch(
-  () => isSandboxSortKey.value,
-  (sandboxMode) => {
-    if (sandboxMode && steps.value.length > 0) {
-      vcrStore.playbackFrames = sortFrames.value;
-      vcrStore.reset();
-    }
-  },
-  { immediate: true },
-);
-
-// vcrStore (shell) là nguồn playback cho sort.* → sync index sang simulationStore
-// để currentStep (explain/stats/legend) theo đúng bước đang hiển thị.
-watch(
-  () => vcrStore.currentFrameIndex,
-  (idx) => {
-    if (!isSandboxSortKey.value) return;
-    if (idx >= 0 && idx < steps.value.length) jumpTo(idx);
-  },
-);
 
 const configOpen = ref(false);
 const showLegend = ref(true);
@@ -265,31 +215,6 @@ function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement;
   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
   if (configOpen.value) return;
-  // D6b: sort.* dùng shared shell (VcrDockBar) -> phím tắt điều khiển vcrStore.
-  if (isSandboxSortKey.value) {
-    switch (event.key) {
-      case ' ':
-        event.preventDefault();
-        vcrStore.togglePlay();
-        break;
-      case 'ArrowRight':
-        vcrStore.stepNext();
-        break;
-      case 'ArrowLeft':
-        vcrStore.stepPrev();
-        break;
-      case 'Home':
-        vcrStore.reset();
-        break;
-      case 'End':
-        if (sortFrames.value.length > 0) {
-          vcrStore.reset();
-          vcrStore.jumpToFrame(sortFrames.value.length - 1);
-        }
-        break;
-    }
-    return;
-  }
   switch (event.key) {
     case ' ':
       event.preventDefault();
@@ -496,23 +421,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
     </div>
 
     <template v-else>
-      <!-- D6b: key sort.* (renderer sandbox) → shared shell (VcrDockBar + SortingDispatcher + trace + pseudocode) -->
-      <div v-if="isSandboxSortKey" class="simulator__shell-mode" data-testid="simulator-shell-mode">
-        <PseudocodePanel
-          class="simulator__shell-pseudo"
-          :pseudocode="generator?.pseudocode ?? []"
-          :active-line="shellActiveLine"
-          :variables="shellVariables"
-          :collapsed="pseudocodeCollapsed"
-          :breakpoints="breakpoints"
-          @update:collapsed="pseudocodeCollapsed = $event"
-          @toggle-breakpoint="toggleBreakpoint"
-        />
-        <SharedVisualizerShell :frames="sortFrames" :algorithm-key="key" class="simulator__shell-main" />
-      </div>
-
-      <!-- Các key khác (tree/graph/hash/list/stack-queue/...) → legacy renderer giữ nguyên -->
-      <div v-else class="simulator__grid">
+      <div class="simulator__grid">
         <!-- Trái: mã giả (mobile: auto-collapse + xếp sau canvas) -->
         <PseudocodePanel
           class="simulator__pseudo"
@@ -567,6 +476,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             @step-forward="stepForward"
             @reset="reset"
             @set-speed="setSpeed"
+            @jump-to="jumpTo"
           />
           <LegendPanel :collapsed="!showLegend" />
           <ManualPracticePanel

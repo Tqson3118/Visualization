@@ -21,6 +21,7 @@ public sealed class LessonSummaryDto
     public string Status { get; set; } = LessonStatus.Draft.ToString();
     public bool IsClassOnly { get; set; }
     public DateTime? PublishedAt { get; set; }
+    public int CreatedBy { get; set; }
     public int SimulationCount { get; set; }
     public int ExerciseCount { get; set; }
     public LessonSummaryProgressDto? Progress { get; set; }

@@ -108,6 +108,7 @@
             :title="lessonStore.currentLesson.title"
             :content="lessonStore.currentLesson.theoryContent"
             :simulation-key="lessonStore.simulationKey"
+            :simulation-keys="lessonStore.simulationKeys"
             @completeStep="onQuizComplete"
           />
 

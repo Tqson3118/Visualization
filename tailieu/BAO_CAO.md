@@ -121,7 +121,6 @@ Kết quả so sánh theo 9 tiêu chí được trình bày ở Bảng 2.1.
 | Bài tập dự đoán bước | Có (quiz) | Không | Không | Có (Interactive Lab) |
 | Theo dõi tiến độ cá nhân | Không | Không | Không | Có |
 | Giảng viên biên soạn nội dung | Không | Không | Không | Có |
-| So sánh đo thật với lý thuyết | Không | Không | Không | Có (Benchmark Lab) |
 | Mã nguồn mở | Một phần | Có | Có | Nội bộ |
 
 Kết luận khảo sát: Các hệ thống hiện có đều sở hữu thế mạnh về mô phỏng từng bước nhưng chưa đáp ứng trọn vẹn nhu cầu giảng dạy và học tập trong nhà trường. Trên cơ sở đó, nhóm phát triển xác định các mục tiêu cốt lõi cho DSA-Visual gồm: giao diện tiếng Việt thân thiện, đồng bộ trực quan giữa mã giả và đồ họa, hệ thống bài tập thực hành tự chấm theo lộ trình ba bậc, hỗ trợ giảng viên biên soạn nội dung và theo dõi tiến độ sinh viên.
@@ -134,7 +133,7 @@ Yêu cầu chức năng của hệ thống được phân bổ qua 10 nhóm ch�
 |---|---|---|
 | Tài khoản | Đăng ký, đăng nhập, đổi/khôi phục mật khẩu, phê duyệt giảng viên | FR-1.1 đến FR-1.9 |
 | Học tập | Quản lý chủ đề, bài học, Learning Path, ghi chú cá nhân | FR-2.1 đến FR-2.11 |
-| Mô phỏng | Danh mục mô phỏng, hiển thị 3 vùng đồng bộ, điều khiển, Benchmark Lab | FR-3.1 đến FR-3.20b |
+| Mô phỏng | Danh mục mô phỏng, hiển thị 3 vùng đồng bộ, điều khiển giải thuật | FR-3.1 đến FR-3.19 |
 | Luyện tập | Practice Ladder 3 bậc, kiểm tra cuối lộ trình | FR-4.1 đến FR-4.12 |
 | Tiến độ và báo cáo | Ghi nhận tiến độ, dashboard cá nhân, báo cáo giảng viên | FR-5.1 đến FR-5.5 |
 | Quản trị | Quản lý người dùng, thống kê, cấu hình hệ thống | FR-5.4, FR-6.2 |
@@ -177,7 +176,7 @@ Nội dung 10 sprint được trình bày ở Bảng 2.3.
 | S6 | 16/06→22/06 | Practice Ladder và Code Runner phần 1 | Bậc 1 Quiz, Bậc 2 Interactive Lab, Monaco và sandbox Web Worker |
 | S7 | 23/06→29/06 | Code Runner phần 2 và chấm điểm | Bậc 3 Code Challenge với test ẩn, tổng hợp tiến độ |
 | S8 | 30/06→06/07 | Gamification lõi | Tim, Streak, XP/Level, Daily Quest, Leaderboard |
-| S9 | 07/07→13/07 | Premium, Lớp học phần, Benchmark | Gems Shop, Premium mô phỏng, lớp học phần, Benchmark Lab |
+| S9 | 07/07→13/07 | Premium, Lớp học phần | Gems Shop, Premium mô phỏng, lớp học phần |
 | S10 | 14/07→20/07 | Hoàn thiện | Kiểm thử toàn diện, tối ưu hiệu năng, bảo mật, tài liệu, deploy staging |
 
 Sau 10 sprint, giai đoạn hoàn thiện từ 21/07 đến 11/08/2026 gồm: kiểm thử toàn diện (chức năng, hiệu năng, bảo mật), hoàn tất 12 file tài liệu bàn giao và triển khai môi trường staging. Giai đoạn báo cáo từ 12/08 đến 31/08/2026: viết báo cáo Word, làm slide và chuẩn bị bảo vệ; ngày bảo vệ cụ thể do trường sắp xếp (để trống trên bìa).
@@ -279,7 +278,6 @@ graph TD
         Y[UC-25 Học theo Learning Path]
         Z[UC-26 Làm Practice Ladder]
         AA[UC-27 Làm bài kiểm tra cuối lộ trình]
-        AB[UC-28 Chạy Benchmark Lab]
         AC[UC-29 Làm Daily Quest và giữ Streak]
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
@@ -353,7 +351,6 @@ graph TD
         Y[UC-25 Học theo Learning Path]
         Z[UC-26 Làm Practice Ladder]
         AA[UC-27 Làm bài kiểm tra cuối lộ trình]
-        AB[UC-28 Chạy Benchmark Lab]
         AC[UC-29 Làm Daily Quest và giữ Streak]
         AD[UC-30 Mua vật phẩm Gems Shop]
         AE[UC-31 Xem Leaderboard]
@@ -414,7 +411,6 @@ Các use case chính được liệt kê ở Bảng 3.2:
 | UC-25 | Học theo Learning Path | Chọn lộ trình, xem bản đồ node, vào node đang mở (trừ tim), pass node để mở khóa node kế |
 | UC-26 | Làm Practice Ladder | Chuỗi 3 bậc Quiz → Lab → Code; pass bậc trước mới mở bậc sau, retry trong phiên miễn phí |
 | UC-27 | Làm bài kiểm tra cuối lộ trình | Làm final test sau khi pass toàn bộ node, ngưỡng pass ≥ 70% |
-| UC-28 | Chạy Benchmark Lab | So sánh nhiều giải thuật trên nhiều kích thước dữ liệu, đối chiếu overlay lý thuyết |
 | UC-29 | Làm Daily Quest và giữ Streak | Nhận thử thách hằng ngày, hoàn thành để giữ chuỗi ngày học liên tục |
 | UC-30 | Mua vật phẩm Gems Shop | Dùng gems đổi vật phẩm (tim, streak freeze...) trong cửa hàng |
 | UC-31 | Xem Leaderboard | Xem bảng xếp hạng theo XP |
@@ -520,8 +516,6 @@ Bảng 3.5 tổng hợp đầy đủ **75 yêu cầu chức năng (FR)** của h
 | FR-3.15 | Điểm dừng có điều kiện | Dừng mô phỏng khi gặp điều kiện do người học chỉ định | UC-01 | TB |
 | FR-3.16 | Kiểm tra nhanh sau mô phỏng | Mini quiz ngắn sau khi xem xong mô phỏng | UC-01 | TB |
 | FR-3.18 | Chế độ tối | Giao diện tối cho toàn hệ thống | — | TB |
-| FR-3.20 | Benchmark Lab | Chạy so sánh nhiều giải thuật trên 1 kích thước dữ liệu | UC-28 | TB |
-| FR-3.20b | Benchmark đa kích thước | So sánh trên nhiều kích thước, hiển thị overlay lý thuyết | UC-28 | TB |
 | FR-4.1 | Quản lý bài tập | CRUD bài tập cho giảng viên (loại, câu hỏi, đáp án, bậc Ladder) | UC-10 | Cao |
 | FR-4.2 | Làm bài tập trắc nghiệm | Bậc 1 Quiz: trả lời, nộp, chấm điểm tự động, hiển thị giải thích | UC-06 | Cao |
 | FR-4.3 | Bài tập dự đoán bước | Bậc 2 Lab: chấm trạng thái cuối + giới hạn số bước | UC-07 | TB |
@@ -646,7 +640,6 @@ graph LR
     NODE --> LADDER[/ladder/:nodeId/]
     LADDER --> LAB[/ladder/:nodeId/lab/]
     LADDER --> CODE[/code/:key/]
-    NODE --> BENCH[/benchmark/:k1/:k2/]
     PATH --> FINAL[/path/:topicId/final-test/]
     PATH --> CHEAT[/cheatsheet/]
     CHEAT --> SIM
@@ -672,7 +665,7 @@ Mũi tên trong sơ đồ thể hiện đường đi chính của người dùng
 |---|---|---|
 | Công khai | 01 Trang chủ, 02 Đăng nhập/Đăng ký, 12 Trợ giúp | 3 |
 | Học tập | 03 Danh sách bài học (redirect), 04 Chi tiết bài học, 13 Learning Path, 18 CheatSheet, 30 Final Test, 31 Node Hub | 6 |
-| Mô phỏng | 05 Simulator, 17 Benchmark Lab, 33 Khám phá | 3 |
+| Mô phỏng | 05 Simulator, 33 Khám phá | 2 |
 | Luyện tập | 06 Bài tập trắc nghiệm, 07 Dự đoán bước (sáp nhập Bậc 2), 14 Practice Ladder, 15 Interactive Lab, 16 Code Runner | 5 |
 | Gamification | 22 Shop, 23 Daily Quest, 24 Leaderboard, 25 Premium, 26 Checkout (modal), 27 Quản lý gói, 28 Modal Hết tim | 7 |
 | Lớp học | 19 Danh sách lớp, 20 Chi tiết lớp, 21 Báo cáo lớp | 3 |
@@ -776,9 +769,6 @@ Môi trường cho phép người học trực tiếp thao tác trên cấu trú
 Môi trường lập trình trực tuyến hỗ trợ viết mã và quan sát thuật toán thực thi theo thời gian thực trên canvas trực quan.
 
 #### 4.2.3.10 Giao diện Đo điểm chuẩn hiệu năng
-
-![Hình 4.10 - Benchmark Lab](screenshots/17-benchmark.png)
-*Hình 4.10: Giao diện Đo điểm chuẩn hiệu năng (Benchmark Lab)*
 
 Công cụ so sánh hiệu năng thực tế giữa các thuật toán trên nhiều kích thước dữ liệu đầu vào khác nhau.
 
@@ -1601,7 +1591,7 @@ Danh sách endpoint chính theo nhóm (trích từ API_REFERENCE — toàn bộ 
 - **Bài học đã hoàn thành:** Người học có thể mở lại để ôn tập kiến thức bất kỳ lúc nào mà không bị trừ Tim.
 - **Phiên học đang còn hiệu lực:** Trong khoảng thời gian 30 phút kể từ khi mở bài học, người học có thể tải lại trang hoặc tiếp tục làm bài mà không bị trừ thêm Tim.
 - **Bắt đầu phiên học mới:** Hệ thống trừ 1 Tim và khởi tạo phiên học có thời hạn 30 phút.
-- **Trường hợp hết Tim:** Hệ thống thông báo và hướng dẫn người học đổi Tim bằng Đá quý hoặc chờ thời gian hồi phục tự nhiên.10.1).** Mọi lượt "vào node" (mở mô phỏng hoặc vào Ladder, trừ Benchmark Lab và node đã pass) trừ đúng 1 tim. Toàn bộ thao tác chạy trong 1 transaction ngắn theo thứ tự bắt buộc: (1) kiểm tra node đã pass → miễn phí, không trừ; (2) thử `UPDATE NodeSessions` gia hạn session hết hạn với điều kiện `ExpiresAt < @now`, kiểm tra `@@ROWCOUNT` — nếu gia hạn được thì sang bước trừ tim; (3) nếu không có dòng nào được gia hạn thì `INSERT` session mới — unique `(UserId, NodeId)` tuần tự hóa, INSERT trùng (session còn hiệu lực, kể cả do request song song tạo) thì resume không trừ; (4) `UPDATE Users SET Hearts = Hearts - 1 WHERE Id = @id AND Hearts > 0` — không có dòng nào bị cập nhật (hết tim) thì rollback toàn bộ và trả 403 `HEARTS_EMPTY`. Nhờ vậy 2 request song song chỉ trừ 1 lần tim. Mọi quy trình nghiệp vụ khác chạy theo luồng xử lý chuẩn sau:
+- **Trường hợp hết Tim:** Hệ thống thông báo và hướng dẫn người học đổi Tim bằng Đá quý hoặc chờ thời gian hồi phục tự nhiên.10.1).** Mọi lượt "vào node" (mở mô phỏng hoặc vào Ladder, trừ node đã pass) trừ đúng 1 tim. Toàn bộ thao tác chạy trong 1 transaction ngắn theo thứ tự bắt buộc: (1) kiểm tra node đã pass → miễn phí, không trừ; (2) thử `UPDATE NodeSessions` gia hạn session hết hạn với điều kiện `ExpiresAt < @now`, kiểm tra `@@ROWCOUNT` — nếu gia hạn được thì sang bước trừ tim; (3) nếu không có dòng nào được gia hạn thì `INSERT` session mới — unique `(UserId, NodeId)` tuần tự hóa, INSERT trùng (session còn hiệu lực, kể cả do request song song tạo) thì resume không trừ; (4) `UPDATE Users SET Hearts = Hearts - 1 WHERE Id = @id AND Hearts > 0` — không có dòng nào bị cập nhật (hết tim) thì rollback toàn bộ và trả 403 `HEARTS_EMPTY`. Nhờ vậy 2 request song song chỉ trừ 1 lần tim. Mọi quy trình nghiệp vụ khác chạy theo luồng xử lý chuẩn sau:
 
 ```mermaid
 sequenceDiagram

@@ -1,30 +1,54 @@
 <script setup lang="ts">
-// AdminContentView — Màn 09: quản lý lessons/topics CRUD cơ bản + gắn mô phỏng
-// View-quality 14/08 (Nhóm D): banner surface band + mono strip block-token
-// (số bài học/chủ đề — dữ liệu thật); bảng §4.6 + mobile card-stack; SỬA BUG
-// cột "Ngày tạo" hiển thị formatDate(new Date()) (LessonSummary không có
-// createdAt) → cột index mono #01; topic card bỏ gradient/hover-lift;
-// error state + retry.
-// v2.15: Smart Markdown editor (2 tab Soạn thảo/Xem trước + toolbar định dạng),
-// checkbox xuất bản (Class Only ↔ Public → isClassOnly + status), multi-select
-// simulationKeys, luồng kiểm duyệt (Chờ duyệt / Từ chối kèm lý do).
-import { computed, nextTick, onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { ArrowRight, Eye, Layers, Network, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+// AdminContentView (Unified Teacher & Admin Studio)
+// 3 Tab thống nhất: 1. Lộ trình & Cây bài giảng | 2. Ngân hàng Bài tập & Quiz | 3. Ý kiến học viên
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Code,
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  Filter,
+  FlaskConical,
+  FolderPlus,
+  HelpCircle,
+  Inbox,
+  Layers,
+  ListFilter,
+  MessageSquare,
+  Network,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  Trash2,
+  Upload,
+  User,
+} from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
-import type { LessonSummary, LessonUpsertRequest, Topic } from '@/api/lessons';
+import type { LessonSummary, Topic } from '@/api/lessons';
+import * as exercisesApi from '@/api/exercises';
+import type { ExerciseSummaryDto } from '@/api/exercises';
+import { courseApi, type CourseListDto, type CourseDetailDto, type CourseFeedbackDto } from '@/services/courseApi';
+import CourseBuilderModal from '@/components/admin/CourseBuilderModal.vue';
+import ExerciseBuilderModal from '@/components/admin/ExerciseBuilderModal.vue';
 import { getData } from '@/api/client';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
-import { messages } from '@/i18n/vi';
+import { formatDate } from '@/utils/format';
 import ProseContent from '@/components/ui/ProseContent.vue';
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import AdminNav from '@/components/admin/AdminNav.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -32,10 +56,6 @@ import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
-import Tabs from '@/components/ui/Tabs.vue';
-import { CATALOG } from '@/engines/catalog';
-
-// ── Kiểu local theo backend v2.15 (lessons.ts chưa theo kịp — không sửa file khác) ──
 
 type LessonStatusValue = 'draft' | 'pendingreview' | 'active' | 'hidden';
 
@@ -43,95 +63,251 @@ interface LessonRow extends Omit<LessonSummary, 'status'> {
   status: LessonStatusValue;
   isClassOnly: boolean;
   publishedAt: string | null;
-}
-
-interface LessonDetailRow extends LessonRow {
-  contentHtml: string;
-  rejectionReason: string | null;
-  simulations: Array<{ simulationKey: string; title: string }>;
-}
-
-interface LessonSavePayload {
-  topicId: number;
-  title: string;
-  description?: string;
-  contentHtml: string;
-  status: LessonStatusValue;
-  isClassOnly: boolean;
-  sortOrder?: number;
-  simulationKeys: string[];
+  createdBy: number;
 }
 
 const ui = useUiStore();
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 
-const tab = ref<'lessons' | 'topics'>('lessons');
+// ── Tab chính Studio ──
+type StudioTab = 'curriculum' | 'exercises' | 'feedback';
+const activeTab = ref<StudioTab>('curriculum');
+
+// Đồng bộ tab từ URL Query
+watch(
+  () => route.query.tab,
+  (queryTab) => {
+    if (queryTab === 'exercises' || queryTab === 'feedback' || queryTab === 'curriculum') {
+      activeTab.value = queryTab as StudioTab;
+    }
+  },
+  { immediate: true },
+);
+
+function switchTab(newTab: StudioTab): void {
+  activeTab.value = newTab;
+  const currentQueryTab = route.query.tab;
+  if (currentQueryTab !== newTab) {
+    const query: Record<string, any> = { ...route.query, tab: newTab };
+    if (selectedCourseId.value && selectedCourseId.value !== 'all') {
+      query.courseId = String(selectedCourseId.value);
+    }
+    void router.replace({ query }).catch(() => {});
+  }
+  if (newTab === 'feedback') {
+    void loadFeedback();
+  }
+}
+
+// ── Dữ liệu cốt lõi ──
 const lessons = ref<LessonRow[]>([]);
 const topics = ref<Topic[]>([]);
+const courses = ref<CourseListDto[]>([]);
+const exercises = ref<ExerciseSummaryDto[]>([]);
+const feedbackItems = ref<CourseFeedbackDto[]>([]);
 const loading = ref(true);
 const loadError = ref(false);
 
-// Form bài học
-const formOpen = ref(false);
-const editingId = ref<number | null>(null);
-const saving = ref(false);
-const form = reactive({
-  title: '',
-  description: '',
-  topicId: 1,
-  contentHtml: '',
-  isClassOnly: false,
-  simulationKeys: [] as string[],
-  sortOrder: 1,
+// ── TAB 1: LỘ TRÌNH & CÂY BÀI GIẢNG ──
+const selectedCourseId = ref<string | number | 'all'>(
+  typeof route.query.courseId === 'string' ? route.query.courseId : 'all',
+);
+const courseDetailMap = reactive<Record<string, CourseDetailDto>>({});
+const loadingCourseDetail = ref(false);
+
+// Đồng bộ courseId từ URL Query khi URL thay đổi từ ngoài
+watch(
+  () => route.query.courseId,
+  (queryCourseId) => {
+    if (queryCourseId && queryCourseId !== selectedCourseId.value) {
+      selectedCourseId.value = queryCourseId as string;
+    }
+  },
+);
+
+const viewMode = ref<'curriculum' | 'flat'>('curriculum');
+const lessonSearchQuery = ref('');
+const openTopicIds = reactive<Record<number, boolean>>({});
+
+function toggleTopic(topicId: number): void {
+  openTopicIds[topicId] = !isTopicOpen(topicId);
+}
+
+function isTopicOpen(topicId: number): boolean {
+  return openTopicIds[topicId] !== false;
+}
+
+// Lộ trình hiện tại
+const currentCourse = computed<CourseListDto | null>(() => {
+  if (selectedCourseId.value === 'all') return null;
+  return courses.value.find((c) => String(c.id) === String(selectedCourseId.value)) ?? null;
 });
 
-/** Lý do từ chối của bài đang sửa (backend chỉ trả khi tải chi tiết). */
-const formRejectionReason = ref('');
+// Danh sách bài học của Lộ trình đang chọn
+const currentCourseDetail = computed<CourseDetailDto | null>(() => {
+  if (selectedCourseId.value === 'all') return null;
+  return courseDetailMap[String(selectedCourseId.value)] ?? null;
+});
 
-/** Map lý do từ chối theo bài — hiển thị nhãn "Bị từ chối" trong danh sách. */
-const rejectedReasons = reactive<Record<number, string>>({});
+// Lọc bài học thuộc Lộ trình đang chọn
+const displayLessons = computed<LessonRow[]>(() => {
+  let list = lessons.value;
+  if (selectedCourseId.value !== 'all' && currentCourseDetail.value?.lessons) {
+    const validLessonIds = new Set(
+      (currentCourseDetail.value.lessons || []).map((l) => String(l.id)),
+    );
+    const validTitles = new Set(
+      (currentCourseDetail.value.lessons || []).map((l) => (l.title || '').trim().toLowerCase()),
+    );
+    list = list.filter((l) => validLessonIds.has(String(l.id)) || (l.title && validTitles.has(l.title.trim().toLowerCase())));
+  }
+  if (lessonSearchQuery.value.trim()) {
+    const q = lessonSearchQuery.value.trim().toLowerCase();
+    list = list.filter(
+      (l) => (l.title || '').toLowerCase().includes(q) || (l.description && l.description.toLowerCase().includes(q)),
+    );
+  }
+  return list;
+});
 
-// Editor Markdown
-const editorTab = ref<'write' | 'preview'>('write');
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
+// Lọc các Chương / Chủ đề có chứa bài học của Lộ trình đang chọn
+const displayTopics = computed<Topic[]>(() => {
+  if (selectedCourseId.value === 'all') return topics.value;
+  const currentTopicIds = new Set(displayLessons.value.map((l) => l.topicId));
+  const matchedTopics = topics.value.filter((t) => currentTopicIds.has(t.id));
+  return matchedTopics.length > 0 ? matchedTopics : topics.value;
+});
 
-// Form topic
+function getLessonsByTopic(topicId: number): LessonRow[] {
+  return displayLessons.value.filter((l) => l.topicId === topicId);
+}
+
+// Theo dõi khi đổi Lộ trình để tải chi tiết lộ trình đó và cập nhật query URL
+watch(
+  selectedCourseId,
+  async (newId) => {
+    if (!newId) return;
+
+    const currentQueryId = route.query.courseId;
+    const targetQueryId = newId !== 'all' ? String(newId) : undefined;
+    if (currentQueryId !== targetQueryId) {
+      const query: Record<string, any> = { ...route.query };
+      if (targetQueryId) {
+        query.courseId = targetQueryId;
+      } else {
+        delete query.courseId;
+      }
+      void router.replace({ query }).catch(() => {});
+    }
+
+    if (newId !== 'all') {
+      const key = String(newId);
+      if (!courseDetailMap[key]) {
+        loadingCourseDetail.value = true;
+        try {
+          const detail = await courseApi.getCourseById(newId);
+          courseDetailMap[key] = detail;
+        } catch {
+          // ignore
+        } finally {
+          loadingCourseDetail.value = false;
+        }
+      }
+    }
+  },
+  { immediate: true },
+);
+
+// ── TAB 2: NGÂN HÀNG BÀI TẬP & QUIZ / CODE LAB ──
+const exerciseFilter = ref<'all' | 'quiz' | 'code'>('all');
+const exerciseSearchQuery = ref('');
+
+const filteredExercises = computed(() => {
+  let list = exercises.value;
+  if (selectedCourseId.value !== 'all' && currentCourseDetail.value?.lessons) {
+    const courseLessonIds = new Set(
+      (currentCourseDetail.value.lessons || []).map((l) => Number(l.id)),
+    );
+    list = list.filter((e) => e.lessonId !== null && courseLessonIds.has(e.lessonId));
+  }
+  if (exerciseFilter.value === 'quiz') {
+    list = list.filter((e) => e.type === 'MCQ' || e.stage === 1);
+  } else if (exerciseFilter.value === 'code') {
+    list = list.filter((e) => e.type === 'CODE' || e.stage === 3);
+  }
+  if (exerciseSearchQuery.value.trim()) {
+    const q = exerciseSearchQuery.value.trim().toLowerCase();
+    list = list.filter(
+      (e) => (e.title || '').toLowerCase().includes(q) || (e.description && e.description.toLowerCase().includes(q)),
+    );
+  }
+  return list;
+});
+
+const lessonMap = computed(() => {
+  const map = new Map<number, string>();
+  for (const l of lessons.value) {
+    map.set(l.id, l.title);
+  }
+  return map;
+});
+
+// ── TAB 3: Ý KIẾN & ĐÁNH GIÁ HỌC VIÊN ──
+const feedbackStatusFilter = ref<string>('');
+const feedbackSearchQuery = ref('');
+const replyTexts = ref<Record<number, string>>({});
+const replySaving = ref<Record<number, boolean>>({});
+
+async function loadFeedback(): Promise<void> {
+  try {
+    const cId = selectedCourseId.value !== 'all' ? Number(selectedCourseId.value) : undefined;
+    feedbackItems.value = await courseApi.getTeacherFeedback({
+      courseId: cId,
+      status: feedbackStatusFilter.value || undefined,
+    });
+  } catch {
+    // ignore
+  }
+}
+
+const filteredFeedbacks = computed(() => {
+  let list = feedbackItems.value;
+  if (selectedCourseId.value !== 'all') {
+    list = list.filter((i) => i.courseId === Number(selectedCourseId.value));
+  }
+  if (feedbackStatusFilter.value) {
+    list = list.filter((i) => i.status === feedbackStatusFilter.value);
+  }
+  if (feedbackSearchQuery.value.trim()) {
+    const q = feedbackSearchQuery.value.toLowerCase().trim();
+    list = list.filter(
+      (i) => i.content.toLowerCase().includes(q) || (i.userName && i.userName.toLowerCase().includes(q)),
+    );
+  }
+  return list;
+});
+
+// ── Modals State ──
+const courseModalOpen = ref(false);
+const editingCourseId = ref<string | number | null>(null);
+
 const topicFormOpen = ref(false);
+const editingTopicId = ref<number | null>(null);
 const topicForm = reactive({ name: '', description: '', sortOrder: 0 });
 
-// Preview bài học: reactive theo nội dung đang gõ trong modal form, hoặc nội dung đã lưu (từ list)
-const previewForm = ref(false);
-const previewLesson = ref<{ title: string; contentHtml: string } | null>(null);
-const previewOpen = computed(() => previewForm.value || previewLesson.value !== null);
-const previewTitle = computed(() => {
-  if (previewForm.value) return form.title.trim() || 'Xem trước nội dung';
-  return previewLesson.value?.title.trim() || 'Xem trước nội dung';
-});
-const previewContent = computed(() => (previewForm.value ? form.contentHtml : previewLesson.value?.contentHtml ?? ''));
+const exerciseModalOpen = ref(false);
+const editingExerciseId = ref<number | null>(null);
+const builderDefaultLessonId = ref<number | null>(null);
+const builderDefaultStage = ref<number | null>(null);
+const builderDefaultTab = ref<'quiz' | 'code' | 'import-csv' | null>(null);
 
-/** Xem trước nội dung đang gõ trong form (reactive — cập nhật theo textarea). */
-function openFormPreview(): void {
-  previewForm.value = true;
-  previewLesson.value = null;
-}
+const previewOpen = ref(false);
+const previewTitle = ref('');
+const previewContent = ref('');
 
-/** Xem trước nội dung đã lưu của bài học từ danh sách (lấy qua GET /lessons/:id). */
-function openLessonPreview(lesson: LessonSummary): void {
-  previewForm.value = false;
-  previewLesson.value = null;
-  lessonsApi
-    .fetchLesson(lesson.id)
-    .then((detail) => {
-      previewLesson.value = { title: detail.title, contentHtml: detail.contentHtml ?? '' };
-    })
-    .catch(() => ui.showToast('Không tải được nội dung bài học.', 'error'));
-}
-
-function closePreview(): void {
-  previewForm.value = false;
-  previewLesson.value = null;
-}
+const isAdmin = computed(() => auth.role === 'ADMIN');
 
 onMounted(load);
 
@@ -139,14 +315,34 @@ async function load(): Promise<void> {
   loading.value = true;
   loadError.value = false;
   try {
-    const [lessonPage, topicTree] = await Promise.all([
-      lessonsApi.fetchLessons({}),
+    const [lessonPage, topicTree, courseList, exerciseList, feedbackList] = await Promise.all([
+      lessonsApi.fetchLessons({ page: 1, pageSize: 200 }),
       lessonsApi.fetchTopics().catch(() => [] as Topic[]),
+      courseApi.getCourses().catch(() => [] as CourseListDto[]),
+      exercisesApi.fetchExercises({}).catch(() => [] as ExerciseSummaryDto[]),
+      courseApi.getTeacherFeedback().catch(() => [] as CourseFeedbackDto[]),
     ]);
     lessons.value = lessonPage.items.map(toRow);
     topics.value = topicTree;
-    if (topicTree.length > 0 && form.topicId === 1 && !topicTree.some((t) => t.id === 1)) {
-      form.topicId = topicTree[0].id;
+    courses.value = courseList;
+    exercises.value = exerciseList;
+    feedbackItems.value = feedbackList;
+
+    if (route.query.courseId) {
+      selectedCourseId.value = route.query.courseId as string;
+    } else if (courseList.length > 0 && selectedCourseId.value === 'all') {
+      selectedCourseId.value = courseList[0].id;
+    }
+
+    if (selectedCourseId.value && selectedCourseId.value !== 'all') {
+      const key = String(selectedCourseId.value);
+      if (!courseDetailMap[key]) {
+        try {
+          courseDetailMap[key] = await courseApi.getCourseById(selectedCourseId.value);
+        } catch {
+          // ignore
+        }
+      }
     }
   } catch {
     loadError.value = true;
@@ -155,9 +351,8 @@ async function load(): Promise<void> {
   }
 }
 
-/** Backend v2.15 trả thêm isClassOnly/publishedAt — kiểu lessons.ts chưa khai báo. */
 function toRow(item: LessonSummary): LessonRow {
-  const extra = item as { isClassOnly?: boolean; publishedAt?: string | null };
+  const extra = item as { isClassOnly?: boolean; publishedAt?: string | null; createdBy?: number };
   return {
     id: item.id,
     title: item.title,
@@ -167,58 +362,267 @@ function toRow(item: LessonSummary): LessonRow {
     status: item.status as LessonStatusValue,
     isClassOnly: extra.isClassOnly ?? false,
     publishedAt: extra.publishedAt ?? null,
+    createdBy: extra.createdBy ?? 0,
     simulationCount: item.simulationCount,
     exerciseCount: item.exerciseCount,
     progress: item.progress,
   };
 }
 
-async function fetchLessonDetail(id: number): Promise<LessonDetailRow> {
-  const dto = await lessonsApi.fetchLesson(id);
-  const extra = dto as { rejectionReason?: string | null };
-  return {
-    ...toRow(dto),
-    contentHtml: dto.contentHtml,
-    rejectionReason: extra.rejectionReason ?? null,
-    simulations: dto.simulations ?? [],
-  };
-}
-
 const topicName = computed(() => (id: number) => topics.value.find((t) => t.id === id)?.name ?? `#${id}`);
 
-/** Số bài học mỗi chủ đề (tính từ danh sách lessons đã tải — presentation only). */
-const topicLessonCount = computed(() => {
-  const map = new Map<number, number>();
-  for (const lesson of lessons.value) {
-    map.set(lesson.topicId, (map.get(lesson.topicId) ?? 0) + 1);
+// ── Thao tác Lộ trình ──
+function openCreateCourse(): void {
+  editingCourseId.value = null;
+  courseModalOpen.value = true;
+}
+
+function openEditCourse(course?: CourseListDto | null): void {
+  if (!course) return;
+  editingCourseId.value = course.id;
+  courseModalOpen.value = true;
+}
+
+async function deleteCourse(course?: CourseListDto | null): Promise<void> {
+  if (!course) return;
+  if (!confirm(`Bạn có chắc muốn xóa/ẩn lộ trình "${course.title}"?`)) return;
+  try {
+    await courseApi.deleteCourse(course.id);
+    ui.showToast('Đã xóa lộ trình thành công.', 'success');
+    selectedCourseId.value = 'all';
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể xóa lộ trình.', 'error');
   }
-  return map;
-});
+}
 
-/** Strip banner: block-token dữ liệu thật — số bài học + số chủ đề. */
-const stripBlocks = computed<boolean[]>(() => {
-  const count = Math.min(Math.max(lessons.value.length, topics.value.length), 5);
-  const size = Math.max(count, 1);
-  return Array.from({ length: size }, (_, i) => i < count);
-});
+function onCourseSaved(course: CourseDetailDto): void {
+  selectedCourseId.value = course.id;
+  courseDetailMap[String(course.id)] = course;
+  void load();
+}
 
-const pad = (n: number): string => String(n).padStart(2, '0');
+// ── Thao tác Topic / Chương ──
+function openCreateTopic(): void {
+  editingTopicId.value = null;
+  topicForm.name = '';
+  topicForm.description = '';
+  topicForm.sortOrder = (topics.value.length + 1) * 10;
+  topicFormOpen.value = true;
+}
 
-const contentTabs = computed(() => [
-  { key: 'lessons', label: messages.admin.content.tabLessons, badge: lessons.value.length > 0 ? lessons.value.length : undefined },
-  { key: 'topics', label: messages.admin.content.tabTopics, badge: topics.value.length > 0 ? topics.value.length : undefined },
-]);
+function openEditTopic(topic: Topic): void {
+  editingTopicId.value = topic.id;
+  topicForm.name = topic.name;
+  topicForm.description = topic.description || '';
+  topicForm.sortOrder = topic.sortOrder;
+  topicFormOpen.value = true;
+}
 
-const isAdmin = computed(() => auth.role === 'ADMIN');
+async function saveTopic(): Promise<void> {
+  if (!topicForm.name.trim()) {
+    ui.showToast('Vui lòng nhập tên chương / chủ đề.', 'warning');
+    return;
+  }
+  try {
+    if (editingTopicId.value === null) {
+      await lessonsApi.createTopic(topicForm);
+      ui.showToast('Đã tạo chương mới thành công.', 'success');
+    } else {
+      await lessonsApi.updateTopic(editingTopicId.value, topicForm);
+      ui.showToast('Đã cập nhật thông tin chương.', 'success');
+    }
+    topicFormOpen.value = false;
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Lỗi khi lưu chương.', 'error');
+  }
+}
 
-/** Trạng thái xuất bản theo checkbox: Class Only → active, Public → pendingreview. */
-const publishStatus = computed<'active' | 'pendingreview'>(() => (form.isClassOnly ? 'active' : 'pendingreview'));
+async function deleteTopic(topic: Topic): Promise<void> {
+  const count = displayLessons.value.filter((l) => l.topicId === topic.id).length;
+  if (count > 0) {
+    ui.showToast(`Không thể xóa chương "${topic.name}" vì vẫn còn ${count} bài học bên trong.`, 'warning');
+    return;
+  }
+  if (!confirm(`Bạn có chắc muốn xóa chương "${topic.name}"?`)) return;
+  try {
+    await lessonsApi.deleteTopic(topic.id);
+    ui.showToast('Đã xóa chương thành công.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Xóa chương thất bại.', 'error');
+  }
+}
+
+// ── Thao tác Lesson ──
+function openCreateLesson(topicId?: number): void {
+  const query: Record<string, string> = {};
+  if (topicId) query.topicId = String(topicId);
+  if (selectedCourseId.value && selectedCourseId.value !== 'all') {
+    query.courseId = String(selectedCourseId.value);
+  }
+  void router.push({ path: '/studio/lessons/new', query });
+}
+
+function canManageLesson(lesson: LessonRow | LessonSummary): boolean {
+  if (auth.role === 'ADMIN') return true;
+  return lesson.createdBy === auth.user?.id;
+}
+
+function openEditLesson(lesson: LessonRow): void {
+  if (!canManageLesson(lesson)) {
+    ui.showToast('Bạn chỉ có thể chỉnh sửa bài học do chính mình tạo. Hãy dùng "Xem trước" để tham khảo nội dung.', 'warning');
+    return;
+  }
+  void router.push(`/studio/lessons/${lesson.id}/edit`);
+}
+
+async function deleteLesson(lesson: LessonRow): Promise<void> {
+  if (!canManageLesson(lesson)) {
+    ui.showToast('Bạn không có quyền xóa bài học của người khác.', 'error');
+    return;
+  }
+  if (!confirm(`Xóa bài học "${lesson.title}"?`)) return;
+  try {
+    await lessonsApi.deleteLesson(lesson.id);
+    ui.showToast('Đã xóa bài học thành công.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
+  }
+}
+
+function openLessonPreview(lesson: LessonSummary): void {
+  previewTitle.value = lesson.title;
+  previewContent.value = 'Đang tải nội dung...';
+  previewOpen.value = true;
+  lessonsApi
+    .fetchLesson(lesson.id)
+    .then((detail) => {
+      previewContent.value = detail.contentHtml ?? '<p>Chưa có nội dung bài học.</p>';
+    })
+    .catch(() => {
+      ui.showToast('Không tải được nội dung bài học.', 'error');
+      previewOpen.value = false;
+    });
+}
+
+// ── Thao tác Exercise / Quiz ──
+function openCreateQuizForLesson(lessonId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultLessonId.value = lessonId ?? null;
+  builderDefaultStage.value = 1;
+  builderDefaultTab.value = 'quiz';
+  exerciseModalOpen.value = true;
+}
+
+function openCreateCodeForLesson(lessonId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultLessonId.value = lessonId ?? null;
+  builderDefaultStage.value = 3;
+  builderDefaultTab.value = 'code';
+  exerciseModalOpen.value = true;
+}
+
+function openImportCsv(lessonId?: number): void {
+  editingExerciseId.value = null;
+  builderDefaultLessonId.value = lessonId ?? null;
+  builderDefaultStage.value = 1;
+  builderDefaultTab.value = 'import-csv';
+  exerciseModalOpen.value = true;
+}
+
+function openEditExercise(ex: ExerciseSummaryDto): void {
+  editingExerciseId.value = ex.id;
+  builderDefaultLessonId.value = ex.lessonId;
+  builderDefaultStage.value = ex.stage || (ex.type === 'CODE' ? 3 : 1);
+  builderDefaultTab.value = ex.type === 'CODE' ? 'code' : 'quiz';
+  exerciseModalOpen.value = true;
+}
+
+async function deleteExercise(ex: ExerciseSummaryDto): Promise<void> {
+  if (!confirm(`Bạn có chắc muốn xóa bài tập "${ex.title}"?`)) return;
+  try {
+    await exercisesApi.deleteExercise(ex.id);
+    ui.showToast('Đã xóa bài tập thành công.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Xóa bài tập thất bại.', 'error');
+  }
+}
+
+function downloadSampleCsv(): void {
+  const csvContent = `question,option_a,option_b,option_c,option_d,correct_option,explanation
+"Độ phức tạp thời gian tốt nhất của Bubble Sort là gì?","O(N)","O(N^2)","O(log N)","O(1)","A","Khi mảng đã sắp xếp và có cờ swapped, Bubble Sort dừng sau 1 lượt O(N)."
+"Thuật toán sắp xếp nào sau đây KHÔNG có tính ổn định (Not Stable)?","Selection Sort","Merge Sort","Bubble Sort","Insertion Sort","A","Selection Sort có thể hoán đổi các phần tử bằng nhau qua khoảng cách xa."
+"Ngăn xếp (Stack) hoạt động theo nguyên lý nào?","LIFO","FIFO","LILO","FILO","A","Stack hoạt động theo cơ chế Last-In-First-Out."`;
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'mau_cau_hoi_quiz_dsa.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  ui.showToast('Đã tải xuống file mẫu CSV (mau_cau_hoi_quiz_dsa.csv)!', 'success');
+}
+
+// ── Thao tác Feedback ──
+async function sendFeedbackReply(item: CourseFeedbackDto): Promise<void> {
+  const text = (replyTexts.value[item.id] ?? '').trim();
+  if (!text) {
+    ui.showToast('Vui lòng nhập nội dung trả lời.', 'warning');
+    return;
+  }
+  replySaving.value[item.id] = true;
+  try {
+    await courseApi.replyCourseFeedback(item.id, {
+      replyText: text,
+      status: 'Resolved',
+    });
+    item.replyText = text;
+    item.status = 'Resolved';
+    replyTexts.value[item.id] = '';
+    ui.showToast('Đã gửi phản hồi tới học viên thành công!', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Gửi phản hồi thất bại.', 'error');
+  } finally {
+    replySaving.value[item.id] = false;
+  }
+}
+
+// ── Thao tác Admin Duyệt bài ──
+async function approveLesson(lesson: LessonRow): Promise<void> {
+  if (!confirm(`Duyệt bài học "${lesson.title}"?`)) return;
+  try {
+    await getData({ method: 'POST', url: `/lessons/${lesson.id}/review`, data: { approve: true } });
+    ui.showToast('Đã duyệt bài học thành công.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Duyệt thất bại.', 'error');
+  }
+}
+
+async function rejectLesson(lesson: LessonRow): Promise<void> {
+  const reason = prompt(`Lý do từ chối bài học "${lesson.title}":`);
+  if (!reason || !reason.trim()) return;
+  try {
+    await getData({ method: 'POST', url: `/lessons/${lesson.id}/review`, data: { approve: false, reason: reason.trim() } });
+    ui.showToast('Đã từ chối bài học.', 'success');
+    void load();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Từ chối thất bại.', 'error');
+  }
+}
 
 const statusLabel: Record<string, string> = {
-  draft: messages.admin.content.statusDraft,
+  draft: 'Bản nháp',
   pendingreview: 'Chờ duyệt',
-  active: messages.admin.content.statusActive,
-  hidden: messages.admin.content.statusHidden,
+  active: 'Đã duyệt',
+  hidden: 'Ẩn',
 };
 
 const statusVariant: Record<LessonStatusValue, 'success' | 'warning' | 'muted'> = {
@@ -228,1098 +632,1164 @@ const statusVariant: Record<LessonStatusValue, 'success' | 'warning' | 'muted'> 
   hidden: 'muted',
 };
 
-function openCreate(): void {
-  editingId.value = null;
-  formRejectionReason.value = '';
-  Object.assign(form, {
-    title: '',
-    description: '',
-    topicId: topics.value[0]?.id ?? 1,
-    contentHtml: '',
-    isClassOnly: false,
-    simulationKeys: [],
-    sortOrder: lessons.value.length + 1,
-  });
-  editorTab.value = 'write';
-  formOpen.value = true;
-}
-
-async function openEdit(lesson: LessonRow): Promise<void> {
-  editingId.value = lesson.id;
-  try {
-    const detail = await fetchLessonDetail(lesson.id);
-    formRejectionReason.value = detail.status === 'draft' ? detail.rejectionReason ?? '' : '';
-    if (detail.rejectionReason) rejectedReasons[lesson.id] = detail.rejectionReason;
-    Object.assign(form, {
-      title: detail.title,
-      description: detail.description,
-      topicId: detail.topicId,
-      contentHtml: detail.contentHtml,
-      isClassOnly: detail.isClassOnly,
-      simulationKeys: detail.simulations.map((sim) => sim.simulationKey),
-      sortOrder: detail.sortOrder,
-    });
-    editorTab.value = 'write';
-    formOpen.value = true;
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Không thể tải bài học.', 'error');
-  }
-}
-
-async function saveLesson(): Promise<void> {
-  if (form.title.trim().length < 3) {
-    ui.showToast('Tiêu đề phải từ 3 ký tự.', 'warning');
-    return;
-  }
-  saving.value = true;
-  try {
-    // Kiểu lessons.ts chưa theo kịp backend v2.15 (status pendingreview, simulationKeys) — cast biên API.
-    const payload = {
-      topicId: form.topicId,
-      title: form.title.trim(),
-      description: form.description,
-      contentHtml: form.contentHtml || '<p>Đang biên soạn...</p>',
-      status: publishStatus.value,
-      isClassOnly: form.isClassOnly,
-      sortOrder: form.sortOrder,
-      simulationKeys: [...form.simulationKeys],
-    } as unknown as LessonUpsertRequest;
-    if (editingId.value === null) {
-      await lessonsApi.createLesson(payload);
-    } else {
-      await lessonsApi.updateLesson(editingId.value, payload);
-    }
-    ui.showToast('Đã lưu bài học.', 'success');
-    formOpen.value = false;
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Lưu thất bại.', 'error');
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function deleteLesson(lesson: LessonRow): Promise<void> {
-  if (!window.confirm(`Xóa bài học "${lesson.title}"? (xóa mềm — ẩn khỏi người học)`)) return;
-  try {
-    await lessonsApi.deleteLesson(lesson.id);
-    ui.showToast('Đã xóa bài học.', 'success');
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
-  }
-}
-
-// ── Kiểm duyệt Admin (backend v2.15: POST /lessons/{id}/review) ──
-
-async function reviewLesson(id: number, payload: { approve: boolean; reason?: string }): Promise<{ rejectionReason?: string | null }> {
-  return getData<{ rejectionReason?: string | null }>({ method: 'POST', url: `/lessons/${id}/review`, data: payload });
-}
-
-async function approveLesson(lesson: LessonRow): Promise<void> {
-  if (!window.confirm(`Duyệt bài học "${lesson.title}"? Bài sẽ được xuất bản công khai.`)) return;
-  try {
-    await reviewLesson(lesson.id, { approve: true });
-    ui.showToast('Đã duyệt bài học.', 'success');
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Duyệt thất bại.', 'error');
-  }
-}
-
-async function rejectLesson(lesson: LessonRow): Promise<void> {
-  const reason = window.prompt(`Lý do từ chối bài học "${lesson.title}" (bắt buộc):`);
-  if (reason === null) return;
-  if (!reason.trim()) {
-    ui.showToast('Phải nhập lý do từ chối.', 'warning');
-    return;
-  }
-  try {
-    const result = await reviewLesson(lesson.id, { approve: false, reason: reason.trim() });
-    if (result.rejectionReason) rejectedReasons[lesson.id] = result.rejectionReason;
-    ui.showToast('Đã từ chối bài học.', 'success');
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Từ chối thất bại.', 'error');
-  }
-}
-
-// ── Toolbar Markdown: chèn vào vị trí con trỏ textarea (v2.15) ──
-
-type ToolbarAction =
-  | { kind: 'wrap'; label: string; title: string; before: string; after: string; placeholder: string }
-  | { kind: 'line'; label: string; title: string; prefix: string }
-  | { kind: 'snippet'; label: string; title: string; text: string };
-
-const TABLE_SNIPPET = [
-  '| Thuật toán | Độ phức tạp | Ghi chú |',
-  '| ---------- | ----------- | ------- |',
-  '| Ví dụ | O(n) | Mô tả |',
-].join('\n');
-
-const toolbarActions: ToolbarAction[] = [
-  { kind: 'line', label: 'H2', title: 'Tiêu đề cấp 2 (## )', prefix: '## ' },
-  { kind: 'line', label: 'H3', title: 'Tiêu đề cấp 3 (### )', prefix: '### ' },
-  { kind: 'wrap', label: 'B', title: 'Đậm (**chữ**)', before: '**', after: '**', placeholder: 'chữ đậm' },
-  { kind: 'wrap', label: 'I', title: 'Nghiêng (*chữ*)', before: '*', after: '*', placeholder: 'chữ nghiêng' },
-  { kind: 'wrap', label: 'Code', title: 'Code inline (`mã`)', before: '`', after: '`', placeholder: 'mã' },
-  { kind: 'wrap', label: 'Block', title: 'Code block (```)', before: '```\n', after: '\n```', placeholder: '// code' },
-  { kind: 'line', label: '• List', title: 'Danh sách gạch đầu dòng (- )', prefix: '- ' },
-  { kind: 'line', label: '1. List', title: 'Danh sách đánh số (1. )', prefix: '1. ' },
-  { kind: 'line', label: '❝', title: 'Trích dẫn (> )', prefix: '> ' },
-  { kind: 'snippet', label: 'Bảng', title: 'Chèn bảng Markdown', text: TABLE_SNIPPET },
-  { kind: 'line', label: 'NOTE', title: 'Callout ghi chú (> [!NOTE])', prefix: '> [!NOTE] ' },
-  { kind: 'line', label: 'TIP', title: 'Callout mẹo (> [!TIP])', prefix: '> [!TIP] ' },
-  { kind: 'line', label: 'WARN', title: 'Callout cảnh báo (> [!WARNING])', prefix: '> [!WARNING] ' },
-];
-
-function runToolbar(action: ToolbarAction): void {
-  const el = textareaRef.value;
-  if (!el) return;
-  if (action.kind === 'wrap') {
-    wrapSelection(el, action.before, action.after, action.placeholder);
-  } else if (action.kind === 'line') {
-    prefixLines(el, action.prefix);
-  } else {
-    insertSnippet(el, action.text);
-  }
-}
-
-/** Bọc vùng chọn (đậm/nghiêng/code...): chưa chọn thì chèn placeholder để gõ đè. */
-function wrapSelection(el: HTMLTextAreaElement, before: string, after: string, placeholder: string): void {
-  const { selectionStart: start, selectionEnd: end } = el;
-  const core = form.contentHtml.slice(start, end) || placeholder;
-  form.contentHtml = form.contentHtml.slice(0, start) + before + core + after + form.contentHtml.slice(end);
-  void nextTick(() => {
-    el.focus();
-    el.setSelectionRange(start + before.length, start + before.length + core.length);
-  });
-}
-
-/** Chèn prefix vào đầu dòng (heading/list/quote/callout); đa dòng → prefix từng dòng. */
-function prefixLines(el: HTMLTextAreaElement, prefix: string): void {
-  const { selectionStart: start, selectionEnd: end } = el;
-  const value = form.contentHtml;
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  const blockEnd = value.indexOf('\n', end);
-  const block = value.slice(lineStart, blockEnd === -1 ? value.length : blockEnd);
-  const callout = prefix.startsWith('> [!');
-  const lines = block.split('\n').map((line, idx) => {
-    if (!line || line.startsWith(prefix.trim())) return line;
-    return callout && idx > 0 ? `> ${line}` : prefix + line;
-  });
-  form.contentHtml = value.slice(0, lineStart) + lines.join('\n') + value.slice(blockEnd === -1 ? value.length : blockEnd);
-  void nextTick(() => {
-    el.focus();
-    el.setSelectionRange(start + prefix.length, end + prefix.length);
-  });
-}
-
-/** Chèn khối mẫu (bảng) và chọn ô đầu tiên để gõ nhanh. */
-function insertSnippet(el: HTMLTextAreaElement, text: string): void {
-  const { selectionStart: start, selectionEnd: end } = el;
-  const inserted = `\n\n${text}\n`;
-  form.contentHtml = form.contentHtml.slice(0, start) + inserted + form.contentHtml.slice(end);
-  void nextTick(() => {
-    el.focus();
-    const marker = 'Ví dụ';
-    const markerIdx = inserted.indexOf(marker);
-    const pos = markerIdx === -1 ? start + inserted.length : start + markerIdx;
-    el.setSelectionRange(pos, pos + (markerIdx === -1 ? 0 : marker.length));
-  });
-}
-
-// ── Render Markdown nhẹ cho tab Xem trước (v2.15) ─────────────
-// Chỉ convert khi nội dung là Markdown; nội dung đã là HTML (bài cũ) truyền nguyên vẹn
-// (backend đã sanitize khi lưu).
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function inlineMd(text: string): string {
-  return text
-    .replace(/`([^`\n]+)`/g, (_match, code: string) => `<code>${escapeHtml(code)}</code>`)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
-}
-
-function splitTableRow(line: string): string[] {
-  const body = line.trim();
-  const inner = body.startsWith('|') ? body.slice(1) : body;
-  const cells = inner.endsWith('|') ? inner.slice(0, -1) : inner;
-  return cells.split('|').map((cell) => cell.trim());
-}
-
-function renderMarkdown(src: string): string {
-  if (/<[a-z][^>]*>/i.test(src)) return src;
-  const lines = src.replace(/\r\n?/g, '\n').split('\n');
-  const out: string[] = [];
-  let paragraph: string[] | null = null;
-  const flushParagraph = (): void => {
-    if (paragraph) {
-      out.push(`<p>${inlineMd(paragraph.join(' '))}</p>`);
-      paragraph = null;
-    }
-  };
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Code block (```)
-    if (line.trimStart().startsWith('```')) {
-      flushParagraph();
-      const buf: string[] = [];
-      i += 1;
-      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
-        buf.push(lines[i]);
-        i += 1;
-      }
-      i += 1;
-      out.push(`<pre><code>${escapeHtml(buf.join('\n'))}</code></pre>`);
-      continue;
-    }
-
-    // Heading
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
-    if (heading) {
-      flushParagraph();
-      const level = heading[1].length;
-      out.push(`<h${level}>${inlineMd(heading[2])}</h${level}>`);
-      i += 1;
-      continue;
-    }
-
-    // Bảng (dòng kế tiếp là dòng phân cách)
-    if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
-      flushParagraph();
-      const head = splitTableRow(line);
-      i += 2;
-      const rows: string[][] = [];
-      while (i < lines.length && lines[i].includes('|')) {
-        rows.push(splitTableRow(lines[i]));
-        i += 1;
-      }
-      out.push(
-        '<table><thead><tr>' +
-          head.map((cell) => `<th>${inlineMd(cell)}</th>`).join('') +
-          '</tr></thead><tbody>' +
-          rows.map((row) => `<tr>${row.map((cell) => `<td>${inlineMd(cell)}</td>`).join('')}</tr>`).join('') +
-          '</tbody></table>',
-      );
-      continue;
-    }
-
-    // Blockquote / callout (> [!NOTE|TIP|WARNING])
-    if (line.startsWith('>')) {
-      flushParagraph();
-      const buf: string[] = [];
-      while (i < lines.length && lines[i].startsWith('>')) {
-        buf.push(lines[i].replace(/^>\s?/, ''));
-        i += 1;
-      }
-      const callout = /^\[!(NOTE|TIP|WARNING)\]\s*(.*)$/i.exec(buf[0] ?? '');
-      if (callout) {
-        const type = callout[1].toLowerCase();
-        const content = [callout[2], ...buf.slice(1)].filter((part) => part.length > 0).join(' ');
-        out.push(`<blockquote data-callout="${type}"><p>${inlineMd(content)}</p></blockquote>`);
-      } else {
-        out.push(`<blockquote><p>${inlineMd(buf.filter((part) => part.length > 0).join(' '))}</p></blockquote>`);
-      }
-      continue;
-    }
-
-    // Danh sách gạch đầu dòng / đánh số
-    const unordered = /^[-*]\s+(.*)$/.exec(line);
-    const ordered = /^\d+\.\s+(.*)$/.exec(line);
-    if (unordered || ordered) {
-      flushParagraph();
-      const pattern = ordered ? /^\d+\.\s+(.*)$/ : /^[-*]\s+(.*)$/;
-      const tag = ordered ? 'ol' : 'ul';
-      const items: string[] = [];
-      while (i < lines.length) {
-        const match = pattern.exec(lines[i]);
-        if (!match) break;
-        items.push(inlineMd(match[1]));
-        i += 1;
-      }
-      out.push(`<${tag}>${items.map((item) => `<li>${item}</li>`).join('')}</${tag}>`);
-      continue;
-    }
-
-    // Dòng trống → đóng đoạn
-    if (line.trim() === '') {
-      flushParagraph();
-      i += 1;
-      continue;
-    }
-
-    paragraph = paragraph ?? [];
-    paragraph.push(line);
-    i += 1;
-  }
-  flushParagraph();
-  return out.join('\n');
-}
-
-const previewHtml = computed(() => renderMarkdown(form.contentHtml));
-
-async function saveTopic(): Promise<void> {
-  try {
-    await lessonsApi.createTopic(topicForm);
-    ui.showToast('Đã tạo chủ đề.', 'success');
-    topicFormOpen.value = false;
-    void load();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Tạo chủ đề thất bại.', 'error');
-  }
-}
+const pad = (n: number): string => String(n).padStart(2, '0');
 </script>
 
 <template>
-  <main class="admin-content container">
-    <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
-    <header class="admin-content__hero">
-      <div class="admin-content__hero-inner">
-        <div class="admin-content__hero-main">
-          <div class="admin-content__hero-badges">
-            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
-          </div>
-          <h1 class="admin-content__title">{{ messages.admin.content.title }}</h1>
-          <p class="admin-content__sub">{{ messages.admin.content.subtitle }}</p>
-        </div>
+  <main class="studio-view container">
+    <!-- ═══ HEADER STUDIO BANNER ═══ -->
+    <header class="studio-hero">
+      <div class="studio-hero__info">
+        <p class="studio-hero__kicker">
+          <Sparkles :size="14" class="inline mr-1 text-primary-400" />
+          {{ isAdmin ? 'ADMIN CONSOLE & STUDIO' : 'TEACHER STUDIO' }}
+        </p>
+        <h1 class="studio-hero__title">Studio Giảng viên & Nội dung</h1>
+        <p class="studio-hero__desc">
+          Biên soạn Lộ trình học, tổ chức cây Chương - Bài giảng, tạo Ngân hàng Bài tập & Quiz và tương tác với Học viên.
+        </p>
+      </div>
 
-        <!-- Mono strip: block-token dữ liệu thật (bài học/chủ đề) + index mono -->
-        <div class="admin-content__hero-strip" aria-hidden="true">
-          <div class="admin-content__strip-panel">
-            <div class="admin-content__strip-blocks">
-              <span
-                v-for="(filled, i) in stripBlocks"
-                :key="i"
-                class="admin-content__strip-block"
-                :class="{ 'admin-content__strip-block--empty': !filled }"
-                :style="{ '--i': i }"
-              />
-            </div>
-            <div class="admin-content__strip-index">
-              <span v-for="(_, i) in stripBlocks" :key="i">{{ String(i).padStart(2, '0') }}</span>
-            </div>
-          </div>
-          <p class="admin-content__strip-caption">{{ messages.admin.content.stripLabel(lessons.length, topics.length) }}</p>
+      <div class="studio-hero__stats">
+        <div class="stat-pill">
+          <span class="stat-pill__num">{{ courses.length }}</span>
+          <span class="stat-pill__label">Lộ trình</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill__num">{{ lessons.length }}</span>
+          <span class="stat-pill__label">Bài học</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill__num">{{ exercises.length }}</span>
+          <span class="stat-pill__label">Bài tập</span>
         </div>
       </div>
     </header>
 
+    <!-- Thanh điều hướng Admin / Teacher -->
     <AdminNav active="content" />
 
-    <Tabs :tabs="contentTabs" :model-value="tab" @change="(key: string) => (tab = key as 'lessons' | 'topics')" />
+    <!-- ═══ THANH CHUYỂN 3 TAB CHÍNH CỦA STUDIO ═══ -->
+    <nav class="studio-main-tabs" aria-label="Các khu vực của Studio">
+      <button
+        type="button"
+        class="studio-main-tab"
+        :class="{ 'studio-main-tab--active': activeTab === 'curriculum' }"
+        @click="switchTab('curriculum')"
+      >
+        <Layers :size="16" />
+        <span>1. Lộ trình & Cây bài giảng</span>
+        <Badge variant="secondary" class="text-xs">{{ displayLessons.length }}</Badge>
+      </button>
 
-    <div v-if="loading" class="admin-content__loading" aria-busy="true">
-      <Skeleton v-for="i in 5" :key="i" height="56px" />
+      <button
+        type="button"
+        class="studio-main-tab"
+        :class="{ 'studio-main-tab--active': activeTab === 'exercises' }"
+        @click="switchTab('exercises')"
+      >
+        <HelpCircle :size="16" />
+        <span>2. Ngân hàng Bài tập & Quiz</span>
+        <Badge variant="secondary" class="text-xs">{{ exercises.length }}</Badge>
+      </button>
+
+      <button
+        type="button"
+        class="studio-main-tab"
+        :class="{ 'studio-main-tab--active': activeTab === 'feedback' }"
+        @click="switchTab('feedback')"
+      >
+        <MessageSquare :size="16" />
+        <span>3. Ý kiến & Đánh giá Học viên</span>
+        <Badge variant="secondary" class="text-xs">{{ feedbackItems.length }}</Badge>
+      </button>
+    </nav>
+
+    <div v-if="loading" class="studio-loading" aria-busy="true">
+      <Skeleton v-for="i in 4" :key="i" height="70px" />
     </div>
 
-    <div v-else-if="loadError" class="admin-content__error" role="alert">
-      <p class="admin-content__error-text">Không thể tải nội dung (backend chưa khả dụng).</p>
+    <div v-else-if="loadError" class="studio-error" role="alert">
+      <p>Không thể tải dữ liệu Studio (máy chủ backend chưa phản hồi).</p>
       <Button size="sm" variant="secondary" @click="load">
-        <RefreshCw :size="14" /> {{ messages.admin.content.retry }}
+        <RefreshCw :size="14" /> Thử lại
       </Button>
     </div>
 
-    <!-- Danh sách bài học -->
-    <template v-else-if="tab === 'lessons'">
-      <div class="admin-content__toolbar">
-        <Button size="md" @click="openCreate"><Plus :size="16" /> {{ messages.admin.content.addLesson }}</Button>
-        <Button size="sm" variant="ghost" @click="router.push({ name: 'admin-ladder' })">
-          {{ messages.admin.content.ladderHint }} <ArrowRight :size="16" />
-        </Button>
-      </div>
+    <div v-else class="studio-workspace">
+      <!-- ══════════════════════════════════════════════════════════════════
+           TAB 1: LỘ TRÌNH & CÂY BÀI GIẢNG (CURRICULUM STUDIO)
+           ══════════════════════════════════════════════════════════════════ -->
+      <section v-if="activeTab === 'curriculum'" class="space-y-4">
+        <!-- 1. Thanh chọn Lộ trình học (Course Selector Bar) -->
+        <div class="course-bar">
+          <div class="course-bar__selector-group">
+            <label class="course-bar__label">Lộ trình đang chọn:</label>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select v-model="selectedCourseId" class="course-bar__select">
+                <option value="all">🌐 Tất cả Lộ trình & Bài học (Tổng hợp)</option>
+                <option v-for="course in courses" :key="course.id" :value="course.id">
+                  📖 {{ course.title }} ({{ course.category || 'DSA' }})
+                </option>
+              </select>
 
-      <EmptyState
-        v-if="lessons.length === 0"
-        icon="book"
-        :title="messages.admin.content.emptyLessons"
-        :description="messages.admin.content.emptyLessonsDesc"
-        :action-label="messages.admin.content.addLesson"
-        @action="openCreate"
-      />
-
-      <div v-else class="admin-content__table">
-        <div class="admin-content__table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">{{ messages.admin.content.colIndex }}</th>
-                <th scope="col">{{ messages.admin.content.colTitle }}</th>
-                <th scope="col">{{ messages.admin.content.colTopic }}</th>
-                <th scope="col">{{ messages.admin.content.colStatus }}</th>
-                <th scope="col">{{ messages.admin.content.colSim }}</th>
-                <th scope="col" class="admin-content__actions-col">{{ messages.admin.content.colActions }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(lesson, idx) in lessons" :key="lesson.id">
-                <td :data-label="messages.admin.content.colIndex" class="admin-content__idx">{{ pad(idx + 1) }}</td>
-                <td :data-label="messages.admin.content.colTitle" class="admin-content__title-cell">
-                  <p class="admin-content__title-text">{{ lesson.title }}</p>
-                  <p v-if="lesson.description" class="admin-content__title-desc">{{ lesson.description }}</p>
-                  <p v-if="lesson.status === 'draft' && rejectedReasons[lesson.id]" class="admin-content__rejected">
-                    Bị từ chối: {{ rejectedReasons[lesson.id] }}
-                  </p>
-                </td>
-                <td :data-label="messages.admin.content.colTopic"><Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge></td>
-                <td :data-label="messages.admin.content.colStatus">
-                  <div class="admin-content__status-cell">
-                    <Badge :variant="statusVariant[lesson.status]">{{ statusLabel[lesson.status] ?? lesson.status }}</Badge>
-                    <Badge v-if="lesson.isClassOnly" variant="secondary">Lớp học riêng</Badge>
-                  </div>
-                </td>
-                <td :data-label="messages.admin.content.colSim">
-                  <span class="admin-content__sim-count" :class="{ 'admin-content__sim-count--zero': lesson.simulationCount === 0 }">
-                    <Network :size="13" /> {{ lesson.simulationCount }}
-                  </span>
-                </td>
-                <td :data-label="messages.admin.content.colActions">
-                  <div class="admin-content__actions">
-                    <template v-if="isAdmin && lesson.status === 'pendingreview'">
-                      <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
-                      <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
-                    </template>
-                    <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)">
-                      <Eye :size="16" /> Xem trước
-                    </Button>
-                    <Button size="sm" variant="ghost" @click="openEdit(lesson)">
-                      <Pencil :size="16" /> {{ messages.admin.content.edit }}
-                    </Button>
-                    <Button size="sm" variant="danger" @click="deleteLesson(lesson)">
-                      <Trash2 :size="16" /> {{ messages.admin.content.delete }}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </template>
-
-    <!-- Danh sách chủ đề -->
-    <template v-else>
-      <div class="admin-content__toolbar">
-        <Button size="md" @click="topicFormOpen = true"><Plus :size="16" /> {{ messages.admin.content.addTopic }}</Button>
-      </div>
-
-      <EmptyState
-        v-if="topics.length === 0"
-        icon="book"
-        :title="messages.admin.content.emptyTopics"
-        :description="messages.admin.content.emptyTopicsDesc"
-        :action-label="messages.admin.content.addTopic"
-        @action="topicFormOpen = true"
-      />
-
-      <div v-else class="admin-content__topics">
-        <Card v-for="topic in topics" :key="topic.id" class="admin-content__topic">
-          <CardHeader class="admin-content__topic-head">
-            <span class="admin-content__topic-icon" aria-hidden="true"><Layers :size="16" /></span>
-            <div class="admin-content__topic-meta">
-              <CardTitle class="admin-content__topic-name">{{ topic.name }}</CardTitle>
-              <CardDescription class="admin-content__topic-desc">
-                {{ topic.description || '—' }}
-              </CardDescription>
+              <Button size="sm" variant="secondary" @click="openCreateCourse">
+                <Plus :size="14" /> Tạo Lộ trình mới
+              </Button>
             </div>
-            <Badge variant="secondary" class="admin-content__topic-count">
-              {{ topicLessonCount.get(topic.id) ?? 0 }} {{ messages.admin.content.lessonsCount }}
-            </Badge>
-          </CardHeader>
-        </Card>
-      </div>
-    </template>
-
-    <!-- Modal bài học -->
-    <Modal :open="formOpen" :title="editingId === null ? messages.admin.content.createLessonTitle : messages.admin.content.editLessonTitle" @close="formOpen = false">
-      <form class="admin-content__form" novalidate @submit.prevent="saveLesson">
-        <p v-if="formRejectionReason" class="admin-content__reject-banner" role="alert">
-          Bài học đã bị từ chối: {{ formRejectionReason }} — sửa nội dung và lưu để gửi lại duyệt.
-        </p>
-        <Input v-model="form.title" :label="messages.admin.content.lessonTitle" required />
-        <Input v-model="form.description" :label="messages.admin.content.lessonDesc" />
-        <div class="admin-content__row">
-          <label class="label" for="lesson-topic">{{ messages.admin.content.lessonTopic }}</label>
-          <select id="lesson-topic" v-model="form.topicId" class="input">
-            <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
-          </select>
-        </div>
-        <!-- Xuất bản: Class Only → active; Public → pendingreview (backend v2.15) -->
-        <div class="admin-content__row">
-          <label class="admin-content__publish" for="lesson-class-only">
-            <input id="lesson-class-only" v-model="form.isClassOnly" type="checkbox" class="admin-content__checkbox" />
-            <span class="admin-content__publish-text">
-              <span class="admin-content__publish-label">
-                {{ form.isClassOnly ? 'Chỉ dùng trong Lớp học riêng (Class Only)' : 'Gửi yêu cầu xuất bản toàn hệ thống (Public)' }}
-              </span>
-              <span class="admin-content__publish-hint">
-                {{ form.isClassOnly ? 'Sẽ lưu trạng thái Kích hoạt — chỉ hiển thị trong lớp học riêng.' : 'Sẽ lưu trạng thái Chờ duyệt — Admin kiểm duyệt trước khi công khai.' }}
-              </span>
-            </span>
-          </label>
-        </div>
-        <!-- Mô phỏng multi-select → simulationKeys -->
-        <div class="admin-content__row">
-          <span class="label">{{ messages.admin.content.simAttach }}</span>
-          <div class="admin-content__sims" role="group" aria-label="Danh sách mô phỏng">
-            <label v-for="sim in CATALOG" :key="sim.key" class="admin-content__sim-option">
-              <input v-model="form.simulationKeys" type="checkbox" :value="sim.key" />
-              <span class="admin-content__sim-title">{{ sim.title }}</span>
-              <code class="admin-content__sim-key">{{ sim.key }}</code>
-            </label>
           </div>
-          <p class="admin-content__sim-hint">
-            {{ form.simulationKeys.length > 0 ? `Đã chọn ${form.simulationKeys.length} mô phỏng.` : 'Chưa chọn mô phỏng nào.' }}
-          </p>
+
+          <div v-if="currentCourse" class="course-bar__actions">
+            <Button size="sm" variant="ghost" @click="openEditCourse(currentCourse)">
+              <Pencil :size="14" /> Sửa thông tin
+            </Button>
+            <Button size="sm" variant="ghost" @click="router.push(`/path/${currentCourse.id}`)">
+              <ExternalLink :size="14" /> Xem trang học viên
+            </Button>
+            <Button size="sm" variant="danger" @click="deleteCourse(currentCourse)">
+              <Trash2 :size="14" />
+            </Button>
+          </div>
         </div>
-        <!-- Editor Markdown: Soạn thảo ↔ Xem trước -->
-        <div class="admin-content__row">
-          <span class="label">{{ messages.admin.content.contentHtml }}</span>
-          <div class="admin-content__editor">
-            <div class="admin-content__editor-tabs" role="tablist" aria-label="Chế độ soạn thảo nội dung">
+
+        <!-- 2. Toolbar & Switcher -->
+        <div class="studio-toolbar">
+          <div class="studio-toolbar__left">
+            <div class="view-switch">
               <button
                 type="button"
-                role="tab"
-                :aria-selected="editorTab === 'write'"
-                class="admin-content__editor-tab"
-                :class="{ 'admin-content__editor-tab--active': editorTab === 'write' }"
-                @click="editorTab = 'write'"
+                class="view-switch__btn"
+                :class="{ 'view-switch__btn--active': viewMode === 'curriculum' }"
+                @click="viewMode = 'curriculum'"
               >
-                Soạn thảo
+                <Layers :size="15" /> Cây Lộ trình phân cấp
               </button>
               <button
                 type="button"
-                role="tab"
-                :aria-selected="editorTab === 'preview'"
-                class="admin-content__editor-tab"
-                :class="{ 'admin-content__editor-tab--active': editorTab === 'preview' }"
-                @click="editorTab = 'preview'"
+                class="view-switch__btn"
+                :class="{ 'view-switch__btn--active': viewMode === 'flat' }"
+                @click="viewMode = 'flat'"
               >
-                Xem trước
+                <ListFilter :size="15" /> Danh sách phẳng ({{ displayLessons.length }})
               </button>
             </div>
-            <div v-if="editorTab === 'write'">
-              <div class="admin-content__md-toolbar" role="toolbar" aria-label="Thanh định dạng Markdown">
-                <button
-                  v-for="action in toolbarActions"
-                  :key="action.label"
-                  type="button"
-                  class="admin-content__md-toolbar-btn"
-                  :title="action.title"
-                  @click="runToolbar(action)"
-                >
-                  {{ action.label }}
-                </button>
-              </div>
-              <textarea
-                ref="textareaRef"
-                id="lesson-html"
-                v-model="form.contentHtml"
-                class="admin-content__html"
-                rows="14"
-                :placeholder="messages.admin.content.htmlPlaceholder"
+          </div>
+
+          <div class="studio-toolbar__right">
+            <div class="search-box">
+              <Search :size="14" class="search-box__icon" />
+              <input
+                v-model="lessonSearchQuery"
+                type="text"
+                class="search-box__input"
+                placeholder="Tìm bài học theo tên..."
               />
             </div>
-            <div v-else class="admin-content__preview">
-              <p v-if="!form.contentHtml.trim()" class="admin-content__preview-empty">
-                Chưa có nội dung — gõ Markdown ở tab Soạn thảo.
-              </p>
-              <ProseContent v-else :content-html="previewHtml" />
-            </div>
+
+            <Button size="md" @click="openCreateLesson()">
+              <Plus :size="16" /> Soạn bài học mới
+            </Button>
           </div>
         </div>
-        <div class="admin-content__actions">
-          <Button variant="ghost" @click="formOpen = false">{{ messages.admin.content.cancel }}</Button>
-          <Button type="submit" :loading="saving">{{ messages.admin.content.save }}</Button>
+
+        <!-- 3. Cây Lộ trình phân cấp -->
+        <div v-if="viewMode === 'curriculum'" class="curriculum-tree">
+          <EmptyState
+            v-if="displayTopics.length === 0 || displayLessons.length === 0"
+            icon="book"
+            title="Lộ trình này chưa có bài học nào"
+            description="Hãy bắt đầu tạo chương và soạn bài học đầu tiên cho lộ trình này."
+            action-label="+ Thêm Chương đầu tiên"
+            @action="openCreateTopic"
+          />
+
+          <div v-else class="curriculum-tree__list">
+            <article
+              v-for="(topic, tIdx) in displayTopics"
+              :key="topic.id"
+              class="chapter-card"
+            >
+              <!-- Header Chương -->
+              <header class="chapter-card__header" @click="toggleTopic(topic.id)">
+                <div class="chapter-card__header-left">
+                  <button type="button" class="chapter-card__toggle-btn">
+                    <ChevronDown v-if="isTopicOpen(topic.id)" :size="18" />
+                    <ChevronRight v-else :size="18" />
+                  </button>
+
+                  <div class="chapter-card__badge-index">Chương {{ pad(tIdx + 1) }}</div>
+
+                  <div class="chapter-card__titles">
+                    <h2 class="chapter-card__name">{{ topic.name }}</h2>
+                    <p v-if="topic.description" class="chapter-card__desc">{{ topic.description }}</p>
+                  </div>
+                </div>
+
+                <div class="chapter-card__header-right" @click.stop>
+                  <Badge variant="secondary" class="chapter-card__count">
+                    {{ getLessonsByTopic(topic.id).length }} bài học
+                  </Badge>
+
+                  <Button size="sm" variant="secondary" @click="openCreateLesson(topic.id)">
+                    <Plus :size="14" /> Thêm bài vào chương
+                  </Button>
+
+                  <Button size="sm" variant="ghost" title="Sửa tên chương" @click="openEditTopic(topic)">
+                    <Pencil :size="14" />
+                  </Button>
+
+                  <Button size="sm" variant="ghost" title="Xóa chương" @click="deleteTopic(topic)">
+                    <Trash2 :size="14" class="text-rose-400" />
+                  </Button>
+                </div>
+              </header>
+
+              <!-- Body Chương -->
+              <div v-show="isTopicOpen(topic.id)" class="chapter-card__body">
+                <div v-if="getLessonsByTopic(topic.id).length === 0" class="chapter-card__empty">
+                  <p>Chương này chưa có bài học nào.</p>
+                  <Button size="sm" variant="secondary" @click="openCreateLesson(topic.id)">
+                    <Plus :size="14" /> Soạn bài học đầu tiên
+                  </Button>
+                </div>
+
+                <div v-else class="chapter-card__lessons">
+                  <div
+                    v-for="(lesson, lIdx) in getLessonsByTopic(topic.id)"
+                    :key="lesson.id"
+                    class="lesson-row"
+                  >
+                    <div class="lesson-row__main">
+                      <span class="lesson-row__index">#{{ tIdx + 1 }}.{{ lIdx + 1 }}</span>
+                      <div class="lesson-row__text">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="lesson-row__title">{{ lesson.title }}</span>
+                          <Badge :variant="statusVariant[lesson.status]" class="text-[11px] py-0">
+                            {{ statusLabel[lesson.status] || lesson.status }}
+                          </Badge>
+                          <Badge v-if="lesson.isClassOnly" variant="secondary" class="text-[11px] py-0">
+                            Lớp riêng
+                          </Badge>
+                        </div>
+                        <p v-if="lesson.description" class="lesson-row__desc">{{ lesson.description }}</p>
+                      </div>
+                    </div>
+
+                    <!-- Badges đính kèm -->
+                    <div class="lesson-row__tags">
+                      <span
+                        class="lesson-row__tag"
+                        :class="{ 'lesson-row__tag--active': lesson.simulationCount > 0 }"
+                      >
+                        <Network :size="13" />
+                        {{ lesson.simulationCount > 0 ? `${lesson.simulationCount} mô phỏng` : 'Chưa gắn sim' }}
+                      </span>
+
+                      <span
+                        class="lesson-row__tag"
+                        :class="{ 'lesson-row__tag--active': lesson.exerciseCount > 0 }"
+                      >
+                        <CheckCircle2 :size="13" />
+                        {{ lesson.exerciseCount > 0 ? `${lesson.exerciseCount} bài tập` : 'Chưa có quiz' }}
+                      </span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="lesson-row__actions">
+                      <template v-if="isAdmin && lesson.status === 'pendingreview'">
+                        <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
+                        <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
+                      </template>
+
+                      <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)">
+                        <Eye :size="15" /> Xem trước
+                      </Button>
+
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openEditLesson(lesson)">
+                        <Pencil :size="15" /> Soạn / Sửa
+                      </Button>
+
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openCreateQuizForLesson(lesson.id)">
+                        <Plus :size="15" /> Thêm Quiz / Lab
+                      </Button>
+
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="danger" @click="deleteLesson(lesson)">
+                        <Trash2 :size="15" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Nút Thêm Chương Mới -->
+            <button type="button" class="add-chapter-btn" @click="openCreateTopic">
+              <FolderPlus :size="20" />
+              <span>+ Thêm Chương / Chủ đề mới vào Lộ trình</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Danh sách phẳng -->
+        <div v-else class="flat-table-wrap">
+          <div class="flat-table">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Tiêu đề bài học</th>
+                  <th scope="col">Chương / Chủ đề</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Mô phỏng</th>
+                  <th scope="col">Quiz / Lab</th>
+                  <th scope="col" class="text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(lesson, idx) in displayLessons" :key="lesson.id">
+                  <td class="font-mono text-slate-400">{{ pad(idx + 1) }}</td>
+                  <td>
+                    <div class="font-semibold text-slate-100">{{ lesson.title }}</div>
+                    <div v-if="lesson.description" class="text-xs text-slate-400 truncate max-w-md">
+                      {{ lesson.description }}
+                    </div>
+                  </td>
+                  <td>
+                    <Badge variant="secondary">{{ topicName(lesson.topicId) }}</Badge>
+                  </td>
+                  <td>
+                    <Badge :variant="statusVariant[lesson.status]">
+                      {{ statusLabel[lesson.status] || lesson.status }}
+                    </Badge>
+                  </td>
+                  <td>
+                    <span class="inline-flex items-center gap-1 text-xs text-slate-300">
+                      <Network :size="13" /> {{ lesson.simulationCount }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="inline-flex items-center gap-1 text-xs text-slate-300">
+                      <CheckCircle2 :size="13" /> {{ lesson.exerciseCount }}
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)"><Eye :size="15" /></Button>
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openEditLesson(lesson)"><Pencil :size="15" /></Button>
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openCreateQuizForLesson(lesson.id)"><Plus :size="15" /></Button>
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="danger" @click="deleteLesson(lesson)"><Trash2 :size="15" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           TAB 2: NGÂN HÀNG BÀI TẬP & QUIZ / CODE LAB (EXERCISES BANK)
+           ══════════════════════════════════════════════════════════════════ -->
+      <section v-else-if="activeTab === 'exercises'" class="space-y-4">
+        <!-- Course Selector Bar trong Tab 2 -->
+        <div class="course-bar">
+          <div class="course-bar__selector-group">
+            <label class="course-bar__label">Lộ trình học:</label>
+            <select v-model="selectedCourseId" class="course-bar__select">
+              <option value="all">🌐 Tất cả Lộ trình & Bài tập (Tổng hợp)</option>
+              <option v-for="course in courses" :key="course.id" :value="course.id">
+                📖 {{ course.title }} ({{ course.category || 'DSA' }})
+              </option>
+            </select>
+          </div>
+          <div v-if="currentCourse" class="text-xs text-slate-400">
+            Đang lọc bài tập của: <strong class="text-slate-200">{{ currentCourse.title }}</strong>
+          </div>
+        </div>
+
+        <!-- Toolbar Bài tập -->
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex items-center gap-2">
+            <div class="view-switch">
+              <button
+                type="button"
+                class="view-switch__btn"
+                :class="{ 'view-switch__btn--active': exerciseFilter === 'all' }"
+                @click="exerciseFilter = 'all'"
+              >
+                Tất cả ({{ filteredExercises.length }})
+              </button>
+              <button
+                type="button"
+                class="view-switch__btn"
+                :class="{ 'view-switch__btn--active': exerciseFilter === 'quiz' }"
+                @click="exerciseFilter = 'quiz'"
+              >
+                <HelpCircle :size="14" /> Trắc nghiệm MCQ
+              </button>
+              <button
+                type="button"
+                class="view-switch__btn"
+                :class="{ 'view-switch__btn--active': exerciseFilter === 'code' }"
+                @click="exerciseFilter = 'code'"
+              >
+                <Code :size="14" /> Code Lab
+              </button>
+            </div>
+
+            <div class="search-box">
+              <Search :size="14" class="search-box__icon" />
+              <input
+                v-model="exerciseSearchQuery"
+                type="text"
+                class="search-box__input"
+                placeholder="Tìm bài tập theo tiêu đề..."
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <Button size="sm" variant="ghost" @click="downloadSampleCsv">
+              <Download :size="14" /> File mẫu CSV
+            </Button>
+            <Button size="sm" variant="secondary" @click="openImportCsv()">
+              <Upload :size="14" /> Nhập từ CSV
+            </Button>
+            <Button size="md" @click="openCreateQuizForLesson()">
+              <Plus :size="16" /> Tạo bài tập mới
+            </Button>
+          </div>
+        </div>
+
+        <EmptyState
+          v-if="filteredExercises.length === 0"
+          icon="book"
+          title="Chưa có bài tập nào"
+          description="Soạn câu hỏi trắc nghiệm hoặc bài code chấm testcase tự động cho học viên."
+          action-label="+ Tạo bài tập mới"
+          @action="openCreateQuizForLesson()"
+        />
+
+        <!-- Danh sách bài tập -->
+        <div v-else class="flat-table-wrap">
+          <div class="flat-table">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Tiêu đề bài tập</th>
+                  <th scope="col">Loại</th>
+                  <th scope="col">Gắn vào bài học</th>
+                  <th scope="col">Số câu / Testcase</th>
+                  <th scope="col">Thời lượng</th>
+                  <th scope="col" class="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(ex, idx) in filteredExercises" :key="ex.id">
+                  <td class="font-mono text-slate-400">{{ pad(idx + 1) }}</td>
+                  <td>
+                    <div class="font-semibold text-slate-100">{{ ex.title }}</div>
+                    <div v-if="ex.description" class="text-xs text-slate-400 truncate max-w-md">
+                      {{ ex.description }}
+                    </div>
+                  </td>
+                  <td>
+                    <Badge :variant="ex.type === 'CODE' ? 'primary' : 'secondary'">
+                      {{ ex.type === 'CODE' ? '💻 Code Lab' : '❓ Trắc nghiệm MCQ' }}
+                    </Badge>
+                  </td>
+                  <td>
+                    <span v-if="ex.lessonId" class="text-xs text-slate-300">
+                      📖 {{ lessonMap.get(ex.lessonId) || `#${ex.lessonId}` }}
+                    </span>
+                    <span v-else class="text-xs text-slate-500 italic">Chưa gắn</span>
+                  </td>
+                  <td class="font-mono text-xs text-slate-300">
+                    {{ ex.type === 'CODE' ? '1 bài thực hành' : 'Trắc nghiệm' }}
+                  </td>
+                  <td class="font-mono text-xs text-slate-400">
+                    {{ ex.durationMinutes }} phút ({{ ex.maxScore }} điểm)
+                  </td>
+                  <td class="text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="ghost" @click="openEditExercise(ex)">
+                        <Pencil :size="15" /> Sửa
+                      </Button>
+                      <Button size="sm" variant="danger" @click="deleteExercise(ex)">
+                        <Trash2 :size="15" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           TAB 3: Ý KIẾN & ĐÁNH GIÁ HỌC VIÊN (FEEDBACK HUB)
+           ══════════════════════════════════════════════════════════════════ -->
+      <section v-else-if="activeTab === 'feedback'" class="space-y-4">
+        <!-- Course Selector Bar trong Tab 3 -->
+        <div class="course-bar">
+          <div class="course-bar__selector-group">
+            <label class="course-bar__label">Lộ trình học:</label>
+            <select v-model="selectedCourseId" class="course-bar__select">
+              <option value="all">🌐 Tất cả Lộ trình (Tổng hợp)</option>
+              <option v-for="course in courses" :key="course.id" :value="course.id">
+                📖 {{ course.title }}
+              </option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <select v-model="feedbackStatusFilter" class="course-bar__select text-xs py-1.5 w-auto">
+              <option value="">Tất cả Trạng thái</option>
+              <option value="New">Mới</option>
+              <option value="Read">Đã đọc</option>
+              <option value="Resolved">Đã xử lý</option>
+            </select>
+            <Button size="sm" variant="secondary" @click="loadFeedback">
+              <RefreshCw :size="14" /> Làm mới
+            </Button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="search-box">
+            <Search :size="14" class="search-box__icon" />
+            <input
+              v-model="feedbackSearchQuery"
+              type="text"
+              class="search-box__input"
+              placeholder="Tìm nội dung góp ý..."
+            />
+          </div>
+        </div>
+
+        <EmptyState
+          v-if="filteredFeedbacks.length === 0"
+          icon="user"
+          title="Chưa có ý kiến nào từ học viên"
+          description="Khi học viên gửi góp ý, báo lỗi hoặc yêu cầu trong khóa học, chúng sẽ hiển thị ở đây."
+        />
+
+        <div v-else class="space-y-3">
+          <article
+            v-for="item in filteredFeedbacks"
+            :key="item.id"
+            class="p-4 rounded-xl border border-slate-700/70 bg-slate-900/60 space-y-3"
+          >
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-primary-600/30 text-primary-300 flex items-center justify-center font-bold text-xs">
+                  {{ item.userName ? item.userName.charAt(0).toUpperCase() : 'U' }}
+                </span>
+                <div>
+                  <div class="text-sm font-semibold text-slate-100">{{ item.userName }}</div>
+                  <div class="text-xs text-slate-400">Khóa học: {{ item.courseTitle }} • {{ formatDate(item.createdAt) }}</div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <Badge :variant="item.type === 'Bug' ? 'danger' : 'secondary'">{{ item.type }}</Badge>
+                <Badge :variant="item.status === 'Resolved' ? 'success' : 'warning'">{{ item.status }}</Badge>
+              </div>
+            </div>
+
+            <p class="text-sm text-slate-200 bg-slate-950/40 p-3 rounded-lg border border-slate-800">
+              {{ item.content }}
+            </p>
+
+            <!-- Trả lời feedback -->
+            <div v-if="item.replyText" class="p-3 bg-primary-950/30 border border-primary-800/40 rounded-lg text-xs text-primary-200">
+              <strong>Phản hồi của giảng viên ({{ item.repliedByName || 'Bạn' }}):</strong>
+              <p class="mt-1">{{ item.replyText }}</p>
+            </div>
+
+            <div v-else class="flex items-center gap-2 pt-1">
+              <input
+                v-model="replyTexts[item.id]"
+                type="text"
+                placeholder="Nhập phản hồi trực tiếp cho học viên..."
+                class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+              <Button
+                size="sm"
+                variant="primary"
+                :disabled="replySaving[item.id]"
+                @click="sendFeedbackReply(item)"
+              >
+                <Send :size="13" /> Gửi phản hồi
+              </Button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ MODAL TẠO/SỬA CHƯƠNG (TOPIC) ═══ -->
+    <Modal
+      :open="topicFormOpen"
+      :title="editingTopicId ? 'Chỉnh sửa Chương / Chủ đề' : 'Thêm Chương / Chủ đề mới'"
+      @close="topicFormOpen = false"
+    >
+      <form class="space-y-4 py-2" @submit.prevent="saveTopic">
+        <div>
+          <label class="block text-sm font-medium mb-1">Tên chương / chủ đề <span class="text-rose-400">*</span></label>
+          <Input v-model="topicForm.name" placeholder="Ví dụ: Chương 1 - Thuật toán Sắp xếp cơ bản" required />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Mô tả tóm tắt</label>
+          <textarea
+            v-model="topicForm.description"
+            rows="3"
+            class="w-full rounded-md border border-slate-700 bg-slate-900 p-2.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            placeholder="Mô tả mục tiêu và nội dung chính của chương học này..."
+          />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" @click="topicFormOpen = false">Hủy</Button>
+          <Button type="submit" variant="primary">Lưu chương</Button>
         </div>
       </form>
     </Modal>
 
-    <!-- Modal chủ đề -->
-    <Modal :open="topicFormOpen" :title="messages.admin.content.createTopicTitle" @close="topicFormOpen = false">
-      <form class="admin-content__form" novalidate @submit.prevent="saveTopic">
-        <Input v-model="topicForm.name" :label="messages.admin.content.topicName" required />
-        <Input v-model="topicForm.description" :label="messages.admin.content.topicDesc" />
-        <div class="admin-content__actions">
-          <Button variant="ghost" @click="topicFormOpen = false">{{ messages.admin.content.cancel }}</Button>
-          <Button type="submit">{{ messages.admin.content.create }}</Button>
-        </div>
-      </form>
-    </Modal>
+    <!-- ═══ MODAL TẠO/SỬA LỘ TRÌNH (COURSE BUILDER) ═══ -->
+    <CourseBuilderModal
+      :open="courseModalOpen"
+      :course-id="editingCourseId"
+      :lessons="lessons"
+      @close="courseModalOpen = false"
+      @saved="onCourseSaved"
+    />
 
-    <!-- Modal xem trước bài học — render HTML như học viên thấy (ProseContent tự escape plain text) -->
-    <Modal :open="previewOpen" :title="previewTitle" width="720px" @close="closePreview">
-      <div class="admin-content__preview">
-        <ProseContent v-if="previewContent.trim()" :content="previewContent" />
-        <p v-else class="admin-content__preview-empty">Chưa có nội dung để xem trước.</p>
+    <!-- ═══ MODAL THÊM QUIZ / BÀI TẬP (EXERCISE BUILDER) ═══ -->
+    <ExerciseBuilderModal
+      :open="exerciseModalOpen"
+      :exercise-id="editingExerciseId"
+      :default-lesson-id="builderDefaultLessonId"
+      :default-stage="builderDefaultStage"
+      :default-tab="builderDefaultTab"
+      :lessons="lessons"
+      @close="exerciseModalOpen = false"
+      @saved="() => { exerciseModalOpen = false; load(); }"
+    />
+
+    <!-- ═══ MODAL XEM TRƯỚC BÀI HỌC (PREVIEW) ═══ -->
+    <Modal :open="previewOpen" size="lg" @close="previewOpen = false">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <BookOpen :size="18" class="text-primary-400" />
+          <h2 class="text-lg font-bold">{{ previewTitle }}</h2>
+        </div>
+      </template>
+
+      <div class="max-h-[65vh] overflow-y-auto pr-1">
+        <ProseContent :html="previewContent" />
       </div>
+
       <template #footer>
-        <Button variant="ghost" @click="closePreview">Đóng</Button>
+        <Button variant="secondary" @click="previewOpen = false">Đóng</Button>
       </template>
     </Modal>
   </main>
 </template>
 
 <style scoped>
-.admin-content {
+.studio-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
   padding-block: var(--space-lg) var(--space-2xl);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
 }
 
-/* ── Banner: surface band level-2 (DESIGN §6) — không gradient, không shadow ── */
-.admin-content__hero {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--card-raised);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.admin-content__hero-inner {
+/* ── Hero Banner ── */
+.studio-hero {
   display: flex;
+  justify-content: space-between;
   align-items: flex-end;
-  justify-content: space-between;
   gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.admin-content__hero-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.admin-content__hero-badges { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-.admin-content__title {
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-  color: var(--foreground);
-}
-
-.admin-content__sub {
-  color: var(--foreground-secondary);
-  font-size: var(--text-sm);
-  max-width: 60ch;
-  margin: 0;
-}
-
-/* ── Mono strip: block-token dữ liệu thật (khoảnh khắc đầu tư duy nhất) ── */
-.admin-content__hero-strip { flex: 0 1 260px; display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-content__strip-panel {
-  background: var(--canvas-ink);
-  border: 1px solid rgba(66, 85, 255, 0.25);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-blocks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-block {
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--data-core);
-  opacity: 0;
-  transform: translateY(6px);
-  animation: admin-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
-}
-
-.admin-content__strip-block--empty {
-  background: transparent;
-  border: 1px dashed var(--data-core);
-  opacity: 1;
-  transform: none;
-  animation: none;
-}
-
-.admin-content__strip-index {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.admin-content__strip-index span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--index-muted);
-  text-align: center;
-}
-
-.admin-content__strip-caption {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--foreground-tertiary);
-  letter-spacing: 0.08em;
-  text-align: right;
-}
-
-@keyframes admin-strip-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-content__strip-block {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* ── Loading / Error ── */
-.admin-content__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.admin-content__error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  padding: var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
-  background: color-mix(in srgb, var(--destructive) 8%, transparent);
-  border-radius: var(--radius-md);
-}
-
-.admin-content__error-text { margin: 0; font-size: var(--text-sm); color: var(--destructive); }
-
-.admin-content__toolbar { display: flex; gap: var(--space-sm); justify-content: flex-end; flex-wrap: wrap; }
-
-/* ── Table bài học (DESIGN §4.6) ── */
-.admin-content__table {
-  padding: 0;
+  padding: var(--space-xl);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.4);
 }
 
-.admin-content__table-scroll { overflow-x: auto; border-radius: inherit; }
+.studio-hero__kicker {
+  margin: 0 0 var(--space-xs);
+  color: var(--primary);
+  font: 600 var(--text-xs)/1.2 var(--font-mono);
+  letter-spacing: 0.12em;
+}
 
-.admin-content__table table { width: 100%; border-collapse: collapse; }
+.studio-hero__title {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
 
-.admin-content__table th {
-  text-align: left;
+.studio-hero__desc {
+  margin: var(--space-xs) 0 0;
+  color: var(--foreground-secondary);
+  max-width: 65ch;
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--foreground-tertiary);
-  padding: 0 var(--space-md);
-  height: 40px;
-  border-bottom: 1px solid var(--border);
+}
+
+.studio-hero__stats {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  padding: var(--space-sm) var(--space-md);
   background: var(--muted);
-  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
-.admin-content__table td {
-  padding: 12px var(--space-md);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--text-sm);
-  vertical-align: middle;
-}
-
-.admin-content__table tbody tr { transition: background-color 150ms; }
-
-.admin-content__table tbody tr:hover { background: color-mix(in srgb, var(--muted) 50%, transparent); }
-
-.admin-content__table tbody tr:last-child td { border-bottom: none; }
-
-.admin-content__idx {
+.stat-pill__num {
   font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.stat-pill__label {
   font-size: var(--text-xs);
   color: var(--foreground-tertiary);
-  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.admin-content__title-cell { min-width: 0; }
+/* ── Main Studio Tabs ── */
+.studio-main-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow-x: auto;
+}
 
-.admin-content__title-text { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-
-.admin-content__title-desc { font-size: var(--text-xs); color: var(--foreground-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-
-.admin-content__status-cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
-
-.admin-content__rejected { margin: 2px 0 0; font-size: var(--text-xs); color: var(--destructive); }
-
-.admin-content__sim-count {
+.studio-main-tab {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.admin-content__sim-count--zero { color: var(--foreground-tertiary); }
-
-.admin-content__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-
-/* ── Topic grid ── */
-.admin-content__topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-md); }
-
-.admin-content__topic { min-width: 0; border-color: var(--border); transition: border-color 150ms; }
-
-.admin-content__topic:hover { border-color: var(--border-strong); }
-
-.admin-content__topic-head { display: flex; flex-direction: row; align-items: flex-start; gap: var(--space-sm); }
-
-.admin-content__topic-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-  color: var(--foreground-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.admin-content__topic-meta { min-width: 0; flex: 1; }
-
-.admin-content__topic-name {
-  font-size: var(--text-lg);
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-}
-
-.admin-content__topic-desc { font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-.admin-content__topic-count { flex-shrink: 0; }
-
-/* ── Modal form ── */
-.admin-content__form { display: flex; flex-direction: column; gap: var(--space-md); }
-
-.admin-content__row { display: flex; flex-direction: column; gap: var(--space-xs); }
-
-.admin-content__row-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
-
-/* ── Modal xem trước bài học ── */
-.admin-content__preview { padding: var(--space-xs) 0; }
-
-.admin-content__preview-empty {
-  margin: 0;
-  padding: var(--space-xl) 0;
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--foreground-tertiary);
-}
-
-/* Select/textarea chưa có wrapper shadcn — giữ .input nhưng token + easing chuẩn */
-.admin-content__row .input,
-.admin-content__html {
-  background: var(--card);
-  border-color: var(--border);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  transition: border-color 150ms;
-}
-
-/* ── Editor Markdown 2 tab (v2.15) ── */
-.admin-content__editor {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--card);
-}
-
-.admin-content__editor-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--muted); }
-
-.admin-content__editor-tab {
-  flex: 1;
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-sm);
   color: var(--foreground-secondary);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: color 150ms, border-color 150ms;
+  white-space: nowrap;
+  transition: all 150ms ease;
 }
 
-.admin-content__editor-tab--active {
+.studio-main-tab:hover {
   color: var(--foreground);
-  font-weight: 500;
-  background: var(--card);
-  border-bottom-color: var(--data-core);
+  background: color-mix(in srgb, var(--card) 50%, transparent);
 }
 
-.admin-content__md-toolbar {
+.studio-main-tab--active {
+  color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Course Selector Bar ── */
+.course-bar {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.course-bar__selector-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
   flex-wrap: wrap;
-  gap: var(--space-xs);
-  padding: var(--space-sm);
-  border-bottom: 1px solid var(--border);
 }
 
-.admin-content__md-toolbar-btn {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: 1;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--card);
-  color: var(--foreground-secondary);
-  cursor: pointer;
-  transition: border-color 150ms, color 150ms;
-}
-
-.admin-content__md-toolbar-btn:hover { border-color: var(--border-strong); color: var(--foreground); }
-
-.admin-content__editor .admin-content__html {
-  width: 100%;
-  min-height: 280px;
-  padding: var(--space-md);
-  border: none;
-  border-radius: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  resize: vertical;
-}
-
-.admin-content__preview {
-  padding: var(--space-md);
-  min-height: 280px;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.admin-content__preview-empty { margin: 0; font-size: var(--text-sm); color: var(--foreground-tertiary); }
-
-/* Callout trong preview — nhãn + màu viền theo loại */
-.admin-content__preview :deep(blockquote[data-callout])::before {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: var(--space-xs);
-}
-
-.admin-content__preview :deep(blockquote[data-callout='note']) { border-left-color: var(--color-primary); }
-.admin-content__preview :deep(blockquote[data-callout='note'])::before { content: 'Ghi chú'; color: var(--color-primary); }
-.admin-content__preview :deep(blockquote[data-callout='tip']) { border-left-color: var(--color-success); }
-.admin-content__preview :deep(blockquote[data-callout='tip'])::before { content: 'Mẹo'; color: var(--color-success); }
-.admin-content__preview :deep(blockquote[data-callout='warning']) { border-left-color: var(--color-warning); }
-.admin-content__preview :deep(blockquote[data-callout='warning'])::before { content: 'Cảnh báo'; color: var(--color-warning); }
-
-/* ── Xuất bản + mô phỏng (v2.15) ── */
-.admin-content__publish { display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer; }
-
-.admin-content__publish .admin-content__checkbox { margin-top: 3px; accent-color: var(--data-core); }
-
-.admin-content__publish-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-
-.admin-content__publish-label { font-size: var(--text-sm); font-weight: 500; color: var(--foreground); }
-
-.admin-content__publish-hint { font-size: var(--text-xs); color: var(--foreground-tertiary); }
-
-.admin-content__reject-banner {
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
-  background: color-mix(in srgb, var(--destructive) 8%, transparent);
-  border-radius: var(--radius-md);
+.course-bar__label {
   font-size: var(--text-sm);
-  color: var(--destructive);
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
 }
 
-.admin-content__sims {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border);
+.course-bar__select {
+  min-width: 280px;
+  max-width: 420px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
 }
 
-.admin-content__sim-option {
+.course-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ── Toolbar & Switcher ── */
+.studio-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.studio-toolbar__left,
+.studio-toolbar__right {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+  flex-wrap: wrap;
+}
+
+.view-switch {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.view-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--foreground-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.view-switch__btn--active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box__icon {
+  position: absolute;
+  left: 10px;
+  color: var(--foreground-tertiary);
+}
+
+.search-box__input {
+  width: 240px;
+  padding: 7px 12px 7px 32px;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: var(--text-xs);
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.search-box__input:focus {
+  border-color: var(--primary);
+}
+
+/* ── Curriculum Hierarchy Tree ── */
+.curriculum-tree__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.chapter-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: border-color 150ms;
+}
+
+.chapter-card:hover {
+  border-color: var(--border-strong);
+}
+
+.chapter-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  background: color-mix(in srgb, var(--card) 90%, var(--muted));
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  gap: var(--space-md);
+}
+
+.chapter-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.chapter-card__toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  color: var(--foreground-secondary);
   cursor: pointer;
 }
 
-.admin-content__sim-option:hover { background: var(--muted); }
+.chapter-card__badge-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  white-space: nowrap;
+}
 
-.admin-content__sim-option input { accent-color: var(--data-core); }
+.chapter-card__titles {
+  min-width: 0;
+}
 
-.admin-content__sim-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-card__name {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--foreground);
+}
 
-.admin-content__sim-key { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--foreground-tertiary); }
+.chapter-card__desc {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+}
 
-.admin-content__sim-hint { margin: 0; font-size: var(--text-xs); color: var(--foreground-tertiary); }
+.chapter-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
 
-.admin-content__actions { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+.chapter-card__body {
+  padding: var(--space-xs) 0;
+}
 
-@media (max-width: 640px) {
-  .admin-content__hero { padding: var(--space-lg); }
-  .admin-content__hero-strip { flex-basis: 100%; }
-  .admin-content__strip-caption { text-align: left; }
+.chapter-card__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-xl) var(--space-md);
+  color: var(--foreground-tertiary);
+  font-size: var(--text-sm);
+}
 
-  /* Bảng → card-stack (DESIGN §8 — cấm scroll ngang bảng chính ở mobile) */
-  .admin-content__table-scroll { overflow-x: visible; }
+/* ── Lesson Row inside Chapter ── */
+.chapter-card__lessons {
+  display: flex;
+  flex-direction: column;
+}
 
-  .admin-content__table thead { display: none; }
+.lesson-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 150ms;
+}
 
-  .admin-content__table tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-xs) var(--space-md);
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--border);
-  }
+.lesson-row:last-child {
+  border-bottom: none;
+}
 
-  .admin-content__table tbody tr:last-child { border-bottom: none; }
+.lesson-row:hover {
+  background: var(--muted);
+}
 
-  .admin-content__table td {
-    display: flex;
+.lesson-row__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-row__index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--foreground-tertiary);
+  min-width: 48px;
+}
+
+.lesson-row__text {
+  min-width: 0;
+}
+
+.lesson-row__title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+}
+
+.lesson-row__desc {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 500px;
+}
+
+.lesson-row__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.lesson-row__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--foreground-tertiary);
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.lesson-row__tag--active {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.lesson-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Nút Thêm Chương Dưới Cùng ── */
+.add-chapter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-lg);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.add-chapter-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+}
+
+/* ── Flat Table Mode ── */
+.flat-table-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.flat-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.flat-table th,
+.flat-table td {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.flat-table th {
+  background: var(--muted);
+  font-weight: 600;
+  color: var(--foreground-secondary);
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .studio-hero {
     flex-direction: column;
-    gap: var(--space-xs);
-    padding: 0;
-    border-bottom: none;
+    align-items: flex-start;
   }
-
-  .admin-content__table td::before {
-    content: attr(data-label);
-    font-size: var(--text-xs);
-    color: var(--foreground-tertiary);
+  .course-bar {
+    flex-direction: column;
+    align-items: flex-start;
   }
-
-  .admin-content__table td:first-child { grid-column: 1 / -1; }
-  .admin-content__table td:last-child { align-items: flex-start; }
-
-  .admin-content__title-text,
-  .admin-content__title-desc { max-width: 100%; white-space: normal; }
+  .chapter-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .lesson-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>
+

@@ -1,3 +1,4 @@
+
 <script setup lang="ts">
 // ExerciseView — Màn 06: bài tập trắc nghiệm (Bậc 1 / kiểm tra) tại /exercise/:id
 // Tái sử dụng QuizStage + nút chuyển chế độ luyện tập (FR-4.6) + liên kết lý thuyết.
@@ -7,13 +8,16 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import * as exercisesApi from '@/api/exercises';
-import type { ExerciseDto } from '@/api/exercises';
+import type { ExerciseDto, SubmissionSummaryDto } from '@/api/exercises';
 import QuizStage from '@/components/ladder/QuizStage.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Drawer from '@/components/ui/Drawer.vue';
+import Badge from '@/components/ui/Badge.vue';
 import { fireConfetti } from '@/composables/useConfetti';
 import { useUiStore } from '@/stores/ui';
+import { formatDateTime } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,6 +33,28 @@ const classAssignmentId = computed<number | null>(() => {
   const raw = Number(route.query.classAssignmentId);
   return Number.isFinite(raw) && raw > 0 ? raw : null;
 });
+
+// Lịch sử làm bài
+const historyOpen = ref(false);
+const historyLoading = ref(false);
+const historyError = ref('');
+const historyItems = ref<SubmissionSummaryDto[]>([]);
+
+async function loadHistory(): Promise<void> {
+  const id = Number(route.params.id);
+  if (!id) return;
+  historyOpen.value = true;
+  historyLoading.value = true;
+  historyError.value = '';
+  try {
+    const data = await exercisesApi.fetchMySubmissions(id);
+    historyItems.value = data ?? [];
+  } catch (err) {
+    historyError.value = err instanceof Error ? err.message : 'Không thể tải lịch sử.';
+  } finally {
+    historyLoading.value = false;
+  }
+}
 
 onMounted(async () => {
   const id = Number(route.params.id);
@@ -82,14 +108,23 @@ function onFinished(): void {
             {{ exercise.description }}
           </p>
         </div>
-        <Button
-          size="sm"
-          :variant="practiceMode ? 'primary' : 'secondary'"
-          :aria-pressed="practiceMode"
-          @click="practiceMode = !practiceMode"
-        >
-          {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
-        </Button>
+        <div class="exercise__actions">
+          <Button
+            size="sm"
+            variant="secondary"
+            @click="loadHistory"
+          >
+            Lịch sử làm bài
+          </Button>
+          <Button
+            size="sm"
+            :variant="practiceMode ? 'primary' : 'secondary'"
+            :aria-pressed="practiceMode"
+            @click="practiceMode = !practiceMode"
+          >
+            {{ practiceMode ? 'Làm bài chính thức' : 'Luyện tập (không chấm điểm)' }}
+          </Button>
+        </div>
       </header>
 
       <QuizStage
@@ -101,6 +136,40 @@ function onFinished(): void {
       />
     </template>
   </main>
+
+  <!-- Drawer lịch sử -->
+  <Drawer v-model:open="historyOpen" side="right" size="md">
+    <template #header>
+      <h2 class="text-lg font-semibold">Lịch sử làm bài</h2>
+      <p class="text-sm text-muted-foreground">Các lần nộp bài trước đây</p>
+    </template>
+    <div v-if="historyLoading" class="flex items-center justify-center py-8">
+      <Skeleton height="48px" :lines="3" />
+    </div>
+    <div v-else-if="historyError" class="text-center py-8 text-destructive">
+      {{ historyError }}
+    </div>
+    <div v-else-if="historyItems.length === 0" class="text-center py-8 text-muted-foreground">
+      Chưa có lịch sử làm bài.
+    </div>
+    <div v-else class="space-y-3">
+      <div
+        v-for="item in historyItems"
+        :key="item.id"
+        class="flex items-center justify-between p-3 border rounded-lg"
+      >
+        <div>
+          <div class="font-medium">{{ formatDateTime(item.submittedAt) }}</div>
+          <div class="text-sm text-muted-foreground">
+            Điểm: {{ item.score }}
+          </div>
+        </div>
+        <Badge :variant="item.score >= 70 ? 'success' : 'danger'">
+          {{ item.score >= 70 ? 'Đạt' : 'Chưa đạt' }}
+        </Badge>
+      </div>
+    </div>
+  </Drawer>
 </template>
 
 <style scoped>
@@ -157,6 +226,13 @@ function onFinished(): void {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin: 0;
+}
+
+.exercise__actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .exercise__loading { display: flex; flex-direction: column; gap: var(--space-md); }

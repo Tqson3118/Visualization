@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="AI Companion avatar">
+  <defs>
+    <linearGradient id="bgBot" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#042f2e"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="botTeal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="50%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="screenGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="eyeLed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="64" fill="url(#bgBot)"/>
+  <circle cx="64" cy="64" r="60" fill="none" stroke="url(#botTeal)" stroke-width="2" opacity="0.6"/>
+  <path d="M36 128 C36 102 46 94 64 94 C82 94 92 102 92 128 Z" fill="#1e293b"/>
+  <rect x="56" y="84" width="16" height="14" rx="4" fill="#334155"/>
+  <line x1="64" y1="26" x2="64" y2="14" stroke="url(#botTeal)" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="64" cy="12" r="5" fill="#2dd4bf"/>
+  <circle cx="64" cy="12" r="2.5" fill="#ffffff"/>
+  <rect x="34" y="26" width="60" height="56" rx="20" fill="url(#botTeal)"/>
+  <rect x="28" y="44" width="8" height="20" rx="4" fill="#0f766e"/>
+  <rect x="92" y="44" width="8" height="20" rx="4" fill="#0f766e"/>
+  <rect x="40" y="32" width="48" height="44" rx="14" fill="url(#screenGrad)"/>
+  <path d="M47 52 Q53 45 59 52" fill="none" stroke="url(#eyeLed)" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M69 52 Q75 45 81 52" fill="none" stroke="url(#eyeLed)" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="48" cy="62" r="2.5" fill="#f43f5e" opacity="0.6"/>
+  <circle cx="80" cy="62" r="2.5" fill="#f43f5e" opacity="0.6"/>
+</svg>
