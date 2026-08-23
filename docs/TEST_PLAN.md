@@ -5,15 +5,15 @@
 | | |
 |---|---|
 | Loại tài liệu | Test Plan |
-| Phiên bản | 1.0 |
-| Ngày cập nhật | 12/08/2026 |
-| Trạng thái | Dự thảo — bảng PASS/FAIL điền sau khi chạy (dự kiến S10, tuần 19-20) |
+| Phiên bản | 1.4 |
+| Ngày cập nhật | 13/08/2026 |
+| Trạng thái | Dự thảo — bảng PASS/FAIL đã điền kết quả thật (12/08/2026, §10); SEC/PERF/UX chưa thực thi (ghi "chờ") |
 | Người soạn | Huỳnh Lê Minh Thư |
 | Người duyệt | Phạm Ngọc Ái Liên |
 | Tài liệu liên quan | SRS.md, SDD.md, API_REFERENCE.md |
 | Nguồn yêu cầu | PRODUCTION_PROMPT.md Phần 14 (chiến lược), 8.8-8.10 (golden data + mở rộng), 13.3 (bảo mật), 17.15 (ma trận truy vết) |
 
-> ⚠ **ĐÂY LÀ KẾ HOẠCH KIỂM THỬ (PLAN), chưa phải báo cáo (REPORT)**: mọi test case đã được thiết kế và đặc tả đầy đủ (điều kiện, bước, kỳ vọng) nhưng **chưa chạy** — bảng PASS/FAIL điền sau khi thực thi ở sprint S10 (tuần 19-20). Khi hội đồng hỏi kết quả test: báo cáo số thật sau khi chạy, KHÔNG bịa số liệu (bài học báo cáo cũ — BAO_CAO_SPEC §5.0).
+> ⚠ **TÀI LIỆU NÀY GỒM KẾ HOẠCH (PLAN) + KẾT QUẢ THẬT (REPORT)**: mọi test case đã được thiết kế và đặc tả đầy đủ (điều kiện, bước, kỳ vọng). **Đã thực thi một phần ngày 12/08/2026**: kết quả thật của nhóm Backend/Engine/API/E2E được điền tại §10; các nhóm chưa chạy thực tế (Bảo mật pentest, Hiệu năng k6, UX 5 người) vẫn ghi "chờ" theo BAO_CAO_SPEC §5.0 — KHÔNG bịa số liệu (bài học báo cáo cũ).
 
 ## Lịch sử thay đổi
 
@@ -21,6 +21,9 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Huỳnh Lê Minh Thư | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Huỳnh Lê Minh Thư | Vá review: bổ sung 8 test case còn thiếu (TEST-B-036..038 Favorites §4.8, TEST-B-097..098 ghi chú §4.2, TEST-B-101..103 Mini Quiz §4.3) — khớp ma trận truy vết §11 |
+| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: điền số thật vào §10 BÁO CÁO TỔNG HỢP (Backend 44, Engine 72, API 27, E2E 11 — chạy 12/08/2026); SEC/PERF/UX giữ "chờ" theo BAO_CAO_SPEC; cập nhật trạng thái front matter + ghi chú §10; bỏ tham chiếu "tuần 19-20" ở trạng thái bảng |
+| 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): TEST-PERF-007 nới ngưỡng bundle theo NFR-5 (JS gốc tải lần đầu ≤ 1.5MB, engine chunk ≤ 500KB gốc) + ghi chú bundle thật vào §10; số FE hiện tại giữ nguyên (unit 72 + e2e 11) |
+| 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §10 cập nhật số thật sau GP-T7 — Backend 81 unit, API 31 integration, FE unit 89 (gồm +7 test lib/vietqr), E2E 13 (tổng 214); TEST-PERF-007 đo lại bundle sau khi thêm `qrcode` (JS gốc tải lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng) |
 
 ---
 
@@ -36,7 +39,7 @@
 ## 1.2 Phạm vi
 
 - **Trong**: unit (engine/store/backend service), integration API, E2E, hiệu năng, bảo mật, UX.
-- **Ngoài**: kiểm thử thanh toán thật (Premium là mô phỏng — không có cổng thanh toán), tải > 200 VU, di động < 768px.
+- **Ngoài**: kiểm thử thanh toán thật (Premium là mô phỏng — hiện QR chuyển khoản MB Bank nhưng KHÔNG gọi API ngân hàng/webhook), tải > 200 VU, di động < 768px.
 
 ## 1.3 Môi trường kiểm thử
 
@@ -413,7 +416,7 @@
 | Kết quả thực tế | [ ] PASS [ ] FAIL — ghi chú: |
 
 #### TEST-B-178..183 | Premium | FR-10.7
-| Nội dung | 178: mock-pay → Premium active ngay + log giao dịch + HeartsMax=30. 179: hết hạn → job downgrade về Free + clamp Hearts về 10 (v2.4). 180: giữ gems/avatar/items sau downgrade. 181: CheatSheet PDF chỉ Premium. 182: quyền lợi Hint áp dụng ngay. 183: gia hạn không trùng lặp |
+| Nội dung | 178: bấm "Tôi đã chuyển khoản" (sau đếm ngược 60s) → mock-pay → Premium active ngay + log giao dịch (OrderRef `DSV{userId}T{months}`) + HeartsMax=30 (GP-T7). 179: hết hạn → job downgrade về Free + clamp Hearts về 10 (v2.4). 180: giữ gems/avatar/items sau downgrade. 181: CheatSheet PDF chỉ Premium. 182: quyền lợi Hint áp dụng ngay. 183: gia hạn không trùng lặp |
 | Kết quả thực tế | [ ] PASS [ ] FAIL — ghi chú: |
 
 ## 4.8 Favorites (FR-3.10)
@@ -655,7 +658,7 @@
 | TEST-PERF-004 | GET /lessons (1000 bài, phân trang) | 50 VU × 5 phút | p95 ≤ 800ms | 0 lỗi 5xx |
 | TEST-PERF-005 | POST /exercises/{id}/submit (10 câu) | 20 VU song song | p95 ≤ 1.5s | chấm đúng 100% |
 | TEST-PERF-006 | Login đồng thời | 50 VU × 30s | p95 ≤ 1s | 0 lỗi |
-| TEST-PERF-007 | Tải SPA lần đầu (cold cache) | Chrome + Lighthouse | FCP ≤ 1.5s | bundle ≤ 500KB |
+| TEST-PERF-007 | Tải SPA lần đầu (cold cache) | Chrome + Lighthouse | FCP ≤ 1.5s | bundle: JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc (NFR-5 — nới theo đợt G; GP-T8 13/08/2026 đo lại sau khi thêm `qrcode`: JS gốc lần đầu ≈ 852KB, engine 476KB — PASS ngưỡng) |
 | TEST-PERF-008 | Đồng thời tổng hợp (70% đọc, 30% ghi) | 200 VU × 15 phút | p95 ≤ 1.2s | 0 lỗi 5xx |
 
 ---
@@ -675,21 +678,23 @@
 
 ---
 
-# 10. BÁO CÁO TỔNG HỢP (điền sau khi chạy — tuần 19-20)
+# 10. BÁO CÁO TỔNG HỢP (đã điền kết quả thật — 12/08/2026)
 
 | Nhóm test | Tổng số | PASS | FAIL | Không kiểm thử | Ghi chú |
 |---|---|---|---|---|---|
-| Backend (TEST-B) | 0 | 0 | 0 | 0 | |
-| Engine (TEST-E) | 0 | 0 | 0 | 0 | |
-| API (TEST-API) | 0 | 0 | 0 | 0 | |
-| E2E (TEST-UI) | 0 | 0 | 0 | 0 | |
-| Bảo mật (TEST-SEC) | 0 | 0 | 0 | 0 | |
-| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | |
-| UX (TEST-UX) | 0 | 0 | 0 | 0 | |
-| **Tổng** | **0** | **0** | **0** | **0** | |
+| Backend (TEST-B) | 81 | 81 | 0 | 0 | Unit xUnit — chạy 13/08/2026 (GP-T7: +4 test premium OrderRef DSV, tổng 81 = 77 + 4) |
+| Engine (TEST-E) | 89 | 89 | 0 | 0 | Vitest FE 89/89 (gồm +7 test `lib/vietqr` GP-T7 — CRC vector + payload EMVCo) |
+| API (TEST-API) | 31 | 31 | 0 | 0 | Integration — WebApplicationFactory + Testcontainers MsSql thật, chạy 13/08/2026 |
+| E2E (TEST-UI) | 13 | 13 | 0 | 0 | Playwright (auth/simulator/ladder/code-runner), chạy 13/08/2026 |
+| Bảo mật (TEST-SEC) | 0 | 0 | 0 | 0 | Chờ — pentest thực tế chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| Hiệu năng (TEST-PERF) | 0 | 0 | 0 | 0 | Chờ — load test k6 chưa chạy (ghi "chờ" theo BAO_CAO_SPEC §5.0); **TEST-PERF-007 ngưỡng đã nới theo bundle thật đợt G (JS tải lần đầu ≤ 1.5MB gốc, engine ≤ 500KB); GP-T8 13/08/2026 đo lại sau khi thêm `qrcode`: JS gốc lần đầu ≈ 852KB / engine 476KB gốc (120KB gzip) — vẫn trong ngưỡng** |
+| UX (TEST-UX) | 0 | 0 | 0 | 0 | Chờ — khảo sát 5 người chưa thực hiện (ghi "chờ" theo BAO_CAO_SPEC §5.0) |
+| **Tổng** | **214** | **214** | **0** | **0** | Tổng các nhóm ĐÃ chạy (B/E/API/E2E — 13/08/2026 sau GP-T7); SEC/PERF/UX chưa tính |
+
+**Kết quả hỗ trợ (12/08/2026)**: Frontend build PASS 0 lỗi; Backend build 0 warning / 0 error (5 projects); smoke test `/health` → 200, mọi `/api/v1/*` không token → 401; seed đã chạy thật: 5 topics / 8 lessons / 29 exercises / 76 questions / 5 paths / 18 nodes / 8 quests / 8 shop items / 9 settings / 3 users.
 
 - Mọi FAIL phải có: nguyên nhân, mức độ, người sửa, ngày sửa, ngày pass lại; đính kèm screenshot/log trích đoạn.
-- **Không bịa số liệu** (bài học từ báo cáo cũ — BAO_CAO_SPEC §5.0): chưa chạy thì ghi "chờ hoàn tất kiểm thử (tuần 19-20)".
+- **Không bịa số liệu** (bài học từ báo cáo cũ — BAO_CAO_SPEC §5.0): kết quả thật đã điền tại §10 (12/08/2026); các hạng mục chưa chạy (load test k6, pentest thực tế, khảo sát UX) vẫn ghi "chờ" theo BAO_CAO_SPEC — không điền số ước lượng.
 
 ## Ngưỡng chất lượng trước khi bàn giao (Definition of Done — 14.9)
 

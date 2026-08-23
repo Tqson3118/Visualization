@@ -1,107 +1,70 @@
-# PM REPORT — ĐỢT SẢN XUẤT TÀI LIỆU (12/08/2026)
+﻿# PM REPORT — PROMPT_UI_REDESIGN_ADMIN_TEACHER_HOME (Phiên --auto, 14/08/2026)
 
-**Mục tiêu**: Review PRODUCTION_PROMPT.md bằng 5 skill → kiểm tra docs tuân thủ → sản xuất 12 file bàn giao theo §17.1.
+## MỤC TIÊU
+Nâng cấp toàn diện mỹ quan + micro-interaction + trực quan dữ liệu cho 9 views (Home, 3 Teacher/Class, 5 Admin) theo Brand Contract rontend/DESIGN.md, đạt build PASS + vitest 178/178 + E2E overflow 0 + Ollama qwen2.5vl 7 tiêu chí.
 
-## 1. Kết quả review PRODUCTION_PROMPT.md (v2.5 — 5324 dòng)
+## TRẠNG THÁI TỔNG: ✅ HOÀN TẤT — 9/9 views redesign, PR #29 mở (base dev, chờ merge)
 
-| Skill | Kết luận |
-|---|---|
-| grill-with-docs | Ổn: G-1..G-9 đã vá (seed 8 bài, bỏ Judge0, Lab chấm trạng thái cuối, giải trình KPI, dọn 12 FR cắt, sạch NOTIFICATIONS) |
-| domain-modeling | Ổn: glossary §1.8 đủ 8 thuật ngữ miền; thuật ngữ Node/Bậc/Session/Tim nhất quán |
-| database-designer | Ổn: 31 bảng đầy đủ cột/index/seed; ERD 2 sơ đồ; CHECK/unique đã bổ sung |
-| codebase-onboarding | Thiếu hạ tầng docs — đây là phần đã sản xuất trong đợt này |
-| improve-codebase-architecture | Ổn: A-1..A-5 đã vá (2 project, gộp service, bỏ /simulations/run) |
+| # | Task | Agent | Trạng thái | Ghi chú |
+|---|---|---|---|---|
+| 0 | Baseline verify (build + vitest) tại worktree mới | dev-test | ✅ DONE | build 0 lỗi, 178/178, git sạch |
+| 1 | HomeView: hero mini-sim controls + callout trace, catalog filters + Big-O chips, ladder showcase | dev-ux | ✅ DONE (686f47a) | 594 dòng thêm, i18n +40 key |
+| 2 | Teacher views: invite code mono copy, progress bars + badge hạn nộp, donut ECharts dark + lagging card | dev-ux | ✅ DONE (ce368c9) | fallback dữ liệu do DTO thiếu field |
+| 3a | AdminStats + AdminUsers: KPI hero, charts dark, filter bar, avatar/badge, drawer + confirm | dev-ux | ✅ DONE (32dcaca) | lần dispatch đầu lỗi (agent không làm) → chạy lại OK |
+| 3b | AdminContent + AdminSettings + AdminLadder: cây thụt lề, segmented publish, switch toggle | dev-ux | ✅ DONE (7d54e39) | +748/−242 |
+| 4 | E2E: overflow 1366/768/390 + screenshot + Ollama 7 tiêu chí | dev-e2e | ✅ DONE | overflow 0 (15/15), console 0 lỗi; còn nhiều tiêu chí ≤3 |
+| 5 | Fix round 1 visual (hover/active, contrast, animated progress, tablet grid) | dev-ux | ✅ DONE (e1a4e13) | hết điểm 2/5 |
+| 6 | E2E retest round 2 | dev-e2e | ✅ DONE | 3 target fix tăng (2→4/2→4/2→3); dừng đuổi điểm do nhiễu thang chấm |
+| 7 | Code review độc lập | dev-review | ✅ DONE | CHANGES REQUESTED: 1 MAJOR (timer leak HomeView) + 6 MINOR + 2 NIT |
+| 8 | Fix review 7/7 mục | dev-ux | ✅ DONE (e08b544) | build + 178/178 PASS |
+| 9 | Re-review commit fix | dev-review | ✅ APPROVE | 7/7 mục đúng, không hồi quy |
+| 10 | Cập nhật docs/work/ui-redesign.md | dev-docs | ✅ DONE | 8.0 KB, giữ baseline |
 
-**Không phát hiện mâu thuẫn blocking mới → KHÔNG cần sửa PRODUCTION_PROMPT.md.**
+## FILE THAY ĐỔI (6 commits, PR #29: Tqson3118/Visualization)
+- 686f47a feat(home): HomeView.vue + vi.ts
+- ce368c9 feat(teacher): ClassesView/ClassDetailView/ClassReportView + vi.ts
+- 32dcaca feat(admin): AdminStatsView/AdminUsersView + vi.ts
+- 7d54e39 feat(admin): AdminContentView/AdminSettingsView/AdminLadderView + vi.ts
+- e1a4e13 style(ui): 4 view polish + 2 key i18n
+- e08b544 fix(ui): playback guard, clipboard guards, i18n hardcode, tree semantics, :has fallback
+- Tổng: ~10 file production (+2.441/−438), không sửa test/store/api/router/engines/shared components
 
-## 2. Trạng thái 12 file bàn giao (trước → sau)
+## KẾT QUẢ VERIFY
+- 
+pm run build: PASS 0 lỗi (vue-tsc + vite) — chạy lại nhiều lần qua các task
+- 
+px vitest run: 178/178 PASS (20 files), không sửa/skip test
+- E2E Playwright: overflow ngang = 0 (5 view × 3 viewport 1366/768/390), console 0 lỗi mới, 0 ảnh hỏng, không cắt chữ
+- Ollama qwen2.5vl:3b (7 tiêu chí, 1-5): không còn điểm 2/5 sau fix; target fix chính tăng (Classes@768 Phản hồi 2→4, AdminStats@768 Luồng 2→4, ClassDetail@768 Thỏa mãn 2→3); các điểm ≤3 còn lại kèm bằng chứng nhiễu thang chấm giữa 2 lượt (view đối chứng không sửa cũng tụt điểm) → đã dừng đuổi điểm (quyết định ghi log)
+- Review độc lập: APPROVE (sau e08b544)
 
-| File | Trước | Sau | Chuẩn (§17.2) |
-|---|---|---|---|
-| docs/SRS.md | ❌ 247 dòng (bản cũ) | ✔ 1296 dòng v1.0 | ≥900 |
-| docs/SDD.md | ❌ 364 dòng (bản cũ) | ✔ 2042 dòng v1.0 | ≥1400 |
-| docs/API_REFERENCE.md | ❌ không tồn tại | ✔ 730 dòng v1.0 | ≥700 |
-| docs/USER_GUIDE.md | ❌ không tồn tại | ✔ 503 dòng v1.0 | ≥500 |
-| docs/TEST_PLAN.md | ❌ không tồn tại | ✔ 759 dòng v1.0 | ≥600 |
-| docs/DEPLOY.md | ❌ không tồn tại | ✔ 369 dòng v1.0 | ≥300 |
-| docs/GLOSSARY.md | ❌ không tồn tại | ✔ 105 dòng v1.0 | ≥100 |
-| docs/README.md | ❌ 21 dòng | ✔ 206 dòng (ma trận 17.8 + FR↔UC↔Module) | mục lục |
-| docs/SCREEN_MAP.md | ⚠ 251 dòng | ✔ 306 dòng (thêm mục 10/10A/11 — v2.5) | ≥300 |
-| shared/simulation-catalog.json | ❌ không tồn tại | ✔ 46 dòng / 44 entries (34 GT + 10 CTDL) — JSON hợp lệ | ≥40 |
-| THIRD_PARTY.md | ❌ không tồn tại | ✔ 72 dòng (NFR-36) | ≥40 |
-| README.md (root) | ❌ không tồn tại | ✔ 202 dòng (dev guide + quy tắc nhóm 2.7) | ≥200 |
+## QUYẾT ĐỊNH ĐÃ GHI (chi tiết: docs/pm-decision-log.md, mục 14/08 UI Redesign)
+1. Worktree trees/ui-redesign chưa tồn tại → tạo mới; base feature/ui-redesign TỪ feature/refactor-ui-css (PR #27 chưa merge dev) để có đủ 4 shared components + DESIGN.md; PR base dev.
+2. Junction node_modules → frontend/node_modules chính (không cài lại).
+3. Fallback dữ liệu học viên (DTO thiếu progress/avgScore) → cột tiến độ dùng dữ liệu thật hiện có; đề xuất backend bổ sung field.
+4. Nút "Nhắc nhở" lagging learner = copy clipboard (chưa có API notify/email) — đề xuất backend.
+5. Dừng đuổi điểm Ollama (nhiễu chấm model) — chấp nhận ngưỡng ≥3, không còn 2.
+6. Chấp nhận value mới 2 key i18n cũ (detailTabMembers/detailTabAssignments) + hành vi draft giữ draft khi sửa bài (cải tiến, ghi log).
+7. Chấp nhận :deep bám markup shared component (view-scoped, không phá chỗ khác).
 
-**Tổng: 8/12 mới hoặc thiếu → đã đạt 12/12 chuẩn.**
+## CÒN TỒN ĐỌNG / ĐỀ XUẤT MỞ RỘNG (không thuộc phạm vi đợt này)
+- Merge PR #27 (refactor-ui-css) TRƯỚC hoặc cùng đợt PR #29 (base đang nhánh này) — hiện PR #29 base dev trực tiếp, không phụ thuộc merge #27 nhưng nhánh chứa diff #27; nên merge #27 trước để diff #29 sạch.
+- Backend: thêm progress/avgScore vào ClassMemberDto + assignmentCount vào ClassDto; API notify/email cho lagging learners.
+- Cây AdminContent: bổ sung điều hướng bàn phím arrow-key nếu muốn chuẩn ARIA tree (đã đổi sang list/listitem).
+- E2E phát hiện hiện tượng refresh→logout loop khi backend chết hoàn toàn (pre-existing, ngoài phạm vi) — đề xuất task riêng.
+- Dark mode chưa có nút toggle wire (ảnh dark chụp bằng force class) — ngoài phạm vi.
+- JSDoc toggleLesson trong AdminContentView lỗi thời (nit, chưa cập nhật).
 
-## 3. Kết quả checklist §17.9 (rà soát tự động + thủ công)
+Người dùng xem báo cáo: OK → kết thúc. Chưa OK → yêu cầu 'làm lại <task/mục>' kèm ghi chú, PM chạy lại phần đó.
 
-- [x] Không placeholder `[...]`/`TODO`/`XXX` trong nội dung mô tả (grep).
-- [x] ID nhất quán: FR/NFR/UC/TEST grep chéo khớp; "30 bảng" còn sót = 0.
-- [x] SRS: 10 module A-J, master matrix, 32 UC (đếm = 32), 36 NFR, AC-1..8.
-- [x] SDD: Phần 8 EDV TOÀN BỘ, 15 GT mã giả + bảng trạng thái, 31 bảng (2 ERD), 32 màn.
-- [x] API_REFERENCE: mọi endpoint §9.2 (Auth/Public/Topics/Lessons/Simulations/Exercises/Progress/Users/Favorites/Admin/Classes/Notes/CodeRunner/Gamification/Feedback) + error catalog + DTO + RBAC 36.
-- [x] DB: 31 bảng đủ cột/khóa/index/seed (gồm NodeSessions §7.3.29).
-- [x] RBAC 36 dòng khớp endpoint (mọi endpoint có quyền tối thiểu).
-- [x] TEST_PLAN phủ 100% FR mức Cao + ma trận truy vết §11 (17.15).
-- [x] Kiểm thử bảo mật 13.3 đầy đủ (TEST-SEC-001..011).
-- [x] Trừ tim ≥ 3 case biên: TEST-B-150 (CheatSheet), TEST-B-151 (concurrency thực), TEST-B-152 (session hết hạn) + TEST-B-148..155.
-- [x] USER_GUIDE không thuật ngữ kỹ thuật ngoài bảng giải thích.
-- [x] Mermaid hợp lệ (classDiagram/erDiagram/sequenceDiagram/graph/stateDiagram — cú pháp v10).
-- [x] docs/README.md có ma trận ánh xạ + danh sách 12 file.
-- [x] 12 file bàn giao đủ; SCREEN_MAP phủ Màn 01-32 + N-1..N-16.
-- [x] Lịch sử thay đổi từng file có bản 1.0.
+## CAP NHAT 15/08: Review lan 2 PM Antigravity (HomeView) - da fix xong
+- Review lan 1 (Antigravity): 17 diem phat hien (BLOCKER text-secondary/text-muted tang hinh - XAC MINH THAT, 15+5 cho) -> fix commit 0ce5d2d (lucide preview controls 32px, phase sub-label 9 buoc, bento wave 8 cot, testimonials Transition, guest/member split an Hero/Bento/Testimonials/CTA, trust 2x2 mobile, freemium CTA + bo emoji, XP gradient, handleTilt CSS vars, sandbox border+badge, mockups). Verify: build PASS, 185/185 (HomeView.spec mo rong 7->14 tests hop le).
+- Review lan 2 (Antigravity, tu check trinh duyet - KHONG con chay E2E theo quy tac moi): 4 diem -> fix commit f18aa4e: (1) Testimonials bo spring-hover (ke?t fade-slide opacity:0), (2) an freemium + 3 extended khi authed (giu Demos/Catalog/Sandbox), (3) handleTilt guard hover:none, (4) dark hero title :global(.dark) + --color-foreground.
+- Verify cuoi: build PASS 0 loi, vitest 185/185 (20 files), git sach.
+- PR #29 hien tai: 8 commits (686f47a, ce368c9, 32dcaca, 7d54e39, e1a4e13, e08b544, 0ce5d2d, f18aa4e), chua push 2 commit cuoi (0ce5d2d, f18aa4e) - can push truoc khi merge.
 
-## 4. Quyết định thiết kế đã chọn khi sinh (17.7)
-
-| Vấn đề | Chọn |
-|---|---|
-| Rich text editor | Quill |
-| Chart library | Chart.js |
-| Icon | lucide-vue-next |
-| Testcontainers | Có (Docker) |
-| Frontend ngôn ngữ | TypeScript strict |
-
-## 5. Việc còn lại (đề xuất)
-
-1. Sinh báo cáo Word theo BAO_CAO_SPEC (session A6 — cần pandoc + ảnh placeholder).
-2. Bê code tái dùng từ VisualizationDSA theo PM_MASTER_PLAN task B1 (REUSE_REPORT.md).
-3. Phê duyệt tài liệu bởi giảng viên (SRS/SDD) trước khi khởi tạo code.
-
-## 6. Xử lý review toàn diện docs/ (12/08/2026 — 15 vấn đề)
-
-| # | Vấn đề | Trạng thái |
-|---|---|---|
-| 1 | Encoding `simulation-catalog.json` (34 entry vỡ tiếng Việt) | ✅ Đã viết lại UTF-8 đúng — verify `Sắp xếp nổi bọt` tìm thấy chính xác |
-| 2 | Docs v2 vs code v1 (PostgreSQL/Clean Architecture) | ✅ Ghi rõ "đặc tả dự kiến — code v2 chưa khởi tạo" ở SRS/SDD/DEPLOY/README root/docs README |
-| 3 | SCREEN_MAP 251 < 300 dòng | ✅ Đạt 306 dòng (đã có từ đợt sản xuất); docs/README cập nhật số dòng |
-| 4 | Placeholder `[Tên]` khắp nơi | ✅ Điền tên thật 4 thành viên + GVHD Phạm Ngọc Ái Liên vào 12 file (phân công theo BAO_CAO_SPEC §4.1) |
-| 5 | demoAllowed chỉ 3/44 | ⚠ GIỮ NGUYÊN — đúng thiết kế FR-7.6 (3 demo công khai); mở rộng demo là quyết định sản phẩm, ghi backlog |
-| 6 | HANDOFF_REBUILD + SESSION_HANDOFF lỗi thời | ✅ Thêm banner "FILE LỖI THỜI/LỊCH SỬ" chỉ rõ chuẩn hiện tại (10 module, 32 UC, 31 bảng) |
-| 7 | REVIEW_PRODUCTION_PROMPT chưa đóng | ✅ Thêm bảng "TRẠNG THÁI XỬ LÝ" — 22/23 vấn đề đã vá, 1 điểm phụ thuộc quyết định người dùng (giữ Module J) |
-| 8 | Mâu thuẫn số bảng DB (24 vs 31 vs ~17) | ✅ Giải quyết qua banner lỗi thời #6 — chuẩn hiện tại 31 bảng nhất quán SRS/SDD/API/TEST |
-| 9 | PRODUCTION_PROMPT 405KB quá lớn | ⚠ GIỮ — là nguồn yêu cầu nội bộ (single source of truth), KHÔNG đưa vào bộ bàn giao hội đồng; docs/README ghi rõ vai trò |
-| 10 | USER_GUIDE lý tưởng hóa UX chưa có | ✅ Thêm banner "theo đặc tả dự kiến — cập nhật sau khi UI hoàn thiện" |
-| 11 | TEST_PLAN là plan không phải report | ✅ Thêm banner nhấn mạnh + cam kết không bịa số liệu |
-| 12 | Cross-reference có thể lệch | ⚠ Grep chéo thủ công đạt (checklist 17.9); script tự động ghi vào backlog |
-| 13 | pm-report quá ngắn | ✅ Bổ sung mục 6 (bảng xử lý 15 vấn đề) |
-| 14 | DEPLOY trộn Linux/Windows path | ✅ Tách rõ: 4.1-4.4 Linux, 4.5 Windows, backup path theo từng OS |
-| 15 | `tailieu/NET202_Project document_6 (1).pdf` | ✅ Xác nhận TỒN TẠI (đã kiểm tra) — không cần sửa |
-
-## 7. Xử lý review navigation & luồng di chuyển (12/08/2026)
-
-> Nguồn: review "TÍNH NĂNG & LUỒNG DI CHUYỂN" (7 vấn đề + 3 đề xuất tính năng). Nguyên tắc: sửa PRODUCTION_PROMPT (v2.6) trước, rồi đồng bộ SDD/USER_GUIDE/SCREEN_MAP.
-
-| # | Vấn đề | Quyết định | File đã sửa |
-|---|---|---|---|
-| 1 | "Học tập" quá chung; không có đường vào xem GT tự do | ✅ Đổi **"Lộ trình"** `/path` + thêm **"Khám phá"** `/simulations` lên sidebar | PROMPT §20.5.2, SDD §8.7/§3.3/§8.4 (Màn 33), USER_GUIDE, SCREEN_MAP |
-| 2 | Quest/Leaderboard chìm trong "⋯ Thêm" | ✅ Đưa **"Thử thách"** `/quests` lên sidebar chính | như trên |
-| 3 | Benchmark không có đường vào | ✅ Tab "So sánh" bên trong **Khám phá** | như trên |
-| 4 | CheatSheet bị ẩn | ✅ Tab "CheatSheet" bên trong **Khám phá** (vẫn giữ `/cheatsheet` route riêng) | như trên |
-| 5 | Teacher "Soạn bài" nhập nhằng | ✅ Đổi **"Quản lý nội dung"** `/admin/*` | như trên |
-| 6 | Admin thiếu lối vào nội dung | ✅ Thêm **"Nội dung"** `/admin/lessons` | như trên |
-| 7 | Xem thuật toán ở 3 nơi | ✅ Phân biệt rõ: Lộ trình (học theo trình tự, trừ tim, ghi điểm) vs Khám phá (tự do, trừ tim trừ 3 demo) — ghi chú cả 2 nơi | SDD §8.7, USER_GUIDE |
-| 5.1 | Teacher Hub `/teacher/dashboard` | ⏸ BACKLOG (16.2) — tránh scope trôi dạt | — |
-| 5.2 | Playground không trừ tim | ⏸ **KHÔNG áp dụng** — mâu thuẫn trực tiếp quyết định 20.4 đã chốt (mọi lượt xem mô phỏng đều trừ tim; nội dung là giá trị lõi); ghi backlog nếu đổi chính sách | — |
-| 5.3 | Widget "Hôm nay" trên Home sau login | ⏸ BACKLOG (tùy chọn GĐ3, chi phí thấp) | — |
-
-> Mọi thay đổi CHỈ ảnh hưởng sidebar + 1 route (`/simulations` trở thành Màn 33 chính thức) — KHÔNG đụng FR/kiến trúc/business logic. Changelog v2.6 đã ghi vào PRODUCTION_PROMPT Phần 22.
+## CAP NHAT 15/08 18:22 - REFACTOR TOAN DIEN HomeView + Theme Toggle (da hoan tat)
+- 69d2449 refactor(home): xoa hero badge/prefix, terminal macOS cu -> Algorithmic Stage (title + O(N log N) + lucide controls 32px + speed slider + status badge 9 phase), bo search bar catalog (giu tabs), xoa ai/testimonials/sandbox/footer + don state chet; Bento mini-visualizer 7 cot doi mau that; Demo typography + thumbnail bong nhe; GSAP reveal blur->clear stagger 0.1.
+- d3ead19 feat(home): Roadmap 4 node doc (BookOpen/Eye/Code2/Target) + line gradient scaleY; Codelab auto-typing 252 ky tu + nut Chay & Nop bai tu glow + 3 Testcase PASSED (12ms Beats 99%) loop; Rank Ladder 5 bac (Medal/Shield/Crown/Gem/Trophy) tu gamificationStore that + achievements + streak + stats (CATALOG 44+, 10 nhom, lessonsTotal); mesh blobs theme-aware; hover glow 0 0 25px + icon rotate; fix bug pre-existing CSS compile :global(.dark).
+- b97821f feat(ui): nut theme toggle AppHeader (Sun/Moon lucide 40px) + App.vue apply dark class (truoc day chua co noi apply).
+- Verify cuoi: build PASS 0 loi, vitest 188/188 (20 files), 4 commit moi chua push (69d2449, d3ead19, b97821f + f18aa4e truoc do) - can push truoc khi merge PR #29 (hien 12 commits local).

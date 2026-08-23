@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | SDD (Software Design Document) |
-| Phiên bản | 1.0 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.6 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -19,6 +19,11 @@
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 364 dòng, thiếu Phần 8 EDV/31 bảng/32 màn) |
+| 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
+| 1.5 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): Màn 25/26 — checkout 2 bước mới (chọn gói → QR VietQR EMVCo + nội dung CK `DSV{userId}T{months}` + nút "Tôi đã chuyển khoản" sau đếm ngược 60s; `qrcode` npm MIT); §7.3.28 PremiumSubscriptions.OrderRef = `DSV{userId}T{months}`; API `POST /premium/upgrade` trả `contentRef`; §3.9 cập nhật bundle thật 13/08 (qrcode vào chunk lazy PremiumView, JS lần đầu ≈ 852KB không đổi) |
+| 1.6 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §7.3.1 `Users` +3 cột `Department nvarchar(100)` / `StaffCode nvarchar(50)` / `TeacherBio nvarchar(500)` (NULL, bắt buộc nhập khi đăng ký vai trò Giảng viên) + migration `20260813052933_AddTeacherProfileFields`; cập nhật 2 sơ đồ ERD (Users); Màn 02 — bỏ checkbox "Tôi là giảng viên" → segmented chọn vai trò Sinh viên/Giảng viên + form con 3 trường; Màn 29 — danh sách chờ duyệt + modal hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã GV, Kinh nghiệm) |
+| 1.7 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §7.5 — setting `allowed.email.domains` KHÔNG còn được seed (bỏ chặn domain — mọi email đăng ký được); nếu DB còn setting cũ, bước SeedCleanupSettingsAsync tự xóa; bổ sung mô tả SeedDemoActivity (seed dữ liệu hoạt động người dùng demo — idempotent) |
+| 1.8 | 14/08/2026 | Trần Viết Tâm Phúc | PR #23 (docs sync v2.15 — 5 khối logic): §5.4 cập nhật trách nhiệm LessonService (kiểm duyệt + báo cáo vi phạm)/ClassService (join-by-code + allowLate)/UserService (reject reason bắt buộc + stats); §5.7.2 ghi chú luồng trạng thái bài học; §7.3.1 `Users` +`AcademicDegree`/`ProfileLink`; §7.3.2 `Lessons` mở rộng enum `PendingReview` +`IsClassOnly`/`PublishedAt`/`RejectionReason`; §7.3.16-18 `ClassAssignments` +`AllowLateSubmission`; §7.3.22 `BugReports` +`AdminNote`; Màn 09/29 ghi chú UI (editor markdown ProseContent, tab chờ duyệt, lý do từ chối bắt buộc) — migration `20260814003835_FullBusinessLogicAndClassOverhaul` |
 
 ---
 
@@ -122,9 +127,11 @@ graph TB
 ```
 frontend/
 ├── index.html
-├── vite.config.ts
+├── vite.config.ts                             # vue() + @tailwindcss/vite (bảng §3.9)
 ├── package.json
 ├── .env.development / .env.production        # VITE_API_BASE_URL
+├── public/
+│   └── fonts/                                 # GeistVariable.woff2, JetBrainsMonoVariable.woff2 (self-host)
 ├── src/
 │   ├── main.ts
 │   ├── App.vue
@@ -148,8 +155,10 @@ frontend/
 │   │   └── admin/ (AdminUsersView.vue, AdminStatsView.vue, AdminSettingsView.vue,
 │   │               AdminContentView.vue, AdminLadderView.vue)
 │   ├── components/
-│   │   ├── ui/                                # BaseButton, BaseInput, BaseModal, BaseToast,
-│   │   │                                      # BaseTable, BaseCard, BaseTabs, BaseTooltip, ...
+│   │   ├── ui/                                # shadcn-vue wrapper (mỗi bộ 1 thư mục con + index.ts):
+│   │   │   │                                  # button/, badge/, card/, dialog/, drawer/, input/,
+│   │   │   │                                  # progress/, select/, skeleton/, tabs/, tooltip/
+│   │   │   ├── BaseIcon.vue, EmptyState.vue, VChartLazy.vue   # còn lại tự xây/đặc thù
 │   │   ├── simulator/                         # SimulatorShell, ControlBar, PseudocodePanel,
 │   │   │                                      # ExplainPanel, VisualizationCanvas, InputConfigModal,
 │   │   │                                      # StatsBadge, LegendPanel, CallStackPanel, BreakpointBar,
@@ -163,7 +172,10 @@ frontend/
 │   ├── composables/                           # useSimulation, usePagination, useDebounce,
 │   │                                          # useKeyboardShortcuts, useInterval, useToast, useConfirm
 │   ├── i18n/vi.ts                             # mọi chuỗi giao diện (bản MVP chỉ vi)
-│   ├── styles/                                # tokens.css (màu 7.2), global.css
+│   ├── lib/                                   # utils.ts (cn = clsx + tailwind-merge), toast.ts (vue-sonner)
+│   ├── styles/                                # tokens.css (token OKLCH §8.1), tailwind.css (Tailwind 4 +
+│   │                                          # dark mode class="dark"), palettes.css (3 gradient OKLCH),
+│   │                                          # global.css
 │   └── utils/                                 # format.ts (Intl vi-VN), validators.ts
 └── tests/                                     # unit (engines + stores) + e2e (playwright)
 ```
@@ -272,25 +284,38 @@ describe('auth store', () => {
 4. Component UI không chứa logic nghiệp vụ; giao tiếp cha-con qua props/events; trạng thái dùng chung qua Pinia.
 5. Mọi chuỗi giao diện trong `src/i18n/vi.ts` — không nhúng chuỗi cứng (i18n sẵn sàng).
 6. Tên file: PascalCase component, camelCase hook.
-7. Không CSS global tràn lan; biến thiết kế trong `tokens.css`.
-8. NFR-31/32: hàm ≤ 40 dòng, class ≤ 400 dòng.
+7. **Stack UI (đợt G — quyết định G):**
+   - **Tailwind CSS 4** (CSS-first, qua plugin `@tailwindcss/vite`) + **shadcn-vue** (wrapper component trong `src/components/ui/<name>/`); utility gộp class = `cn()` (`src/lib/utils.ts` — clsx + tailwind-merge).
+   - **Dark mode** qua class `class="dark"` trên `<html>`; token màu dùng **OKLCH** (`src/styles/tokens.css` + `tailwind.css`); 3 gradient nền OKLCH trong `palettes.css`.
+   - **Hoạt ảnh**: motion-v (page transition/hover), GSAP (canvas/cần kiểm soát frame), Lenis (smooth scroll).
+   - **Biểu đồ**: vue-echarts (echarts, lazy-load — chunk riêng, KHÔNG vào bundle chính).
+   - **Toast**: vue-sonner (thay `ToastContainer` tự xây); **Icon**: `@lucide/vue` + `lucide-vue-next` + `@phosphor-icons/vue`.
+   - **Font**: Geist (variable, self-host `public/fonts/`) cho UI; JetBrains Mono (variable) cho mã giả/editor.
+   - Cấm nhập trực tiếp `reka-ui`/`vaul-vue` ở view — chỉ qua wrapper shadcn-vue trong `components/ui/`.
+8. Không CSS global tràn lan; biến thiết kế trong `tokens.css`; không hardcode hex màu (dùng token OKLCH).
+9. NFR-31/32: hàm ≤ 40 dòng, class ≤ 400 dòng.
 
 ## 3.9 Vite config (điểm quan trọng)
 
 ```ts
+import tailwindcss from '@tailwindcss/vite';
+// plugins: [vue(), tailwindcss()]
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   build: {
     target: 'es2020',
-    rollupOptions: { output: { manualChunks: {
-      engine: ['@/engines/core'], vendor: ['vue', 'pinia', 'vue-router'] } } },
+    rollupOptions: { output: { manualChunks(id: string) {
+      if (id.includes('/src/engines/')) return 'engine';
+      if (id.includes('/node_modules/vue/') || id.includes('/node_modules/@vue/')
+       || id.includes('/node_modules/pinia') || id.includes('/node_modules/vue-router')) return 'vendor';
+    } } },
   },
   server: { port: 5173, proxy: { '/api': { target: 'http://localhost:5000', changeOrigin: true } } },
 });
 ```
 
-- Lazy-load router các trang lớn (SimulatorView, ExerciseView, admin/*).
-- Bundle JS gốc ≤ 500KB (NFR-5); `vite build --mode production && npx vite-bundle-visualizer`.
+- Lazy-load router các trang lớn (SimulatorView, ExerciseView, admin/*); vue-echarts lazy qua `defineAsyncComponent` (chunk `echarts-*` tách riêng).
+- **Bundle thật (build 13/08/2026 — GP-T8, sau khi thêm `qrcode`):** engine `476 KB` gốc (`120 KB` gzip), echarts `324 KB` gốc (`110 KB` gzip, lazy), vendor `143 KB` gốc (`54 KB` gzip), chunk `PremiumView` `32 KB` gốc (`12.5 KB` gzip, lazy — gồm `qrcode` ~30KB, KHÔNG vào bundle chính); JS gốc tải lần đầu ≈ `852 KB` (không đổi so với đợt G); tổng JS gốc toàn dist ≈ `2.08 MB` (gồm chunk lazy: view, echarts, compiler.worker). Giới hạn NFR-5 (đã nới): engine ≤ 500KB gốc, tổng JS gốc tải lần đầu ≤ 1.5MB — xem SRS §4.1 / TEST_PLAN TEST-PERF-007. Lệnh đo: `vite build --mode production && npx vite-bundle-visualizer`.
 
 # 4. MÔ-ĐUN TRỰC QUAN HÓA (CỐT LÕI — EXECUTION-DRIVEN VISUALIZATION)
 
@@ -980,7 +1005,7 @@ Với mỗi bộ dữ liệu: (1) danh sách bước mong đợi dạng ngắn g
 | Tái vẽ toàn bộ mỗi bước | Renderer diff: chỉ vẽ phần tử có status/annotation thay đổi; cache layer nền tĩnh |
 | Đồ thị lớn | Culling ngoài viewport; giới hạn 50 đỉnh/200 cạnh; batch vẽ theo nhóm trạng thái |
 | Hoạt ảnh chuyển bước | `requestAnimationFrame`; mỗi bước tối đa 2 frame; không setTimeout cho vẽ |
-| Chữ tiếng Việt trên Canvas | Font `Inter` tải trước qua `document.fonts.load`; fallback sans-serif; đo chữ trước khi vẽ |
+| Chữ tiếng Việt trên Canvas | Font **Geist** (self-host, `public/fonts/GeistVariable.woff2`) tải trước qua `document.fonts.load`; fallback sans-serif; đo chữ trước khi vẽ |
 | DPR cao | Canvas scale theo devicePixelRatio (tối đa 2) |
 | Giảm khởi tạo | Lazy-load generator/renderer theo key (`import()` động); bundle engine core nhỏ riêng |
 | Tránh GC khi điều hướng nhanh | Không tạo object mới mỗi bước trong render; tái sử dụng painter |
@@ -1130,15 +1155,15 @@ sequenceDiagram
 | Service | Trách nhiệm chính |
 |---|---|
 | AuthService | đăng ký, đăng nhập, refresh (rotate-invalidate), logout, khôi phục mật khẩu, khóa tạm |
-| UserService | CRUD người dùng, khóa/mở, đổi vai trò, phê duyệt Teacher, ẩn danh hóa — kiểm tra `IsPrimaryAdmin` (Admin thường không quản được Admin khác → 403) + cấm vô hiệu hóa Admin cuối cùng còn active → 400 |
+| UserService | CRUD người dùng, khóa/mở, đổi vai trò, phê duyệt Teacher, ẩn danh hóa — kiểm tra `IsPrimaryAdmin` (Admin thường không quản được Admin khác → 403) + cấm vô hiệu hóa Admin cuối cùng còn active → 400; **từ chối Teacher bắt buộc `reason` → 400 `VALIDATION_FAILED` (v2.15)**; **`GET /users/{id}` nạp stats học tập (Xp/Level/StreakDays/Gems/Hearts/LessonsCompletedCount/ExercisesPassedCount/JoinedClassesCount) cho drawer chi tiết (v2.15)** |
 | TopicService | cây chủ đề, CRUD, reorder, chặn xóa khi có con |
-| LessonService | CRUD bài học, sanitize HTML, gắn mô phỏng, đánh dấu đã học, quyền sở hữu |
+| LessonService | CRUD bài học, sanitize HTML, gắn mô phỏng, đánh dấu đã học, quyền sở hữu; **kiểm duyệt nội dung: Teacher public → `PendingReview`, Admin duyệt → `Active` (`PublishedAt`), từ chối bắt buộc lý do → `Draft` + `RejectionReason`; `IsClassOnly` → Active ngay; sửa bài Active giữ Active; báo cáo vi phạm → BugReports `CONTENT_VIOLATION` (v2.15)**; **`simulationKeys` thay multi-select cũ, key phải có trong catalog (`SIMULATION_KEY_INVALID`) (v2.15)** |
 | SimulationCatalogService | danh mục mô phỏng + schema (đồng bộ khóa frontend catalog — §9.9) |
 | ExerciseService | CRUD bài tập/câu hỏi, chấm điểm (SINGLE/MULTI/BOOLEAN/Lab), chống nộp trùng, import CSV |
 | ProgressService | upsert tiến độ, dashboard, báo cáo giảng viên + CSV, báo cáo lớp (số liệu) |
 | FavoriteService | CRUD yêu thích |
 | SettingService | cấu hình hệ thống + cache |
-| ClassService | CRUD lớp, mã mời 6 ký tự, thêm/xóa sinh viên, gán nội dung + hạn nộp, báo cáo lớp |
+| ClassService | CRUD lớp, mã mời 6 ký tự, thêm/xóa sinh viên, gán nội dung + hạn nộp, báo cáo lớp; **`JoinByCodeAsync` (v2.15) — tham gia bằng mã mời không cần classId (trống → 400, không tìm thấy → 404, lớp Đóng/đã tham gia → 400)**; **`allowLateSubmission` ở gán/sửa bài (v2.15) — `false` + quá `DueAt` → chặn nộp** |
 | CodeRunnerService | lưu CodeRuns, lịch sử nộp + so sánh (chấm điểm chạy client sandbox — ADR-012) |
 | GamificationService | 1 public seam duy nhất Module J (ADR-011), nội bộ ≥ 2 module: hearts/session (trừ tim atomic + NodeSessions), quest/streak (streak EAGER khi hoạt động — v2.8; job 00:30 đóng sổ StreakLastProcessed), shop/gems (atomic), premium (job downgrade), achievement |
 
@@ -1214,6 +1239,8 @@ public async Task<Result<LessonDto>> CreateAsync(int userId, LessonUpsertRequest
     return Result.Ok(_mapper.Map<LessonDto>(lesson));
 }
 ```
+
+> **v2.15 (PR #23) — ghi chú hành vi thật của LessonService** (khác mẫu trích trên): (1) trạng thái khi TẠO — Admin gán tùy ý; Teacher: `IsClassOnly` → `Active` ngay, public → `PendingReview` (phải Admin duyệt qua `ReviewAsync`, từ chối bắt buộc `reason` ở CONTROLLER → 400); (2) khi SỬA — Teacher sửa bài đang `Active` giữ `Active` (không duyệt lại), chuyển public từ trạng thái khác → `PendingReview`; (3) `PublishedAt` set khi chuyển sang `Active` (lần đầu), xóa khi rời `Active`; (4) `simulationKeys` thay toàn bộ danh sách mô phỏng cũ, key không có trong catalog → 400 `SIMULATION_KEY_INVALID`; (5) `ReportAsync` — reason ≥ 5 ký tự (400 nếu thiếu), tối đa 2000 (cắt), lưu `BugReports` với `ContextJson.type = "CONTENT_VIOLATION"`.
 
 ### 5.7.3 Quy ước Result<T>
 
@@ -1308,7 +1335,7 @@ erDiagram
     Users ||--o{ UserNodeProgress : "tiến độ node"
     LearningPathNodes ||--o{ UserNodeProgress : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; date? StreakLastProcessed; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     RefreshTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; datetime? RevokedAt; string? CreatedByIp; datetime CreatedAt }
     PasswordResetTokens { int Id PK; int UserId FK; string TokenHash UK; datetime ExpiresAt; bool Used; datetime CreatedAt }
     Topics { int Id PK; int? ParentId FK; string Name; string Description; int SortOrder; int CreatedBy FK; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
@@ -1349,7 +1376,7 @@ erDiagram
     Exercises ||--o{ CodeRuns : "chạy thử (tùy chọn)"
     Exercises ||--o{ CodeSubmissions : "chấm điểm"
 
-    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
+    Users { int Id PK; string Email UK; string PasswordHash; string DisplayName; int Role; bool IsActive; bool IsPrimaryAdmin; bool TwoFactorEnabled; string? AvatarUrl; string? Department; string? StaffCode; string? TeacherBio; int Hearts; int HeartsMax; datetime LastHeartAt; int Gems; int Xp; int StreakDays; int StreakFreeze; date? StreakLastProcessed; datetime? PremiumUntil; date? LastActivityDate; datetime CreatedAt; datetime? UpdatedAt; datetime? DeletedAt }
     DailyQuests { int Id PK; string QuestKey UK; string Title; int Type; string ConditionJson; string RewardJson; bool PoolEnabled }
     UserQuests { int Id PK; int UserId FK; int QuestId FK; date QuestDate; int Progress; bool Claimed }
     ShopItems { int Id PK; string ItemKey UK; string Name; int PriceGems; int MaxStack; int Type; int? DurationHours }
@@ -1390,6 +1417,13 @@ erDiagram
 | LastActivityDate | date | NULL | | quest/streak theo ngày |
 | StreakLastProcessed | date | NULL | | (v2.8) ngày đã đóng sổ xử lý streak — chống chạy lặp khi job 00:30 lệch mốc reset quest 00:00 |
 | CreatedAt / UpdatedAt / DeletedAt | datetime2 | | | |
+| Department | nvarchar(100) | NULL | | Khoa/Bộ môn (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
+| StaffCode | nvarchar(50) | NULL | | Mã giảng viên (form đăng ký GV — task L); bắt buộc nhập khi đăng ký vai trò Giảng viên; trim; không lưu với tài khoản Sinh viên |
+| TeacherBio | nvarchar(500) | NULL | | Kinh nghiệm/giới thiệu giảng dạy (form đăng ký GV — task L); ≤ 500 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+| AcademicDegree | nvarchar(max) | NULL | | Học vị (Thạc sĩ, Tiến sĩ...) (form đăng ký GV — v2.15); ≤ 100 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+| ProfileLink | nvarchar(max) | NULL | | Link hồ sơ nghiên cứu / LinkedIn (form đăng ký GV — v2.15); ≤ 300 ký tự; không bắt buộc; không lưu với tài khoản Sinh viên |
+
+> Migration: `20260813052933_AddTeacherProfileFields` (13/08/2026 — task L) thêm `Department`/`StaffCode`/`TeacherBio`; `20260814003835_FullBusinessLogicAndClassOverhaul` (14/08/2026 — v2.15) thêm `AcademicDegree`/`ProfileLink` (đều nullable, không phá dữ liệu cũ).
 
 ### 7.3.2 `Lessons`
 
@@ -1401,10 +1435,15 @@ erDiagram
 | Description | nvarchar(500) | NULL | |
 | ContentHtml | nvarchar(max) | NOT NULL | đã sanitize |
 | SortOrder | int | NOT NULL default 0 | |
-| Status | int | NOT NULL default 0 | 0=draft, 1=active, 2=hidden |
+| Status | int | NOT NULL default 0 | 0=draft, 1=pendingreview (chờ Admin duyệt — v2.15), 2=active, 3=hidden |
+| IsClassOnly | bit | NOT NULL default 0 | bài nội bộ lớp — Active ngay, không hiển thị toàn sàn (v2.15) |
+| PublishedAt | datetime2 | NULL | thời điểm duyệt/xuất bản Active (v2.15) |
+| RejectionReason | nvarchar(max) | NULL | lý do Admin từ chối khi duyệt (v2.15) |
 | CreatedBy | int | FK→Users.Id | quyền sở hữu Teacher |
 | UpdatedBy | int | NULL | |
 | CreatedAt/UpdatedAt/DeletedAt | datetime2 | | |
+
+> Migration `20260814003835_FullBusinessLogicAndClassOverhaul` (v2.15): mở rộng enum `LessonStatus` (Draft=0, PendingReview=1, Active=2, Hidden=3) + 3 cột `IsClassOnly`/`PublishedAt`/`RejectionReason`. Hành vi: Admin gán trạng thái tùy ý; Teacher public → PendingReview; IsClassOnly → Active ngay; Teacher sửa bài Active giữ Active (không duyệt lại).
 
 ### 7.3.3 `Questions`
 
@@ -1495,9 +1534,11 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 
 - **Classes**: Id; Name nvarchar(200); InviteCode nvarchar(6) UNIQUE (mã mời 6 ký tự chữ hoa + số); Semester nvarchar(50) NULL; Description nvarchar(500) NULL; OwnerId int FK; Status int default 0 (0=Mở, 1=Đóng); CreatedAt/DeletedAt.
 - **ClassMembers**: Id; ClassId FK cascade; UserId FK — UNIQUE (ClassId, UserId); JoinedAt.
-- **ClassAssignments**: Id; ClassId FK cascade; LessonId int? FK; ExerciseId int? FK; **CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL)**; DueAt datetime2 NULL; CreatedAt. Index (ClassId, DueAt), (LessonId), (ExerciseId).
+- **ClassAssignments**: Id; ClassId FK cascade; LessonId int? FK; ExerciseId int? FK; **CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL)**; DueAt datetime2 NULL; AllowLateSubmission bit NOT NULL (entity mặc định `true` — v2.15; `false` → chặn nộp sau `DueAt` với 422 `ASSIGNMENT_OVERDUE`); CreatedAt. Index (ClassId, DueAt), (LessonId), (ExerciseId).
 
 > **Vòng đời lớp (v2.8)**: Teacher sở hữu (OwnerId) bị khóa/xóa → lớp tự động Status = 1 (Đóng); Admin chuyển quyền sở hữu qua `PUT /classes/{id}` body `{ownerId}`. Nộp bài kèm `classAssignmentId` (ExerciseSubmissions.ClassAssignmentId) → validate người nộp ∈ ClassMembers hiện tại + lớp Mở (Status=0), lớp Đóng → 409 CONFLICT. Báo cáo lớp chỉ tính ClassMembers HIỆN TẠI.
+> **Tham gia bằng mã mời (v2.15)**: `POST /classes/join-by-code` `{inviteCode}` — tìm Class theo InviteCode (không cần classId); mã trống → 400 `VALIDATION_FAILED`; không tìm thấy → 404 `NOT_FOUND`; lớp Đóng → 400; đã là ClassMember → 400.
+> **Nộp trễ (v2.15)**: `AllowLateSubmission=false` (tạo/sửa bài gán) + đã quá `DueAt` → nộp MCQ (`POST /exercises/{id}/submit`) lẫn code (`POST /exercises/{id}/code-submit`) bị chặn 422 `ASSIGNMENT_OVERDUE` (mặc định `true` → vẫn nộp trễ, tính "Nộp trễ" như cũ).
 
 ### 7.3.19-7.3.20 `Achievements` / `UserAchievements` [FR-5.5]
 
@@ -1507,7 +1548,7 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 ### 7.3.21 `ContentFeedback` / 7.3.22 `BugReports`
 
 - **ContentFeedback** [FR-7.4]: Id; UserId FK; LessonId FK — UNIQUE (UserId, LessonId); Rating int 1-5; Comment nvarchar(200) NULL (≤ 200 ký tự — FR-7.4, lọc từ thô); CreatedAt/UpdatedAt.
-- **BugReports**: Id; UserId int? FK (null = khách); Description nvarchar(2000); ContextJson nvarchar(max) NULL (URL, browser, bước mô phỏng); Status int default 0 (0=mới, 1=đang xử lý, 2=đã xử lý, 3=đóng); AssigneeId int? FK; CreatedAt/ResolvedAt. Index (Status, CreatedAt).
+- **BugReports**: Id; UserId int? FK (null = khách); Description nvarchar(2000); ContextJson nvarchar(max) NULL (URL, browser, bước mô phỏng — cũng chứa `{"type":"CONTENT_VIOLATION",...}` cho báo cáo vi phạm bài học v2.15); Status int default 0 (0=mới, 1=đang xử lý, 2=đã xử lý, 3=đóng); AssigneeId int? FK; AdminNote nvarchar(max) NULL — phản hồi của Admin khi xử lý, sanitize HTML trước khi lưu (v2.15); CreatedAt/ResolvedAt. Index (Status, CreatedAt).
 
 ### 7.3.23 `CodeRuns` [FR-9.2, FR-9.4] / 7.3.24 `CodeSubmissions` [FR-9.3, FR-9.5]
 
@@ -1535,7 +1576,7 @@ Id PK; UserId FK; ExerciseId FK; ClassAssignmentId int? FK NULL (v2.8 — nộp 
 
 ### 7.3.28 `PremiumSubscriptions` [FR-10.7]
 
-Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job downgrade khi hết hạn); Status int default 0 (0=active, 1=expired, 2=mock-paid); OrderRef nvarchar(100) NULL; CreatedAt. Index (UserId, Status), Users.PremiumUntil (job).
+Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job downgrade khi hết hạn); Status int default 0 (0=active, 1=expired, 2=mock-paid); OrderRef nvarchar(100) NULL (**GP-T7: `DSV{userId}T{months}`** — VD DSV1002T3, trùng nội dung CK QR MB Bank để đối soát; trước đây MOCK-{guid}); CreatedAt. Index (UserId, Status), Users.PremiumUntil (job).
 
 ### 7.3.29 `NodeSessions` [FR-10.1 — v2.4, v2.5]
 
@@ -1629,7 +1670,10 @@ Id; UserId FK; PlanId nvarchar(50) (1/3/12 tháng); StartedAt; ExpiresAt (job do
 | LearningPaths/Node | 5 path × (node bài học + node luyện tập tổng hợp + final test) |
 | DailyQuests | 8 quest templates (19.3A) |
 | ShopItems | 8 item (19.3) |
-| Settings | `site.name`, `allowed.email.domains`, `password.policy.minLength=8`, `upload.maxSizeMb=5`, `simulation.maxArraySize=100`, `simulation.maxGraphVertices=50`, `auth.maxLoginAttempts=5`, `auth.lockoutMinutes=15`, `simulation.defaultSpeed=1` |
+| Settings | `site.name`, `password.policy.minLength=8`, `upload.maxSizeMb=5`, `simulation.maxArraySize=100`, `simulation.maxGraphVertices=50`, `auth.maxLoginAttempts=5`, `auth.lockoutMinutes=15`, `simulation.defaultSpeed=1` |
+| SeedDemoActivity | seed dữ liệu hoạt động người dùng demo (chạy SAU SeedSettingsAsync — idempotent): 8 student `@university.edu.vn`, 10 achievements + UserAchievements, UserProgress/UserNodeProgress, ExerciseSubmissions, UserQuests/GemTransactions/UserInventory/Favorites/ContentFeedback, 2 lớp học + ClassMembers/ClassAssignments, misc (CodeSubmissions/BugReports/LessonNotes — chỉ khi bảng trống) |
+
+> ⚠ **Bỏ chặn domain đăng ký (quyết định user 13/08/2026)**: setting `allowed.email.domains` **KHÔNG còn được seed** (mọi email hợp lệ đều đăng ký được — kể cả `@gmail.com`). Nếu DB còn setting cũ từ đợt trước, bước `SeedCleanupSettingsAsync` (bước đầu của SeedDemoActivity) **tự xóa** nó khỏi bảng `Settings`. Mã kiểm tra trong AuthService chỉ chạy khi setting không rỗng (AuthService.cs:59-70) nên sau khi seed không còn chặn; nếu Admin chủ động thêm lại setting qua trang cấu hình (FR-6.2) thì chặn trở lại.
 
 > Quy tắc: mọi code seed chạy qua StepExecutor + golden data; seeder **idempotent** (kiểm tra tồn tại trước khi chèn — 10.5); 10 bài còn lại + test ẩn → backlog GĐ2.
 
@@ -1688,15 +1732,16 @@ GROUP BY es.UserId, es.ExerciseId;
 | Mục | Đặc tả |
 |---|---|
 | Ngôn ngữ | Tiếng Việt có dấu |
-| Font | `Inter`/`Roboto` + fallback `Segoe UI, Arial`; mã giả `JetBrains Mono`/`Consolas` |
-| Cỡ chữ | 14px nội dung, 16px form, tiêu đề 20/24/32px |
-| Màu chủ đạo | Primary `#2563EB`, Secondary `#0F172A`, Success `#16A34A`, Warning `#D97706`, Danger `#DC2626`, Background `#F8FAFC`, Surface `#FFFFFF`, Text `#0F172A`, Muted `#64748B` |
-| Màu trạng thái mô phỏng | default `#CBD5E1`, active `#FACC15`, highlight `#FB923C`, swap `#EF4444`, done `#22C55E`, error `#B91C1C`, muted `#E2E8F0` (+ palette tối cho Dark Mode FR-3.18) |
-| Bo góc / Shadow | 8px thẻ, 6px nút; shadow nhẹ / modal 0 10px 25px |
-| Component library | tự xây: Button, Input, Select, Modal, Toast, Table, Card, Tabs, Tooltip, Skeleton, EmptyState, Badge, ProgressBar, Drawer |
-| Icon | lucide-vue-next (16/20/24px) |
+| Font | **Geist** (variable, self-host `public/fonts/GeistVariable.woff2`) + fallback hệ thống; mã giả/editor **JetBrains Mono** (variable, `public/fonts/JetBrainsMonoVariable.woff2`) |
+| Cỡ chữ | 14px nội dung, 16px form, tiêu đề 20/24/32px (token text-xs..4xl) |
+| Màu chủ đạo | Token **OKLCH** trong `src/styles/tokens.css` (đợt G): Primary teal `#0D9488`, Secondary `#2DD4BF`, Accent `#D97706`, Background `#F0FDFA`, Foreground `#134E4A`, Muted `#E8F1F4`, Border `#5EEAD4`, Destructive `#DC2626`, Ring `#0D9488`; dark mode qua `class="dark"` — bảng màu tối trong `tailwind.css` |
+| Màu trạng thái mô phỏng | default `#CBD5E1`, active `#FACC15`, highlight `#FB923C`, swap `#EF4444`, done `#22C55E`, error `#B91C1C`, muted `#E2E8F0` (+ palette tối cho Dark Mode FR-3.18 — canvas renderer đọc token OKLCH) |
+| Bo góc / Shadow | 8px thẻ, 6px nút; shadow nhẹ / modal 0 10px 25px (token radius-md/lg + shadow-md/lg) |
+| Component library | **shadcn-vue** (wrapper trong `src/components/ui/<name>/`): Button, Input, Select, Dialog, Drawer, Card, Tabs, Tooltip, Skeleton, Badge, Progress + tự xây: BaseIcon, EmptyState, VChartLazy |
+| Icon | `@lucide/vue` + `lucide-vue-next` (16/20/24px) + `@phosphor-icons/vue` |
 | Rich text editor | Quill (quyết định 17.7) |
-| Chart | Chart.js (Màn 08, Màn 17, báo cáo) |
+| Chart | **vue-echarts** (echarts — lazy-load, chunk riêng) cho Màn 08, Màn 17, Benchmark, Profile radar; so sánh/hover animation = GSAP/motion-v |
+| Toast | **vue-sonner** (`src/lib/toast.ts`) — thay ToastContainer tự xây (đợt G) |
 
 ## 8.2 Sơ đồ luồng màn hình
 
@@ -1745,7 +1790,7 @@ graph LR
 | Màn | Route | Mục đích (1 câu) | Nguồn FR | Ghi chú |
 |---|---|---|---|---|
 | 01 | `/` | Trang chủ: hero + 6 thẻ tính năng + **3 demo công khai** (Bubble Sort, Binary Search, BFS) | FR-7.1, 7.6 | demo không token |
-| 02 | `/login`, `/register` | Đăng nhập/đăng ký: validation inline, checklist mật khẩu sống, checkbox giảng viên | FR-1.1, 1.2 | |
+| 02 | `/login`, `/register` | Đăng nhập/đăng ký: validation inline, checklist mật khẩu sống, chọn vai trò + form con giảng viên | FR-1.1, 1.2 | |
 | 03 | `/learn` (redirect `/path`) | Danh sách bài học (cũ) | FR-2.3 | redirect 20.5.6 |
 | 04 | `/learn/{lessonId}` | Chi tiết bài học: rich-text + thẻ Mô phỏng/Code/Bài tập (trang riêng) + ghi chú + đánh giá + "▶ Xem bước này" | FR-2.4, 2.6, 7.4, 2.11 | KHÔNG nhúng canvas |
 | 05 | `/simulator/{key}` | **Màn mô phỏng 3 vùng** (mã giả 3/12, canvas 6/12, giải thích 3/12) + control bar + input modal + legend + stats + phím tắt | FR-3.2→3.9, 3.12, 3.14-3.16, 2.11 | trừ tim theo 20.4; wireframe §8.5 |
@@ -1768,8 +1813,8 @@ graph LR
 | 22 | `/shop` | Gems Shop: lưới item + mua (atomic) | FR-10.2 | |
 | 23 | `/quests` | Daily Quest: 5 thẻ + tiến độ + claim + banner 5/5 | FR-10.3 | |
 | 24 | `/leaderboard` | Bảng xếp hạng 3 tab + vị trí của mình | FR-10.6 | |
-| 25 | `/premium` | Bảng giá 3 gói + so sánh quyền lợi + checkout mô phỏng 2 bước (modal) | FR-10.7 | |
-| 26 | (gộp 25) | Checkout mô phỏng | FR-10.7 | modal 2 bước |
+| 25 | `/premium` | Bảng giá 3 gói + so sánh quyền lợi + checkout QR chuyển khoản MB Bank 2 bước (modal) | FR-10.7 | |
+| 26 | (gộp 25) | Checkout QR MB Bank (QR VietQR EMVCo + nội dung CK DSV + đếm ngược 60s) | FR-10.7 | modal 2 bước |
 | 27 | `/account/subscription` | Quản lý gói + hủy gia hạn | FR-10.7 | |
 | 28 | (overlay) | Modal "Hết tim": đếm ngược + nút xem node đã pass + nâng cấp | FR-10.1 | overlay toàn cục |
 | 29 | (tab 10) | Tab "Chờ duyệt Teacher" | FR-1.8 | gộp Màn 10 |
@@ -1834,7 +1879,7 @@ graph LR
 |---|---|---|
 | Login (bước 1) | Email, mật khẩu (icon mắt), checkbox "Ghi nhớ đăng nhập", link "Quên mật khẩu?", nút "Đăng nhập" | Validation khi blur; submit → gọi `POST /auth/login` |
 | Login (bước 2 — 2FA) | 6 ô nhập mã số, nút "Xác nhận", link "Quay lại", checkbox "Ghi nhớ thiết bị này 30 ngày" | Gửi mã qua email (hiệu lực 5 phút, dùng 1 lần); nhập đủ 6 số → tự submit `POST /auth/2fa/verify`; sai 3 lần → khóa bước 2 trong 10 phút |
-| Register | Tên, email, mật khẩu + xác nhận mật khẩu (icon mắt), checkbox "Tôi là giảng viên", checkbox "Đồng ý chính sách" (bắt buộc), nút "Đăng ký" | Validation inline khi blur; checklist mật khẩu sống; submit → `POST /auth/register`; chọn "Tôi là giảng viên" → tài khoản tạo ở trạng thái `TeacherPending`, chờ Admin duyệt (FR-1.8) |
+| Register | Tên, email, mật khẩu + xác nhận mật khẩu (icon mắt), segmented chọn vai trò "Đăng ký với vai trò" (Sinh viên mặc định / Giảng viên), form con giảng viên (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy ≤ 500 ký tự + bộ đếm, ghi chú "Thông tin sẽ được Admin xét duyệt"), checkbox "Đồng ý chính sách" (bắt buộc), nút "Đăng ký" | Validation inline khi blur; checklist mật khẩu sống; submit → `POST /auth/register` (payload kèm `department/staffCode/teacherBio` khi chọn Giảng viên); chọn "Giảng viên" → tài khoản tạo ở trạng thái `TeacherPending`, chờ Admin duyệt (FR-1.8) |
 | Liên kết | "Chưa có tài khoản? Đăng ký" / "Đã có tài khoản? Đăng nhập" | Chuyển qua lại giữa 2 route |
 
 **Tương tác**:
@@ -1844,6 +1889,9 @@ graph LR
 | Nhập email sai định dạng → blur | Lỗi đỏ dưới trường "Email không hợp lệ" | Nút "Đăng ký/Đăng nhập" vô hiệu tới khi hợp lệ |
 | Gõ mật khẩu (register) | Checklist sống: "≥ 8 ký tự", "có chữ hoa", "có chữ số", "có ký tự đặc biệt" — tích xanh từng mục | — |
 | Xác nhận mật khẩu khác mật khẩu | Lỗi "Mật khẩu xác nhận không khớp" | Vô hiệu nút đăng ký |
+| Chọn vai trò "Giảng viên" nhưng bỏ trống Khoa/Bộ môn hoặc Mã giảng viên | Lỗi dưới từng trường ("Vui lòng nhập Khoa/Bộ môn" / "Vui lòng nhập Mã giảng viên") | Vô hiệu nút đăng ký |
+| Kinh nghiệm giảng dạy > 500 ký tự | Bộ đếm chặn ở 500/500 + lỗi "Kinh nghiệm giảng dạy tối đa 500 ký tự" | Vô hiệu nút đăng ký |
+| Server trả 400 VALIDATION_FAILED (thiếu thông tin GV) | Lỗi chung "Vui lòng điền đầy đủ thông tin giảng viên" | Giữ nguyên dữ liệu form |
 | Chưa tick "Đồng ý chính sách" mà submit | Lỗi dưới checkbox "Bạn phải đồng ý chính sách" | Nút giữ nguyên, không gửi request |
 | Submit đúng → tài khoản bật 2FA | Chuyển sang bước 2 nhập mã OTP | Nút "Xác nhận" vô hiệu tới khi đủ 6 số |
 | Nhập đúng mã 2FA | Đăng nhập thành công → redirect theo vai trò: Student → `/path`; Teacher/Admin → `/admin/*` (theo 20.5) | Chuyển trang |
@@ -1854,7 +1902,7 @@ graph LR
 - **empty**: không áp dụng (form tĩnh).
 - **error**: lỗi server hiển thị dưới trường tương ứng (email trùng → dưới email; sai mật khẩu → 1 dòng chung không tiết lộ email tồn tại).
 - **normal**: form đầy đủ, sẵn sàng nhập.
-- **finished**: đăng nhập thành công → chuyển trang; đăng ký thành công → toast "Đăng ký thành công" + tự động đăng nhập (tài khoản giảng viên → thông báo "Đang chờ duyệt, bạn sẽ nhận email khi được duyệt").
+- **finished**: đăng ký **Sinh viên** thành công → toast "Đăng ký thành công" + tự động đăng nhập → chuyển `/path`; đăng ký **Giảng viên** thành công → thay form bằng khối thông báo "Đăng ký thành công! Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt" + link "Về đăng nhập" (KHÔNG tự động đăng nhập — task L).
 
 **Phím tắt**: —
 **Responsive**: ≥ 1024px: form 420px ở giữa, có ảnh/khối branding bên cạnh (2 cột 5/7). 768-1023px: form chiếm toàn bộ chiều rộng (max 420px), bỏ khối branding.
@@ -2094,6 +2142,8 @@ graph LR
 
 ### Màn 09 — Quản trị nội dung (`/admin/lessons`, `/admin/topics`, `/admin/exercises`)
 **Mục đích**: Giảng viên/Admin biên soạn và quản lý toàn bộ nội dung học tập: cây chủ đề, bài học (rich-text Quill), bài tập (quiz/lab/code) và gắn mô phỏng từ danh mục, kèm xem trước như người học.
+
+> **(v2.15) Ghi chú UI — đồng bộ code thật**: editor nội dung chuyển sang **markdown với ProseContent** (thay rich-text Quill); danh sách bài học thêm cột trạng thái `pendingreview` + tab "Chờ duyệt" (Admin — `GET /lessons/pending` + modal duyệt/từ chối bắt buộc lý do `POST /lessons/{id}/review`); bài học có nút "Báo cáo vi phạm" phía người học (`POST /lessons/{id}/report`); gắn mô phỏng bằng multi-select key (`simulationKeys`); bài `isClassOnly` chỉ dùng trong Lớp (không hiển thị toàn sàn).
 **Nguồn yêu cầu**: FR-2.1, FR-2.2, FR-4.1, FR-4.5, FR-4.10, FR-3.1 (danh mục mô phỏng), UC-09; quyết định 17.7: rich-text = **Quill**.
 **Bố cục**: Sidebar admin (theo 20.5.2) + vùng nội dung; 3 route con đổi tab: Lessons / Topics / Exercises. Mỗi route: bảng dữ liệu (phân trang, tìm kiếm, lọc) + nút "Thêm mới" → form biên soạn (tabs: Thông tin / Nội dung / Mô phỏng / Bài tập) → modal xem trước.
 **Thành phần**:
@@ -2194,7 +2244,7 @@ graph LR
 | Vùng | Thành phần | Hành vi |
 |---|---|---|
 | 4 KPI | Tổng người dùng · Người dùng hoạt động (7/30 ngày) · Số bài học/bài tập · Số phiên mô phỏng | Mỗi thẻ: số lớn + nhãn + icon + xu hướng so với kỳ trước (mũi tên ▲▼) |
-| Biểu đồ đường | Lượt truy cập 30 ngày (Chart.js) | Hover → tooltip ngày + giá trị; trục ngang 30 ngày |
+| Biểu đồ đường | Lượt truy cập 30 ngày (vue-echarts) | Hover → tooltip ngày + giá trị; trục ngang 30 ngày |
 | Biểu đồ tròn | Phân bố vai trò: Student / Teacher / Admin (+ TeacherPending) | Legend + tooltip phần trăm |
 | Bộ lọc | Dropdown khoảng thời gian (7/30/90 ngày) | Đổi → gọi lại API, cập nhật KPI + biểu đồ |
 
@@ -3021,7 +3071,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 **Mục đích**: Giới thiệu quyền lợi Premium, bảng giá 3 gói (1/3/12 tháng — giá tham khảo) và so sánh Free vs Premium; nút "Chọn gói" mở checkout mô phỏng (Màn 26).
 
-**Nguồn yêu cầu**: FR-10.7 (Premium P1), UC-32; quyền lợi 19.4 (30 tim, hồi 10 phút, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = backlog).
+**Nguồn yêu cầu**: FR-10.7 (Premium P1), UC-32; quyền lợi 19.4 (30 tim, hồi 10 phút, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); GP-T7 — checkout hiện QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386, BIN 970422) + nội dung CK tự động `DSV{userId}T{months}`; KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán — tăng tính thực tế demo).
 
 **Bố cục**: Header → hero quyền lợi nổi bật → bảng giá 3 thẻ gói (gói 12 tháng đánh dấu "Tiết kiệm nhất") → bảng so sánh Free vs Premium (2 cột) → FAQ ngắn (3-4 mục).
 
@@ -3038,7 +3088,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| Nhấn "Chọn gói" (1/3/12 tháng) | Mở modal checkout 2 bước (Màn 26) với gói đã chọn | Nút active; đã chọn xong gói → nút "Đang dùng" (nếu gói trùng) |
+| Nhấn "Chọn gói" (1/3/12 tháng) | Mở modal checkout QR 2 bước (Màn 26) với gói đã chọn | Nút active; đã chọn xong gói → nút "Đang dùng" (nếu gói trùng) |
 | Nhấn FAQ | Accordion mở/đóng từng mục | Icon ▾ xoay |
 | Nhấn "Quản lý gói" (đã Premium) | Điều hướng `/account/subscription` | — |
 
@@ -3048,7 +3098,7 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 **Responsive**: ≥ 768px 3 thẻ gói ngang; < 768px xếp dọc, bảng so sánh chuyển dạng hàng/cột gọn (2 cột Free/Premium giữ nguyên, cuộn ngang nếu cần).
 
-**Điều kiện truy cập**: Đã đăng nhập; query `?plan=1|3|12` (tự chọn sẵn gói khi đến từ Màn 28 hoặc HeartsGemsWidget).
+**Điều kiện truy cập**: Đã đăng nhập; query `?plan=1|3|12` hoặc `?plan=1m|3m|12m` (GP-T7 — deep link tự chọn sẵn gói khi đến từ Màn 28 hoặc HeartsGemsWidget).
 
 **Lỗi có thể gặp**:
 
@@ -3059,39 +3109,44 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 ---
 
-### Màn 26 — Checkout mô phỏng (modal 2 bước — gộp Màn 25)
+### Màn 26 — Checkout QR chuyển khoản MB Bank (modal 2 bước — gộp Màn 25)
 
-**Mục đích**: Modal thanh toán giả lập 2 bước trên cùng route `/premium` (không tách trang để giữ ngữ cảnh giá đã chọn): Bước 1 xác nhận gói + giá, Bước 2 "Thanh toán mô phỏng" → loading 1-2s → màn thành công + tự động điều hướng.
+**Mục đích**: Modal checkout 2 bước trên cùng route `/premium` (không tách trang để giữ ngữ cảnh giá đã chọn): Bước 1 xác nhận gói + giá, Bước 2 hiện **QR VietQR EMVCo** (sinh bằng `qrcode` — npm MIT) + thông tin chuyển khoản MB Bank + nội dung CK tự động → đếm ngược 60s → nút "Tôi đã chuyển khoản" → kích hoạt Premium tự động + màn thành công.
 
-**Nguồn yêu cầu**: FR-10.7, UC-32; 19.4 (kích hoạt ngay sau mock-pay + ghi log giao dịch; KHÔNG trừ tiền thật — cảnh báo rõ trên UI).
+**Nguồn yêu cầu**: FR-10.7, UC-32; 19.4 (kích hoạt ngay sau xác nhận chuyển khoản + ghi log giao dịch; KHÔNG trừ tiền thật — cảnh báo rõ trên UI); GP-T7 (TK **NGUYEN THI NHU HOA · MB Bank · STK 83863112088386** (BIN 970422); nội dung CK `DSV{userId}T{months}`; QR tự sinh VietQR EMVCo — KHÔNG gọi API ngân hàng/webhook, không dùng vietqr.io online).
 
-**Bố cục**: Modal trung tâm: header "Xác nhận đăng ký" → **Bước 1** (tóm tắt gói, giá, danh sách quyền lợi, nút "Tiếp tục" + "Quay lại") → **Bước 2** (nút "Thanh toán mô phỏng" + dòng chú thích "Mô phỏng — không trừ tiền thật", nút "Quay lại") → **Màn kết quả** (icon ✔, "Nâng cấp thành công!", nút "Vào học tiếp").
+**Bố cục**: Modal trung tâm: header "Xác nhận đăng ký" → **Bước 1** (tóm tắt gói, giá, danh sách quyền lợi, nút "Tiếp tục" + "Quay lại") → **Bước 2** (QR canvas 208×208 (`qrcode.toCanvas`, errorCorrectionLevel M) + chủ TK/STK formatted `8386 3112 0883 86` + số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK" (toast khi copy) + đếm ngược 60s + nút "Tôi đã chuyển khoản" (disabled trong 60s) + chú thích "Mô phỏng — không xác minh ngân hàng thật", nút "Quay lại") → **Màn kết quả** (icon ✔, "Nâng cấp thành công!", nút "Vào học tiếp").
 
 **Thành phần**:
 
 | Vùng | Thành phần | Hành vi |
 |---|---|---|
 | Bước 1 | Tóm tắt gói đã chọn (tên, giá/tháng, tổng) + quyền lợi | Giữ ngữ cảnh giá; nút "Tiếp tục" validate |
-| Bước 2 | Nút "Thanh toán mô phỏng" + cảnh báo mô phỏng | Loading spinner 1-2s → `POST /premium/mock-pay` → kích hoạt ngay + ghi log |
+| Bước 2 — QR | QR VietQR EMVCo tự sinh (`qrcode`, payload từ `lib/vietqr.ts`: BIN 970422 + STK + số tiền + `DSV{userId}T{months}`) | `qrcode.toCanvas` 208px; QR theo gói đã chọn |
+| Bước 2 — CK | Chủ TK/STK/số tiền/nội dung CK + nút "Sao chép nội dung CK" | Copy → toast xác nhận |
+| Bước 2 — xác nhận | Đếm ngược 60s + nút "Tôi đã chuyển khoản" | Nút disabled 60s ("Nút khả dụng sau 00:45"); bấm → `POST /premium/mock-pay` {orderId} → kích hoạt ngay + ghi log |
 | Kết quả | ✔ + confetti + nút "Vào học tiếp" | Tự động điều hướng sau 2-3s (về node đang chờ nếu đến từ Màn 28) |
 | Nút phụ | "Quay lại" ở mỗi bước | Về bước trước / đóng modal |
+
+> **API liên quan (GP-T7)**: `POST /premium/upgrade` `{planId}` (`1m|3m|12m`) → tạo đơn: `OrderRef` = `DSV{userId}T{months}` (VD DSV1002T3 — khớp nội dung CK để đối soát) + response trả `contentRef` (nội dung CK — FE hiển thị trên QR và tự tính lại để khớp 2 nguồn). `POST /premium/mock-pay` `{orderId}` → kích hoạt Premium + log giao dịch (PremiumSubscriptions.Status=0, OrderRef lưu DSV...).
 
 **Tương tác**:
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| "Tiếp tục" (Bước 1) | Chuyển Bước 2 | — |
-| "Thanh toán mô phỏng" | Loading 1-2s → thành công | Nút disabled + spinner khi loading |
+| "Tiếp tục" (Bước 1) | Chuyển Bước 2 (sinh QR + đếm ngược 60s) | — |
+| "Sao chép nội dung CK" | Copy `DSV<UserId>T<months>` → toast | — |
+| "Tôi đã chuyển khoản" (sau 60s) | Loading → kích hoạt Premium + confetti | Nút disabled khi loading / disabled trong đếm ngược |
 | "Quay lại" | Về Bước 1 / đóng modal (giữ gói đã chọn) | — |
 | Thành công | Điều hướng tự động; HeartsGemsWidget cập nhật 30❤ | Nút "Vào học tiếp" |
 
-**Trạng thái**: `bước 1` → `bước 2` → `loading (1-2s)` → `success` / `error` (mock-pay 409 → quay Bước 1 kèm thông báo).
+**Trạng thái**: `bước 1` → `bước 2 (QR + đếm ngược 60s)` → `loading` → `success` / `error` (mock-pay 409 → quay Bước 1 kèm thông báo).
 
 **Phím tắt**: Esc đóng modal (có xác nhận nếu đang ở Bước 2).
 
-**Responsive**: Modal 90% chiều rộng < 480px; cuộn nội dung trong modal khi màn ngắn.
+**Responsive**: Modal 90% chiều rộng < 480px; cuộn nội dung trong modal khi màn ngắn; QR giữ nguyên 208×208.
 
-**Điều kiện truy cập**: Đã đăng nhập; mở từ: `/premium` (nút "Chọn gói"), Màn 28 (nút "Nâng cấp Premium"), HeartsGemsWidget (link `/premium`); query `?plan=` truyền gói.
+**Điều kiện truy cập**: Đã đăng nhập; mở từ: `/premium` (nút "Chọn gói"), Màn 28 (nút "Nâng cấp Premium"), HeartsGemsWidget (link `/premium`); query `?plan=1|3|12` hoặc `?plan=1m|3m|12m` truyền gói.
 
 **Lỗi có thể gặp**:
 
@@ -3099,7 +3154,8 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 |---|---|---|
 | mock-pay thất bại (phiên hết hạn) | Toast đỏ + quay Bước 1 | Chọn lại gói |
 | Đóng modal giữa chừng Bước 2 | Modal xác nhận "Bỏ thanh toán?" | Đóng hoặc tiếp tục |
-| Double-click "Thanh toán" | Nút disabled trong loading — không gửi 2 lần | Idempotent |
+| Double-click "Tôi đã chuyển khoản" | Nút disabled trong loading — không gửi 2 lần | Idempotent |
+| `qrcode.toCanvas` lỗi (không sinh được QR) | Toast đỏ + nút "Thử lại" | Tải lại payload QR |
 
 ---
 
@@ -3192,11 +3248,11 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 
 ### Màn 29 — Tab "Chờ duyệt Teacher" (trong `/admin/users` — tab con, không route riêng)
 
-**Mục đích**: Admin duyệt hoặc từ chối tài khoản đăng ký giảng viên (những user tích checkbox "Tôi là giảng viên"), từ chối kèm lý do bắt buộc (v2.8).
+**Mục đích**: Admin duyệt hoặc từ chối tài khoản đăng ký giảng viên (đăng ký với vai trò Giảng viên — kèm Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy), từ chối kèm lý do bắt buộc (v2.8).
 
 **Nguồn yêu cầu**: FR-1.8 (duyệt Teacher), UC-12; v2.8 (`POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 Student, IsActive=true, log lý do).
 
-**Bố cục**: Tab "Chờ duyệt Teacher" nằm trong Màn 10 `/admin/users`: bộ lọc trạng thái (Chờ duyệt / Đã duyệt / Đã từ chối) + danh sách tài khoản (avatar, tên, email, ngày đăng ký, checkbox "Tôi là giảng viên") + 2 nút hành động mỗi dòng: "Duyệt" / "Từ chối" (modal nhập lý do).
+**Bố cục**: Tab "Chờ duyệt Teacher" nằm trong Màn 10 `/admin/users`: bộ lọc trạng thái (Chờ duyệt / Đã duyệt / Đã từ chối) + danh sách tài khoản (avatar, tên, email, ngày đăng ký, dấu "GV ✔") + 2 nút hành động mỗi dòng: "Duyệt" / "Từ chối" (modal nhập lý do). Cả 2 nút đều mở modal có mục **"Thông tin giảng viên"** hiển thị Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy (task L).
 
 **Thành phần**:
 
@@ -3204,14 +3260,14 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 |---|---|---|
 | Bộ lọc | 3 tab trạng thái + ô tìm kiếm email/tên | Lọc danh sách theo trạng thái |
 | Danh sách | Bảng: avatar, tên, email, ngày đăng ký, dấu "GV ✔", nút hành động | TeacherPending mặc định trạng thái "Chờ duyệt" |
-| Nút "Duyệt" | `POST /users/{id}/approve-teacher {approve:true}` | role = 1 (Teacher); dòng chuyển "Đã duyệt" |
-| Nút "Từ chối" | Modal nhập lý do (bắt buộc) → `{approve:false, reason}` | role = 0 (Student), IsActive = true, log lý do (v2.8) |
+| Nút "Duyệt" | Mở modal "Duyệt giảng viên" — hiển thị "Thông tin giảng viên" (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy) → "Xác nhận duyệt" → `POST /users/{id}/approve-teacher {approve:true}` | role = 1 (Teacher); dòng chuyển "Đã duyệt" |
+| Nút "Từ chối" | Mở modal "Từ chối giảng viên" — hiển thị thông tin GV + nhập lý do (bắt buộc) → `{approve:false, reason}` | role = 0 (Student), IsActive = true, log lý do (v2.8) |
 
 **Tương tác**:
 
 | Thao tác | Kết quả | Trạng thái nút |
 |---|---|---|
-| Nhấn "Duyệt" | Duyệt ngay (xác nhận nhẹ) → toast "Đã duyệt giảng viên X" | Nút disabled "Đã duyệt" |
+| Nhấn "Duyệt" | Mở modal xác nhận hiển thị thông tin GV → xác nhận → toast "Đã duyệt giảng viên X" | Nút disabled "Đã duyệt" |
 | Nhấn "Từ chối" | Mở modal nhập lý do | Nút xác nhận disabled khi ô lý do rỗng |
 | Xác nhận từ chối | Gửi kèm lý do → toast; user còn hoạt động với vai Student | Dòng chuyển trạng thái "Đã từ chối" + tooltip lý do |
 | Lọc trạng thái | Hiện danh sách tương ứng | Tab active tô đậm |
@@ -3231,6 +3287,8 @@ Danh sách item (19.3): Hint token 30 (MaxStack 10) · Streak freeze 100 (2) · 
 | Từ chối không có lý do | "Vui lòng nhập lý do từ chối" | Nút xác nhận disabled |
 | API lỗi (user đã đổi trạng thái) | Toast đỏ "Trạng thái đã thay đổi" | Tải lại danh sách |
 | Duyệt trùng | Idempotent — trạng thái giữ nguyên | — |
+
+> **(v2.15)** Server siết chặt: `POST /users/{id}/approve-teacher` với `{approve:false}` thiếu `reason` → 400 `VALIDATION_FAILED` "Phải nhập lý do khi từ chối hồ sơ giảng viên" (không chỉ disable nút phía UI như mô tả trên); modal "Thông tin giảng viên" hiển thị thêm Học vị (`academicDegree`) + Link hồ sơ (`profileLink`).
 
 ---
 
@@ -3718,6 +3776,7 @@ graph LR
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review (đồng bộ prompt v2.10): bổ sung index `ExerciseSubmissions.ClassAssignmentId` (báo cáo lớp FR-8.3/8.4) |
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu Phần 8 (Thiết kế giao diện): bổ sung §8.4A — đặc tả chi tiết 33 màn theo khuôn 17.14 (Mục đích/Nguồn yêu cầu/Bố cục/Thành phần/Tương tác/Trạng thái/Phím tắt/Responsive/Điều kiện truy cập/Lỗi có thể gặp) + wireframe ASCII Màn 13, 14 (đầy đủ 3 bậc), 16, 17, 22, 23, 24 |
 | 1.3 | 12/08/2026 | Mai Tiểu Bảo | Rà soát tối ưu CSDL (đồng bộ prompt v2.12): thêm `Users.TwoFactorEnabled` (FR-1.11); `Achievements.Name nvarchar(200)` + `Description nvarchar(500)` (sửa thiếu length — nvarchar mặc định nvarchar(1)); `ContentFeedback.Comment nvarchar(500)→200` (khớp FR-7.4 ≤ 200 ký tự); bổ sung 5 index: Topics(ParentId,Name) UNIQUE, UserAchievements(UserId,AchievementId) UNIQUE, Classes.OwnerId, Lessons.CreatedBy, PremiumSubscriptions(Status,ExpiresAt) |
+| 1.4 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): cập nhật §3.1 (cấu trúc thư mục frontend theo stack mới), §3.8 (chuẩn code frontend: Tailwind 4 + shadcn-vue + motion-v + GSAP + vue-echarts + Lenis + vue-sonner + font Geist/JetBrains Mono), §3.9 (Vite config: plugin @tailwindcss/vite, bundle thật), §8.1 (Hệ thống thiết kế: tokens OKLCH, dark mode class="dark") — đồng bộ PRODUCTION_PROMPT/quyết định G |
 
 
 

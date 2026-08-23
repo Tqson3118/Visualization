@@ -59,6 +59,36 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken.value = null;
       user.value = null;
       status.value = 'idle';
+
+      // Reset toàn bộ state cá nhân khi logout (tránh đọng state user cũ)
+      try {
+        const { useGamificationStore } = await import('./gamification');
+        useGamificationStore().reset();
+      } catch {}
+      try {
+        const { useProgressStore } = await import('./progress');
+        useProgressStore().reset();
+      } catch {}
+      try {
+        const { useLessonStore } = await import('./lesson');
+        useLessonStore().reset();
+      } catch {}
+      try {
+        const { useClassStore } = await import('./classStore');
+        useClassStore().reset();
+      } catch {}
+      try {
+        const { useLeaderboardStore } = await import('./leaderboard');
+        useLeaderboardStore().reset();
+      } catch {}
+      try {
+        const { useCodeRunnerStore } = await import('./codeRunner');
+        useCodeRunnerStore().reset();
+      } catch {}
+      try {
+        const { useSimulationStore } = await import('./simulation');
+        useSimulationStore().resetAll();
+      } catch {}
     }
   }
 

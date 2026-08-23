@@ -9,12 +9,13 @@ public enum UserRole
     Admin = 3
 }
 
-/// <summary>Trạng thái bài học (SDD §7.3.2: 0=draft, 1=active, 2=hidden).</summary>
+/// <summary>Trạng thái bài học (SDD §7.3.2: 0=draft, 1=active, 2=hidden) — v2.15 mở rộng PendingReview.</summary>
 public enum LessonStatus
 {
-    Draft = 0,
-    Active = 1,
-    Hidden = 2
+    Draft = 0,          // Bản nháp (chỉ người tạo thấy)
+    PendingReview = 1,  // Chờ Admin duyệt để Public toàn sàn
+    Active = 2,         // Đã xuất bản (sinh viên thấy)
+    Hidden = 3          // Tạm ẩn
 }
 
 /// <summary>Loại bài tập (SDD §7.3.9: 0=MCQ, 1=SIMULATION_PREDICT, 2=SIMULATION_LAB, 3=CODE).</summary>
@@ -31,6 +32,15 @@ public enum ExerciseStatus
 {
     Draft = 0,
     Active = 1
+}
+
+/// <summary>Loại câu hỏi (API_REFERENCE.md §3.8/§4.6: SINGLE/MULTI/BOOLEAN/LAB).</summary>
+public enum QuestionType
+{
+    Single = 0,
+    Multi = 1,
+    Boolean = 2,
+    Lab = 3
 }
 
 /// <summary>Trạng thái lớp (SDD §7.3.16: 0=Mở, 1=Đóng).</summary>
@@ -57,4 +67,20 @@ public enum CodeRunStatus
     Success = 2,
     Error = 3,
     Timeout = 4
+}
+
+/// <summary>Loại ý kiến học viên gửi giảng viên về khóa học.</summary>
+public enum CourseFeedbackType
+{
+    Suggestion = 0,   // Góp ý
+    Bug = 1,          // Báo lỗi
+    Request = 2       // Đề xuất nội dung
+}
+
+/// <summary>Trạng thái xử lý ý kiến học viên (pattern BugReport — SDD §7.3.22).</summary>
+public enum CourseFeedbackStatus
+{
+    New = 0,       // Mới — chưa ai đọc
+    Read = 1,      // Đã đọc
+    Resolved = 2   // Đã xử lý / đã trả lời
 }

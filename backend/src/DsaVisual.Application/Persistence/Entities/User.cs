@@ -25,4 +25,10 @@ public sealed class User
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }                         // xóa mềm (D-5)
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3 — AddRowVersionConcurrency)
+    public string? Department { get; set; }                          // Khoa/Bộ môn (form đăng ký GV)
+    public string? StaffCode { get; set; }                           // Mã giảng viên (form đăng ký GV)
+    public string? TeacherBio { get; set; }                          // Kinh nghiệm/giới thiệu (form đăng ký GV)
+    public string? AcademicDegree { get; set; }                      // Học vị: Thạc sĩ, Tiến sĩ... (form đăng ký GV)
+    public string? ProfileLink { get; set; }                         // Link LinkedIn / trang nghiên cứu khoa học
 }

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q5r1",
+    "question": "Một hàm đệ quy bắt buộc phải có gì để không bị stack overflow?",
+    "options": "[\"Vòng lặp while\",\"Base case (điều kiện dừng)\",\"Nhiều tham số\",\"Biến toàn cục\"]",
+    "correctIndex": 1,
+    "explanation": "Base case là điều kiện dừng — khi đạt, hàm trả về ngay không gọi lại chính nó."
+  },
+  {
+    "id": "q5r2",
+    "question": "Merge Sort có độ phức tạp thời gian như thế nào trong mọi trường hợp?",
+    "options": "[\"O(n)\",\"O(n²)\",\"O(n log n)\",\"O(log n)\"]",
+    "correctIndex": 2,
+    "explanation": "Merge Sort luôn chia đôi và trộn → O(n log n) kể cả worst case."
+  },
+  {
+    "id": "q5r3",
+    "question": "Quick Sort có thể rơi vào worst case O(n²) khi nào?",
+    "options": "[\"Khi mảng ngẫu nhiên\",\"Khi chọn pivot xấu (ví dụ mảng đã sắp xếp, pivot luôn đầu)\",\"Không bao giờ\",\"Khi dùng pivot ngẫu nhiên\"]",
+    "correctIndex": 1,
+    "explanation": "Nếu pivot luôn là phần tử cực trị (mảng đã sắp xếp) → phân hoạch lệch hẳn một bên → O(n²)."
+  },
+  {
+    "id": "q5r4",
+    "question": "Bộ nhớ phụ của Merge Sort là bao nhiêu?",
+    "options": "[\"O(1)\",\"O(log n)\",\"O(n)\",\"O(n²)\"]",
+    "correctIndex": 2,
+    "explanation": "Merge Sort cần mảng tạm kích thước n khi trộn hai nửa → O(n) bộ nhớ."
+  },
+  {
+    "id": "q5r5",
+    "question": "Ba bước của chia để trị (Divide & Conquer) là gì?",
+    "options": "[\"Khởi tạo, duyệt, kết thúc\",\"Chia, trị, kết hợp\",\"Push, pop, peek\",\"Bubble, sift, merge\"]",
+    "correctIndex": 1,
+    "explanation": "Chia (tách bài toán con) → Trị (giải đệ quy) → Kết hợp (ghép kết quả)."
+  },
+  {
+    "id": "q5r6",
+    "question": "fibonacci(n) viết bằng đệ quy ngây thơ (không nhớ kết quả) có độ phức tạp gì?",
+    "options": "[\"O(n)\",\"O(n log n)\",\"O(2ⁿ)\",\"O(n²)\"]",
+    "correctIndex": 2,
+    "explanation": "Mỗi lời gọi rẽ hai nhánh → cây nhị phân n tầng → O(2ⁿ) — rất chậm, cần QHĐ."
+  },
+  {
+    "id": "q5r7",
+    "question": "Trong Quick Sort, việc 'phân hoạch' (partition) quanh pivot có nghĩa là gì?",
+    "options": "[\"Xóa pivot khỏi mảng\",\"Sắp các phần tử nhỏ hơn bên trái, lớn hơn bên phải pivot\",\"Nhân đôi mảng\",\"Đảo ngược mảng\"]",
+    "correctIndex": 1,
+    "explanation": "Phân hoạch đưa pivot vào đúng vị trí: phần tử < pivot bên trái, > pivot bên phải."
+  }
+]

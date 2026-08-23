@@ -215,6 +215,15 @@ server {
 }
 ```
 
+**Lưu ý X-Forwarded (Review E — chống XFF spoof)**: API chỉ tin `X-Forwarded-For/Proto` từ proxy ĐÃ KHAI BÁO.
+- Nginx cùng máy chủ (`proxy_pass http://127.0.0.1:5000` ở trên) → tự tin (loopback luôn được phép).
+- Nginx/load balancer ở MÁY KHÁC → khai báo IP qua biến môi trường:
+  ```bash
+  DSA__Proxy__KnownProxies__0=192.168.1.10     # IPv4
+  DSA__Proxy__KnownProxies__1=2001:db8::10      # IPv6
+  ```
+- Không cấu hình → XFF từ internet BỊ BỎ QUA (fail-closed): rate limiter không bị spoof IP; nếu cookie refresh thiếu Secure khi chạy sau proxy ngoài, kiểm tra mục này trước.
+
 ## 4.4 Chạy API như service (systemd — Linux)
 
 ```ini

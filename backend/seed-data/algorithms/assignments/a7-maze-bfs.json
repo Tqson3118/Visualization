@@ -1,0 +1,22 @@
+{
+  "id": "a7-maze-bfs",
+  "title": "Đường đi trong mê cung (BFS)",
+  "description": "MODULE 7 — Đồ thị / BFS.\n\nMê cung được biểu diễn bằng mảng 2 chiều: `0` = ô trống, `1` = tường, `S` = điểm xuất phát, `E` = đích. Viết hàm `shortestPath(maze)` trả về **SỐ BƯỚC NGẮN NHẤT** từ `S` tới `E` (di chuyển lên/xuống/trái/phải), dùng **BFS**.\n\n- Nếu không tìm được đường, trả về `-1`.\n- Maze có ít nhất một `S` và một `E`.\n- Di chuyển theo 4 hướng, không đi qua tường (`1`), không ra ngoài biên.\n\nVí dụ: maze `[\"S0\",\"0E\"]` → `2` (xuống 1, phải 1).",
+  "initialCode": "function shortestPath(maze) {\n  const rows = maze.length;\n  const cols = maze[0].length;\n  let start = null;\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (maze[r][c] === 'S') start = [r, c];\n    }\n  }\n  // TODO: BFS từ start, dùng hàng đợi, đánh dấu visited, đếm bước\n  return -1;\n}",
+  "entryFunction": "shortestPath",
+  "testCases": [
+    { "name": "shortestPath: 2x2 đơn giản", "input": "[[\"S0\",\"0E\"]]", "expectedOutput": "2" },
+    { "name": "shortestPath: không có đường", "input": "[[\"S1\",\"1E\"]]", "expectedOutput": "-1" },
+    { "name": "shortestPath: ngay cạnh", "input": "[[\"SE\"]]", "expectedOutput": "1" },
+    { "name": "shortestPath: 3x3 có tường", "input": "[[\"S00\",\"111\",\"00E\"]]", "expectedOutput": "-1" },
+    { "name": "shortestPath: 3x3 mở", "input": "[[\"S00\",\"000\",\"00E\"]]", "expectedOutput": "4" },
+    { "name": "shortestPath: đường vòng", "input": "[[\"S00E\",\"0110\",\"0000\"]]", "expectedOutput": "3" },
+    { "name": "shortestPath: 4x4", "input": "[[\"S000\",\"0110\",\"0010\",\"00EE\"]]", "expectedOutput": "5" }
+  ],
+  "hints": [
+    "Dùng hàng đợi (queue) lưu [row, col, steps] — FIFO giúp BFS tìm đường ngắn nhất.",
+    "Đánh dấu visited để không quay lại ô đã đi — tránh lặp vô hạn.",
+    "Mỗi bước xét 4 hướng: (-1,0),(1,0),(0,-1),(0,1), kiểm tra biên và ô khác '1'.",
+    "Chạm 'E' → trả về steps ngay (BFS đảm bảo đó là ngắn nhất)."
+  ]
+}

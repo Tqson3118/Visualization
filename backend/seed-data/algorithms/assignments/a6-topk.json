@@ -1,0 +1,20 @@
+{
+  "id": "a6-topk",
+  "title": "Top-K sản phẩm (Heap)",
+  "description": "MODULE 6 — Heap & ứng dụng Top-K.\n\nCửa hàng có rất nhiều sản phẩm với doanh số khác nhau. Viết hàm `topK(nums, k)` trả về **K phần tử LỚN NHẤT** trong mảng (mảng kết quả xếp tăng dần).\n\n- `k` ≥ 1, mảng có thể có số âm/trùng.\n- Gợi ý triển khai: dùng **min-heap kích thước k** — duyệt từng phần tử, giữ heap chứa đúng k phần tử lớn nhất.\n- Trả về mảng kết quả tăng dần.\n\nVí dụ: `topK([10, 3, 9, 7, 12, 5], 2)` → `[10, 12]`.",
+  "initialCode": "function topK(nums, k) {\n  // Gợi ý: min-heap kích thước k\n  // - nếu heap.length < k: push + bubble up\n  // - else nếu x > heap[0]: thay thế phần tử nhỏ nhất\n  const heap = [];\n  \n  // helper: min-heap\n  function heapInsert(v) {\n    heap.push(v);\n    let i = heap.length - 1;\n    while (i > 0) {\n      const p = Math.floor((i - 1) / 2);\n      if (heap[p] <= heap[i]) break;\n      [heap[p], heap[i]] = [heap[i], heap[p]];\n      i = p;\n    }\n  }\n  function heapExtract() {\n    const min = heap[0];\n    const last = heap.pop();\n    if (heap.length > 0) {\n      heap[0] = last;\n      let i = 0;\n      while (true) {\n        const l = 2*i+1, r = 2*i+2;\n        let s = i;\n        if (l < heap.length && heap[l] < heap[s]) s = l;\n        if (r < heap.length && heap[r] < heap[s]) s = r;\n        if (s === i) break;\n        [heap[i], heap[s]] = [heap[s], heap[i]];\n        i = s;\n      }\n    }\n    return min;\n  }\n  \n  // TODO: duyệt nums, dùng heapInsert/heapExtract để giữ k phần tử lớn nhất\n  return heap.sort((x, y) => x - y);\n}",
+  "entryFunction": "topK",
+  "testCases": [
+    { "name": "topK: k=2", "input": "[[10,3,9,7,12,5],2]", "expectedOutput": "[10,12]" },
+    { "name": "topK: k=1", "input": "[[1,5,3,9,2],1]", "expectedOutput": "[9]" },
+    { "name": "topK: k=len", "input": "[[4,2,8,6],4]", "expectedOutput": "[2,4,6,8]" },
+    { "name": "topK: số trùng", "input": "[[7,7,3,7],2]", "expectedOutput": "[7,7]" },
+    { "name": "topK: số âm", "input": "[[-5,-1,-9,-3],2]", "expectedOutput": "[-3,-1]" },
+    { "name": "topK: một phần tử", "input": "[[42],1]", "expectedOutput": "[42]" }
+  ],
+  "hints": [
+    "Khi heap chưa đủ k: heapInsert(x) — chèn thẳng.",
+    "Khi heap đủ k: nếu x > heap[0] (phần tử nhỏ nhất trong top), heapExtract rồi heapInsert(x).",
+    "Độ phức tạp: O(n log k) — tối ưu hơn sắp xếp toàn bộ O(n log n)."
+  ]
+}

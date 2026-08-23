@@ -35,6 +35,7 @@ export const CANVAS_LAYOUT = {
   marginBottom: 100,
   paddingTop: 45,
   borderRadius: 6,
+  rowGap: 40,
 };
 
 export function hexToRgba(hex: string, alpha: number): string {

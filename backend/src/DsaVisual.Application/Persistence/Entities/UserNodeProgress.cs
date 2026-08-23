@@ -12,4 +12,5 @@ public sealed class UserNodeProgress
     public DateTime? UnlockedAt { get; set; }
     public DateTime? PassedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

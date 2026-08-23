@@ -1,0 +1,53 @@
+<template>
+  <div v-if="show" class="fixed inset-0 bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+    <div class="bg-vdsa-bg-secondary border border-vdsa-border rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden">
+      <div class="w-16 h-16 rounded-full bg-vdsa-green/20 border border-vdsa-green/30 flex items-center justify-center text-vdsa-green mx-auto mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4m6 17v-4m0 0a2 2 0 100-4 2 2 0 000 4zm3.243-8.657a6 6 0 011.414 4.243H16m0 0a6 6 0 01-4.243-1.414M16 17.5a6 6 0 00-4.243-1.414" />
+        </svg>
+      </div>
+      <h3 class="text-2xl font-black text-white">Xuất Sắc!</h3>
+      <p class="text-vdsa-secondary mt-2 text-sm">Bạn đã hoàn thành bài học và tích lũy thêm điểm kinh nghiệm.</p>
+
+      <div class="my-6 p-4 rounded-2xl bg-vdsa-hover border border-vdsa-border inline-flex flex-col items-center">
+        <span class="text-xs text-vdsa-muted font-bold uppercase tracking-widest">Điểm nhận được</span>
+        <span class="text-3xl font-black text-vdsa-green mt-1">+{{ xpReward }} XP</span>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <button
+          v-if="nextLessonId"
+          @click="$emit('go-next', nextLessonId)"
+          class="w-full py-3 bg-gradient-to-r from-vdsa-accent to-vdsa-purple hover:from-vdsa-accent hover:to-vdsa-purple text-white font-bold rounded-2xl transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+        >
+          <span>Học bài tiếp theo</span>
+          <BaseIcon name="arrow-right" class="w-4 h-4" />
+        </button>
+        <!-- D3/Slice0.3: nút quiz cũ là dead-end (không có route quiz riêng; quiz đã nhúng
+             trong flow Theory→Quiz→CodeLab) → ẩn để tránh nút chết. -->
+        <button
+          @click="$emit('close')"
+          class="w-full py-3 bg-vdsa-hover hover:bg-vdsa-hover text-white font-bold rounded-2xl transition-all border border-vdsa-border cursor-pointer"
+        >
+          Quay lại lộ trình
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import BaseIcon from '@/shared/components/BaseIcon.vue';
+
+defineProps<{
+  show: boolean;
+  xpReward: number;
+  quizId?: string | null;
+  nextLessonId?: string | null;
+}>();
+
+defineEmits<{
+  (e: 'go-next', lessonId: string): void;
+  (e: 'close'): void;
+}>();
+</script>

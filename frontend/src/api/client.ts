@@ -40,10 +40,17 @@ export class ApiError extends Error {
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
+/** Chống redirect storm: nhiều request 401 song song → chỉ redirect /login 1 lần (fix 14/08). */
+let redirectedToLogin = false;
+window.addEventListener('beforeunload', () => {
+  redirectedToLogin = false;
+});
+
 export const client = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 /** Đánh dấu request đã thử refresh 1 lần (SDD §3.4) */
@@ -98,18 +105,26 @@ client.interceptors.response.use(
     const auth = useAuthStore();
     const ui = useUiStore();
 
-    // (1) 401 — refresh 1 lần
+    // (1) 401 — refresh 1 lần (chỉ khi client có accessToken / user đã đăng nhập)
     if (status === 401 && original && !original._retry && !original.url?.includes('/auth/')) {
       original._retry = true;
-      const newToken = await auth.refresh();
-      if (newToken) {
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return client(original as AxiosRequestConfig);
+      if (auth.accessToken) {
+        const newToken = await auth.refresh();
+        if (newToken) {
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return client(original as AxiosRequestConfig);
+        }
+        // Refresh thất bại → logout + redirect về /login (CHỈ 1 lần — tránh storm logout+redirect)
+        await auth.logout();
+        // Đã ở trang auth (login/register) thì KHÔNG redirect nữa — tránh vòng lặp
+        // /login?redirect=/login?redirect=... (fix BLOCKER redirect-loop 16/08, PROMPT_M_STATE).
+        const onAuthPage = ['/login', '/register'].includes(window.location.pathname);
+        if (!redirectedToLogin && !onAuthPage) {
+          redirectedToLogin = true;
+          const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.assign(`/login?redirect=${redirect}`);
+        }
       }
-      // Refresh thất bại → logout + redirect về /login
-      await auth.logout();
-      const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.assign(`/login?redirect=${redirect}`);
       return Promise.reject(toApiError(error));
     }
 

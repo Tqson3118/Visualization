@@ -18,4 +18,6 @@ public sealed class Exercise
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+
+    public ICollection<Question> Questions { get; set; } = [];
 }

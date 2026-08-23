@@ -1,0 +1,59 @@
+### Bối cảnh ảnh:
+Màn Admin Quản lý người dùng: tab "Chờ duyệt Teacher", modal duyệt giảng viên hiển thị Thông tin giảng viên (Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy), nút Xác nhận duyệt.
+
+### Mô tả ngắn bố cục trang, các phần tử chính (tiêu đề, form, nút, thông báo), màu sắc:
+- **Tiêu đề**: "Quản lý người dùng"
+- **Form**: Modal hiển thị thông tin giảng viên
+  - **Tiêu đề modal**: "Duyệt giảng viên"
+  - **Các trường**:
+    - **Mã giảng viên**: GV Smoke Test
+    - **Vai trò**: Tất cả
+    - **Trạng thái**: Tất cả
+- **Nút**: 
+  - **Xác nhận duyệt**
+  - **Từ chối**
+- **Thông báo**: 
+  - **Đánh dấu**: X/10
+
+### Phát hiện lỗi hiển thị:
+1. **LAYOUT LỆCH**:
+   - **Phản hồi**: Đảm bảo rằng các phần tử trong modal được sắp xếp một cách hợp lý để không bị lệch nhau.
+2. **CUT CHỮ**:
+   - **Phản hồi**: Kiểm tra kỹ lưỡng các khoảng trắng và khoảng cách giữa các phần tử để đảm bảo không có chữ bị cắt.
+3. **COATHE LẤN**:
+   - **Phản hồi**: Xác thực rằng các nút và các phần tử khác không chồng lên nhau hoặc gây ra sự khó chịu khi sử dụng.
+4. **CONTRAST kém**:
+   - **Phản hồi**: Kiểm tra lại màu sắc để đảm bảo rằng các phần tử có độ tương phản tốt với nền, giúp người dùng dễ nhìn thấy hơn.
+5. **CHỮ NHAU KHÁO ĐỌC**:
+   - **Phản hồi**: Kiểm tra kỹ lưỡng font size và khoảng cách giữa các từ để đảm bảo chữ không quá nhỏ hoặc quá gần nhau gây khó đọc.
+6. **SPACING BẤT THƯỜNG**:
+   - **Phản hồi**: Kiểm tra lại khoảng cách giữa các phần tử trong modal để đảm bảo rằng không có khoảng cách quá lớn hoặc quá nhỏ gây cảm giác rối mắt.
+
+### Chấm 7 tiêu chí, mỗi tiêu chí 1-5 điểm (5= xuất sắc, 1= kém):
+#### UI-1 Thẩm mỹ:
+**X/5 - Nhận xét**: Màu sắc của trang chưa hài hòa với nền. 
+**Gợi ý**: Sử dụng màu sắc tương phản tốt hơn để tăng tính thẩm mỹ.
+
+#### UI-2 Nhất quán:
+**X/5 - Nhận xét**: Các phần tử không được sắp xếp một cách nhất quán.
+**Gợi ý**: Kiểm tra lại layout và sắp xếp các phần tử để đảm bảo sự nhất quán.
+
+#### UI-3 Rõ ràng:
+**X/5 - Nhận xét**: Có một số chữ bị cắt hoặc không rõ ràng.
+**Gợi ý**: Kiểm tra kỹ lưỡng font size và khoảng cách giữa các từ để đảm bảo chữ không bị cắt.
+
+#### UI-4 Phản hồi:
+**X/5 - Nhận xét**: Không có phản hồi trực quan như hover, focus, loading, empty state.
+**Gợi ý**: Thêm các phản hồi trực quan để tăng tính tương tác cho người dùng.
+
+#### UX-5 Luồng thao tác:
+**X/5 - Nhận xét**: Có nhiều bước thao tác và không dễ tìm kiếm.
+**Gợi ý**: Tối ưu hóa luồng thao tác để giảm bớt số bước cần thực hiện.
+
+#### UX-6 Khả năng tiếp cận:
+**X/5 - Nhận xét**: Contrast text chưa tốt, kích thước chạm chưa phù hợp.
+**Gợi ý**: Kiểm tra lại contrast text và kích thước chạm để đảm bảo người dùng có thể dễ dàng tiếp cận.
+
+#### UX-7 Độ thỏa mãn:
+**X/5 - Nhận xét**: Có cảm giác muốn dùng tiếp nhưng không có điểm wow.
+**Gợi ý**: Thêm các yếu tố điểm wow như hình ảnh, âm thanh hoặc hiệu ứng để tăng tính hấp dẫn cho người dùng.

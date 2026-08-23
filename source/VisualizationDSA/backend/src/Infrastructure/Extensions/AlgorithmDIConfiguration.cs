@@ -1,6 +1,8 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using VisualizationDSA.Domain.Strategies;
+using VisualizationDSA.Domain.Interfaces;
+using VisualizationDSA.Domain.Security;
 
 namespace VisualizationDSA.Infrastructure.Extensions;
 
@@ -13,6 +15,7 @@ public static class AlgorithmDIConfiguration
 {
     public static IServiceCollection AddAlgorithmStrategies(this IServiceCollection services)
     {
+        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         var domainAssembly = Assembly.GetAssembly(typeof(IAlgorithmStrategy))!;
 
         

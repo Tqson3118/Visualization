@@ -101,6 +101,20 @@ namespace VisualizationDSA.Domain.Entities
             MaxAttempts = maxAttempts;
         }
 
+        // LS-002: cập nhật nội dung/điều kiện item (KHÔNG đổi kiểu item).
+        public void UpdateItemContent(string overrideTitle, string overrideDescription, bool isRequired, bool isHidden, Guid? prerequisiteItemId, bool isSequential, DateTime? unlockAt, DateTime? dueAt, int? maxAttempts)
+        {
+            OverrideTitle = overrideTitle ?? string.Empty;
+            OverrideDescription = overrideDescription ?? string.Empty;
+            IsRequired = isRequired;
+            IsHidden = isHidden;
+            PrerequisiteItemId = prerequisiteItemId;
+            IsSequential = isSequential;
+            UnlockAt = unlockAt;
+            DueAt = dueAt;
+            MaxAttempts = maxAttempts;
+        }
+
         public void UpdateOverrideSettings(
             DateTime? unlockAt, 
             DateTime? dueAt, 

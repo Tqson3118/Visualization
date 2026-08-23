@@ -1,60 +1,100 @@
 <template>
-  <div class="control-bar card">
+  <div class="control-bar">
     <div class="control-bar__row">
+      <!-- Cụm 1: Nút điều khiển Playback nhỏ gọn, icon-only với nút Play/Pause cố định độ rộng -->
       <div class="control-bar__nav">
-        <button
-          class="control-bar__btn"
-          :disabled="currentIndex <= 0"
-          :aria-label="messages.simulator.stepBack"
-          @click="emit('step-back')"
-        >
-          <BaseIcon name="step-backward" :size="14" />
-          {{ messages.simulator.stepBack }}
-        </button>
-        <button
-          class="control-bar__btn"
-          :disabled="currentIndex >= totalFrames - 1"
-          :aria-label="messages.simulator.stepForward"
-          @click="emit('step-forward')"
-        >
-          {{ messages.simulator.stepForward }}
-          <BaseIcon name="step-forward" :size="14" />
-        </button>
-        <button
-          v-if="status !== 'running'"
-          class="control-bar__btn control-bar__btn--play"
-          @click="emit('play')"
-        >
-          <BaseIcon name="play" :size="14" />
-          {{ messages.simulator.play }}
-        </button>
-        <button
-          v-else
-          class="control-bar__btn control-bar__btn--play"
-          @click="emit('pause')"
-        >
-          <BaseIcon name="pause" :size="14" />
-          {{ messages.simulator.pause }}
-        </button>
-        <button
-          class="control-bar__btn"
+        <!-- Đặt lại (Reset) -->
+        <Button
+          variant="ghost"
+          size="sm"
           :disabled="currentIndex <= 0"
           :aria-label="messages.simulator.reset"
+          title="Về bước đầu (Home)"
+          class="control-bar__icon-btn"
           @click="emit('reset')"
         >
-          <BaseIcon name="refresh" :size="14" />
-          {{ messages.simulator.reset }}
-        </button>
+          <RotateCcw :size="15" aria-hidden="true" />
+          <span class="sr-only">{{ messages.simulator.reset }}</span>
+        </Button>
+
+        <!-- Bước lùi (Step Back) -->
+        <Button
+          variant="ghost"
+          size="sm"
+          :disabled="currentIndex <= 0"
+          :aria-label="messages.simulator.stepBack"
+          title="Bước lùi 1 bước (←)"
+          class="control-bar__icon-btn"
+          @click="emit('step-back')"
+        >
+          <SkipBack :size="15" aria-hidden="true" />
+          <span class="sr-only">{{ messages.simulator.stepBack }}</span>
+        </Button>
+
+        <!-- NÚT CHÍNH: Phát / Tạm dừng (Play / Pause) cố định chiều rộng để không bị giật layout -->
+        <Button
+          v-if="status !== 'running'"
+          variant="primary"
+          size="sm"
+          :aria-label="messages.simulator.play"
+          title="Chạy mô phỏng (Space)"
+          class="control-bar__play"
+          @click="emit('play')"
+        >
+          <Play :size="14" class="fill-current shrink-0" aria-hidden="true" />
+          <span class="control-bar__btn-text">{{ messages.simulator.play }}</span>
+        </Button>
+        <Button
+          v-else
+          variant="primary"
+          size="sm"
+          :aria-label="messages.simulator.pause"
+          title="Tạm dừng mô phỏng (Space)"
+          class="control-bar__play control-bar__play--active"
+          @click="emit('pause')"
+        >
+          <Pause :size="14" class="fill-current shrink-0" aria-hidden="true" />
+          <span class="control-bar__btn-text">{{ messages.simulator.pause }}</span>
+        </Button>
+
+        <!-- Bước tới (Step Forward) -->
+        <Button
+          variant="ghost"
+          size="sm"
+          :disabled="currentIndex >= totalFrames - 1"
+          :aria-label="messages.simulator.stepForward"
+          title="Bước tới 1 bước (→)"
+          class="control-bar__icon-btn"
+          @click="emit('step-forward')"
+        >
+          <SkipForward :size="15" aria-hidden="true" />
+          <span class="sr-only">{{ messages.simulator.stepForward }}</span>
+        </Button>
       </div>
 
-      <span class="control-bar__indicator">{{ stepIndicator }}</span>
+      <!-- Cụm 2: Thanh trượt tiến độ (Scrubber Timeline Slider) & Bộ đếm số bước -->
+      <div class="control-bar__timeline">
+        <input
+          type="range"
+          min="0"
+          :max="Math.max(0, totalFrames - 1)"
+          :value="currentIndex"
+          :disabled="totalFrames <= 1"
+          class="control-bar__slider"
+          aria-label="Thanh trượt bước chạy"
+          title="Kéo để tua nhanh bước chạy"
+          @input="onSliderChange"
+        />
+        <span class="control-bar__indicator" role="status">{{ stepIndicator }}</span>
+      </div>
 
-      <label class="control-bar__speed">
-        <span>{{ messages.simulator.speed }}</span>
-        <select :value="speed" :aria-label="messages.simulator.speed" @change="onSpeedChange">
+      <!-- Cụm 3: Điều khiển tốc độ (Speed) -->
+      <div class="control-bar__speed" title="Tốc độ phát mô phỏng ([ / ])">
+        <Gauge :size="14" class="text-vdsa-purple shrink-0" aria-hidden="true" />
+        <select :value="speed" :aria-label="messages.simulator.speed" class="control-bar__speed-select" @change="onSpeedChange">
           <option v-for="s in SPEED_OPTIONS" :key="s" :value="s">{{ s }}x</option>
         </select>
-      </label>
+      </div>
     </div>
   </div>
 </template>
@@ -62,16 +102,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { Gauge, Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-vue-next';
+
 import { messages } from '@/i18n/vi';
 import type { SimulationStatus } from '@/stores/simulation';
-import BaseIcon from '@/components/ui/BaseIcon.vue';
-
-// Bê từ source/VisualizationDSA1/frontend/src/components/VcrControls.vue (V1).
-// ĐIỀU CHỈNH:
-//   - Props/emit theo simulationStore (SDD §3.2): play/pause/step-back/step-forward/reset/set-speed
-//     (bỏ "Exit VCR → Sandbox" — feature solid-sandbox đã cắt).
-//   - Chuỗi cứng → i18n/vi.ts; màu → design tokens (card/btn).
-//   - Thêm chọn tốc độ 0.25x–4x (SDD §3.5: interval = 1200/speed ms).
+import Button from '@/components/ui/Button.vue';
 
 const props = defineProps<{
   currentIndex: number;
@@ -87,6 +122,7 @@ const emit = defineEmits<{
   'step-forward': [];
   reset: [];
   'set-speed': [value: number];
+  'jump-to': [index: number];
 }>();
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
@@ -103,85 +139,191 @@ function onSpeedChange(event: Event): void {
     emit('set-speed', value);
   }
 }
+
+function onSliderChange(event: Event): void {
+  const target = event.target as HTMLInputElement;
+  const val = Number(target.value);
+  if (!Number.isNaN(val)) {
+    emit('jump-to', val);
+  }
+}
 </script>
 
 <style scoped>
 .control-bar {
-  padding: var(--space-md) var(--space-lg);
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .control-bar__row {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
 .control-bar__nav {
   display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  shrink: 0;
 }
 
-.control-bar__btn {
+.control-bar__icon-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary, #94a3b8);
+  transition: all 150ms ease;
+}
+
+.control-bar__icon-btn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.control-bar__play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
+  min-width: 88px;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--color-primary, #10b981);
+  color: #fff;
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary, #10b981) 35%, transparent);
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  shrink: 0;
 }
 
-.control-bar__btn:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+.control-bar__play:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary, #10b981) 50%, transparent);
 }
 
-.control-bar__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.control-bar__play--active {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
 }
 
-.control-bar__btn--play {
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.control-bar__btn--play:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.control-bar__indicator {
-  font-size: var(--text-sm);
-  color: var(--color-primary);
-  font-weight: 600;
-  padding: 4px 10px;
-  background: var(--color-surface-hover);
-  border-radius: var(--radius-md);
+.control-bar__btn-text {
+  font-size: 12px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
+/* Timeline slider & Step Indicator */
+.control-bar__timeline {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-bar__slider {
+  flex: 1;
+  min-width: 40px;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.control-bar__slider:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.control-bar__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--color-primary, #10b981);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.control-bar__slider::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+}
+
+.control-bar__slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--color-primary, #10b981);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.control-bar__indicator {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #94a3b8);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  shrink: 0;
+}
+
+/* Speed selector */
 .control-bar__speed {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  margin-left: auto;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted, #64748b);
+  shrink: 0;
 }
 
-.control-bar__speed select {
-  padding: 4px 8px;
+.control-bar__speed-select {
+  padding: 3px 6px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-foreground);
+  border-radius: 6px;
+  background: var(--color-surface, #1e293b);
+  color: #f1f5f9;
+  font-size: 11px;
   cursor: pointer;
+  font-weight: 600;
+  transition: border-color 150ms ease;
+}
+
+.control-bar__speed-select:focus {
+  border-color: var(--color-primary, #10b981);
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>

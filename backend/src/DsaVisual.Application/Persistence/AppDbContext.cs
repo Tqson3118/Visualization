@@ -4,16 +4,17 @@ using Microsoft.EntityFrameworkCore;
 namespace DsaVisual.Application.Persistence;
 
 /// <summary>
-/// DbContext chính — DbSet đủ 32 bảng theo SDD §7 (lõi học tập 24 + gamification/code 8).
+/// DbContext chính — DbSet đủ 33 bảng theo SDD §7 (lõi học tập 25 + gamification/code 8).
 /// KHÔNG có Repository pattern (SDD §5.1 — quyết định A-1): Service truy vấn DbSet trực tiếp.
 /// Cấu hình Fluent API đặt trong Configurations/ (SDD §5.3.6 — không attribute trên entity).
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    // ── Lõi học tập (24 bảng) ───────────────────────────────
+    // ── Lõi học tập (25 bảng) ───────────────────────────────
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<OtpCode> OtpCodes => Set<OtpCode>();   // 2FA email (GP-T2)
     public DbSet<Topic> Topics => Set<Topic>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonSimulation> LessonSimulations => Set<LessonSimulation>();
@@ -31,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<ContentFeedback> ContentFeedback => Set<ContentFeedback>();
+    public DbSet<CourseFeedback> CourseFeedback => Set<CourseFeedback>();
     public DbSet<BugReport> BugReports => Set<BugReport>();
     public DbSet<LearningPath> LearningPaths => Set<LearningPath>();
     public DbSet<LearningPathNode> LearningPathNodes => Set<LearningPathNode>();

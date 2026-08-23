@@ -1,0 +1,538 @@
+// DSA Visual — Database Schema (DBML format for dbdiagram.io)
+// Quy mô: 55 bảng thuộc 9 phân hệ chuẩn hóa
+
+Project DSA_Visualization {
+  database_type: 'Microsoft SQL Server 2022'
+  Note: 'Cơ sở dữ liệu hệ thống học thuật toán và cấu trúc dữ liệu trực quan DSA Visual.'
+}
+
+// ── 1. PHÂN HỆ NGƯỜI DÙNG & XÁC THỰC ──
+Table users {
+  id uniqueidentifier [pk]
+  username nvarchar(100) [not null]
+  email nvarchar(255) [unique, not null]
+  password_hash nvarchar(4000) [not null]
+  role nvarchar(20) [not null] // Student, Teacher, PendingTeacher, Admin
+  current_level int [default: 1]
+  total_xp int [default: 0]
+  streak_days int [default: 0]
+  hearts int [default: 10]
+  hearts_max int [default: 10]
+  last_heart_at datetime2
+  last_activity_date datetime2
+  last_login_at datetime2
+  is_active bit [default: 1]
+  is_premium bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table refresh_tokens {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  token nvarchar(500) [not null]
+  expires_at datetime2 [not null]
+  created_at datetime2 [default: `getutcdate()`]
+  revoked_at datetime2
+}
+
+Table audit_logs {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  action nvarchar(100) [not null]
+  entity_name nvarchar(100)
+  entity_id nvarchar(100)
+  details nvarchar(max)
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table system_audit_event_streams {
+  id uniqueidentifier [pk]
+  aggregate_id uniqueidentifier [not null]
+  event_type nvarchar(100) [not null]
+  payload_json nvarchar(max) [not null]
+  version int [not null]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table system_settings {
+  id uniqueidentifier [pk]
+  key nvarchar(100) [unique, not null]
+  value nvarchar(max)
+  description nvarchar(500)
+  updated_at datetime2 [default: `getutcdate()`]
+}
+
+// ── 2. PHÂN HỆ KHÓA HỌC & BÀI HỌC ──
+Table courses {
+  id uniqueidentifier [pk]
+  teacher_id uniqueidentifier [ref: > users.id]
+  title nvarchar(200) [not null]
+  slug nvarchar(200) [unique, not null]
+  description nvarchar(max)
+  difficulty nvarchar(20) // Beginner, Intermediate, Advanced
+  category nvarchar(50)
+  rating decimal(3,2) [default: 4.8]
+  rating_count int [default: 0]
+  xp_reward int [default: 100]
+  learning_objectives nvarchar(max)
+  key_outcomes nvarchar(max)
+  highlights nvarchar(max)
+  publish_status nvarchar(20) [default: 'Published']
+  is_deleted bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table course_modules {
+  id uniqueidentifier [pk]
+  course_id uniqueidentifier [ref: > courses.id]
+  title nvarchar(200) [not null]
+  order_index int [not null]
+  is_deleted bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table module_items {
+  id uniqueidentifier [pk]
+  module_id uniqueidentifier [ref: > course_modules.id]
+  item_type nvarchar(20) [not null] // Lesson, Quiz, Codelab
+  reference_id uniqueidentifier [not null]
+  order_index int [not null]
+  is_required bit [default: 1]
+  is_deleted bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table lessons {
+  id uniqueidentifier [pk]
+  created_by_teacher_id uniqueidentifier [ref: > users.id]
+  codelab_id uniqueidentifier
+  title nvarchar(200) [not null]
+  content_md nvarchar(max) [not null]
+  sandbox_type nvarchar(50)
+  sandbox_config nvarchar(max)
+  xp_reward int [default: 20]
+  publish_status nvarchar(20) [default: 'Published']
+  is_deleted bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table course_reviews {
+  id uniqueidentifier [pk]
+  course_id uniqueidentifier [ref: > courses.id]
+  user_id uniqueidentifier [ref: > users.id]
+  rating int [not null]
+  comment nvarchar(2000)
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table lesson_comments {
+  id uniqueidentifier [pk]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  user_id uniqueidentifier [ref: > users.id]
+  parent_id uniqueidentifier
+  content nvarchar(2000) [not null]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table lesson_notes {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  content nvarchar(max) [not null]
+  updated_at datetime2 [default: `getutcdate()`]
+}
+
+Table lesson_reviews {
+  id uniqueidentifier [pk]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  reviewer_admin_id uniqueidentifier [ref: > users.id]
+  is_approved bit [default: 0]
+  feedback_notes nvarchar(2000)
+  reviewed_at datetime2
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+// ── 3. PHÂN HỆ TRẮC NGHIỆM & ĐÁNH GIÁ ──
+Table quizzes {
+  id uniqueidentifier [pk]
+  title nvarchar(200) [not null]
+  topic nvarchar(100)
+  difficulty nvarchar(20)
+  xp_reward int [default: 50]
+  description nvarchar(max)
+  created_by_teacher_id uniqueidentifier [ref: > users.id]
+  is_deleted bit [default: 0]
+}
+
+Table quiz_questions {
+  id uniqueidentifier [pk]
+  quiz_id uniqueidentifier [ref: > quizzes.id]
+  question_text nvarchar(max) [not null]
+  options_json nvarchar(max) [not null]
+  correct_option_index int [not null]
+  explanation nvarchar(max)
+  order_index int [not null]
+}
+
+Table quiz_attempts {
+  id uniqueidentifier [pk]
+  quiz_id uniqueidentifier [ref: > quizzes.id]
+  user_id uniqueidentifier [ref: > users.id]
+  score int [not null]
+  total_questions int [not null]
+  passed bit [not null]
+  completed_at datetime2 [default: `getutcdate()`]
+}
+
+Table quiz_xp_grants {
+  id uniqueidentifier [pk]
+  quiz_id uniqueidentifier [ref: > quizzes.id]
+  user_id uniqueidentifier [ref: > users.id]
+  xp_granted int [not null]
+  granted_at datetime2 [default: `getutcdate()`]
+}
+
+// ── 4. PHÂN HỆ BÀI TẬP LẬP TRÌNH (CODELAB) ──
+Table codelabs {
+  id uniqueidentifier [pk]
+  owner_id uniqueidentifier [ref: > users.id]
+  title nvarchar(200) [not null]
+  description nvarchar(max)
+  initial_code nvarchar(max) [not null]
+  difficulty int [default: 1]
+  xp_reward int [default: 50]
+  tags nvarchar(200)
+  max_runtime_ms int [default: 2000]
+  max_memory_bytes bigint [default: 134217728]
+  allowed_languages nvarchar(100) [default: 'csharp,python,java,javascript']
+  is_deleted bit [default: 0]
+}
+
+Table codelab_test_cases {
+  id uniqueidentifier [pk]
+  codelab_id uniqueidentifier [ref: > codelabs.id]
+  input nvarchar(max) [not null]
+  expected_output nvarchar(max) [not null]
+  is_hidden bit [default: 0]
+  score_weight int [default: 1]
+}
+
+Table codelab_hints {
+  id uniqueidentifier [pk]
+  codelab_id uniqueidentifier [ref: > codelabs.id]
+  order_index int [not null]
+  hint_text nvarchar(max) [not null]
+  cost_xp int [default: 0]
+}
+
+Table codelab_templates {
+  id uniqueidentifier [pk]
+  codelab_id uniqueidentifier [ref: > codelabs.id]
+  language nvarchar(50) [not null]
+  template_code nvarchar(max) [not null]
+}
+
+Table codelab_submissions {
+  id uniqueidentifier [pk]
+  codelab_id uniqueidentifier [ref: > codelabs.id]
+  user_id uniqueidentifier [ref: > users.id]
+  code nvarchar(max) [not null]
+  language nvarchar(50) [not null]
+  status nvarchar(30) [not null] // Accepted, WrongAnswer, RuntimeException
+  score int [default: 0]
+  runtime_ms int
+  memory_kb int
+  submitted_at datetime2 [default: `getutcdate()`]
+}
+
+Table codelab_hint_reveals {
+  id uniqueidentifier [pk]
+  codelab_hint_id uniqueidentifier [ref: > codelab_hints.id]
+  user_id uniqueidentifier [ref: > users.id]
+  revealed_at datetime2 [default: `getutcdate()`]
+}
+
+// ── 5. PHÂN HỆ LỚP HỌC (CLASSROOM) ──
+Table classrooms {
+  id uniqueidentifier [pk]
+  owner_teacher_id uniqueidentifier [ref: > users.id]
+  name nvarchar(100) [not null]
+  invite_code nvarchar(20) [unique, not null]
+  description nvarchar(500)
+  is_archived bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table classroom_enrollments {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  student_id uniqueidentifier [ref: > users.id]
+  enrolled_at datetime2 [default: `getutcdate()`]
+  status nvarchar(20) [default: 'Active']
+}
+
+Table classroom_lessons {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  assigned_at datetime2 [default: `getutcdate()`]
+  due_date datetime2
+}
+
+Table classroom_modules {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  title nvarchar(200) [not null]
+  order_index int [not null]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table classroom_module_items {
+  id uniqueidentifier [pk]
+  classroom_module_id uniqueidentifier [ref: > classroom_modules.id]
+  item_type nvarchar(20) [not null]
+  reference_id uniqueidentifier [not null]
+  order_index int [not null]
+}
+
+Table classroom_module_item_overrides {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  module_item_id uniqueidentifier [ref: > module_items.id]
+  is_hidden bit [default: 0]
+  custom_due_date datetime2
+}
+
+Table classroom_quizzes {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  quiz_id uniqueidentifier [ref: > quizzes.id]
+  due_date datetime2
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table classroom_quiz_attempts {
+  id uniqueidentifier [pk]
+  classroom_quiz_id uniqueidentifier [ref: > classroom_quizzes.id]
+  student_id uniqueidentifier [ref: > users.id]
+  score int [not null]
+  passed bit [not null]
+  submitted_at datetime2 [default: `getutcdate()`]
+}
+
+Table classroom_announcements {
+  id uniqueidentifier [pk]
+  classroom_id uniqueidentifier [ref: > classrooms.id]
+  teacher_id uniqueidentifier [ref: > users.id]
+  title nvarchar(200) [not null]
+  content nvarchar(max) [not null]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+// ── 6. PHÂN HỆ TIẾN ĐỘ & LỘ TRÌNH (LEARNING PATH) ──
+Table learning_paths {
+  id uniqueidentifier [pk]
+  title nvarchar(200) [not null]
+  description nvarchar(max)
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table learning_path_nodes {
+  id uniqueidentifier [pk]
+  learning_path_id uniqueidentifier [ref: > learning_paths.id]
+  order_index int [not null]
+  title nvarchar(200) [not null]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+}
+
+Table node_sessions {
+  id uniqueidentifier [pk]
+  node_id uniqueidentifier [ref: > learning_path_nodes.id]
+  user_id uniqueidentifier [ref: > users.id]
+  started_at datetime2 [default: `getutcdate()`]
+  completed_at datetime2
+}
+
+Table user_node_progresses {
+  id uniqueidentifier [pk]
+  node_id uniqueidentifier [ref: > learning_path_nodes.id]
+  user_id uniqueidentifier [ref: > users.id]
+  status nvarchar(20) [not null]
+  updated_at datetime2 [default: `getutcdate()`]
+}
+
+Table stage_progresses {
+  id uniqueidentifier [pk]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  user_id uniqueidentifier [ref: > users.id]
+  stage_index int [not null]
+  is_completed bit [default: 0]
+  completed_at datetime2
+}
+
+Table user_lesson_progresses {
+  id uniqueidentifier [pk]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  user_id uniqueidentifier [ref: > users.id]
+  percent_complete int [default: 0]
+  is_completed bit [default: 0]
+  updated_at datetime2 [default: `getutcdate()`]
+}
+
+Table user_module_item_progresses {
+  id uniqueidentifier [pk]
+  module_item_id uniqueidentifier [ref: > module_items.id]
+  user_id uniqueidentifier [ref: > users.id]
+  is_completed bit [default: 0]
+  completed_at datetime2
+}
+
+Table learning_progresses {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  module_id nvarchar(100) [not null]
+  completed_at datetime2 [default: `getutcdate()`]
+  time_spent_minutes int [default: 0]
+}
+
+// ── 7. GAMIFICATION & HUY HIỆU ──
+Table badges {
+  id uniqueidentifier [pk]
+  name nvarchar(100) [unique, not null]
+  description nvarchar(500) [not null]
+  icon nvarchar(50) [not null]
+  color nvarchar(30) [default: '#7c3aed']
+  metadata_json nvarchar(max)
+}
+
+Table user_badges {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  badge_id uniqueidentifier [ref: > badges.id]
+  unlocked_at datetime2 [default: `getutcdate()`]
+}
+
+Table quests {
+  id uniqueidentifier [pk]
+  quest_key nvarchar(100) [unique, not null]
+  title nvarchar(200) [not null]
+  description nvarchar(500)
+  period nvarchar(20) [not null] // Daily, Weekly, Monthly
+  condition_json nvarchar(max)
+  reward_json nvarchar(max)
+  sort_order int [default: 0]
+  is_active bit [default: 1]
+}
+
+Table user_quests {
+  id uniqueidentifier [pk]
+  quest_id uniqueidentifier [ref: > quests.id]
+  user_id uniqueidentifier [ref: > users.id]
+  progress int [default: 0]
+  status nvarchar(20) [default: 'InProgress'] // NotStarted, InProgress, Completed, Claimed
+  claimed_at datetime2
+}
+
+// ── 8. CỬA HÀNG, VẬT PHẨM & GIAO DỊCH ──
+Table shop_items {
+  id uniqueidentifier [pk]
+  name nvarchar(100) [not null]
+  description nvarchar(500)
+  slot nvarchar(30) [not null] // avatar, frame, theme, misc
+  price_gems int [not null]
+  icon_url nvarchar(500)
+  sort_order int [default: 0]
+}
+
+Table user_inventory {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  item_id uniqueidentifier [ref: > shop_items.id]
+  equipped bit [default: 0]
+  acquired_at datetime2 [default: `getutcdate()`]
+}
+
+Table gem_transactions {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  amount int [not null]
+  type nvarchar(20) [not null] // Earn, Spend
+  reference_id nvarchar(100)
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table orders {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  payment_code nvarchar(50) [unique, not null]
+  transaction_reference nvarchar(100)
+  amount decimal(18,2) [not null]
+  status nvarchar(20) [default: 'Pending'] // Pending, Completed, Cancelled
+  created_at datetime2 [default: `getutcdate()`]
+  completed_at datetime2
+}
+
+// ── 9. MỞ RỘNG: LÝ THUYẾT, ĐỒ THỊ KHÁI NIỆM & KHÁC ──
+Table theory_articles {
+  id uniqueidentifier [pk]
+  author_id uniqueidentifier [ref: > users.id]
+  title nvarchar(200) [not null]
+  slug nvarchar(200) [unique, not null]
+  content_md nvarchar(max) [not null]
+  category nvarchar(50)
+  difficulty nvarchar(20)
+  tags nvarchar(200)
+  sort_order int [default: 0]
+  is_published bit [default: 1]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table theory_article_versions {
+  id uniqueidentifier [pk]
+  article_id uniqueidentifier [ref: > theory_articles.id]
+  version_number int [not null]
+  content_md nvarchar(max) [not null]
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table lesson_theory_articles {
+  id uniqueidentifier [pk]
+  lesson_id uniqueidentifier [ref: > lessons.id]
+  theory_article_id uniqueidentifier [ref: > theory_articles.id]
+  order_index int [default: 1]
+}
+
+Table semantic_concept_nodes {
+  id uniqueidentifier [pk]
+  concept_key nvarchar(100) [unique, not null]
+  title nvarchar(200) [not null]
+  summary nvarchar(max)
+  category nvarchar(50)
+  metadata_json nvarchar(max)
+}
+
+Table knowledge_edges {
+  id uniqueidentifier [pk]
+  source_node_id uniqueidentifier [ref: > semantic_concept_nodes.id]
+  target_node_id uniqueidentifier [ref: > semantic_concept_nodes.id]
+  relationship_type nvarchar(50) [not null]
+  weight float [default: 1.0]
+}
+
+Table favorites {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  simulation_key nvarchar(100) [not null]
+  input_json nvarchar(max)
+  created_at datetime2 [default: `getutcdate()`]
+}
+
+Table notifications {
+  id uniqueidentifier [pk]
+  user_id uniqueidentifier [ref: > users.id]
+  title nvarchar(200) [not null]
+  message nvarchar(max) [not null]
+  type nvarchar(30) [default: 'System']
+  is_read bit [default: 0]
+  created_at datetime2 [default: `getutcdate()`]
+}

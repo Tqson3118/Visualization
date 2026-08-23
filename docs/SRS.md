@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | SRS (Software Requirements Specification) |
-| Phiên bản | 1.0 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.5 |
+| Ngày cập nhật | 13/08/2026 |
 | Trạng thái | Dự thảo — chờ giảng viên hướng dẫn phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -23,6 +23,11 @@
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới hoàn chỉnh từ PRODUCTION_PROMPT.md v2.5 (thay bản nháp cũ 09/08 — 247 dòng, không đủ khuôn 17.3.1) |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review (đồng bộ prompt v2.10): NFR-12 thay "sinh bước 20 req/phút" (endpoint đã cắt — bước sinh client-side ADR-001) bằng "code-runs (sandbox) 20 req/phút/user" |
 | 1.2 | 12/08/2026 | Mai Tiểu Bảo | Rà soát độ sâu theo khuôn 17.13/6: mở rộng TOÀN BỘ 75 FR lên đủ 7 thuộc tính (Mô tả/Luồng hoạt động/Ngoại lệ/AC/Ràng buộc/Nguồn/Ghi chú — FR-9.3 dùng mục "3. Nơi chấm — QUYẾT ĐỊNH CHỐT" thay cho Ngoại lệ, số hiệu đẩy xuống); mở rộng TOÀN BỘ 32 UC lên đủ 10 mục (Tóm tắt → Nguồn FR); bảng NFR-8..36 bổ sung cột "Giá trị mục tiêu" + "Cách đo/kiểm tra" |
+| 1.3 | 12/08/2026 | Trần Viết Tâm Phúc | Đợt G (ux-finalize): NFR-5 nới giới hạn bundle theo thực tế build — Tổng JS gốc tải lần đầu ≤ 1.5MB + engine chunk ≤ 500KB gốc (trước: tổng ≤ 500KB, vượt thực tế engine 476KB + stack UI/UX mới); ghi số liệu thật tại SDD §3.9 / TEST_PLAN TEST-PERF-007 |
+| 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §3.10B FR-10.7 + §5.33 UC-32 — bỏ câu cũ "KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = backlog)" → checkout hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386, BIN 970422) + nội dung CK tự động `DSV{userId}T{months}` + kích hoạt tự động sau xác nhận (đếm ngược 60s) — KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán, tăng tính thực tế demo); §1.3.2 mục 3 làm rõ; NFR-5 đo lại bundle sau khi thêm `qrcode` (JS gốc tải lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng) |
+| 1.5 | 13/08/2026 | — | Task L (form đăng ký giảng viên): FR-1.1 — bỏ checkbox "Tôi là giảng viên" → chọn vai trò Sinh viên/Giảng viên (segmented, mặc định Sinh viên) + form con 3 trường Khoa/Bộ môn (`Department`), Mã giảng viên (`StaffCode`) — bắt buộc, và Kinh nghiệm giảng dạy (`TeacherBio` ≤ 500) — không bắt buộc; ngoại lệ mới 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên"; AC-1.1.6; FR-1.8 làm rõ Admin xem thông tin GV (Khoa/Bộ môn, Mã GV, Kinh nghiệm) khi duyệt |
+| 1.6 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §2.5 mục 4 — bỏ ràng buộc "chỉ email trường"; FR-1.1 + UC-02 + FR-6.2 — làm rõ bỏ chặn domain mặc định (setting `allowed.email.domains` không còn được seed + tự xóa setting cũ khi seed → mọi email hợp lệ đăng ký được; giữ mã `DOMAIN_NOT_ALLOWED` chỉ kích hoạt nếu Admin bật lại qua cấu hình) |
+| 1.7 | 14/08/2026 | Trần Viết Tâm Phúc | PR #23 (docs sync v2.15 — 5 khối logic): FR-1.1 — form GV +`academicDegree`/`profileLink` (không bắt buộc, ≤ 100/300 ký tự); FR-1.8 — từ chối hồ sơ GV BẮT BUỘC `reason` (server trả 400 `VALIDATION_FAILED` nếu thiếu); FR-2.2 — luồng kiểm duyệt bài học mới (Teacher public → `pendingreview`, Admin duyệt/từ chối kèm lý do, `isClassOnly` Active ngay, sửa bài Active giữ Active); FR-8.3 — bài gán thêm `allowLateSubmission` (mặc định true; false → chặn nộp quá hạn 422 `ASSIGNMENT_OVERDUE`); UC-21 — tham gia lớp qua `POST /classes/join-by-code` (không cần classId) |
 
 ---
 
@@ -63,7 +68,7 @@ Bản cũ (VisualizationDSA) bị hội đồng chấm phản hồi 3 lỗi gố
 |---|---|---|
 | 1 | Biên dịch/chạy mã nguồn tự do tùy biến (online judge) | Module I chỉ nhận "sửa tham số/hoàn thiện hàm theo signature cố định" trong code mẫu (quyết định G-6) |
 | 2 | Diễn đàn, bình luận công khai giữa người học | Ưu tiên lõi học tập |
-| 3 | Thanh toán thật / cổng thanh toán (SePay/VietQR) | Premium checkout là MÔ PHỎNG (FR-10.7) — luồng nghiệp vụ/UI đầy đủ để demo mô hình kiếm tiền, không có giao dịch tiền thật |
+| 3 | Thanh toán thật / cổng thanh toán (SePay/VietQR) | Premium checkout MÔ PHỎNG (FR-10.7): hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) để tăng tính thực tế demo nhưng KHÔNG gọi API ngân hàng/webhook — không có giao dịch tiền thật |
 | 4 | Ứng dụng di động native | Web responsive đủ nhu cầu; mobile < 768px ngoài MVP |
 | 5 | Đa ngôn ngữ hoàn chỉnh (chỉ tiếng Việt) | Giai đoạn đầu; sẵn sàng i18n |
 | 6 | AI sinh câu hỏi tự động / AI chấm điểm | Chỉ PoC GĐ3 (backlog §9.5) — AI không chấm điểm, không sinh nội dung chính thức |
@@ -166,7 +171,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 1. Dữ liệu đầu vào mô phỏng giới hạn: mảng ≤ 100 phần tử, đồ thị ≤ 50 đỉnh/200 cạnh, cây ≤ 31 khóa, bảng băm ≤ 31 kích thước — đủ mục đích sư phạm.
 2. Người học truy cập trình duyệt hiện đại (Chrome/Edge/Firefox 2 phiên bản gần nhất; Safari ưu tiên không chặn), độ phân giải ≥ 1024px.
 3. Không có yêu cầu offline; cần mạng để dùng hệ thống (trừ nháp cục bộ ghi chú/bài nộp — đồng bộ lại khi có mạng).
-4. Tài khoản tạo sẵn bởi admin hoặc tự đăng ký bằng email nội bộ (kiểm tra domain trường — cấu hình được).
+4. Tài khoản tạo sẵn bởi admin hoặc tự đăng ký bằng mọi email hợp lệ (bỏ chặn domain — quyết định 13/08/2026: setting `allowed.email.domains` không còn được seed, setting cũ bị tự xóa khi seed → kể cả `@gmail.com` đăng ký được).
 5. Số người dùng đồng thời giai đoạn thí điểm ≤ 200.
 6. Nội dung bài học do giảng viên nhập dạng văn bản + hình ảnh (URL hoặc upload ≤ 5MB/ảnh).
 7. Code mẫu trong StepExecutor là mã thật chạy được (TypeScript thuần); code người học chỉ sửa tham số/hoàn thiện hàm theo signature cố định — KHÔNG nhận code tự do.
@@ -307,11 +312,11 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 ## 3.3 Module A — Xác thực và tài khoản
 
 ### FR-1.1 | Đăng ký tài khoản | Cao
-**1. Mô tả**: Đăng ký bằng email + mật khẩu. Vai trò mặc định `Student`; kích hoạt ngay (mặc định) hoặc theo chính sách duyệt (cấu hình). Chọn "Tôi là giảng viên" → vai trò `TeacherPending`, chờ Admin duyệt (FR-1.8).
-**2. Luồng hoạt động**: (1) nhập họ tên, email, mật khẩu, xác nhận mật khẩu; (2) tích/không tích "Tôi là giảng viên"; (3) kiểm tra trùng email + domain (nếu bật); (4) tạo tài khoản, hash mật khẩu; (5) thông báo thành công, tự động đăng nhập.
-**3. Ngoại lệ**: Email trùng → 400 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` kèm details từng quy tắc; email sai định dạng → 400 `INVALID_EMAIL`; domain không cho phép → 400 `DOMAIN_NOT_ALLOWED`.
-**4. AC**: AC-1.1.1 tạo được tài khoản mới; AC-1.1.2 mật khẩu lưu là hash (bcrypt cost 12 / PBKDF2 100.000 vòng) — không plaintext; AC-1.1.3 tài khoản mới đăng nhập ngay; AC-1.1.4 email được chuẩn hóa lowercase; AC-1.1.5 đăng ký giảng viên → role `TeacherPending`, không có quyền Teacher.
-**5. Ràng buộc**: chính sách mật khẩu (8-64 ký tự, chữ hoa + số + ký tự đặc biệt — cấu hình `password.policy.*`); NFR-12 rate limit.
+**1. Mô tả**: Đăng ký bằng email + mật khẩu. Vai trò mặc định `Student`; kích hoạt ngay (mặc định) hoặc theo chính sách duyệt (cấu hình). Người dùng chọn vai trò đăng ký bằng nút chuyển (segmented) **Sinh viên/Giảng viên** (mặc định Sinh viên — task L); chọn "Giảng viên" → phải điền form con 3 trường và tài khoản tạo ở vai trò `TeacherPending`, chờ Admin duyệt (FR-1.8).
+**2. Luồng hoạt động**: (1) nhập họ tên, email, mật khẩu, xác nhận mật khẩu; (2) chọn vai trò Sinh viên/Giảng viên — nếu chọn Giảng viên: điền **Khoa/Bộ môn** (`department`, bắt buộc), **Mã giảng viên** (`staffCode`, bắt buộc), **Kinh nghiệm giảng dạy** (`teacherBio`, tối đa 500 ký tự, không bắt buộc), **Học vị** (`academicDegree`, tối đa 100 ký tự, không bắt buộc — v2.15), **Link hồ sơ nghiên cứu/LinkedIn** (`profileLink`, tối đa 300 ký tự, không bắt buộc — v2.15); (3) kiểm tra trùng email + domain (nếu bật); (4) tạo tài khoản, hash mật khẩu, lưu 5 trường giảng viên (không lưu khi là Sinh viên); (5) thông báo thành công, tự động đăng nhập (Sinh viên) hoặc màn hình chờ duyệt (Giảng viên).
+**3. Ngoại lệ**: Email trùng → 400 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` kèm details từng quy tắc; email sai định dạng → 400 `INVALID_EMAIL`; domain không cho phép → 400 `DOMAIN_NOT_ALLOWED` (mặc định KHÔNG chặn — quyết định 13/08/2026: setting `allowed.email.domains` không còn được seed + tự xóa khi seed → mọi email hợp lệ đăng ký được; mã chỉ kích hoạt nếu Admin bật lại qua cấu hình FR-6.2); chọn vai trò Giảng viên mà thiếu `department`/`staffCode` hoặc `teacherBio` > 500, `academicDegree` > 100, `profileLink` > 300 → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (details theo từng trường — task L + v2.15, dùng lại mã có sẵn).
+**4. AC**: AC-1.1.1 tạo được tài khoản mới; AC-1.1.2 mật khẩu lưu là hash (bcrypt cost 12 / PBKDF2 100.000 vòng) — không plaintext; AC-1.1.3 tài khoản mới đăng nhập ngay; AC-1.1.4 email được chuẩn hóa lowercase; AC-1.1.5 đăng ký giảng viên → role `TeacherPending`, không có quyền Teacher; AC-1.1.6 đăng ký giảng viên thiếu Khoa/Bộ môn hoặc Mã giảng viên (hoặc Kinh nghiệm > 500 ký tự) → 400 `VALIDATION_FAILED`, không tạo tài khoản.
+**5. Ràng buộc**: chính sách mật khẩu (8-64 ký tự, chữ hoa + số + ký tự đặc biệt — cấu hình `password.policy.*`); NFR-12 rate limit; `department` ≤ 100 ký tự, `staffCode` ≤ 50 ký tự, `teacherBio` ≤ 500 ký tự, `academicDegree` ≤ 100 ký tự, `profileLink` ≤ 300 ký tự (trim trước khi lưu; chỉ lưu khi vai trò Giảng viên — v2.15: +2 trường cuối).
 **6. Nguồn**: FR-1.1 (prompt), UC-02.
 **7. Ghi chú**: nếu SMTP chưa cấu hình — không block luồng, log + hiển thị link dev (11.6).
 
@@ -367,10 +372,10 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 
 ### FR-1.8 | Phê duyệt tài khoản giảng viên | TB
 **1. Mô tả**: Tài khoản `TeacherPending` chờ Admin duyệt (IsActive=false); khi duyệt mới có quyền Teacher.
-**2. Luồng hoạt động**: (1) Admin mở danh sách "Chờ duyệt giảng viên"; (2) xem thông tin đăng ký; (3) duyệt → role=Teacher, IsActive=true, email thông báo (nếu SMTP); (4) từ chối → `POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 (Student), IsActive=true; (5) ghi log Serilog mọi thao tác kèm lý do; (6) người dùng đăng nhập lại nhận quyền mới.
-**3. Ngoại lệ**: Admin từ chối → thông báo qua email (nếu SMTP) hoặc lần đăng nhập kế tiếp. **Từ chối (v2.8)**: dùng chung `POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 (Student), IsActive=true, ghi log Serilog kèm lý do.
+**2. Luồng hoạt động**: (1) Admin mở danh sách "Chờ duyệt giảng viên"; (2) xem thông tin đăng ký — email/tên + thông tin giảng viên: Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy (hiển thị trong modal duyệt — task L); (3) duyệt → role=Teacher, IsActive=true, email thông báo (nếu SMTP); (4) từ chối → `POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 (Student), IsActive=true; (5) ghi log Serilog mọi thao tác kèm lý do; (6) người dùng đăng nhập lại nhận quyền mới.
+**3. Ngoại lệ**: Admin từ chối → thông báo qua email (nếu SMTP) hoặc lần đăng nhập kế tiếp. **Từ chối (v2.8)**: dùng chung `POST /users/{id}/approve-teacher` body `{approve:false, reason?}` → role=0 (Student), IsActive=true, ghi log Serilog kèm lý do. **Từ chối BẮT BUỘC lý do (v2.15)**: thiếu `reason` → 400 `VALIDATION_FAILED` "Phải nhập lý do khi từ chối hồ sơ giảng viên" (server chặn, không chỉ disable nút UI).
 **4. AC**: AC-1.8.1 tài khoản Teacher chưa duyệt không truy cập chức năng Teacher (403).
-**5. Ràng buộc**: chỉ Admin được duyệt/từ chối; tài khoản `TeacherPending` không có quyền Teacher (IsActive=false); mọi quyết định duyệt/từ chối ghi log Serilog kèm lý do; thông báo email phụ thuộc SMTP — không block luồng khi thiếu.
+**5. Ràng buộc**: chỉ Admin được duyệt/từ chối; tài khoản `TeacherPending` không có quyền Teacher (IsActive=false); mọi quyết định duyệt/từ chối ghi log Serilog kèm lý do; thông báo email phụ thuộc SMTP — không block luồng khi thiếu; **từ chối không có `reason` → 400 `VALIDATION_FAILED` (v2.15)**.
 **6. Nguồn**: FR-1.8 (prompt), UC-12.
 
 ### FR-1.9 | Quản lý người dùng (Admin) | TB
@@ -401,11 +406,11 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 **6. Nguồn**: FR-2.1 (prompt), UC-09.
 
 ### FR-2.2 | Quản lý bài học (lesson) | Cao
-**1. Mô tả**: CRUD bài học: tiêu đề, mô tả ngắn, nội dung rich-text (KaTeX tùy chọn), ảnh minh họa, danh sách mô phỏng đính kèm, bài tập đính kèm, trạng thái (draft/active/hidden), SortOrder.
-**2. Luồng hoạt động**: (1) Teacher mở form tạo/sửa bài học; (2) nhập tiêu đề, mô tả, nội dung rich-text (KaTeX tùy chọn), tải ảnh minh họa, chọn topic, đính kèm mô phỏng/bài tập, chọn trạng thái, `SortOrder`; (3) lưu → server sanitize HTML trước khi lưu; (4) bài học hiển thị theo trạng thái (draft chỉ tác giả/Admin, active cho người học, hidden); (5) xóa → xóa mềm nếu có dữ liệu tiến độ/bài tập.
-**3. Ngoại lệ**: nội dung chứa `<script>`/mã độc → bị sanitize bỏ khi lưu; xóa bài học có dữ liệu tiến độ/bài tập → xóa mềm `DeletedAt` (ẩn khỏi người học, giữ dữ liệu); ảnh > 5MB → 400.
+**1. Mô tả**: CRUD bài học: tiêu đề, mô tả ngắn, nội dung rich-text (KaTeX tùy chọn), ảnh minh họa, danh sách mô phỏng đính kèm, bài tập đính kèm, trạng thái (draft/active/hidden), SortOrder. **(v2.15)**: thêm trạng thái `pendingreview` (chờ Admin duyệt), cờ `isClassOnly` (bài nội bộ lớp), gắn mô phỏng qua `simulationKeys` (multi-select, thay danh sách cũ).
+**2. Luồng hoạt động**: (1) Teacher mở form tạo/sửa bài học; (2) nhập tiêu đề, mô tả, nội dung rich-text (KaTeX tùy chọn), tải ảnh minh họa, chọn topic, đính kèm mô phỏng/bài tập, chọn trạng thái, `SortOrder`; (3) lưu → server sanitize HTML trước khi lưu; (4) bài học hiển thị theo trạng thái (draft chỉ tác giả/Admin, active cho người học, hidden); (5) xóa → xóa mềm nếu có dữ liệu tiến độ/bài tập. **(v2.15)**: Teacher lưu bài public → `pendingreview` (chờ Admin duyệt qua `GET /lessons/pending` + `POST /lessons/{id}/review`); bài `isClassOnly` → `active` ngay (chỉ dùng trong Lớp); Admin gán trạng thái tùy ý; Teacher sửa bài đang `active` giữ `active` (không duyệt lại).
+**3. Ngoại lệ**: nội dung chứa `<script>`/mã độc → bị sanitize bỏ khi lưu; xóa bài học có dữ liệu tiến độ/bài tập → xóa mềm `DeletedAt` (ẩn khỏi người học, giữ dữ liệu); ảnh > 5MB → 400. **(v2.15)**: từ chối duyệt bắt buộc lý do → 400 `VALIDATION_FAILED` (field `reason`); bài bị từ chối về `draft` kèm `rejectionReason`; key mô phỏng không có trong danh mục → 400 `SIMULATION_KEY_INVALID`; người học có nút "Báo cáo vi phạm" → BugReports `type=CONTENT_VIOLATION`.
 **4. AC**: AC-2.2.1 CRUD đầy đủ; AC-2.2.2 người học chỉ thấy bài `active`; AC-2.2.3 bản nháp chỉ tác giả/Admin xem được; AC-2.2.4 nội dung chứa `<script>` bị sanitize.
-**5. Ràng buộc**: HTML sanitize phía server trước khi lưu; ảnh ≤ 5MB; bài học thuộc 1 topic; xóa mềm `DeletedAt`.
+**5. Ràng buộc**: HTML sanitize phía server trước khi lưu; ảnh ≤ 5MB; bài học thuộc 1 topic; xóa mềm `DeletedAt`; **(v2.15)** luồng kiểm duyệt: Teacher public → `pendingreview` (chỉ Admin thấy qua danh sách chờ duyệt), Admin approve → `active` + `publishedAt`, reject (bắt buộc lý do) → `draft` + `rejectionReason`; `isClassOnly` → `active` ngay, không hiển thị với Student ở danh sách toàn sàn; sửa bài `active` (Teacher) giữ `active`.
 **6. Nguồn**: FR-2.2 (prompt), UC-09.
 
 ### FR-2.3 | Xem danh sách bài học | Cao
@@ -769,7 +774,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 **2. Luồng hoạt động**: (1) Admin mở trang cấu hình hệ thống; (2) chỉnh danh sách đơn vị giáo dục (domain email hợp lệ), tên hệ thống, chính sách mật khẩu, giới hạn upload; (3) lưu → ghi DB + cập nhật cache (không cần khởi động lại); (4) thay đổi áp dụng ngay cho request kế tiếp.
 **3. Ngoại lệ**: Đầu vào không hợp lệ (domain sai định dạng, giới hạn upload ngoài khoảng cho phép, chính sách mật khẩu trống) → từ chối kèm thông báo, giữ nguyên giá trị cũ.
 **4. AC**: AC-6.2.1 thay đổi áp dụng ngay không cần khởi động lại (DB + cache).
-**5. Ràng buộc**: Chỉ Admin được truy cập (RBAC); lưu DB + cache — cache vô hiệu hóa khi có thay đổi; danh sách domain là nguồn kiểm tra đăng ký email (FR-1.1).
+**5. Ràng buộc**: Chỉ Admin được truy cập (RBAC); lưu DB + cache — cache vô hiệu hóa khi có thay đổi; danh sách domain là nguồn kiểm tra đăng ký email (FR-1.1) — ⚠ mặc định KHÔNG bật (quyết định 13/08/2026: setting `allowed.email.domains` không còn được seed + tự xóa khi seed → mọi email đăng ký được); chỉ có hiệu lực nếu Admin chủ động nhập danh sách domain.
 **6. Nguồn**: FR-6.2 (prompt), UC-13.
 
 ## 3.9 Module G — Trang phụ trợ và thông báo
@@ -827,9 +832,9 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 ### FR-8.3 | Gán nội dung và hạn nộp theo lớp | TB [BỔ SUNG]
 **1. Mô tả**: Gán bài học/bài tập bắt buộc kèm hạn nộp; sinh viên thấy nhãn "Bắt buộc · hạn 20/08/2026"; quá hạn vẫn nộp nhưng hiển thị "Nộp trễ"; báo cáo lớp đếm 3 trạng thái (đúng hạn/trễ/chưa nộp).
 **2. Luồng hoạt động**: (1) mở lớp → "Gán nội dung"; (2) chọn bài học/bài tập + hạn nộp; (3) sinh viên thấy nhãn "Bắt buộc · hạn 20/08/2026" trên nội dung + dấu hiệu mới (toast phía client — không dùng hệ thống thông báo, 20.0 mục 5); (4) nộp bài từ luồng lớp kèm `classAssignmentId` → server validate ClassMember + lớp Mở; quá hạn → tính "Nộp trễ"; (5) báo cáo lớp hiển thị 3 trạng thái đúng hạn/trễ/chưa nộp.
-**3. Ngoại lệ**: Quá hạn VẪN nộp được (tính "Nộp trễ"); người nộp không còn là ClassMember hoặc lớp Đóng → từ chối (theo Ràng buộc v2.8).
-**4. AC**: AC-8.3.1 gán/sửa hạn phản ánh ngay; AC-8.3.2 báo cáo đếm đúng 3 trạng thái.
-**5. Ràng buộc (v2.8)**: nộp bài từ luồng lớp gửi kèm `classAssignmentId` (lưu `ExerciseSubmissions.ClassAssignmentId`) → server validate người nộp ĐANG là ClassMember + lớp Mở (Status=0); quá hạn VẪN nộp được (tính "Nộp trễ"); cùng 1 bài gán ở 2 lớp → trạng thái đúng hạn/trễ tính RIÊNG theo từng `ClassAssignments.DueAt`.
+**3. Ngoại lệ**: Quá hạn VẪN nộp được khi `allowLateSubmission=true` (mặc định — tính "Nộp trễ"); người nộp không còn là ClassMember hoặc lớp Đóng → từ chối (theo Ràng buộc v2.8). **(v2.15)**: GV tắt "cho phép nộp muộn" (`allowLateSubmission=false`) → nộp sau hạn bị chặn 422 `ASSIGNMENT_OVERDUE` (áp dụng cả bài MCQ lẫn bài code).
+**4. AC**: AC-8.3.1 gán/sửa hạn phản ánh ngay; AC-8.3.2 báo cáo đếm đúng 3 trạng thái; AC-8.3.3 (v2.15) `allowLateSubmission=false` chặn nộp quá hạn.
+**5. Ràng buộc (v2.8)**: nộp bài từ luồng lớp gửi kèm `classAssignmentId` (lưu `ExerciseSubmissions.ClassAssignmentId`) → server validate người nộp ĐANG là ClassMember + lớp Mở (Status=0); quá hạn VẪN nộp được khi `allowLateSubmission=true` (tính "Nộp trễ"); cùng 1 bài gán ở 2 lớp → trạng thái đúng hạn/trễ tính RIÊNG theo từng `ClassAssignments.DueAt`. **(v2.15)**: `ClassAssignments.AllowLateSubmission` (mặc định `true` — tạo/sửa qua `POST/PUT /classes/{id}/assignments...`); `false` + đã quá `DueAt` → 422 `ASSIGNMENT_OVERDUE`.
 **6. Nguồn**: FR-8.3 (prompt, [BỔ SUNG]), UC-20.
 
 ### FR-8.4 | Báo cáo theo lớp | TB [BỔ SUNG]
@@ -945,11 +950,11 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 **6. Nguồn**: FR-10.6 (19.3), UC-31.
 
 ### FR-10.7 | Premium (P1) + hết hạn | TB [BỔ SUNG]
-**1. Mô tả**: Gói 1/3/12 tháng, checkout MÔ PHỎNG (không cổng thanh toán thật — ngoài phạm vi §1.3.2); quyền lợi: 30❤, hồi 10p, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao. Hết hạn → job downgrade về Free: clamp Hearts về 10 (v2.4), ẩn khung VIP; GIỮ gems/avatar/items đã mua.
-**2. Luồng hoạt động**: (1) bấm "Nâng cấp Premium" → Màn 25 bảng giá 3 gói (1/3/12 tháng, giá tham khảo); (2) chọn gói → checkout mô phỏng 2 bước (Màn 26: xác nhận gói + giá → nút "Thanh toán mô phỏng", loading 1-2s); (3) kích hoạt NGAY + ghi log giao dịch (PremiumSubscriptions); (4) quyền lợi áp dụng ngay (30❤, hồi 10p, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); (5) hết hạn → job downgrade về Free: clamp Hearts về 10, ẩn khung VIP, GIỮ gems/avatar/items; (6) Màn 27 `/account/subscription`: xem trạng thái gói + ngày hết hạn + "Hủy gia hạn" (modal xác nhận).
-**3. Ngoại lệ**: KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = mở rộng tương lai — backlog); hủy gia hạn → mất quyền lợi khi hết hạn nhưng GIỮ gems/avatar/items đã mua.
-**4. AC**: AC-10.7.1 kích hoạt ngay sau "Thanh toán mô phỏng" + log giao dịch; AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
-**5. Ràng buộc**: HeartsMax theo gói (Free 10 / Premium 30); downgrade → clamp Hearts về 10 nếu Hearts > 10 (v2.4); job downgrade chạy đúng ngày hết hạn; GIỮ gems/avatar/items khi hết hạn (19.4); quyền lợi áp dụng ngay sau "Thanh toán mô phỏng".
+**1. Mô tả**: Gói 1/3/12 tháng, checkout hiện mã QR chuyển khoản MB Bank (chủ TK **NGUYEN THI NHU HOA · STK 83863112088386**, BIN 970422) + nội dung CK tự động `DSV<UserId>T<months>` + kích hoạt tự động sau khi người dùng xác nhận đã chuyển (đếm ngược 60s) — KHÔNG gọi API ngân hàng/webhook (mô phỏng thanh toán, tăng tính thực tế demo; vẫn thuộc mô hình không có giao dịch tiền thật §1.3.2); quyền lợi: 30❤, hồi 10p, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao. Hết hạn → job downgrade về Free: clamp Hearts về 10 (v2.4), ẩn khung VIP; GIỮ gems/avatar/items đã mua.
+**2. Luồng hoạt động**: (1) bấm "Nâng cấp Premium" → Màn 25 bảng giá 3 gói (1/3/12 tháng, giá tham khảo); (2) chọn gói → bước 2 hiện QR VietQR EMVCo (qrcode — npm MIT) + chủ TK/STK/số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK"; (3) đếm ngược 60s → bấm "Tôi đã chuyển khoản" → kích hoạt NGAY + ghi log giao dịch (PremiumSubscriptions — OrderRef = nội dung CK `DSV{userId}T{months}`); (4) quyền lợi áp dụng ngay (30❤, hồi 10p, Hint 2+/debug/optimize 30 req/ngày, avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao); (5) hết hạn → job downgrade về Free: clamp Hearts về 10, ẩn khung VIP, GIỮ gems/avatar/items; (6) Màn 27 `/account/subscription`: xem trạng thái gói + ngày hết hạn + "Hủy gia hạn" (modal xác nhận).
+**3. Ngoại lệ**: KHÔNG gọi API ngân hàng/webhook — việc "đã chuyển khoản" do người dùng tự khai báo (mô phỏng thanh toán, không xác minh giao dịch thật); hủy gia hạn → mất quyền lợi khi hết hạn nhưng GIỮ gems/avatar/items đã mua.
+**4. AC**: AC-10.7.1 kích hoạt tự động sau khi bấm "Tôi đã chuyển khoản" (khả dụng sau đếm ngược 60s) + log giao dịch (OrderRef `DSV{userId}T{months}`); AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
+**5. Ràng buộc**: HeartsMax theo gói (Free 10 / Premium 30); downgrade → clamp Hearts về 10 nếu Hearts > 10 (v2.4); job downgrade chạy đúng ngày hết hạn; GIỮ gems/avatar/items khi hết hạn (19.4); quyền lợi áp dụng ngay sau khi xác nhận đã chuyển khoản; nội dung CK/OrderRef chuẩn `DSV{userId}T{months}` để đối soát người chuyển (GP-T7).
 **6. Nguồn**: FR-10.7 (19.4), UC-32.
 
 ## 3.11 Điểm node, sao ⭐ & hoàn thành lộ trình (số liệu chốt — nguồn 19.10)
@@ -977,7 +982,7 @@ Hệ thống giải quyết bằng: (a) mô phỏng từng bước mọi thao t�
 | NFR-2 | Sinh chuỗi bước mô phỏng | Mảng 100 phần tử ≤ 500ms; đồ thị 50 đỉnh ≤ 1s | Unit test đo thời gian (Vitest) + profiler |
 | NFR-3 | Độ mượt điều hướng bước | ≥ 55 FPS chuyển bước liên tục (i5, 8GB, Chrome) | DevTools FPS meter |
 | NFR-4 | Tải trang lần đầu (SPA) | ≤ 3s trên 10Mbps; FCP ≤ 1.5s | Lighthouse (mobile & desktop) |
-| NFR-5 | Kích thước bundle JS | Tổng JS gốc ≤ 500KB; lõi mô phỏng tải trước | `vite build --report` |
+| NFR-5 | Kích thước bundle JS | Tổng JS gốc tải lần đầu ≤ 1.5MB; engine chunk ≤ 500KB gốc; lõi mô phỏng tải trước (nới theo thực tế đợt G — GP-T8 13/08/2026 đo lại sau khi thêm `qrcode`: JS gốc lần đầu ≈ 852KB, engine 476KB — vẫn trong ngưỡng — xem TEST_PLAN TEST-PERF-007) | `vite build --report` |
 | NFR-6 | Truy vấn danh sách | 10.000 bản ghi + phân trang ≤ 300ms | Benchmark API dữ liệu giả |
 | NFR-7 | Đồng thời | ≥ 200 người dùng đồng thời không suy giảm | k6: 200 VU × 15 phút |
 
@@ -1173,13 +1178,13 @@ sequenceDiagram
 ```
 
 ## 5.3 UC-02 | Tạo tài khoản | Nguồn: FR-1.1, FR-1.8
-**(1) Tóm tắt**: Khách đăng ký tài khoản bằng email + mật khẩu; vai trò mặc định Student; nếu chọn "Tôi là giảng viên" → TeacherPending chờ Admin duyệt (FR-1.8).
+**(1) Tóm tắt**: Khách đăng ký tài khoản bằng email + mật khẩu; vai trò mặc định Student; chọn vai trò "Giảng viên" (segmented + form con Khoa/Bộ môn, Mã giảng viên, Kinh nghiệm giảng dạy) → TeacherPending chờ Admin duyệt (FR-1.8) — task L.
 **(2) Tác nhân**: Khách (chính); Hệ thống (phụ); Admin (phụ — duyệt Teacher).
-**(3) Tiền điều kiện**: Chưa có tài khoản với email đăng ký; domain email thuộc danh sách cho phép (nếu bật chính sách — FR-6.2).
+**(3) Tiền điều kiện**: Chưa có tài khoản với email đăng ký; email hợp lệ về định dạng (bỏ chặn domain — quyết định 13/08/2026, mọi email đăng ký được).
 **(4) Hậu điều kiện**: Tài khoản Student active (hoặc TeacherPending) với mật khẩu đã hash (không plaintext); tự động đăng nhập thành công.
-**(5) Luồng chính**: (1) vào trang đăng ký; (2) nhập họ tên, email, mật khẩu, xác nhận mật khẩu, đồng ý chính sách; (3) chọn/không chọn "Tôi là giảng viên"; (4) hệ thống kiểm tra trùng email + domain + chính sách mật khẩu; (5) tạo tài khoản, mã hóa mật khẩu; (6) tự động đăng nhập → trang chủ theo vai trò.
-**(6) Luồng thay thế**: 3a. chọn "Tôi là giảng viên" → tạo tài khoản TeacherPending (IsActive=false), hiện thông báo "Chờ quản trị viên duyệt"; được duyệt (FR-1.8) mới có quyền Teacher; bị từ chối → role=0 (Student), vẫn dùng hệ thống như sinh viên (v2.8).
-**(7) Ngoại lệ**: email trùng → 409 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` (details từng quy tắc); email sai định dạng/domain → 400 `INVALID_EMAIL` / `DOMAIN_NOT_ALLOWED`.
+**(5) Luồng chính**: (1) vào trang đăng ký; (2) nhập họ tên, email, mật khẩu, xác nhận mật khẩu, đồng ý chính sách; (3) chọn vai trò Sinh viên/Giảng viên (mặc định Sinh viên) — nếu chọn Giảng viên: điền Khoa/Bộ môn + Mã giảng viên (bắt buộc) và Kinh nghiệm giảng dạy (≤ 500 ký tự); (4) hệ thống kiểm tra trùng email + domain + chính sách mật khẩu + thông tin giảng viên; (5) tạo tài khoản, mã hóa mật khẩu, lưu 3 trường giảng viên (chỉ khi chọn Giảng viên); (6) tự động đăng nhập → trang chủ theo vai trò (Giảng viên → màn hình chờ duyệt + link "Về đăng nhập").
+**(6) Luồng thay thế**: 3a. chọn vai trò "Giảng viên" → tạo tài khoản TeacherPending (IsActive=false), hiện thông báo "Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt" (KHÔNG tự động đăng nhập); được duyệt (FR-1.8) mới có quyền Teacher; bị từ chối → role=0 (Student), vẫn dùng hệ thống như sinh viên (v2.8).
+**(7) Ngoại lệ**: email trùng → 409 `EMAIL_EXISTS`; mật khẩu yếu → 400 `WEAK_PASSWORD` (details từng quy tắc); email sai định dạng/domain → 400 `INVALID_EMAIL` / `DOMAIN_NOT_ALLOWED` (mặc định KHÔNG chặn domain — quyết định 13/08/2026); chọn Giảng viên thiếu Khoa/Bộ môn/Mã giảng viên hoặc Kinh nghiệm > 500 → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (task L).
 **(8) Ràng buộc nghiệp vụ**: chính sách mật khẩu theo cấu hình (NFR-8); giới hạn tần suất (NFR-12); email chuẩn hóa lowercase trước khi lưu.
 **(9) Tiêu chí chấp nhận**: FR-1.1, FR-1.8 PASS — tạo được tài khoản mới; hash không plaintext; đăng nhập ngay được; tài khoản Teacher chưa duyệt không truy cập chức năng Teacher.
 **(10) Nguồn FR**: FR-1.1, FR-1.8.
@@ -1475,7 +1480,7 @@ sequenceDiagram
 **(2) Tác nhân**: Sinh viên (chính); Giảng viên (quản lý thành viên — phụ).
 **(3) Tiền điều kiện**: Đã đăng nhập; có mã mời 6 ký tự của lớp; chưa phải thành viên lớp.
 **(4) Hậu điều kiện**: Bản ghi `ClassMembers` mới (UNIQUE ClassId+UserId); sinh viên thấy nhãn "Bắt buộc · hạn ..." trên nội dung được gán; lớp hiển thị trong danh sách lớp của sinh viên.
-**(5) Luồng chính**: (1) vào trang danh sách lớp → bấm "Nhập mã lớp"; (2) nhập mã mời 6 ký tự; (3) hệ thống kiểm tra lớp đang Mở; (4) vào lớp; (5) thấy nội dung bắt buộc + hạn nộp.
+**(5) Luồng chính**: (1) vào trang danh sách lớp → bấm "Nhập mã lớp"; (2) nhập mã mời 6 ký tự; (3) hệ thống kiểm tra lớp đang Mở; (4) vào lớp; (5) thấy nội dung bắt buộc + hạn nộp. **(v2.15)**: gọi `POST /classes/join-by-code` `{inviteCode}` — không cần biết classId trước (mã trống → 400; không tìm thấy → 404; lớp Đóng/đã tham gia → 400).
 **(6) Luồng thay thế**: 4a. rời lớp khi muốn (không mất dữ liệu học cá nhân).
 **(7) Ngoại lệ**: Mã sai / lớp Đóng → thông báo cụ thể (không tiết lộ thông tin lớp); đã là thành viên → thông báo "đã tham gia" (idempotent).
 **(8) Ràng buộc nghiệp vụ**: Mã mời 6 ký tự chữ hoa + số, duy nhất; chỉ vào được lớp ở trạng thái Mở; nộp bài theo lớp yêu cầu vẫn là ClassMember tại thời điểm nộp (v2.8).
@@ -1603,15 +1608,15 @@ sequenceDiagram
 **(10) Nguồn FR**: FR-10.6.
 
 ## 5.33 UC-32 | Nâng cấp Premium (checkout mô phỏng) | Nguồn: FR-10.7
-**(1) Tóm tắt**: Người học bấm "Nâng cấp Premium" → chọn gói 1/3/12 tháng → màn thanh toán giả lập (2 bước) → bấm "Thanh toán mô phỏng" → kích hoạt quyền lợi NGAY + log giao dịch; khi hết hạn, job downgrade về Free (giữ gems/avatar/items, clamp Hearts về 10 — v2.4).
+**(1) Tóm tắt**: Người học bấm "Nâng cấp Premium" → chọn gói 1/3/12 tháng → bước 2 hiện mã QR chuyển khoản MB Bank (NGUYEN THI NHU HOA · 83863112088386) + nội dung CK tự động `DSV<UserId>T<months>` → bấm "Tôi đã chuyển khoản" (khả dụng sau đếm ngược 60s) → kích hoạt quyền lợi NGAY + log giao dịch; khi hết hạn, job downgrade về Free (giữ gems/avatar/items, clamp Hearts về 10 — v2.4).
 **(2) Tác nhân**: Người học (chính); Hệ thống — job downgrade (phụ).
 **(3) Tiền điều kiện**: Đã đăng nhập; đang ở gói Free (hoặc gói đã hết hạn); chưa có gói Premium active.
-**(4) Hậu điều kiện**: `PremiumSubscriptions` active (gói + ngày hết hạn); quyền lợi áp dụng ngay: HeartsMax 30, hồi 10 phút/tim, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao; log giao dịch ghi lại; hết hạn → HeartsMax về 10, clamp Hearts hiện tại về 10, ẩn khung VIP, GIỮ gems/avatar/items.
-**(5) Luồng chính**: (1) bấm "Nâng cấp Premium"; (2) chọn gói 1/3/12 tháng (bảng giá so sánh quyền lợi Free vs Premium); (3) màn thanh toán giả lập → bấm "Thanh toán mô phỏng" (loading giả lập 1-2s); (4) kích hoạt ngay + log giao dịch; (5) hết hạn → job downgrade về Free.
-**(6) Luồng thay thế**: 3a. hủy tại màn xác nhận → quay lại bảng giá, không kích hoạt; 4a. "Hủy gia hạn" tại `/account/subscription` (modal xác nhận nêu rõ hậu quả: giữ gems/item, mất quyền lợi tim/hint/khung VIP).
-**(7) Ngoại lệ**: Đã là Premium active → chuyển tới trang trạng thái gói (không mua chồng); lỗi mô phỏng thanh toán → thông báo + không ghi log giao dịch.
-**(8) Ràng buộc nghiệp vụ**: KHÔNG tích hợp cổng thanh toán thật (SePay/VietQR = mở rộng tương lai, backlog); downgrade đúng ngày hết hạn (server clock); Hearts > 10 khi downgrade → clamp về 10 (v2.4 — không mâu thuẫn với Free 10❤); giữ gems, avatar, vật phẩm Shop đã mua; báo hiệu bằng toast phía client (không hệ thống thông báo).
-**(9) Tiêu chí chấp nhận**: AC-10.7.1 kích hoạt ngay sau "Thanh toán mô phỏng" + log giao dịch; AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
+**(4) Hậu điều kiện**: `PremiumSubscriptions` active (gói + ngày hết hạn, OrderRef = nội dung CK `DSV{userId}T{months}`); quyền lợi áp dụng ngay: HeartsMax 30, hồi 10 phút/tim, Hint 2+/debug/optimize (30 req/ngày), avatar upload + khung VIP, CheatSheet PDF, benchmark nâng cao; log giao dịch ghi lại; hết hạn → HeartsMax về 10, clamp Hearts hiện tại về 10, ẩn khung VIP, GIỮ gems/avatar/items.
+**(5) Luồng chính**: (1) bấm "Nâng cấp Premium"; (2) chọn gói 1/3/12 tháng (bảng giá so sánh quyền lợi Free vs Premium); (3) bước 2: QR VietQR EMVCo tự sinh (qrcode — npm MIT) — chủ TK/STK MB Bank + số tiền theo gói + nội dung CK `DSV<UserId>T<months>` + nút "Sao chép nội dung CK" (toast khi copy); (4) đếm ngược 60s (nút "Tôi đã chuyển khoản" disabled) → bấm "Tôi đã chuyển khoản" → `POST /premium/upgrade` (nhận `contentRef`) + `POST /premium/mock-pay` → kích hoạt ngay + log giao dịch; (5) hết hạn → job downgrade về Free.
+**(6) Luồng thay thế**: 3a. bấm "Quay lại" tại bước QR → quay lại bảng giá, không kích hoạt; 4a. "Hủy gia hạn" tại `/account/subscription` (modal xác nhận nêu rõ hậu quả: giữ gems/item, mất quyền lợi tim/hint/khung VIP).
+**(7) Ngoại lệ**: Đã là Premium active → chuyển tới trang trạng thái gói (không mua chồng); lỗi khi xác nhận đã chuyển (API lỗi) → thông báo + không ghi log giao dịch.
+**(8) Ràng buộc nghiệp vụ**: KHÔNG gọi API ngân hàng/webhook — thanh toán MÔ PHỎNG (QR chuyển khoản MB Bank hiển thị để tăng tính thực tế demo; xác nhận chuyển khoản do người dùng tự khai báo, không xác minh giao dịch thật); nội dung CK/OrderRef chuẩn `DSV{userId}T{months}` để đối soát người chuyển; downgrade đúng ngày hết hạn (server clock); Hearts > 10 khi downgrade → clamp về 10 (v2.4 — không mâu thuẫn với Free 10❤); giữ gems, avatar, vật phẩm Shop đã mua; báo hiệu bằng toast phía client (không hệ thống thông báo).
+**(9) Tiêu chí chấp nhận**: AC-10.7.1 kích hoạt tự động sau khi bấm "Tôi đã chuyển khoản" (khả dụng sau 60s) + log giao dịch (OrderRef `DSV{userId}T{months}`); AC-10.7.2 downgrade đúng ngày hết hạn; AC-10.7.3 Hearts > 10 khi downgrade → clamp về 10; AC-10.7.4 quyền lợi áp dụng ngay.
 **(10) Nguồn FR**: FR-10.7.
 
 ---

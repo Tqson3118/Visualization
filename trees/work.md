@@ -1,0 +1,1 @@
+Làm việc ở trees này ko làm ở ngoài folder new.

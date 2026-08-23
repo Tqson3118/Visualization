@@ -3,13 +3,18 @@
    Tham khảo phong cách theme.css V1 nhưng KHÔNG chép toàn bộ.
    ════════════════════════════════════════════════════════════════ */
 
-/* ── Reset ── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ── Reset ──
+   View-quality: reset margin/padding đưa vào @layer base (Tailwind v4 utilities
+   nằm trong @layer utilities — reset unlayered sẽ thắng mọi utility padding của
+   shadcn button/input → chữ chạm viền; đã đo getComputedStyle pl=0 dù có px-3). */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html {
@@ -33,25 +38,43 @@ svg {
   max-width: 100%;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
+/* Form control reset — đặt trong @layer base (H-E1 fix P1):
+   trước đây unlayered → thắng MỌI @layer của Tailwind (kể cả utilities) →
+   nút shadcn bg-primary/text-primary-foreground bị color: inherit
+   (chữ = --color-foreground trên nền primary, contrast 1.91:1 light /
+   2.09:1 dark — fail WCAG AA). Tailwind preflight đã có rule tương đương
+   trong base layer nên element KHÔNG có color utility không đổi hành vi. */
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 button {
   cursor: pointer;
 }
 
-a {
-  color: var(--color-primary);
-  text-decoration: none;
+/* Link color — đưa vào @layer base (view-quality HOTFIX 2): trước đây unlayered → thắng cả
+   @layer utilities → text-primary-foreground chết trên mọi RouterLink-as-button
+   (chữ teal trên nền teal ~1.2:1, fail WCAG AA — đo thực tế CTA HomeView + 404). */
+@layer base {
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
-a:hover {
-  text-decoration: underline;
+/* Anchor dạng button (buttonVariants/legacy .btn đều có inline-flex) — không gạch chân khi hover */
+a.inline-flex:hover {
+  text-decoration: none;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -83,9 +106,13 @@ h1, h2, h3, h4, h5, h6 {
   transition: var(--transition-smooth);
 }
 
+.card--interactive {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
 .card--interactive:hover {
   box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.015);
 }
 
 /* ── Buttons (MASTER.md component spec) ── */
@@ -174,6 +201,64 @@ h1, h2, h3, h4, h5, h6 {
 
 .mt-md { margin-top: var(--space-md); }
 .mt-lg { margin-top: var(--space-lg); }
+
+/* ════════════════════════════════════════════════════════════════
+   G-F2a — POLISH
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Page transition (App.vue <Transition name="page">) ──
+   Fade + slide nhẹ; mode out-in. Reduced-motion bị cắt ở media query
+   phía dưới (transition-duration 0.01ms).
+   Easing chuẩn view-quality (DESIGN.md §1 + §6): enter expo-out
+   cubic-bezier(0.16,1,0.3,1), exit expo-in cubic-bezier(0.7,0,0.84,0). */
+.page-enter-active {
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.page-leave-active {
+  transition: opacity 180ms cubic-bezier(0.7, 0, 0.84, 0), transform 180ms cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ── Hover micro-interaction (dùng cho button/card không phá shadcn) ──
+   .hover-lift — nâng nhẹ + bóng đổ khi hover (card, nút phụ)
+   .hover-glow — phát sáng viền + scale nhẹ (CTA chính, item gradient) */
+.hover-lift {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+.hover-lift:active {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: var(--shadow-md);
+}
+
+.hover-glow {
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.hover-glow:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 25%, transparent), var(--shadow-lg);
+  filter: brightness(1.05);
+}
+
+.hover-glow:active {
+  transform: translateY(-1px) scale(1.01);
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {

@@ -43,11 +43,7 @@ public sealed class ErrorHandlingMiddleware(
 
     private async Task WriteErrorAsync(HttpContext context, Exception exception)
     {
-        var (code, message) = exception switch
-        {
-            DbUpdateException or SqlException => (ErrorCodes.SERVICE_UNAVAILABLE, "Hệ thống dữ liệu đang quá tải, vui lòng thử lại sau"),
-            _ => (ErrorCodes.INTERNAL_ERROR, "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau")
-        };
+        var (code, message) = MapException(exception);
 
         var statusCode = ErrorCodes.GetHttpStatus(code);
         var response = ErrorResponseDto.Create(code, message);
@@ -62,6 +58,68 @@ public sealed class ErrorHandlingMiddleware(
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json; charset=utf-8";
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, JsonOptions));
+    }
+
+    /// <summary>
+    /// exc#1 (CAO): unique violation (SqlException 2601/2627 hoặc message "Cannot insert duplicate key",
+    /// ví dụ 2 register cùng email) → 409 CONFLICT / EMAIL_EXISTS — KHÔNG quy về 503 "quá tải" gây hiểu lầm.
+    /// exc#5: UnauthorizedAccessException từ ApiControllerBase (claim sub/role thiếu/malformed) → 401.
+    /// Lỗi DB khác giữ 503 SERVICE_UNAVAILABLE; không lộ tên bảng/cột ra message client.
+    /// exc#2 (QUYẾT ĐỊNH — notes.md): KHÔNG migrate sang AddExceptionHandler/IProblemDetailsService
+    /// trong phiên này — middleware hoạt động đúng + envelope §2.1 giữ contract; chỉ chuẩn hóa ở đây.
+    /// </summary>
+    private static (string Code, string Message) MapException(Exception exception)
+    {
+        if (IsUniqueViolation(exception))
+        {
+            // Constraint IX_Users_Email (Users.Email) — register race (biz#2/exc#1); tên index không lộ ra client
+            var code = ContainsMessage(exception, "IX_Users_Email")
+                ? ErrorCodes.EMAIL_EXISTS
+                : ErrorCodes.CONFLICT;
+            return (code, "Dữ liệu đã tồn tại, không thể tạo trùng");
+        }
+
+        return exception switch
+        {
+            DbUpdateException or SqlException => (ErrorCodes.SERVICE_UNAVAILABLE,
+                "Hệ thống dữ liệu đang quá tải, vui lòng thử lại sau"),
+            UnauthorizedAccessException => (ErrorCodes.UNAUTHORIZED,
+                "Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại"),
+            _ => (ErrorCodes.INTERNAL_ERROR, "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau")
+        };
+    }
+
+    /// <summary>True khi exception hoặc chuỗi inner là unique constraint violation (SQL Server 2627/2601).</summary>
+    private static bool IsUniqueViolation(Exception exception)
+    {
+        for (var ex = exception; ex is not null; ex = ex.InnerException)
+        {
+            if (ex is SqlException { Number: 2601 or 2627 })
+            {
+                return true;
+            }
+
+            if (ex.Message.Contains("Cannot insert duplicate key", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>True khi message của exception (hoặc chuỗi inner) chứa chuỗi cần tìm.</summary>
+    private static bool ContainsMessage(Exception exception, string needle)
+    {
+        for (var ex = exception; ex is not null; ex = ex.InnerException)
+        {
+            if (ex.Message.Contains(needle, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

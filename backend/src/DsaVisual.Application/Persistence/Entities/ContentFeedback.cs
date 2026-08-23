@@ -7,7 +7,7 @@ public sealed class ContentFeedback
     public int UserId { get; set; }
     public int LessonId { get; set; }
     public int Rating { get; set; }                                  // 1-5
-    public string? Comment { get; set; }                             // ≤ 200 ký tự
+    public string? Comment { get; set; }                             // ≤ 1000 ký tự (xem ProgressConfiguration)
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

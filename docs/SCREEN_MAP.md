@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Loại tài liệu | Bản đồ màn hình (Screen Map) — nguồn bắt buộc khi sinh SDD mục Thiết kế UI/UX (PRODUCTION_PROMPT §21 mục 7) |
-| Phiên bản | 1.0 |
+| Phiên bản | 1.1 |
 | Ngày cập nhật | 12/08/2026 |
 | Trạng thái | Dự thảo |
 | Người soạn | Trần Viết Tâm Phúc |
@@ -19,6 +19,7 @@
 | Phiên bản | Ngày | Người sửa | Mô tả thay đổi |
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Trần Viết Tâm Phúc | Bổ sung front matter theo khuôn §17.11 + Lịch sử thay đổi (vá review) — nội dung ma trận giữ nguyên từ bản cập nhật 12/08/2026 |
+| 1.1 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: sửa màn N-3 — bỏ cụm "Màn 33 'Khám phá'" mâu thuẫn chuẩn (chuẩn: Màn 01-32 + bổ sung N-1..N-16); "Khám phá" là màn bổ sung N-3 hiển thị trên sidebar chính |
 
 > Nguồn kiểm tra: `PRODUCTION_PROMPT.md` Phần 3 (FR), 6.16 (UC-16→32), 7.0-7.9 (Màn 01-12 + wireframe), 17.13/17.14 (khuôn chuẩn), 19.1-19.9 (thiết kế chốt), 20.0-20.4 (ghi đè).
 > Mục đích: cầu nối FR → Màn cho dev. Mức độ: **✓** = đã có màn + đặc tả dùng được; **⚠** = có màn nhưng thiếu chi tiết/mâu thuẫn; **✗** = KHÔNG có màn/UI.
@@ -180,7 +181,7 @@
 |---|---|---|---|
 | N-1 | `/account/profile` + `/account/security` | 1.5, 1.7, 1.11, 3.10, 3.18, 10.4, 10.5 | Hồ sơ + bảo mật: đổi MK, 2FA, dark mode, danh sách yêu thích, level/streak |
 | N-2 | `/forgot-password` + `/reset-password` | 1.6 | 2 route, 1 thiết kế; token 1 lần 30 phút |
-| N-3 | `/simulations` (danh mục mô phỏng) | 3.1 | Lọc CTDL/GT/tag/mức độ; phân trang. **CẬP NHẬT v2.6 (12/08/2026)**: trở thành **Màn 33 "Khám phá"** trên sidebar chính — kèm tab "So sánh" (Benchmark Lab) + tab "CheatSheet"; mở mô phỏng cụ thể từ đây VẪN trừ tim theo 20.4 (trừ 3 demo công khai) |
+| N-3 | `/simulations` (danh mục mô phỏng) | 3.1 | Lọc CTDL/GT/tag/mức độ; phân trang. **CẬP NHẬT v2.6 (12/08/2026)**: trở thành màn **"Khám phá"** hiển thị trên sidebar chính — vẫn giữ mã **N-3** (chuẩn màn hình: Màn 01-32 + bổ sung N-1..N-16, KHÔNG đánh số "Màn 33"); kèm tab "So sánh" (Benchmark Lab) + tab "CheatSheet"; mở mô phỏng cụ thể từ đây VẪN trừ tim theo 20.4 (trừ 3 demo công khai) |
 | N-4 | `/account/achievements` | 5.5 | Trang Thành tích (đã mở/ẩn) |
 | N-5 | `/admin/settings` | 6.2 | Cấu hình hệ thống (domain, policy MK, upload limit) |
 | N-6 | `/admin/ladder` (hoặc tab trong 09) | 4.1, 4.5, 4.10, 9.3 | Soạn node: gắn Quiz (từ ngân hàng câu hỏi + import CSV), Lab, Code (signature + test ẩn) |

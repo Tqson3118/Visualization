@@ -1,0 +1,23 @@
+{
+  "id": "a3-binary-search",
+  "title": "Tra từ điển (Binary Search)",
+  "description": "MODULE 3 — Tìm kiếm nhị phân.\n\nQuyển từ điển chứa danh sách từ đã SẮP XẾP theo bảng chữ cái (mảng tăng dần). Viết hàm `binarySearch(words, target)` tìm vị trí của `target` trong mảng bằng **thuật toán chia đôi** (binary search).\n\n- Trả về chỉ số (0-based) nếu tìm thấy, ngược lại trả về `-1`.\n- Mảng `words` là mảng các chuỗi, ĐÃ SẮP XẾP tăng dần.\n- Độ phức tạp yêu cầu: O(log n).\n\nVí dụ: `binarySearch([\"an\", \"ban\", \"cam\", \"dao\"], \"cam\")` → `2`.",
+  "initialCode": "function binarySearch(words, target) {\n  let lo = 0;\n  let hi = words.length - 1;\n  // TODO: lặp với lo <= hi, tìm mid, so sánh words[mid] với target\n  return -1;\n}",
+  "entryFunction": "binarySearch",
+  "testCases": [
+    { "name": "binarySearch: có ở giữa", "input": "[[\"an\",\"ban\",\"cam\",\"dao\"],\"cam\"]", "expectedOutput": "2" },
+    { "name": "binarySearch: có ở đầu", "input": "[[\"an\",\"ban\",\"cam\",\"dao\"],\"an\"]", "expectedOutput": "0" },
+    { "name": "binarySearch: có ở cuối", "input": "[[\"an\",\"ban\",\"cam\",\"dao\"],\"dao\"]", "expectedOutput": "3" },
+    { "name": "binarySearch: không có", "input": "[[\"an\",\"ban\",\"cam\",\"dao\"],\"dua\"]", "expectedOutput": "-1" },
+    { "name": "binarySearch: mảng rỗng", "input": "[[],\"an\"]", "expectedOutput": "-1" },
+    { "name": "binarySearch: 1 phần tử đúng", "input": "[[\"anh\"],\"anh\"]", "expectedOutput": "0" },
+    { "name": "binarySearch: mảng dài", "input": "[[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\",\"j\"],\"i\"]", "expectedOutput": "8" }
+  ],
+  "hints": [
+    "Mid = Math.floor((lo + hi) / 2) — tránh tràn số khi (lo + hi) lớn.",
+    "Nếu words[mid] === target → trả về mid ngay.",
+    "Nếu words[mid] < target → target nằm nửa phải: lo = mid + 1.",
+    "Ngược lại → target nằm nửa trái: hi = mid - 1.",
+    "Vòng lặp dừng khi lo > hi → trả về -1."
+  ]
+}

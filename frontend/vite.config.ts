@@ -1,11 +1,12 @@
 import { fileURLToPath, URL } from 'node:url';
 
+import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
-import { defineConfig } from 'vitest/config';
+import { defineConfig, configDefaults } from 'vitest/config';
 
 // Cấu hình theo SDD §3.9
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -49,5 +50,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    // E2E Playwright (tests/e2e/*.spec.ts) KHÔNG phải vitest — tránh vitest chạy nhầm
+    exclude: [...configDefaults.exclude, 'tests/e2e/**'],
   },
 });

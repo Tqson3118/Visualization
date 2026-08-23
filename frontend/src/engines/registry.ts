@@ -20,7 +20,6 @@ export function listSimulations(): SimulationGenerator[] {
 }
 
 /**
- * TODO (task 2 — catalog): engines/catalog.ts phải khai báo mọi mô phỏng và
- * ĐỒNG BỘ key với shared/simulation-catalog.json (44 mô phỏng — SDD §4.5, §9.9).
- * CI so sánh 2 danh sách key → khác → fail build.
+ * Catalog Engine: engines/catalog.ts khai báo toàn bộ mô phỏng và
+ * đồng bộ key với shared/simulation-catalog.json (44 mô phỏng — SDD §4.5, §9.9).
  */

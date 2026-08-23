@@ -1,0 +1,301 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
+
+/* ════════════════════════════════════════════════════════════════
+   TAILWIND CSS v4 + shadcn-vue THEME (OKLCH) — Phase 1a (G)
+   Được import SAU tokens.css và TRƯỚC global.css trong main.ts:
+     tokens.css  →  các biến --color-* legacy (KHÔNG xóa, component
+                    scoped cũ vẫn dùng)
+     tailwind.css → @import "tailwindcss" + tw-animate-css + theme
+                    OKLCH shadcn + font self-host
+     global.css  →  reset/base/component class cũ (unlayered — thắng
+                    preflight của Tailwind → UI cũ không đổi)
+   ════════════════════════════════════════════════════════════════ */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Dark mode native: class="dark" trên <html> (USER_GUIDE §3.15) */
+@custom-variant dark (&:is(.dark *));
+
+/* ── FONTS SELF-HOSTED (variable, subset latin) ──
+   Geist — UI font (--font-sans)
+   JetBrains Mono — code runner font (--font-mono)                */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/GeistVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMonoVariable.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SHADCN-VUE TOKENS — OKLCH (light: :root / dark: .dark)
+   Primary = teal #0D9488 → oklch(0.60 0.12 185)
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  --background: oklch(0.978 0.014 187); /* ~ #F0FDFA (teal-50) */
+  --foreground: oklch(0.41 0.052 187); /* ~ #134E4A (teal-900) */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.41 0.052 187);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.41 0.052 187);
+
+  --primary: oklch(0.52 0.12 185); /* teal #007E72 — GP-T9b: tối hơn để chữ trắng ≥ 4.5:1 */
+  --primary-foreground: oklch(0.985 0 0); /* white */
+
+  --secondary: oklch(0.93 0.04 186);
+  --secondary-foreground: oklch(0.45 0.09 185);
+
+  --muted: oklch(0.945 0.012 190);
+  --muted-foreground: oklch(0.55 0.024 190);
+
+  --accent: oklch(0.93 0.04 186);
+  --accent-foreground: oklch(0.45 0.09 185);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.9 0.025 186);
+  --input: oklch(0.9 0.025 186);
+  --ring: oklch(0.52 0.12 185);
+
+  /* ── DESIGN.md §2.2 — text 4 tầng + border tiers + surface raised ── */
+  --foreground-secondary: oklch(0.45 0.03 190);
+  --foreground-tertiary: var(--muted-foreground); /* alias tier 3 = muted-foreground (giữ cho shadcn gốc) */
+  --foreground-quaternary: oklch(0.6 0.02 190);
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --card-raised: oklch(0.99 0.006 190);
+
+  /* ── Semantic §2.2 — quy đổi OKLCH từ tokens.css legacy (cả 2 theme) ── */
+  --success: oklch(0.648 0.151 157.062); /* #0FA968 */
+  --warning: oklch(0.666 0.157 58.318);  /* #D97706 */
+  --info: oklch(0.609 0.111 221.723);    /* #0891B2 */
+
+  /* ── Canvas palette §2.1 — nguồn canvasTheme.ts, LUÔN tối bất kể theme ── */
+  --canvas-ink: #0D1020;
+  --data-core: #4255FF;
+  --resolved: #34D399;
+  --conflict: #F87171;
+  --index-muted: #6B7385;
+
+  --radius: 0.625rem; /* 10px → md = 8px khớp tokens --radius-md */
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  --background: oklch(0.16 0.009 258); /* ~ #17191D — đen vừa, neutral xanh nhẹ */
+  --foreground: oklch(0.93 0.01 258); /* ~ #E8EAEE */
+
+  --card: oklch(0.185 0.011 258);
+  --card-foreground: oklch(0.93 0.01 258);
+
+  --popover: oklch(0.185 0.011 258);
+  --popover-foreground: oklch(0.93 0.01 258);
+
+  --primary: oklch(0.72 0.12 185); /* teal sáng hơn cho tương phản */
+  --primary-foreground: oklch(0.22 0.06 186);
+
+  --secondary: oklch(0.24 0.014 258);
+  --secondary-foreground: oklch(0.92 0.012 258);
+
+  --muted: oklch(0.225 0.013 258);
+  --muted-foreground: oklch(0.71 0.02 258);
+
+  --accent: oklch(0.24 0.014 258);
+  --accent-foreground: oklch(0.92 0.012 258);
+
+  --destructive: oklch(0.637 0.237 25.331);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.29 0.018 258);
+  --input: oklch(0.29 0.018 258);
+  --ring: oklch(0.72 0.12 185);
+
+  /* ── DESIGN.md §2.2 — dark: text 4 tầng + border tiers + surface raised ── */
+  --foreground-secondary: oklch(0.85 0.012 258);
+  --foreground-tertiary: var(--muted-foreground);
+  --foreground-quaternary: oklch(0.62 0.016 258);
+
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  --card-raised: oklch(0.21 0.012 258);
+
+  /* ── Semantic dark (tokens.css legacy) ── */
+  --success: oklch(0.773 0.153 163.223); /* #34D399 = resolved */
+  --warning: oklch(0.837 0.164 84.429);  /* #FBBF24 */
+  --info: oklch(0.797 0.134 211.53);     /* #22D3EE */
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   MAP TOKENS → TAILWIND UTILITIES (@theme inline)
+   Utilities (bg-primary, text-muted-foreground, rounded-lg…) trỏ
+   trực tiếp var(--primary, …) → đổi theme lúc runtime, không cần
+   rebuild. Font map: font-sans/font-mono trỏ var(--font-sans/--font-mono)
+   khai báo trong tokens.css (giữ nguyên fallback).
+   ════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* DESIGN.md §2.2 — text 4 tầng + border tiers + surface raised */
+  --color-card-raised: var(--card-raised);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-foreground-quaternary: var(--foreground-quaternary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  /* DESIGN.md §2.2 — semantic (error dùng --color-destructive có sẵn) */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* DESIGN.md §2.1 — canvas palette (block-token tái dùng ngoài engine) */
+  --color-canvas-ink: var(--canvas-ink);
+  --color-data-core: var(--data-core);
+  --color-resolved: var(--resolved);
+  --color-conflict: var(--conflict);
+  --color-index-muted: var(--index-muted);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radius scale §5: 4/8/12/16 (bỏ calc — DESIGN.md §2.4) */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --font-heading: var(--font-sans);
+
+  /* ── Gradient palettes G-F2a (xem palettes.css) ──
+     --background-image-* → utility bg-* (bg-aurora-gradient, …) */
+  --background-image-aurora-gradient: var(--gradient-aurora);
+  --background-image-sunset-gradient: var(--gradient-sunset);
+  --background-image-mint-gradient: var(--gradient-mint);
+
+  /* ── VDSA namespace (bê từ VisualizationDSA-main) — classes bg-vdsa-*,
+     text-vdsa-*, border-vdsa-* dùng trong views courses/lesson.
+     @theme PHẢI đặt cùng file @import "tailwindcss" (verify 14/08: đặt ở
+     vdsa-theme.css Tailwind không sinh utility). ── */
+  --color-vdsa-bg: var(--vdsa-bg);
+  --color-vdsa-bg-secondary: var(--vdsa-bg-secondary);
+  --color-vdsa-surface: var(--vdsa-surface);
+  --color-vdsa-hover: var(--vdsa-hover);
+  --color-vdsa-active: var(--vdsa-active);
+  --color-vdsa-overlay: var(--vdsa-overlay);
+  --color-vdsa-terminal: var(--vdsa-terminal);
+  --color-vdsa-tertiary: var(--vdsa-tertiary);
+
+  --color-vdsa-text: var(--vdsa-text);
+  --color-vdsa-heading: var(--vdsa-heading);
+  --color-vdsa-secondary: var(--vdsa-secondary);
+  --color-vdsa-muted: var(--vdsa-muted);
+  --color-vdsa-disabled: var(--vdsa-disabled);
+  --color-vdsa-inverse: var(--vdsa-inverse);
+
+  --color-vdsa-accent: var(--vdsa-accent);
+  --color-vdsa-accent-light: var(--vdsa-accent-light);
+  --color-vdsa-accent-dark: var(--vdsa-accent-dark);
+
+  --color-vdsa-green: var(--vdsa-green);
+  --color-vdsa-green-light: var(--vdsa-green-light);
+  --color-vdsa-red: var(--vdsa-red);
+  --color-vdsa-red-light: var(--vdsa-red-light);
+  --color-vdsa-yellow: var(--vdsa-yellow);
+  --color-vdsa-yellow-light: var(--vdsa-yellow-light);
+  --color-vdsa-cyan: var(--vdsa-cyan);
+  --color-vdsa-cyan-light: var(--vdsa-cyan-light);
+  --color-vdsa-purple: var(--vdsa-purple);
+  --color-vdsa-purple-light: var(--vdsa-purple-light);
+
+  --color-vdsa-border: var(--vdsa-border);
+  --color-vdsa-border-subtle: var(--vdsa-border-subtle);
+  --color-vdsa-border-strong: var(--vdsa-border-strong);
+
+  --shadow-vdsa-accent: var(--vdsa-shadow-accent);
+  --shadow-vdsa-cyan: var(--vdsa-shadow-cyan);
+}
+
+/* ── Text gradient utilities (background-clip: text) — G-F2a ── */
+@utility text-gradient-aurora {
+  background-image: var(--gradient-aurora);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-sunset {
+  background-image: var(--gradient-sunset);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility text-gradient-mint {
+  background-image: var(--gradient-mint);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── Base shadcn (layer base → global.css unlayered vẫn thắng,
+   UI hiện tại giữ nguyên vẻ ngoài; phase 2 dùng dần) ── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "a4-insertion-sort",
+  "title": "Xếp hạng thành tích (Insertion Sort)",
+  "description": "MODULE 4 — Insertion Sort.\n\nBảng thành tích chứa điểm số của học sinh. Viết hàm `insertionSort(scores)` sắp xếp mảng điểm **tăng dần** bằng thuật toán **Insertion Sort** (giống cách xếp bài tây).\n\n- Trả về mảng MỚI đã sắp xếp, không thay đổi mảng gốc.\n- Mảng có thể chứa số âm và số trùng.\n\nVí dụ: `insertionSort([5, 3, 8, 1])` → `[1, 3, 5, 8]`.",
+  "initialCode": "function insertionSort(scores) {\n  const a = [...scores];\n  // TODO: từ i=1, giữ key = a[i], dịch các phần tử lớn hơn key sang phải\n  return a;\n}",
+  "entryFunction": "insertionSort",
+  "testCases": [
+    { "name": "insertionSort: cơ bản", "input": "[[5,3,8,1]]", "expectedOutput": "[1,3,5,8]" },
+    { "name": "insertionSort: đã sắp xếp", "input": "[[1,2,3,4]]", "expectedOutput": "[1,2,3,4]" },
+    { "name": "insertionSort: giảm dần", "input": "[[4,3,2,1]]", "expectedOutput": "[1,2,3,4]" },
+    { "name": "insertionSort: số trùng", "input": "[[3,3,3]]", "expectedOutput": "[3,3,3]" },
+    { "name": "insertionSort: số âm", "input": "[[-5,0,-2,7]]", "expectedOutput": "[-5,-2,0,7]" },
+    { "name": "insertionSort: rỗng", "input": "[[]]", "expectedOutput": "[]" },
+    { "name": "insertionSort: 1 phần tử", "input": "[[42]]", "expectedOutput": "[42]" },
+    { "name": "insertionSort: 6 phần tử", "input": "[[64,34,25,12,22,11]]", "expectedOutput": "[11,12,22,25,34,64]" }
+  ],
+  "hints": [
+    "Bắt đầu từ i = 1, giữ key = a[i].",
+    "Dùng vòng while: dịch a[j] sang a[j+1] khi j >= 0 và a[j] > key.",
+    "Chèn key vào a[j+1] sau khi dịch xong.",
+    "Độ phức tạp: O(n²) worst case, O(n) best case."
+  ]
+}

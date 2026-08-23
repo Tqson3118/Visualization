@@ -1,13 +1,9 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+import { toast } from '@/lib/toast';
 
-export interface Toast {
-  id: number;
-  type: ToastType;
-  message: string;
-}
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 export interface ModalState {
   open: boolean;
@@ -16,26 +12,47 @@ export interface ModalState {
   resolve: ((value: boolean) => void) | null;
 }
 
-/** Store ui theo SDD §3.2 — toast, modal, sidebar, theme */
+const THEME_KEY = 'dsa.theme';
+
+function readStoredTheme(): 'light' | 'dark' {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    /* localStorage unavailable — fallback dark */
+  }
+  return 'dark';
+}
+
+/** Store ui theo SDD §3.2 — modal, sidebar, theme. Toast: G-F1b delegate sang vue-sonner. */
 export const useUiStore = defineStore('ui', () => {
-  const toasts = ref<Toast[]>([]);
   const modalState = ref<ModalState>({ open: false, kind: null, payload: null, resolve: null });
   const sidebarOpen = ref(false);
-  const theme = ref<'light' | 'dark'>('light');
+  const theme = ref<'light' | 'dark'>(readStoredTheme());
 
-  let toastSeq = 0;
+  /** Áp class .dark + color-scheme lên <html> mỗi khi theme đổi (dark mặc định — ghi đè light cũ). */
+  watch(
+    theme,
+    (value) => {
+      document.documentElement.classList.toggle('dark', value === 'dark');
+      document.documentElement.style.colorScheme = value;
+      try {
+        localStorage.setItem(THEME_KEY, value);
+      } catch {
+        /* ignore */
+      }
+    },
+    { immediate: true },
+  );
 
-  function showToast(message: string, type: ToastType = 'info', durationMs = 4000): number {
-    const id = ++toastSeq;
-    toasts.value.push({ id, type, message });
-    if (durationMs > 0) {
-      window.setTimeout(() => dismissToast(id), durationMs);
-    }
-    return id;
+  /** showToast — giữ API cũ (ui.showToast(msg, type)) nhưng render bằng vue-sonner. */
+  function showToast(message: string, type: ToastType = 'info', _durationMs = 4000): number {
+    const id = toast.show(message, type);
+    return typeof id === 'number' ? id : 0;
   }
 
   function dismissToast(id: number): void {
-    toasts.value = toasts.value.filter((toast) => toast.id !== id);
+    toast.dismiss(id);
   }
 
   function openModal(kind: string, payload: unknown = null, resolve: ((value: boolean) => void) | null = null): void {
@@ -53,7 +70,6 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    toasts,
     modalState,
     sidebarOpen,
     theme,

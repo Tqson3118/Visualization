@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | Loại tài liệu | API Reference |
-| Phiên bản | 1.0 |
-| Ngày cập nhật | 12/08/2026 |
+| Phiên bản | 1.8 |
+| Ngày cập nhật | 19/08/2026 |
 | Trạng thái | Dự thảo — chờ phê duyệt |
 | Người soạn | Mai Tiểu Bảo |
 | Người duyệt | Phạm Ngọc Ái Liên |
@@ -19,6 +19,13 @@
 |---|---|---|---|
 | 1.0 | 12/08/2026 | Mai Tiểu Bảo | Sinh mới từ PRODUCTION_PROMPT.md v2.5 |
 | 1.1 | 12/08/2026 | Mai Tiểu Bảo | Vá review: bổ sung error code `LESSON_HAS_EXERCISES` (409); ghi phiên bản v2.4 cho 4 mã bổ sung ngoài §9.7; thay placeholder `"..."` trong ví dụ resume session bằng JSON thực |
+| 1.2 | 12/08/2026 | Trần Viết Tâm Phúc | F2b: (1) §4.2 xóa endpoint `/public/simulations/{key}/run` đã cắt theo ADR-001 (quyết định A-4) — ghi chú thay thế; (2) §4.4 ghi rõ trạng thái "chưa triển khai" cho 3 endpoint Lessons (progress/mark-viewed/simulations) — theo dõi SETUP_TODO §6; (3) §5 dòng 12 sửa route viết tắt `GET /submissions?exerciseId` → `GET /exercises/{id}/submissions` khớp code |
+| 1.3 | 13/08/2026 | Mai Tiểu Bảo | GP-T2 (2FA email — FR-1.11): (1) §4.12 bổ sung `POST /auth/2fa/send` + `POST /auth/2fa/verify`, làm rõ PUT /auth/2fa (tắt trực tiếp; bật qua mã OTP); (2) §2.2 bổ sung 5 error code 2FA `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` (400) — [v2.13] |
+| 1.4 | 13/08/2026 | Trần Viết Tâm Phúc | GP-T8 (đồng bộ GP-T7 — Premium QR MB Bank): §4.14 bổ sung chi tiết `POST /premium/upgrade` — `{planId}` `1m|3m|12m`; OrderRef đơn hàng = `DSV{userId}T{months}` (VD DSV1002T3 — trùng nội dung CK trên QR) + response trả `contentRef` (nội dung CK hiển thị trên QR); thêm ví dụ response; §8 thêm dòng thay đổi |
+| 1.5 | 13/08/2026 | — | Task L (form đăng ký giảng viên): §3.1 `RegisterRequest` +3 field `department/staffCode/teacherBio` (bắt buộc khi `isTeacher=true`; `teacherBio` ≤ 500); §2.2 làm rõ lỗi đăng ký GV thiếu thông tin → `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (KHÔNG thêm ErrorCode mới); §4.1 cập nhật body + ví dụ `POST /auth/register` (thêm 400 VALIDATION_FAILED); §4.8 `AdminUserDto` +3 field nullable (department/staffCode/teacherBio) + cập nhật ví dụ `GET /users` |
+| 1.6 | 13/08/2026 | Mai Tiểu Bảo | SEED-7 (đồng bộ đợt seed prod — quyết định user 13/08/2026 bỏ chặn domain đăng ký): §2.2 `DOMAIN_NOT_ALLOWED` + ví dụ §4.1 + §6 mục 1 — làm rõ bỏ chặn domain mặc định (setting `allowed.email.domains` không còn được seed + tự xóa khi seed → mọi email hợp lệ đăng ký được; mã giữ lại, chỉ kích hoạt nếu Admin bật lại setting qua cấu hình) |
+| 1.7 | 14/08/2026 | Trần Viết Tâm Phúc | PR #23 (docs sync v2.15 — 5 khối logic): (1) §4.4 +3 endpoint Lessons `GET /lessons/pending`, `POST /lessons/{id}/review`, `POST /lessons/{id}/report` + cập nhật trạng thái triển khai (mark-viewed/feedback đã có); (2) §4.11 +1 endpoint `POST /classes/join-by-code` + `allowLateSubmission` ở gán bài (tạo + sửa); (3) §4.6/§4.13 nộp bài chặn quá hạn → 422 `ASSIGNMENT_OVERDUE` (§2.2 bổ sung mã); (4) §4.8 từ chối Teacher bắt buộc `reason` + `AdminUserDto` + stats (chỉ GET /users/{id}); (5) §3.1 `RegisterRequest` + `academicDegree`/`profileLink`; (6) §4.15 `PUT /admin/bug-reports/{id}` + `adminNote` (sanitize); (7) §3.4/§3.5 LessonDto/LessonUpsertRequest + `isClassOnly`/`publishedAt`/`rejectionReason`/`simulationKeys` (thay multi-select cũ); (8) §5 RBAC 36 → 38 hành động |
+| 1.8 | 19/08/2026 | Antigravity AI | Real Data v5: Đồng bộ hóa toàn bộ endpoint Gamification (`/me/*`), Quests (`/me/quests`), Shop & Inventory (`/shop/*`, `/me/inventory`), và thống kê giao dịch Admin (`GET /admin/stats` revenueByDay/roleDistribution). |
 
 ---
 
@@ -105,7 +112,7 @@
 | LESSON_HAS_EXERCISES | 409 | Không xóa được bài học còn bài tập đang hoạt động | null |
 | DUPLICATE_SIMULATION | 409 | Gắn trùng mô phỏng vào bài học | simulationKey |
 | WEAK_PASSWORD | 400 | Mật khẩu yếu (details liệt kê từng quy tắc) | password |
-| DOMAIN_NOT_ALLOWED | 400 | Domain email không được phép đăng ký | email |
+| DOMAIN_NOT_ALLOWED | 400 | Domain email không được phép đăng ký — ⚠ KHÔNG kích hoạt mặc định (quyết định 13/08/2026: bỏ chặn domain — setting `allowed.email.domains` không còn được seed + tự xóa khi seed; chỉ xảy ra nếu Admin chủ động bật lại setting qua cấu hình) | email |
 | INVALID_EMAIL | 400 | Định dạng email sai | email |
 | OLD_PASSWORD_WRONG | 400 | Mật khẩu cũ sai khi đổi | currentPassword |
 | PASSWORD_SAME | 400 | Mật khẩu mới trùng mật khẩu cũ | newPassword |
@@ -120,12 +127,18 @@
 | RATE_LIMITED | 429 | Vượt giới hạn tần suất (kèm Retry-After) | null |
 | UPLOAD_INVALID_TYPE | 400 | Sai định dạng file upload | file |
 | UPLOAD_TOO_LARGE | 400 | File vượt giới hạn dung lượng | file |
+| OTP_REQUIRED | 400 | Bật 2FA cần xác nhận mã OTP (POST /auth/2fa/send + /verify) — [v2.13] | null |
+| OTP_INVALID | 400 | Mã OTP không đúng — [v2.13] | code |
+| OTP_EXPIRED | 400 | Mã OTP hết hạn (5 phút) — [v2.13] | code |
+| OTP_USED | 400 | Mã OTP đã được sử dụng (dùng 1 lần) — [v2.13] | code |
+| TWO_FA_ALREADY_ENABLED | 400 | 2FA đã được bật — [v2.13] | null |
 | INSUFFICIENT_GEMS | 422 | Không đủ gems mua vật phẩm (FR-10.2) — [v2.4] | null |
 | QUEST_ALREADY_CLAIMED | 422 | Quest đã nhận thưởng (FR-10.3) — [v2.4] | null |
+| ASSIGNMENT_OVERDUE | 422 | Đã quá hạn nộp — bài gán không cho phép nộp trễ (`allowLateSubmission=false` và đã quá `dueAt`) — [v2.15] | classAssignmentId |
 | INTERNAL_ERROR | 500 | Lỗi máy chủ (ẩn chi tiết) | null |
 | SERVICE_UNAVAILABLE | 503 | DB/máy chủ quá tải | null |
 
-> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt.
+> Cấm phát minh mã mới ngoài danh sách; ngoại lệ phải thêm vào bảng kèm phiên bản. Các mã bổ sung ngoài §9.7 prompt (đã ghi phiên bản tại cột Mô tả): `HEARTS_EMPTY`, `LADDER_LOCKED`, `INSUFFICIENT_GEMS`, `QUEST_ALREADY_CLAIMED` — đều thuộc v2.4 (Module J, bổ sung theo FR-10.1/10.2/10.3/4.11). `LESSON_HAS_EXERCISES` (409) giữ nguyên từ §9.7 prompt. 2FA email (GP-T2, 13/08/2026 — FR-1.11): 5 mã `OTP_REQUIRED/OTP_INVALID/OTP_EXPIRED/OTP_USED/TWO_FA_ALREADY_ENABLED` thuộc v2.13. Đăng ký giảng viên (task L, 13/08/2026): chọn vai trò Giảng viên mà thiếu `department`/`staffCode` (hoặc `teacherBio` > 500) → 400 `VALIDATION_FAILED`, message "Vui lòng điền đầy đủ thông tin giảng viên", details chứa từng trường (`department`/`staffCode`/`teacherBio`) — dùng lại mã có sẵn, KHÔNG thêm mã mới. **v2.15 (PR #23)**: bổ sung `ASSIGNMENT_OVERDUE` (422) — chặn nộp bài sau `DueAt` khi `allowLateSubmission=false` (áp dụng cả MCQ lẫn code-submit); `SIMULATION_KEY_INVALID` (400) dùng lại cho field `simulationKeys` khi gắn mô phỏng có key không tồn tại trong danh mục.
 
 ---
 
@@ -139,6 +152,13 @@
 | email | string | ✔ | email hợp lệ, ≤ 256, lowercase |
 | password | string | ✔ | 8-64, chữ hoa + số + ký tự đặc biệt |
 | isTeacher | bool | ✔ | mặc định false |
+| department | string | ✘ (bắt buộc khi `isTeacher=true`) | Khoa/Bộ môn; ≤ 100; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+| staffCode | string | ✘ (bắt buộc khi `isTeacher=true`) | Mã giảng viên; ≤ 50; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+| teacherBio | string | ✘ | Kinh nghiệm/giới thiệu giảng dạy; ≤ 500 ký tự; trim trước khi lưu; không gửi/lưu khi là Sinh viên |
+| academicDegree | string | ✘ (chỉ khi `isTeacher=true`) | Học vị (Thạc sĩ, Tiến sĩ...); ≤ 100 ký tự; trim trước khi lưu; không gửi/lưu khi là Sinh viên — [v2.15] |
+| profileLink | string | ✘ (chỉ khi `isTeacher=true`) | Link hồ sơ nghiên cứu / LinkedIn; ≤ 300 ký tự; trim trước khi lưu; không gửi/lưu khi là Sinh viên — [v2.15] |
+
+> Thiếu `department`/`staffCode` (hoặc `teacherBio` > 500, `academicDegree` > 100, `profileLink` > 300) khi `isTeacher=true` → 400 `VALIDATION_FAILED` "Vui lòng điền đầy đủ thông tin giảng viên" (details: từng trường — xem §2.2).
 
 ## 3.2 `LoginRequest` / `RefreshResponse`
 
@@ -163,11 +183,16 @@
 | topicId | int | |
 | title / description | string | |
 | contentHtml | string | chỉ trả khi quyền Teacher hoặc `?includeContent=true` |
-| status | enum | draft/active/hidden (Student chỉ nhận active) |
+| status | enum | draft/pendingreview/active/hidden (Student chỉ nhận active; `pendingreview` = chờ Admin duyệt — v2.15) |
+| isClassOnly | bool | nội bộ lớp (chỉ truy cập qua ClassAssignment, không hiển thị toàn sàn) — [v2.15] |
+| publishedAt | datetime? | thời điểm duyệt/xuất bản (Active) — [v2.15] |
+| rejectionReason | string? | lý do từ chối khi Admin reject (bài về draft; chỉ Teacher/Admin thấy) — [v2.15] |
 | sortOrder | int | |
 | simulations | SimulationRef[] | |
 | exercises | ExerciseRef[] | |
 | progress | LessonProgressDto? | trạng thái cá nhân (Student) |
+
+`LessonSummaryDto` (trả về trong `GET /lessons`, `GET /lessons/pending`): `{ id, title, description, topicId, sortOrder, status, isClassOnly, publishedAt, simulationCount, exerciseCount, progress? }` — [v2.15: +`isClassOnly`, `publishedAt`; `progress` chỉ với Student].
 
 ## 3.5 `LessonUpsertRequest`
 
@@ -177,8 +202,10 @@
 | title | string | ✔ | 3-200 ký tự |
 | description | string | ✘ | ≤ 500 |
 | contentHtml | string | ✔ | ≤ 200.000 ký tự; sanitize server |
-| status | enum | ✔ | draft/active/hidden |
+| status | enum | ✔ | draft/pendingreview/active/hidden — Admin gán tùy ý; Teacher: public → `pendingreview`, `isClassOnly=true` → active ngay; sửa bài Active giữ Active (không duyệt lại) — [v2.15] |
+| isClassOnly | bool | ✘ | mặc định false — bài chỉ dùng trong Lớp học — [v2.15] |
 | sortOrder | int | ✘ | ≥ 0 |
+| simulationKeys | string[] | ✘ | danh sách key mô phỏng đính kèm — **thay thế toàn bộ danh sách cũ** (multi-select v2.15); key không có trong catalog → 400 `SIMULATION_KEY_INVALID` (field `simulationKeys`) |
 
 ## 3.6 `SimulationMetaDto`
 
@@ -248,7 +275,7 @@
 
 | Method | Endpoint | Mô tả | Quyền | Ghi chú |
 |---|---|---|---|---|
-| POST | `/auth/register` | Đăng ký | Công khai | body `{displayName, email, password, isTeacher}` |
+| POST | `/auth/register` | Đăng ký | Công khai | body `{displayName, email, password, isTeacher, department?, staffCode?, teacherBio?, academicDegree?, profileLink?}` (department/staffCode bắt buộc khi `isTeacher=true`; academicDegree ≤ 100, profileLink ≤ 300 — v2.15) |
 | POST | `/auth/login` | Đăng nhập | Công khai | trả `{accessToken, expiresIn, user}`; set cookie |
 | POST | `/auth/refresh` | Làm mới token | Cookie | trả accessToken mới; rotate-invalidate |
 | POST | `/auth/logout` | Đăng xuất | Đã đăng nhập | thu hồi refresh |
@@ -277,12 +304,20 @@
 **Ví dụ — POST /auth/register**
 
 ```json
-// Request
+// Request — Sinh viên
 { "displayName": "Nguyễn Minh", "email": "minh@university.edu.vn", "password": "MatKhau@123", "isTeacher": false }
-// Response 201 → UserSummary + auto login token
+// Request — Giảng viên (form con: Khoa/Bộ môn, Mã GV, Kinh nghiệm — bắt buộc khi isTeacher=true)
+{ "displayName": "Trần Hà", "email": "ha.tran@university.edu.vn", "password": "MatKhau@123", "isTeacher": true,
+  "department": "Khoa Công nghệ thông tin", "staffCode": "GV12345",
+  "teacherBio": "3 năm giảng dạy Cấu trúc dữ liệu & Giải thuật",
+  "academicDegree": "Thạc sĩ", "profileLink": "https://scholar.example.edu.vn/tran-ha" }
+// Response 201 → UserSummary + auto login token (role TEACHER_PENDING nếu isTeacher=true)
+// Response 400 (chọn Giảng viên nhưng thiếu thông tin)
+{ "error": { "code": "VALIDATION_FAILED", "message": "Vui lòng điền đầy đủ thông tin giảng viên", "field": null,
+  "details": { "department": ["Vui lòng nhập khoa/bộ môn"], "staffCode": ["Vui lòng nhập mã giảng viên"] } } }
 // Response 409
 { "error": { "code": "EMAIL_EXISTS", "message": "Email đã được sử dụng", "field": "email", "details": [] } }
-// Response 400 (domain không cho phép)
+// Response 400 (domain không cho phép) — ⚠ không còn xảy ra khi seed chuẩn (bỏ chặn domain 13/08/2026); chỉ khi Admin bật lại setting allowed.email.domains
 { "error": { "code": "DOMAIN_NOT_ALLOWED", "message": "Email không thuộc domain được phép đăng ký", "field": "email", "details": [] } }
 ```
 
@@ -291,8 +326,9 @@
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | GET | `/public/site-info` | Số liệu trang chủ (số CTDL/GT/bài học) |
-| GET | `/public/simulations/{key}/run` | Chạy demo mô phỏng (chỉ key demo: `sort.bubble`, `search.binary`, `graph.bfs`) |
 | GET | `/public/faqs` | Danh sách FAQ |
+
+> ⚠ `GET /public/simulations/{key}/run` **ĐÃ CẮT** (quyết định A-4 / ADR-001) — demo công khai không còn endpoint run riêng; người dùng mở mô phỏng qua `/simulations/{key}` + `/simulations/{key}/schema` (xem §4.5).
 
 ## 4.3 Topics
 
@@ -320,38 +356,70 @@
 
 | Method | Endpoint | Mô tả | Quyền |
 |---|---|---|---|
-| GET | `/lessons` | Danh sách (`?topicId=&status=&q=&page=`) | Đã đăng nhập (Student: chỉ active) |
+| GET | `/lessons` | Danh sách (`?topicId=&status=&q=&page=`) | Đã đăng nhập (Student: chỉ active, KHÔNG thấy IsClassOnly) |
 | GET | `/lessons/{id}` | Chi tiết + nội dung | Đã đăng nhập |
 | GET | `/lessons/{id}/progress` | Trạng thái tiến độ của tôi | Student |
 | POST | `/lessons` | Tạo | Teacher/Admin |
 | PUT | `/lessons/{id}` | Sửa | Teacher (của mình)/Admin |
 | DELETE | `/lessons/{id}` | Xóa mềm | Teacher (của mình)/Admin |
 | POST | `/lessons/{id}/mark-viewed` | Đánh dấu đã học | Student |
+| POST | `/lessons/{id}/feedback` | Đánh giá bài học (FR-7.4) | Đã đăng nhập |
+| POST | `/lessons/{id}/report` | Báo cáo vi phạm `{reason}` — reason ≥ 5 ký tự (400 nếu thiếu), tối đa 2000 (quá → cắt); lưu BugReports `type=CONTENT_VIOLATION` trong ContextJson; trả **204** — [v2.15] | Đã đăng nhập |
+| GET | `/lessons/pending` | Danh sách bài chờ duyệt (status=pendingreview) → `LessonSummaryDto[]` — [v2.15] | ADMIN |
+| POST | `/lessons/{id}/review` | Duyệt/từ chối `{approve:bool, reason?}` — **từ chối bắt buộc `reason`** (400 `VALIDATION_FAILED` "Phải nhập lý do khi từ chối duyệt bài học", field `reason`); approve → active + `publishedAt`; reject → draft + `rejectionReason`; bài không ở trạng thái pendingreview → 400; trả `LessonDto` — [v2.15] | ADMIN |
 | POST | `/lessons/{id}/simulations` | Gắn mô phỏng | Teacher/Admin |
 | DELETE | `/lessons/{id}/simulations/{simKey}` | Gỡ mô phỏng | Teacher/Admin |
+
+> ⚠ **TRẠNG THÁI TRIỂN KHAI (cập nhật 14/08/2026 — v2.15)**: trong `LessonsController.cs` hiện có 10 route: GET /, GET /{id}, POST, PUT, DELETE, POST /{id}/mark-viewed, POST /{id}/feedback, POST /{id}/report, GET /pending, POST /{id}/review. `GET /lessons/{id}/progress`, `POST /lessons/{id}/simulations`, `DELETE /lessons/{id}/simulations/{simKey}` **CHƯA TRIỂN KHAI** — gắn mô phỏng chuyển sang field `simulationKeys` trong POST/PUT /lessons (v2.15); tiến độ 1 bài học dùng `GET /progress/me/lessons/{lessonId}` (đã triển khai — §4.7). `mark-viewed` và `feedback` ĐÃ triển khai (trước đây ghi chưa — đã vá).
 
 **Ví dụ — GET /lessons?topicId=2**
 
 ```json
 { "items": [
   { "id": 15, "title": "Bubble Sort", "description": "Sắp xếp nổi bọt từng bước",
-    "topicId": 2, "sortOrder": 1, "status": "active",
+    "topicId": 2, "sortOrder": 1, "status": "active", "isClassOnly": false, "publishedAt": "2026-08-14T02:00:00Z",
     "simulationCount": 1, "exerciseCount": 2,
     "progress": { "viewed": true, "bestScore": 8, "completed": false } } ],
   "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
 ```
 
-**Ví dụ — POST /lessons**
+**Ví dụ — POST /lessons (v2.15: `simulationKeys` thay multi-select; luồng trạng thái theo vai trò)**
 
 ```json
 // Request
 { "topicId": 5, "title": "Bubble Sort — Sắp xếp nổi bọt",
   "description": "Giải thuật sắp xếp đơn giản nhất, so sánh từng cặp liền kề",
   "contentHtml": "<h2>Ý tưởng</h2><p>So sánh từng cặp phần tử liền kề...</p>",
-  "status": "draft", "sortOrder": 1,
-  "simulations": [ { "simulationKey": "sort.bubble", "title": "Mô phỏng Bubble Sort",
-                     "defaultInput": { "values": [5,3,8,1,9,2] } } ] }
-// Response 201 → LessonDto (draft, chỉ Teacher/Admin nhận contentHtml)
+  "status": "draft", "sortOrder": 1, "isClassOnly": false,
+  "simulationKeys": ["sort.bubble", "sort.quick"] }
+// Response 201 → LessonDto
+// Ghi chú trạng thái (v2.15): Teacher gửi public → status "pendingreview" (phải Admin duyệt);
+//   isClassOnly=true → "active" ngay; Admin gán tùy ý; sửa bài Active (Teacher) giữ "active" — không duyệt lại
+// Response 400 — key không có trong danh mục mô phỏng
+{ "error": { "code": "SIMULATION_KEY_INVALID", "message": "Mô phỏng 'sort.nonexist' không tồn tại", "field": "simulationKeys", "details": [] } }
+```
+
+**Ví dụ — POST /lessons/{id}/review (ADMIN, v2.15)**
+
+```json
+// Request — duyệt
+{ "approve": true }
+// Response 200 → LessonDto (status "active", publishedAt = now)
+// Request — từ chối (reason bắt buộc)
+{ "approve": false, "reason": "Nội dung chưa đủ sâu, thiếu ví dụ minh họa" }
+// Response 200 → LessonDto (status "draft", rejectionReason = reason)
+// Response 400 — từ chối mà thiếu lý do
+{ "error": { "code": "VALIDATION_FAILED", "message": "Phải nhập lý do khi từ chối duyệt bài học", "field": "reason", "details": [] } }
+```
+
+**Ví dụ — POST /lessons/{id}/report (v2.15)**
+
+```json
+// Request
+{ "reason": "Nội dung sai kiến thức ở phần độ phức tạp O(n)" }
+// Response 204 — đã lưu BugReports (ContextJson.type = "CONTENT_VIOLATION")
+// Response 400 — reason < 5 ký tự
+{ "error": { "code": "VALIDATION_FAILED", "message": "Vui lòng nhập lý do báo cáo (tối thiểu 5 ký tự)", "field": "reason", "details": [] } }
 ```
 
 ## 4.5 Simulations
@@ -387,11 +455,23 @@
 | POST | `/exercises` | Tạo (MCQ / SIMULATION_LAB / CODE — ConfigJson) | Teacher/Admin |
 | PUT | `/exercises/{id}` | Sửa | Teacher (của mình)/Admin |
 | DELETE | `/exercises/{id}` | Xóa mềm | Teacher (của mình)/Admin |
-| POST | `/exercises/{id}/submit` | Nộp bài → điểm + đáp án + giải thích; body có thể kèm `classAssignmentId` (nộp qua luồng lớp — v2.8, xem §4.11) | Student |
+| POST | `/exercises/{id}/submit` | Nộp bài → điểm + đáp án + giải thích; body có thể kèm `classAssignmentId` (nộp qua luồng lớp — v2.8); nếu bài gán `allowLateSubmission=false` và đã quá `dueAt` → **422 `ASSIGNMENT_OVERDUE`** (v2.15) | Student |
 | POST | `/exercises/{id}/practice` | Luyện tập (không chấm điểm — FR-4.6) | Student |
 | POST | `/exercises/import-csv` | Nhập câu hỏi hàng loạt CSV | Teacher/Admin |
 | GET | `/exercises/{id}/submissions/me` | Lịch sử bài làm của tôi | Student |
 | GET | `/exercises/{id}/submissions` | Danh sách bài nộp (giảng viên) | Teacher (của mình)/Admin |
+
+**Ví dụ — GET /exercises (danh sách — PagedResponse\<ExerciseSummaryDto\>)**
+
+```json
+{ "items": [
+  { "id": 31, "lessonId": 15, "nodeId": 22, "stage": 1, "title": "Trắc nghiệm Bubble Sort",
+    "description": "...", "type": "MCQ", "durationMinutes": 10, "maxScore": 10, "status": "active",
+    "completedByUserCount": 42 } ],
+  "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+```
+
+`completedByUserCount` — số user distinct đã PASS bài (best score ≥ maxScore; gộp ExerciseSubmissions cho MCQ/LAB + CodeSubmissions cho CODE — 1 user nộp nhiều lần chỉ tính 1).
 
 **Ví dụ — GET /exercises/{id} (KHÔNG chứa đáp án)**
 
@@ -444,16 +524,33 @@
 | GET | `/users/{id}` | Chi tiết |
 | PUT | `/users/{id}/status` | Khóa/mở (`{isActive}`) — chỉ Admin chính được khóa Admin khác; cấm khóa Admin cuối cùng còn active |
 | PUT | `/users/{id}/role` | Đổi vai trò (không sang Admin; Admin thường không đổi được role Admin khác — chỉ Admin chính) |
-| POST | `/users/{id}/approve-teacher` | Phê duyệt/Từ chối Teacher (v2.8): body `{approve:bool, reason?}`; approve → role=TEACHER, IsActive=true; reject → role=STUDENT, IsActive=true + log lý do |
+| POST | `/users/{id}/approve-teacher` | Phê duyệt/Từ chối Teacher (v2.8): body `{approve:bool, reason?}`; approve → role=TEACHER, IsActive=true; reject → role=STUDENT, IsActive=true + log lý do + email (nếu SMTP) — **reject bắt buộc `reason` → 400 `VALIDATION_FAILED` "Phải nhập lý do khi từ chối hồ sơ giảng viên" (v2.15)** |
 | POST | `/users/{id}/reset-password` | Đặt lại mật khẩu (Admin thường không reset được mật khẩu Admin khác — chỉ Admin chính) |
 | DELETE | `/users/{id}` | Xóa tài khoản (ẩn danh hóa — NFR-35; cấm xóa Admin cuối cùng còn active) |
 
 **Ví dụ — GET /users?role=TEACHER_PENDING**
 
+`AdminUserDto` gồm: `{ id, displayName, email, role, isActive, avatarUrl, department?, staffCode?, teacherBio?, academicDegree?, profileLink?, createdAt }` — field `department`/`staffCode`/`teacherBio`/`academicDegree`/`profileLink` (nullable, chỉ có với tài khoản đăng ký giảng viên) dùng để Admin xem thông tin đăng ký trong modal duyệt. **Stats học tập (v2.15)**: `{ xp, level, streakDays, gems, hearts, lessonsCompletedCount, exercisesPassedCount, joinedClassesCount }` — chỉ trả trong `GET /users/{id}` (drawer chi tiết user), KHÔNG có trong danh sách.
+
 ```json
 { "items": [ { "id": 42, "displayName": "Trần Hà", "email": "t***@university.edu.vn",
-  "role": "TEACHER_PENDING", "isActive": false, "createdAt": "2026-08-01T08:00:00Z" } ],
+  "role": "TEACHER_PENDING", "isActive": false, "department": "Khoa Công nghệ thông tin",
+  "staffCode": "GV12345", "teacherBio": "3 năm giảng dạy Cấu trúc dữ liệu & Giải thuật",
+  "academicDegree": "Thạc sĩ", "profileLink": "https://scholar.example.edu.vn/tran-ha",
+  "createdAt": "2026-08-01T08:00:00Z" } ],
   "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+```
+
+**Ví dụ — GET /users/{id} (v2.15 — kèm stats học tập)**
+
+```json
+{ "id": 42, "displayName": "Trần Hà", "email": "t***@university.edu.vn", "role": "TEACHER_PENDING",
+  "isActive": false, "department": "Khoa Công nghệ thông tin", "staffCode": "GV12345",
+  "teacherBio": "3 năm giảng dạy Cấu trúc dữ liệu & Giải thuật",
+  "academicDegree": "Thạc sĩ", "profileLink": "https://scholar.example.edu.vn/tran-ha",
+  "createdAt": "2026-08-01T08:00:00Z",
+  "xp": 1240, "level": 4, "streakDays": 6, "gems": 240, "hearts": 10,
+  "lessonsCompletedCount": 12, "exercisesPassedCount": 8, "joinedClassesCount": 2 }
 ```
 
 ## 4.9 Favorites & Misc
@@ -481,10 +578,11 @@
 | PUT | `/classes/{id}` | Sửa lớp; Admin có thể chuyển quyền sở hữu body `{ownerId}` (v2.8 — lớp mồ côi) | Teacher (của mình)/Admin |
 | DELETE | `/classes/{id}` | Xóa mềm | Teacher (của mình)/Admin |
 | POST | `/classes/{id}/join` | Tham gia bằng mã mời `{inviteCode}` | Student |
+| POST | `/classes/join-by-code` | Tham gia bằng mã mời `{inviteCode}` — **không cần biết classId** (v2.15): mã trống → 400 `VALIDATION_FAILED` "Mã mời không được để trống"; không tìm thấy → 404 `NOT_FOUND` "Không tìm thấy lớp học với mã mời này"; lớp Đóng → 400 `VALIDATION_FAILED` "Lớp đã đóng"; đã tham gia → 400 `VALIDATION_FAILED` "Bạn đã tham gia lớp này"; thành công → 200 `ClassDetailDto` | Đã đăng nhập |
 | POST | `/classes/{id}/members` | Thêm sinh viên theo email | Teacher (của mình)/Admin |
 | DELETE | `/classes/{id}/members/{userId}` | Xóa sinh viên | Teacher (của mình)/Admin |
-| POST | `/classes/{id}/assignments` | Gán nội dung + hạn `{lessonId?, exerciseId?, dueAt}` | Teacher (của mình)/Admin |
-| PUT | `/classes/{id}/assignments/{assignId}` | Sửa hạn/trạng thái | Teacher (của mình)/Admin |
+| POST | `/classes/{id}/assignments` | Gán nội dung + hạn `{lessonId?, exerciseId?, dueAt, allowLateSubmission}` — `allowLateSubmission` mặc định `true` (v2.15): `false` → chặn nộp sau `dueAt` (422 `ASSIGNMENT_OVERDUE`, xem §4.6) | Teacher (của mình)/Admin |
+| PUT | `/classes/{id}/assignments/{assignId}` | Sửa hạn/trạng thái `{dueAt?, allowLateSubmission?}` (v2.15) | Teacher (của mình)/Admin |
 | DELETE | `/classes/{id}/assignments/{assignId}` | Gỡ nội dung gán | Teacher (của mình)/Admin |
 | GET | `/classes/{id}/report` | Báo cáo lớp (FR-8.4) | Teacher (của mình)/Admin |
 | GET | `/classes/{id}/report/export` | Xuất CSV báo cáo lớp | Teacher (của mình)/Admin |
@@ -496,7 +594,9 @@
 | GET | `/me/notes?lessonId=` | Danh sách ghi chú | Đã đăng nhập |
 | PUT | `/me/notes/{lessonId}` | Lưu/cập nhật ghi chú bài học | Đã đăng nhập |
 | DELETE | `/me/notes/{lessonId}` | Xóa ghi chú | Đã đăng nhập |
-| PUT | `/auth/2fa` | Bật/tắt 2FA + xác nhận mã | Đã đăng nhập |
+| PUT | `/auth/2fa` | 2FA email (FR-1.11): body `{enabled}` — `enabled:false` tắt trực tiếp; `enabled:true` trả 400 `OTP_REQUIRED` (phải qua /send + /verify) | Đã đăng nhập |
+| POST | `/auth/2fa/send` | Gửi mã OTP 6 số qua email (hiệu lực 5 phút, dùng 1 lần) → `{message, expiresInSeconds}` | Đã đăng nhập |
+| POST | `/auth/2fa/verify` | Xác nhận mã OTP `{code}` → bật 2FA → `{enabled:true}` | Đã đăng nhập |
 | GET | `/achievements` | Huy hiệu của tôi (đã mở + ẩn) | Đã đăng nhập |
 
 ## 4.13 Code Runner (Module I)
@@ -506,7 +606,7 @@
 | POST | `/code-runs` | Lưu lần chạy code (chấm/trace chạy client sandbox — ADR-012) | Đã đăng nhập |
 | GET | `/code-runs/{id}` | Trạng thái + tóm tắt lần chạy | Đã đăng nhập (của mình) |
 | GET | `/code-runs/{id}/trace` | TraceEvent[] phân trang | Đã đăng nhập (của mình) |
-| POST | `/exercises/{id}/code-submit` | Nộp bài code → `{score, passed, total, results[]}` | Student |
+| POST | `/exercises/{id}/code-submit` | Nộp bài code → `{score, passed, total, results[]}`; kèm `classAssignmentId` thì áp dụng `ASSIGNMENT_OVERDUE` khi `allowLateSubmission=false` và quá `dueAt` (v2.15) | Student |
 | GET | `/exercises/{id}/code-submissions` | Danh sách bài nộp code | Teacher (của mình)/Admin |
 | GET | `/exercises/{id}/code-submissions/me` | Lịch sử nộp code của tôi | Student |
 
@@ -529,10 +629,19 @@
 | GET | `/me/inventory` | Vật phẩm đã mua + trang bị | Đã đăng nhập |
 | PUT | `/me/inventory/equip` | `{itemId, slot}` — set `IsEquipped=true` item, set false các item cùng loại (v2.9) | Đã đăng nhập |
 | GET | `/premium/status` | Gói hiện tại + ngày hết hạn | Đã đăng nhập |
-| POST | `/premium/upgrade` | `{planId}` → tạo đơn checkout mô phỏng | Đã đăng nhập |
-| POST | `/premium/mock-pay` | `{orderId}` → kích hoạt Premium + log giao dịch | Đã đăng nhập |
+| POST | `/premium/upgrade` | `{planId}` (`1m`/`3m`/`12m`) → tạo đơn checkout QR MB Bank: OrderRef = `DSV{userId}T{months}` (VD DSV1002T3) + trả `contentRef` (nội dung CK hiển thị trên QR) — GP-T7 | Đã đăng nhập |
+| POST | `/premium/mock-pay` | `{orderId}` → kích hoạt Premium sau xác nhận "Tôi đã chuyển khoản" + log giao dịch (OrderRef DSV...) | Đã đăng nhập |
 | GET | `/cheatsheet?structure=` | Bảng Big-O + snippet + deep-link mô phỏng | Đã đăng nhập |
 | POST | `/benchmarks/run` | `{keys[], sizes[], language?}` → kết quả đo nhiều n + fit lý thuyết | Đã đăng nhập |
+
+**Ví dụ — POST /premium/upgrade (FR-10.7, GP-T7 — QR chuyển khoản MB Bank)**
+
+```json
+// Request: { "planId": "3m" }
+// Response 200 — OrderRef DSV{userId}T{months} khớp nội dung CK hiển thị trên QR
+{ "orderId": 1002, "planId": "3m", "expiresAt": "2026-11-12T00:00:00Z",
+  "contentRef": "DSV1002T3" }
+```
 
 **Ví dụ — POST /learning-path/{id}/nodes/{nodeId}/enter (FR-10.1, v2.5)**
 
@@ -557,12 +666,12 @@
 | GET | `/feedback?lessonId=` | Điểm TB + đếm đánh giá | Đã đăng nhập |
 | POST | `/feedback` | Gửi/chỉnh sao + nhận xét `{lessonId, rating, comment?}` — 403 nếu chưa "Đánh dấu đã học" bài đó (v2.9) | Đã đăng nhập |
 | POST | `/bug-reports` | Gửi báo cáo lỗi (tự đính kèm context) | Đã đăng nhập |
-| GET | `/admin/bug-reports` | Danh sách báo cáo lỗi | Admin |
-| PUT | `/admin/bug-reports/{id}` | Cập nhật trạng thái xử lý | Admin |
+| GET | `/admin/bug-reports` | Danh sách báo cáo lỗi (lọc `?status=`) | Admin |
+| PUT | `/admin/bug-reports/{id}` | Cập nhật trạng thái xử lý `{status, adminNote?}` — `status` ∈ NEW/PROCESSING/RESOLVED/CLOSED (400 nếu sai); `adminNote` (phản hồi Admin) sanitize HTML phía server — [v2.15] | Admin |
 
 ---
 
-# 5. MA TRẬN QUYỀN (RBAC — 36 hành động)
+# 5. MA TRẬN QUYỀN (RBAC — 38 hành động)
 
 | # | Hành động | API | STUDENT | TEACHER | ADMIN |
 |---|---|---|---|---|---|
@@ -577,7 +686,7 @@
 | 9 | Tạo / sửa / xóa bài tập | /exercises | ✘ | ✔ | ✔ |
 | 10 | Làm bài tập, nộp bài | GET /exercises/{id}, POST /submit | ✔ | ✔ | ✔ |
 | 11 | Xem lịch sử bài làm của bản thân | GET /exercises/{id}/submissions/me | ✔ | ✔ | ✔ |
-| 12 | Xem bài nộp của người khác (bài của mình) | GET /submissions?exerciseId | ✘ | ✔ | ✔ |
+| 12 | Xem bài nộp của người khác (bài của mình) | GET /exercises/{id}/submissions | ✘ | ✔ | ✔ |
 | 13 | Xem tiến độ bản thân | GET /progress/me | ✔ | ✔ | ✔ |
 | 14 | Xem báo cáo người học (bài học của mình) | GET /progress/report | ✘ | ✔ | ✔ |
 | 15 | Quản lý người dùng (Admin thường không quản được Admin khác — chỉ Admin chính `IsPrimaryAdmin`) | /users | ✘ | ✘ | ✔ |
@@ -588,7 +697,7 @@
 | 20 | Xem trang chủ công khai + demo | /public/* | ✔ | ✔ | ✔ |
 | 21 | Ghi chú cá nhân | /me/notes | ✔ | ✔ | ✔ |
 | 22 | Quản lý lớp học phần | /classes | ✘ | ✔ | ✔ |
-| 23 | Tham gia lớp bằng mã mời | /classes/join | ✔ | ✔ | ✔ |
+| 23 | Tham gia lớp bằng mã mời | /classes/join, /classes/join-by-code | ✔ | ✔ | ✔ |
 | 24 | Xem huy hiệu và thành tích | /achievements | ✔ | ✔ | ✔ |
 | 25 | Đánh giá nội dung | /feedback | ✔ | ✔ | ✔ |
 | 26 | Viết/chạy code trong sandbox | /code-runs | ✔ | ✔ | ✔ |
@@ -597,11 +706,19 @@
 | 29 | Xem bài nộp code của lớp | /code-submissions | ✘ | ✔ | ✔ |
 | 30 | Vào node (trừ tim), xem tim | /me/hearts, /learning-path/*/enter | ✔ | ✔ | ✔ |
 | 31 | Làm Daily Quest và nhận thưởng | /me/quests | ✔ | ✔ | ✔ |
+
+> Phase A Real Data 100 (v2.16): controller contracts are implemented under source/VisualizationDSA/backend/src/WebApi/Controllers/.
+>
+> New endpoint groups: me gamification/quests/inventory, shop, premium, achievements, leaderboard, classes, topics, lessons, exercises, simulations, code-runs, benchmarks, admin stats, users, and settings.
+>
+> Paginated list responses use PagedResponse with items, page, pageSize, total, and totalPages. Authenticated endpoints use the existing JWT/cookie contract and standard error envelope.
 | 32 | Mua vật phẩm Shop bằng Gems | /shop/buy | ✔ | ✔ | ✔ |
-| 33 | Nâng cấp Premium (checkout mô phỏng) | /premium/* | ✔ | ✔ | ✔ |
+| 33 | Nâng cấp Premium (checkout QR MB Bank) | /premium/* | ✔ | ✔ | ✔ |
 | 34 | Xem Leaderboard | /leaderboard | ✔ | ✔ | ✔ |
 | 35 | Chạy Benchmark Lab | /benchmarks/run | ✔ | ✔ | ✔ |
 | 36 | Xem CheatSheet + deep-link | /cheatsheet | ✔ | ✔ | ✔ |
+| 37 | Kiểm duyệt bài học (danh sách chờ duyệt + duyệt/từ chối) | GET /lessons/pending, POST /lessons/{id}/review | ✘ | ✘ | ✔ |
+| 38 | Báo cáo vi phạm bài học | POST /lessons/{id}/report | ✔ | ✔ | ✔ |
 
 **Ví dụ — GET /me/hearts**
 
@@ -709,11 +826,12 @@
 
 # 6. ĐẶC TẢ BỔ SUNG
 
-1. **Đăng ký**: xác thực email domain nếu bật (`DOMAIN_NOT_ALLOWED`), policy mật khẩu (`WEAK_PASSWORD` kèm details).
+1. **Đăng ký**: mọi email hợp lệ đều đăng ký được — bỏ chặn domain mặc định (`DOMAIN_NOT_ALLOWED` chỉ khi Admin bật lại setting `allowed.email.domains` — quyết định 13/08/2026); policy mật khẩu (`WEAK_PASSWORD` kèm details).
 2. **Nộp bài**: chống nộp trùng (idempotency key `Idempotency-Key` tùy chọn) + khóa đồng thời (422 `SUBMISSION_IN_PROGRESS`).
 3. **CSV báo cáo**: `text/csv; charset=utf-8` kèm BOM; tên file `report_lessons_15_20260809.csv`.
 4. **Throttling**: trả `Retry-After` khi 429; frontend "Quá nhiều yêu cầu, thử lại sau N giây".
 5. **Log máy chủ**: thao tác nhạy cảm (users, lessons write, settings) ghi Serilog — KHÔNG UI xem nhật ký.
+6. **Kiểm duyệt nội dung (v2.15)**: Teacher public bài → `pendingreview` chờ Admin duyệt (chỉ Admin thấy qua `GET /lessons/pending`); từ chối bắt buộc `reason` → bài về `draft` kèm `rejectionReason`; Teacher sửa bài đã Active giữ Active (KHÔNG duyệt lại — ghi chú hành vi); bài `isClassOnly` (chỉ trong Lớp) → Active ngay không cần duyệt; báo cáo vi phạm của người học → BugReports `type=CONTENT_VIOLATION`, Admin xử lý chung luồng bug reports (kèm `adminNote` sanitize).
 
 ---
 
@@ -732,4 +850,13 @@
 |---|---|---|---|---|
 | 12/08/2026 | (tạo mới toàn bộ) | Tạo | 1.0 | Mai Tiểu Bảo |
 | — | `POST /simulations/run` | CẮT (A-4) | — | đã cắt trước v1.0 |
+| 13/08/2026 | `POST /premium/upgrade` | SỬA — bổ sung response `contentRef` (nội dung CK `DSV{userId}T{months}`); OrderRef đổi `MOCK-{guid}` → `DSV{userId}T{months}` (GP-T7) | 1.4 | Trần Viết Tâm Phúc |
+| 13/08/2026 | `POST /premium/mock-pay` | SỬA — làm rõ: kích hoạt sau xác nhận "Tôi đã chuyển khoản" (GP-T7) | 1.4 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `GET /lessons/pending`, `POST /lessons/{id}/review`, `POST /lessons/{id}/report` | THÊM MỚI — kiểm duyệt bài học (Admin) + báo cáo vi phạm (người học) | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `POST /classes/join-by-code` | THÊM MỚI — tham gia lớp bằng mã mời (không cần classId) | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `POST /classes/{id}/assignments`, `PUT /classes/{id}/assignments/{assignId}` | SỬA — bổ sung `allowLateSubmission` (tạo: mặc định true; sửa: nullable) | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `POST /exercises/{id}/submit`, `POST /exercises/{id}/code-submit` | SỬA — lỗi mới 422 `ASSIGNMENT_OVERDUE` khi `allowLateSubmission=false` và quá `dueAt` | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `POST /auth/register`, `GET /users`, `GET /users/{id}` | SỬA — +`academicDegree`/`profileLink` (register + chi tiết user); +stats học tập chỉ ở `GET /users/{id}` | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `POST /lessons`, `PUT /lessons/{id}` | SỬA — body thay `simulations[]` bằng `simulationKeys[]`; +`isClassOnly`; trạng thái theo vai trò | 1.7 | Trần Viết Tâm Phúc |
+| 14/08/2026 | `PUT /admin/bug-reports/{id}` | SỬA — body +`adminNote` (sanitize HTML) | 1.7 | Trần Viết Tâm Phúc |
 

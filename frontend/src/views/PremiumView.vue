@@ -1,0 +1,713 @@
+<script setup lang="ts">
+// PremiumView — Màn 25: 3 gói + so sánh quyền lợi + checkout QR chuyển khoản MB Bank 2 bước (GP-T7)
+// Bước 1: chọn gói → Bước 2: QR VietQR EMVCo (qrcode) + nội dung CK DSV{userId}T{months} + đếm ngược 60s
+// → "Tôi đã chuyển khoản" → upgradePremium + mockPayPremium kích hoạt ngay (demo, không xác minh ngân hàng).
+// View-quality C (DESIGN.md §1/§6): hero = surface band level-2 + strip mono dữ liệu PLAN 1M·3M·12M,
+// highlight plan = border+tint success (pattern quests__card--ready, KHÔNG gradient/shadow),
+// bảng so sánh Check/X lucide (resolved/quaternary — ngôn ngữ trạng thái thuật toán),
+// success = BlockToken resolved (khoảnh khắc đầu tư duy nhất + confetti). Logic QR/countdown GIỮ NGUYÊN.
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import QRCode from 'qrcode';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Crown, Info, QrCode, X } from 'lucide-vue-next';
+
+import * as gamificationApi from '@/api/gamification';
+import { fireConfetti } from '@/composables/useConfetti';
+import { buildVietQrPayload } from '@/lib/vietqr';
+import { useAuthStore } from '@/stores/auth';
+import { useGamificationStore } from '@/stores/gamification';
+import { useUiStore } from '@/stores/ui';
+import Button from '@/components/ui/Button.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Modal from '@/components/ui/Modal.vue';
+import BlockToken from '@/components/ui/BlockToken.vue';
+import { messages } from '@/i18n/vi';
+
+// ── TK nhận tiền (pm-decision-log-gp.md — ĐÃ CHỐT, KHÔNG đổi) ──
+const MB_BENEFICIARY = {
+  bankBin: '970422', // MB Bank
+  bankNumber: '83863112088386',
+  name: 'NGUYEN THI NHU HOA',
+} as const;
+const ACCOUNT_DISPLAY = '8386 3112 0883 86';
+
+// ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược ──
+const COUNTDOWN_SECONDS = 60;
+
+const gamification = useGamificationStore();
+const ui = useUiStore();
+const auth = useAuthStore();
+const route = useRoute();
+const router = useRouter();
+
+// id = planId theo contract backend ("1m"|"3m"|"12m" — PremiumDtos.cs / API_REFERENCE §4.14)
+const PLANS = [
+  { id: '1m', name: '1 tháng', price: '49.000₫', amount: 49000, months: 1, highlight: false },
+  { id: '3m', name: '3 tháng', price: '129.000₫', amount: 129000, months: 3, highlight: false },
+  { id: '12m', name: '12 tháng', price: '399.000₫', amount: 399000, months: 12, highlight: true, badge: 'Tiết kiệm nhất' },
+];
+
+// So sánh quyền lợi — free/premium = null → icon X/Check (lucide, ngữ nghĩa quaternary/resolved)
+const BENEFITS = messages.premium.compareRows;
+
+// Strip mono hero: dữ liệu tuần tự (plan id) — signature "dữ liệu luôn được đánh số"
+const planStrip = computed(() => PLANS.map((p) => p.id.toUpperCase()).join(' · '));
+
+const checkoutPlan = ref<(typeof PLANS)[number] | null>(null);
+const step = ref<1 | 2>(1);
+const paying = ref(false);
+const success = ref(false);
+
+const qrCanvas = ref<HTMLCanvasElement | null>(null);
+const qrError = ref(false);
+const countdown = ref(COUNTDOWN_SECONDS);
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let redirectTimer: ReturnType<typeof setTimeout> | null = null;
+
+const userId = computed(() => auth.user?.id ?? null);
+
+// Nội dung CK tự động DSV{userId}T{months} — user KHÔNG tự ghi (pm-decision-log-gp.md)
+const transferContent = computed(() => {
+  if (!checkoutPlan.value || userId.value === null) return '';
+  return `DSV${userId.value}T${checkoutPlan.value.months}`;
+});
+
+const qrPayload = computed(() => {
+  if (!checkoutPlan.value || !transferContent.value) return '';
+  return buildVietQrPayload(MB_BENEFICIARY, checkoutPlan.value.amount, transferContent.value);
+});
+
+const countdownText = computed(() => {
+  const s = Math.max(0, countdown.value);
+  return `00:${String(s).padStart(2, '0')}`;
+});
+const confirmEnabled = computed(() => countdown.value <= 0 && !paying.value);
+
+onMounted(() => {
+  void gamification.fetchPremium();
+  const planQuery = route.query.plan;
+  if (typeof planQuery === 'string') {
+    // Deep link theo SDD Màn 25: ?plan=1 (số tháng) hoặc ?plan=1m (planId contract)
+    const found = PLANS.find((p) => p.id === planQuery || String(p.months) === planQuery);
+    if (found) {
+      checkoutPlan.value = found;
+      step.value = 1;
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  stopCountdown();
+  if (redirectTimer) clearTimeout(redirectTimer);
+});
+
+// Vào bước 2 → render QR + chạy đếm ngược; rời bước 2 / đóng modal → dừng đếm ngược
+watch([step, checkoutPlan, transferContent], () => {
+  if (step.value === 2 && checkoutPlan.value && transferContent.value) {
+    startCountdown();
+    void nextTick(renderQr);
+  } else {
+    stopCountdown();
+  }
+});
+
+const isPremiumActive = computed(() => gamification.isPremium);
+
+function openCheckout(plan: (typeof PLANS)[number]): void {
+  if (userId.value === null) {
+    ui.showToast(messages.premium.needLogin, 'error');
+    return;
+  }
+  if (isPremiumActive.value) {
+    if (!window.confirm(messages.premium.confirmReplace)) return;
+  }
+  checkoutPlan.value = plan;
+  step.value = 1;
+  success.value = false;
+}
+
+function goToStep2(): void {
+  if (userId.value === null) {
+    ui.showToast(messages.premium.needLogin, 'error');
+    return;
+  }
+  step.value = 2;
+}
+
+function backToStep1(): void {
+  stopCountdown();
+  step.value = 1;
+}
+
+function startCountdown(): void {
+  stopCountdown();
+  countdown.value = COUNTDOWN_SECONDS;
+  countdownTimer = setInterval(() => {
+    countdown.value -= 1;
+    if (countdown.value <= 0) stopCountdown();
+  }, 1000);
+}
+
+function stopCountdown(): void {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+}
+
+async function renderQr(): Promise<void> {
+  qrError.value = false;
+  const canvas = qrCanvas.value;
+  if (!canvas || !qrPayload.value) return;
+  try {
+    await QRCode.toCanvas(canvas, qrPayload.value, {
+      width: 208,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+    });
+  } catch {
+    qrError.value = true;
+  }
+}
+
+async function copyContent(): Promise<void> {
+  const content = transferContent.value;
+  if (!content) return;
+  try {
+    await navigator.clipboard.writeText(content);
+    ui.showToast(messages.premium.copied, 'success');
+  } catch {
+    ui.showToast(messages.premium.copyFailed, 'error');
+  }
+}
+
+async function confirmPaid(): Promise<void> {
+  if (!checkoutPlan.value || !confirmEnabled.value) return;
+  paying.value = true;
+  try {
+    // Bước 1: tạo đơn checkout (OrderRef = DSV{userId}T{months}) → Bước 2: mock-pay kích hoạt ngay
+    const order = await gamificationApi.upgradePremium(checkoutPlan.value.id);
+    await gamificationApi.mockPayPremium(order.orderId);
+    success.value = true;
+    fireConfetti('success');
+    await gamification.fetchPremium();
+    ui.showToast(messages.premium.upgraded, 'success');
+    redirectTimer = setTimeout(() => void router.replace({ name: 'home' }), 2500);
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Xác nhận chuyển khoản thất bại.', 'error');
+  } finally {
+    paying.value = false;
+  }
+}
+
+// Giá quy đổi theo tháng (tính từ price/amount đã chốt — hiển thị tham khảo)
+const planPerMonth = (plan: (typeof PLANS)[number]): string =>
+  Math.round(plan.amount / plan.months).toLocaleString('vi-VN');
+</script>
+
+<template>
+  <main class="premium container">
+    <!-- Hero — surface band level-2 (không gradient, không blob) + strip mono dữ liệu -->
+    <header class="premium__hero">
+      <div class="premium__hero-body">
+        <span class="premium__hero-icon" aria-hidden="true"><Crown :size="20" /></span>
+        <div class="premium__hero-title-wrap">
+          <h1 class="premium__title">{{ messages.premium.title }}</h1>
+          <p class="premium__sub">{{ messages.premium.subtitle }}</p>
+        </div>
+        <span class="premium__hero-strip" aria-hidden="true">
+          <span class="premium__strip-block" /> PLAN · {{ planStrip }}
+        </span>
+      </div>
+    </header>
+
+    <div class="premium__plans">
+      <article
+        v-for="plan in PLANS"
+        :key="plan.id"
+        class="premium__plan card"
+        :class="{ 'premium__plan--highlight': plan.highlight }"
+      >
+        <div class="premium__plan-head">
+          <h3 class="premium__plan-name">{{ plan.name }}</h3>
+          <Badge v-if="plan.badge" variant="warning">{{ plan.badge }}</Badge>
+        </div>
+        <p class="premium__plan-price">{{ plan.price }}</p>
+        <p class="premium__plan-per">{{ messages.premium.perMonth(planPerMonth(plan)) }}</p>
+        <p class="premium__plan-sub">{{ messages.premium.daysLabel(plan.months * 30) }}</p>
+        <Button :variant="plan.highlight ? 'primary' : 'secondary'" block @click="openCheckout(plan)">
+          {{ messages.premium.choose }}
+        </Button>
+      </article>
+    </div>
+
+    <!-- Bảng so sánh Free vs Premium — Check/X lucide (resolved/quaternary), mobile → card-stack -->
+    <section class="premium__compare card">
+      <h2 class="premium__compare-title">{{ messages.premium.compareTitle }}</h2>
+      <div class="premium__table-wrap">
+        <table class="premium__table">
+          <thead>
+            <tr>
+              <th scope="col">{{ messages.premium.colBenefit }}</th>
+              <th scope="col">{{ messages.premium.colFree }}</th>
+              <th scope="col">{{ messages.premium.colPremium }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="benefit in BENEFITS" :key="benefit.label">
+              <td>{{ benefit.label }}</td>
+              <td :data-label="messages.premium.colFree" class="premium__table-free">
+                <X v-if="benefit.free === null" :size="14" class="premium__cell-x" aria-hidden="true" />
+                <template v-else>{{ benefit.free }}</template>
+              </td>
+              <td :data-label="messages.premium.colPremium" class="premium__table-premium">
+                <Check v-if="benefit.premium === null" :size="14" class="premium__cell-check" aria-hidden="true" />
+                <template v-else>{{ benefit.premium }}</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Checkout modal 2 bước (Màn 26) — logic QR/countdown GIỮ NGUYÊN -->
+    <Modal
+      :open="checkoutPlan !== null"
+      :title="success ? '' : messages.premium.checkoutTitle"
+      :closable="!paying"
+      width="460px"
+      @close="checkoutPlan = null"
+    >
+      <div v-if="success" class="premium__success" role="status">
+        <div class="premium__success-token">
+          <BlockToken v-if="checkoutPlan" tone="resolved" label="PREMIUM" :value="checkoutPlan.name" :index="messages.premium.successTokenIndex" />
+        </div>
+        <h2 class="premium__success-title">{{ messages.premium.successTitle }}</h2>
+        <p class="premium__success-desc">{{ messages.premium.successDesc }}</p>
+        <Button @click="router.replace({ name: 'home' })">{{ messages.premium.successGo }}</Button>
+      </div>
+
+      <template v-else-if="checkoutPlan">
+        <!-- Bước 1 -->
+        <template v-if="step === 1">
+          <h3 class="premium__checkout-name">
+            {{ messages.premium.checkoutName(checkoutPlan.name, checkoutPlan.price) }}
+          </h3>
+          <ul class="premium__checkout-benefits">
+            <li v-for="benefit in messages.premium.checkoutBenefits" :key="benefit">
+              <CheckCircle2 :size="16" class="premium__benefit-icon" aria-hidden="true" />
+              {{ benefit }}
+            </li>
+          </ul>
+          <div class="premium__checkout-actions">
+            <Button variant="ghost" @click="checkoutPlan = null">{{ messages.premium.back }}</Button>
+            <Button @click="goToStep2">
+              {{ messages.premium.continue }} <ArrowRight :size="14" aria-hidden="true" />
+            </Button>
+          </div>
+        </template>
+
+        <!-- Bước 2: QR chuyển khoản MB Bank + đếm ngược 60s (GP-T7) -->
+        <template v-else>
+          <div class="premium__qr">
+            <div class="premium__qr-frame bg-white">
+              <canvas
+                ref="qrCanvas"
+                class="premium__qr-canvas"
+                role="img"
+                :aria-label="messages.premium.qrAria"
+              ></canvas>
+            </div>
+            <p v-if="qrError" class="premium__qr-error">{{ messages.premium.qrError }}</p>
+            <p class="premium__qr-caption">
+              <QrCode :size="14" aria-hidden="true" /> {{ checkoutPlan.name }} · {{ checkoutPlan.price }}
+            </p>
+          </div>
+
+          <div class="premium__qr-info">
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">{{ messages.premium.bankLabel }}</span>
+              <span class="premium__qr-value">MB Bank</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">{{ messages.premium.ownerLabel }}</span>
+              <span class="premium__qr-value">{{ MB_BENEFICIARY.name }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">{{ messages.premium.accountLabel }}</span>
+              <span class="premium__qr-value premium__qr-value--mono">{{ ACCOUNT_DISPLAY }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">{{ messages.premium.amountLabel }}</span>
+              <span class="premium__qr-value premium__qr-value--mono">{{ checkoutPlan.price }}</span>
+            </div>
+            <div class="premium__qr-row">
+              <span class="premium__qr-label">{{ messages.premium.contentLabel }}</span>
+              <span class="premium__qr-value premium__qr-value--mono">{{ transferContent }}</span>
+            </div>
+          </div>
+
+          <div class="premium__qr-actions">
+            <Button variant="secondary" :disabled="paying || !transferContent" @click="copyContent">
+              <Copy :size="14" aria-hidden="true" /> {{ messages.premium.copyContent }}
+            </Button>
+          </div>
+
+          <p class="premium__checkout-note">
+            <Info :size="16" class="premium__note-icon" aria-hidden="true" />
+            <span>{{ messages.premium.note }}</span>
+          </p>
+
+          <p v-if="!confirmEnabled" class="premium__countdown" role="status">
+            {{ messages.premium.countdownLabel }} <strong class="premium__countdown-value">{{ countdownText }}</strong>
+          </p>
+
+          <div class="premium__checkout-actions">
+            <Button variant="ghost" :disabled="paying" @click="backToStep1">
+              <ArrowLeft :size="14" aria-hidden="true" /> {{ messages.premium.back }}
+            </Button>
+            <Button :loading="paying" :disabled="!confirmEnabled" @click="confirmPaid">
+              {{ messages.premium.confirmPaid }}
+            </Button>
+          </div>
+        </template>
+      </template>
+    </Modal>
+  </main>
+</template>
+
+<style scoped>
+.premium {
+  padding-block: var(--space-lg) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 960px;
+}
+
+/* Card dùng class global .card (global.css có shadow-md) — §6 cấm shadow card → override */
+.premium .card {
+  box-shadow: none;
+}
+
+/* ── Hero — surface band level-2 (DESIGN.md §6) ── */
+.premium__hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-card-raised);
+}
+
+.premium__hero-body { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; }
+
+.premium__hero-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.premium__hero-title-wrap { display: flex; flex-direction: column; gap: var(--space-xs); }
+
+.premium__title {
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  margin: 0;
+}
+
+.premium__sub { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+
+/* Strip mono dữ liệu — dãy plan id (dữ liệu tuần tự, index mono) */
+.premium__hero-strip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-canvas-ink);
+  border: 1px solid color-mix(in srgb, var(--color-data-core) 25%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+
+.premium__strip-block {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-data-core);
+}
+
+/* ── Plans ── */
+.premium__plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.premium__plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: stretch;
+  position: relative;
+  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium__plan:hover { border-color: var(--color-border-strong); }
+
+/* Gói nổi bật — phân cấp bằng border + tint success (KHÔNG gradient/shadow/scale) */
+.premium__plan--highlight {
+  border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 5%, var(--color-card));
+}
+
+.premium__plan--highlight:hover {
+  border-color: color-mix(in srgb, var(--color-success) 65%, var(--color-border));
+}
+
+.premium__plan-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); }
+
+.premium__plan-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+
+.premium__plan-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.premium__plan-per { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+.premium__plan-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-xs); }
+
+.premium__plan :deep(button) { margin-top: auto; }
+
+/* ── Compare table (DESIGN.md §4.6) ── */
+.premium__compare { display: flex; flex-direction: column; gap: var(--space-md); min-width: 0; transition: none; }
+
+.premium__compare-title { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
+
+.premium__table-wrap { overflow-x: auto; }
+
+.premium__table { width: 100%; border-collapse: collapse; min-width: 420px; }
+
+.premium__table th,
+.premium__table td {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+.premium__table th {
+  height: 40px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.premium__table td {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-foreground-secondary);
+}
+
+.premium__table tbody tr { transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); }
+.premium__table tbody tr:hover { background: var(--color-surface-hover); }
+.premium__table tbody tr:last-child td { border-bottom: none; }
+
+.premium__table-free { color: var(--color-text-tertiary); }
+.premium__table-premium { color: var(--color-foreground); font-weight: 500; }
+
+.premium__cell-check { color: var(--color-success); }
+.premium__cell-x { color: var(--color-text-quaternary); }
+
+/* ── Checkout modal ── */
+.premium__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  text-align: center;
+  padding: var(--space-md) 0;
+}
+
+/* Khoảnh khắc đầu tư duy nhất: success block-token resolved vào nhẹ (easing chuẩn) */
+.premium__success-token {
+  animation: premium-success-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes premium-success-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.premium__success-title { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.015em; }
+
+.premium__success-desc { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 34ch; }
+
+.premium__checkout-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; }
+
+.premium__checkout-benefits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  margin-top: var(--space-sm);
+}
+
+.premium__checkout-benefits li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-foreground-secondary);
+}
+
+.premium__benefit-icon { color: var(--color-success); flex-shrink: 0; }
+
+.premium__checkout-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-info) 40%, var(--color-border));
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+.premium__note-icon { flex-shrink: 0; margin-top: 2px; color: var(--color-info); }
+
+/* GP-T7: QR chuyển khoản MB Bank */
+.premium__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+}
+
+/* Nền trắng là yêu cầu CHỨC NĂNG của QR (ISO/IEC 18004) — ngoại lệ ghi pm-decision-log-viewquality */
+.premium__qr-frame {
+  padding: var(--space-sm);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.premium__qr-canvas {
+  width: 208px;
+  height: 208px;
+  display: block;
+}
+
+.premium__qr-error { color: var(--color-destructive); font-size: var(--text-xs); }
+
+.premium__qr-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+}
+
+.premium__qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  background: var(--color-surface-hover);
+}
+
+.premium__qr-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.premium__qr-label { color: var(--color-text-tertiary); font-size: var(--text-xs); flex-shrink: 0; }
+
+.premium__qr-value { font-weight: 500; text-align: right; word-break: break-all; }
+
+.premium__qr-value--mono { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.premium__qr-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-xs);
+}
+
+.premium__countdown {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+}
+
+.premium__countdown-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.premium__checkout-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+/* Mobile: bảng so sánh → card-stack (thead ẩn, label qua data-label) — §8 cấm scroll ngang bảng chính */
+@media (max-width: 640px) {
+  .premium__table { min-width: 0; }
+  .premium__table thead { display: none; }
+  .premium__table,
+  .premium__table tbody,
+  .premium__table tr,
+  .premium__table td { display: block; width: 100%; }
+  .premium__table tbody { display: flex; flex-direction: column; gap: var(--space-md); }
+  .premium__table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+  }
+  .premium__table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-xs) 0;
+  }
+  .premium__table td:last-child { border-bottom: none; }
+  .premium__table td:not(:first-child)::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium__success-token { animation: none; }
+}
+</style>

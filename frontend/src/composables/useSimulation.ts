@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue';
+import { getCurrentInstance, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import { useSimulationStore } from '@/stores/simulation';
@@ -6,7 +6,7 @@ import type { InputConfig } from '@/engines/core/types';
 
 /**
  * useSimulation(key) — SDD §3.6: nạp sim, play/pause/step/jump/setSpeed, dọn timer khi unmount.
- * Skeleton: ủy quyền cho simulationStore; hoàn thiện ở task engine (EDV §4).
+ * Triển khai thật: ủy quyền toàn bộ cho simulationStore (generator từ engines/registry).
  */
 export function useSimulation(key: string) {
   const store = useSimulationStore();
@@ -16,21 +16,23 @@ export function useSimulation(key: string) {
     return store.loadSim(key, input);
   }
 
-  onMounted(() => {
-    // TODO (task engine): dọn interval/timer playback của store.
-    // Bắt rejection của skeleton loadSim (store chưa implement) — tránh unhandled rejection.
-    void loadSim().catch(() => {
-      /* skeleton: simulationStore.loadSim chưa triển khai (task engine) */
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      void loadSim().catch(() => {
+        /* loadSim không reject — lỗi nằm trong loadError */
+      });
     });
-  });
 
-  onUnmounted(() => {
-    // TODO (task engine): dọn interval/timer playback của store
-  });
+    onUnmounted(() => {
+      // Dọn timer playback của store (SDD §3.5)
+      store.stopPlayback();
+    });
+  }
 
   return {
     ...state,
     loadSim,
+    configureInput: store.configureInput,
     play: store.play,
     pause: store.pause,
     stepForward: store.stepForward,
@@ -38,6 +40,6 @@ export function useSimulation(key: string) {
     jumpTo: store.jumpTo,
     setSpeed: store.setSpeed,
     reset: store.reset,
-    setBreakpoint: store.setBreakpoint,
+    toggleBreakpoint: store.toggleBreakpoint,
   };
 }

@@ -1,0 +1,57 @@
+### Bối cảnh ảnh:
+Trang Đăng ký tài khoản cho sinh viên của DSA Visual. 
+
+### Trang Đăng ký tài khoản:
+- **Tiêu đề**: Đặt tên trang đăng ký.
+- **Form đăng ký**:
+  - Họ tên: Nguyễn Văn A
+  - Email: ban@truong.edu.vn
+  - Mật khẩu: Nhập mật khẩu (không hiển thị)
+  - Xác nhận mật khẩu: Nhập lại mật khẩu
+  - Segmented chọn vai trò: Sinh viên/Giảng viên
+  - Checkbox đồng ý chính sách bảo mật
+- **Nút**: Đăng ký, Đăng nhập ngay
+
+### Màu sắc:
+- Chủ yếu màu xanh lá cây (DAVIS) và trắng.
+
+### Phát hiện lỗi hiển thị:
+1. **Lỗi layout lệch**:
+   - Mật khẩu và xác nhận mật khẩu không được sắp xếp đồng nhất.
+2. **Lỗi cắt chữ**:
+   - Mật khẩu và xác nhận mật khẩu bị cắt ở giữa khi nhập.
+3. **Lỗi chồng lấn**:
+   - Segmented chọn vai trò và checkbox đồng ý chính sách bảo mật bị chồng lên nhau.
+
+### Chấm 7 tiêu chí:
+
+#### UI-1 Thẩm mỹ (màu sắc hài hòa, không chói/mờ, không nhàm)
+- X/5 - Nhận xét: Màu xanh lá cây chủ đạo nhưng không đủ hài hòa với màu trắng nền.
+- Gợi ý: Sử dụng màu xanh lá cây và màu trắng để tạo sự đồng nhất.
+
+#### UI-2 Nhất quán (spacing/bo góc/typography/màu đồng bộ)
+- X/5 - Nhận xét: Không có bo góc hoặc màu đồng bộ rõ ràng.
+- Gợi ý: Thêm bo góc và sử dụng màu xanh lá cây cho các phần tử chính để tạo sự đồng nhất.
+
+#### UI-3 Rõ ràng (hierarchy tiêu đề/body/nút, không chồng lấn, không cắt chữ)
+- X/5 - Nhận xét: Mật khẩu và xác nhận mật khẩu bị cắt ở giữa khi nhập.
+- Gợi ý: Thêm khoảng trống để tránh việc nhập quá dài.
+
+#### UI-4 Phản hồi trực quan (hover/focus/loading/empty state, thông báo lỗi rõ)
+- X/5 - Nhận xét: Không có phản hồi trực quan như hover hoặc focus.
+- Gợi ý: Thêm các hiệu ứng khi nhấp vào nút để tăng tính tương tác.
+
+#### UX-5 Luồng thao tác (thao tác chính dễ tìm, ít bước, không bế tắc)
+- X/5 - Nhận xét: Có quá nhiều bước đăng ký và không rõ ràng.
+- Gợi ý: Tăng cường phân loại các bước đăng ký để giảm số lượng bước.
+
+#### UX-6 Khả năng tiếp cận (contrast text, kích thước chạm, label rõ, focus ring)
+- X/5 - Nhận xét: Contrast text kém và kích thước chạm nhỏ.
+- Gợi ý: Tăng độ tương phản cho chữ và tăng kích thước để dễ nhìn hơn.
+
+#### UX-7 Độ thỏa mãn (cảm giác muốn dùng tiếp, điểm wow):
+- X/5 - Nhận xét: Không có điểm wow hoặc cảm giác muốn sử dụng tiếp.
+- Gợi ý: Thêm các yếu tố như hình ảnh minh họa hoặc thông báo tích cực để tăng sự tương tác.
+
+### Kết luận:
+Trang đăng ký tài khoản của DSA Visual cần được cải thiện về bố cục, màu sắc và phản hồi trực quan. Việc giảm số bước đăng ký cũng sẽ giúp người dùng dễ dàng hơn trong quá trình tạo tài khoản.

@@ -171,9 +171,8 @@ namespace VisualizationDSA.WebApi.Controllers
         {
             if (string.IsNullOrWhiteSpace(userId)) return;
 
-            var email = userId == "demo-user-001" ? "demo@visualizationdsa.dev" : userId;
             var dbUser = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == email || u.Id.ToString() == userId);
+                .FirstOrDefaultAsync(u => u.Email == userId || u.Id.ToString() == userId);
             if (dbUser != null)
             {
                 dbUser.SetPremiumStatus(true);

@@ -16,13 +16,15 @@ namespace VisualizationDSA.Domain.Entities
         public Guid? CreatedByTeacherId { get; set; }
         public LessonPublishStatus PublishStatus { get; private set; } = LessonPublishStatus.Draft;
         public bool IsDeleted { get; private set; }
+        public Guid? CodelabId { get; private set; }
 
         public virtual User? CreatedByTeacher { get; private set; }
+        public virtual Codelab? Codelab { get; private set; }
         public virtual ICollection<UserLessonProgress> Progresses { get; private set; }
 
         private Lesson() { }
 
-        public Lesson(string title, string contentMd, string sandboxType, string sandboxConfig, int xpReward, Guid? createdByTeacherId = null)
+        public Lesson(string title, string contentMd, string sandboxType, string sandboxConfig, int xpReward, Guid? createdByTeacherId = null, Guid? codelabId = null)
         {
             Id = Guid.NewGuid();
             Title = string.IsNullOrWhiteSpace(title) ? throw new ArgumentException("Title cannot be empty.", nameof(title)) : title;
@@ -31,6 +33,7 @@ namespace VisualizationDSA.Domain.Entities
             SandboxConfig = string.IsNullOrWhiteSpace(sandboxConfig) ? "{}" : sandboxConfig;
             XPReward = xpReward >= 0 ? xpReward : throw new ArgumentOutOfRangeException(nameof(xpReward), "XP Reward cannot be negative.");
             CreatedByTeacherId = createdByTeacherId;
+            CodelabId = codelabId;
             PublishStatus = LessonPublishStatus.Draft;
             CreatedAt = DateTime.UtcNow;
             IsDeleted = false;

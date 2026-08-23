@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Golden Knight avatar">
+  <defs>
+    <linearGradient id="bgGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1c1917"/>
+      <stop offset="100%" stop-color="#292524"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="goldShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="64" fill="url(#bgGold)"/>
+  <circle cx="64" cy="64" r="60" fill="none" stroke="url(#goldGrad)" stroke-width="2" opacity="0.7"/>
+  <path d="M28 128 C28 98 42 86 64 86 C86 86 100 98 100 128 Z" fill="#44403c"/>
+  <path d="M38 128 C40 106 50 94 64 94 C78 94 88 106 90 128 Z" fill="url(#goldGrad)"/>
+  <path d="M42 46 C42 26 52 18 64 18 C76 18 86 26 86 46 L86 70 C86 82 76 90 64 90 C52 90 42 82 42 70 Z" fill="url(#goldGrad)"/>
+  <path d="M60 12 L64 4 L68 12 L74 8 L72 20 L56 20 L54 8 Z" fill="url(#goldShine)"/>
+  <path d="M48 48 L80 48 L76 72 L64 80 L52 72 Z" fill="#292524"/>
+  <path d="M52 56 L76 56 L76 60 L66 60 L66 74 L62 74 L62 60 L52 60 Z" fill="url(#goldShine)"/>
+  <circle cx="48" cy="46" r="2" fill="#fef08a"/>
+  <circle cx="80" cy="46" r="2" fill="#fef08a"/>
+</svg>

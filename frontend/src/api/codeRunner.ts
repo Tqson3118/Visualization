@@ -1,3 +1,5 @@
+import { client, getData } from './client';
+
 /** Endpoint theo API_REFERENCE §4.13 (Module I — Code Runner, ADR-012) */
 export const CODE_RUNNER_ENDPOINTS = {
   codeRuns: '/code-runs',
@@ -26,29 +28,44 @@ export interface CodeSubmitResult {
   results: Array<{ testId: string; passed: boolean; message: string }>;
 }
 
-// ── Stub CRUD (body TODO) ──
+/** Payload POST /code-runs theo API_REFERENCE §4.13 / ADR-012 — key bắt buộc string, input là string (SETUP_TODO §6.7). */
+export interface SaveCodeRunPayload {
+  exerciseId?: number | null;
+  key: string;
+  code: string;
+  input?: string | null;
+  status?: 'Success' | 'Error' | 'Timeout' | string;
+  durationMs?: number;
+  stats?: { comparisons?: number | null; swaps?: number | null; steps?: number | null };
+  output?: string | null;
+  error?: string | null;
+  trace?: unknown[];
+}
 
-export async function saveCodeRun(payload: { exerciseId?: number | null; code: string; input?: unknown }): Promise<CodeRunSummary> {
-  // TODO: getData({ method: 'POST', url: CODE_RUNNER_ENDPOINTS.codeRuns, data: payload })
-  return Promise.reject(new Error('TODO: codeRunnerApi.saveCodeRun chưa triển khai'));
+// ── CRUD (API_REFERENCE §4.13) ──
+
+export async function saveCodeRun(payload: SaveCodeRunPayload): Promise<CodeRunSummary> {
+  return getData<CodeRunSummary>({ method: 'POST', url: CODE_RUNNER_ENDPOINTS.codeRuns, data: payload });
 }
 
 export async function fetchCodeRun(id: number): Promise<CodeRunSummary> {
-  // TODO: getData({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.codeRun(id) })
-  return Promise.reject(new Error('TODO: codeRunnerApi.fetchCodeRun chưa triển khai'));
+  return getData<CodeRunSummary>({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.codeRun(id) });
 }
 
 export async function fetchCodeRunTrace(id: number): Promise<unknown[]> {
-  // TODO: getData({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.codeRunTrace(id) })
-  return Promise.reject(new Error('TODO: codeRunnerApi.fetchCodeRunTrace chưa triển khai'));
+  return getData<unknown[]>({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.codeRunTrace(id) });
 }
 
-export async function submitCode(exerciseId: number, code: string): Promise<CodeSubmitResult> {
-  // TODO: getData({ method: 'POST', url: CODE_RUNNER_ENDPOINTS.codeSubmit(exerciseId), data: { code } })
-  return Promise.reject(new Error('TODO: codeRunnerApi.submitCode chưa triển khai'));
+export async function submitCode(exerciseId: number, code: string, classAssignmentId?: number | null): Promise<CodeSubmitResult> {
+  return getData<CodeSubmitResult>({
+    method: 'POST',
+    url: CODE_RUNNER_ENDPOINTS.codeSubmit(exerciseId),
+    data: { code, classAssignmentId: classAssignmentId ?? undefined },
+  });
 }
 
 export async function fetchMyCodeSubmissions(exerciseId: number): Promise<CodeRunSummary[]> {
-  // TODO: getData({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.myCodeSubmissions(exerciseId) })
-  return Promise.reject(new Error('TODO: codeRunnerApi.fetchMyCodeSubmissions chưa triển khai'));
+  return getData<CodeRunSummary[]>({ method: 'GET', url: CODE_RUNNER_ENDPOINTS.myCodeSubmissions(exerciseId) });
 }
+
+export { client };

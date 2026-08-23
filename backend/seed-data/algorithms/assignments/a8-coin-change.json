@@ -1,0 +1,22 @@
+{
+  "id": "a8-coin-change",
+  "title": "Trả tiền bằng xu (Greedy)",
+  "description": "MODULE 8 — Thuật toán tham lam.\n\nMáy bán hàng cần thối tiền cho khách bằng ít đồng xu nhất. Mệnh giá có sẵn: `[25, 10, 5, 1]` (xu chuẩn — greedy luôn tối ưu). Viết hàm `coinChange(amount)` trả về **SỐ đồng xu ít nhất** cần để tạo thành `amount`, dùng **thuật toán tham lam**: mỗi bước chọn đồng xu lớn nhất không vượt quá số tiền còn lại.\n\n- `amount` là số nguyên không âm.\n- Với hệ xu [25,10,5,1], luôn trả được (vì có đồng 1).\n\nVí dụ: `coinChange(67)` → `6` (25+25+10+5+1+1).",
+  "initialCode": "function coinChange(amount) {\n  const coins = [25, 10, 5, 1];\n  let remaining = amount;\n  let count = 0;\n  // TODO: mỗi bước lấy đồng xu lớn nhất <= remaining\n  return count;\n}",
+  "entryFunction": "coinChange",
+  "testCases": [
+    { "name": "coinChange: 67", "input": "[67]", "expectedOutput": "6" },
+    { "name": "coinChange: 0", "input": "[0]", "expectedOutput": "0" },
+    { "name": "coinChange: 25", "input": "[25]", "expectedOutput": "1" },
+    { "name": "coinChange: 30", "input": "[30]", "expectedOutput": "2" },
+    { "name": "coinChange: 100", "input": "[100]", "expectedOutput": "4" },
+    { "name": "coinChange: 41", "input": "[41]", "expectedOutput": "4" },
+    { "name": "coinChange: 99", "input": "[99]", "expectedOutput": "9" }
+  ],
+  "hints": [
+    "Duyệt coins theo thứ tự giảm dần (đã sắp): [25,10,5,1].",
+    "Với mỗi đồng xu, dùng while (remaining >= coin) để trừ tối đa.",
+    "Đếm mỗi lần lấy một đồng xu — trả về tổng số đồng.",
+    "Greedy đúng với hệ xu chuẩn — nếu đổi mệnh giá bất kỳ thì phải dùng QHĐ."
+  ]
+}

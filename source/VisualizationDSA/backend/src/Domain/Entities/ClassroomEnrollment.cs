@@ -39,6 +39,15 @@ namespace VisualizationDSA.Domain.Entities
             StatusChangedByUserId = kickedByUserId;
             StatusChangeReason = reason;
         }
+
+        // CR-026: học viên tự rời lớp — chỉ đánh dấu Left, KHÔNG xóa dữ liệu tiến độ.
+        public void Leave()
+        {
+            Status = EnrollmentStatus.Left;
+            StatusChangedAt = DateTime.UtcNow;
+            StatusChangedByUserId = null;
+            StatusChangeReason = "Student left the classroom";
+        }
         
         public void Reactivate()
         {

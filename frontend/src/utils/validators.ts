@@ -8,9 +8,15 @@ const UPPERCASE_REGEX = /[A-Z]/;
 const LOWERCASE_REGEX = /[a-z]/;
 const DIGIT_REGEX = /\d/;
 const SPECIAL_REGEX = /[^A-Za-z0-9]/;
+const URL_REGEX = /^https?:\/\/\S+$/i;
 
 export function isValidEmail(email: string): boolean {
   return email.length <= 256 && EMAIL_REGEX.test(email);
+}
+
+/** URL hợp lệ (http/https, không chứa khoảng trắng) — RegisterRequest.profileLink */
+export function isValidUrl(url: string): boolean {
+  return url.length <= 2048 && URL_REGEX.test(url);
 }
 
 export interface PasswordRule {

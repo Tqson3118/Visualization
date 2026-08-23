@@ -597,7 +597,9 @@ edirect: '/'.
 ### S�a L�i 176: T�i L�i Trang (F5) Lu�n B� Vng Ra Landing Page (ERR_ROUTER_F5_AUTH_RACE)
 *   **M� t�:** ang � trong b�i h�c (LessonView) ho�c Dashboard, ng��i d�ng �n F5 th� lu�n b� �y ra ngo�i trang ch� \/landing\, m�c d� tr�ng th�i ng nh�p (token) v�n c�n trong localStorage.
 *   **M� L�i:** ERR_ROUTER_F5_AUTH_RACE
-*   **Nguy�n nh�n g�c:** Race condition (b�t �ng b�) trong Vue SPA. Tr�nh �nh tuy�n \outer\ kh�i ch�y v� �nh gi� guard \equiresAuth\ ngay l�p t�c tr��c khi \uthStore.init()\ k�p kh�i ph�c l�i tr�ng th�i Token t� localStorage (ph�i �c qua Promise), d�n �n vi�c router ngh) ng��i d�ng ch�a ng nh�p.
+*   **Nguy�n nh�n g�c:** Race condition (b�t �ng b�) trong Vue SPA. Tr�nh �nh tuy�n \
+outer\ kh�i ch�y v� �nh gi� guard \
+equiresAuth\ ngay l�p t�c tr��c khi \uthStore.init()\ k�p kh�i ph�c l�i tr�ng th�i Token t� localStorage (ph�i �c qua Promise), d�n �n vi�c router ngh) ng��i d�ng ch�a ng nh�p.
 *   **C�ch kh�c ph�c:** Trong \main.ts\, k�m h�m kh�ng g�i \pp.use(router)\ cho �n khi \uthStore.init()\ � ho�n t�t kh�i ph�c tr�ng th�i v�o b� nh�.
 
 ### Bug: S�n ch�i �? th? b? m�n h?nh h�?ng d?n che khu?t v� kh�ng th? t?t
@@ -609,7 +611,8 @@ edirect: '/'.
 - **C�ch kh?c ph?c:** C?p nh?t LessonStudyView.vue, n�ng z-index c?a thanh Drawer l�n z-[2000] v� l?p n?n m? overlay l�n z-[1999] �? lu�n hi?n th? cao nh?t.
 
 ### Bug: N�t tr? gi�p (?) AI kh�ng hi?n th? tour h�?ng d?n trong kho� h?c �? th?
-- **Nguy�n nh�n:** N�t HelpButton m?c �?nh g?i k?ch b?n AI d?a tr�n URL hi?n t?i (oute.path). Khi ? trong kho� h?c, URL l� d?ng /courses/:id/lessons/:id ch? kh�ng ph?i l� /graph. Trong khi ��, k?ch b?n h�?ng d?n l?i ��ng k? d�?i key /graph ? useGuidedTourStore, d?n �?n vi?c h? th?ng kh�ng t?m th?y k?ch b?n t��ng ?ng �? ch?y.
+- **Nguy�n nh�n:** N�t HelpButton m?c �?nh g?i k?ch b?n AI d?a tr�n URL hi?n t?i (
+oute.path). Khi ? trong kho� h?c, URL l� d?ng /courses/:id/lessons/:id ch? kh�ng ph?i l� /graph. Trong khi ��, k?ch b?n h�?ng d?n l?i ��ng k? d�?i key /graph ? useGuidedTourStore, d?n �?n vi?c h? th?ng kh�ng t?m th?y k?ch b?n t��ng ?ng �? ch?y.
 - **C�ch kh?c ph?c:** C?p nh?t file GraphView.vue truy?n c?ng tham s? 	our-key=/graph` cho component <HelpButton /> �? n� lu�n n?p ��ng k?ch b?n h�?ng d?n b?t k? URL b�n ngo�i l� g?.
 
 ### Bug: N?i dung h�?ng d?n AI (Guided Tour) kh�ng kh?p v?i t�n g?i c�ng c? tr�n UI
@@ -1620,7 +1623,8 @@ px vue-tsc --noEmit exit code 0 (toan bo type check pass).
 | 413 | PS-017 (P2): in operator trong scriptLoader -> hasPseudocodeScript('toString') true, loadPseudocodeScript('constructor') crash | Thay bang Object.hasOwn(registry, id) o ca 2 ham | FIXED |
 | 414 | PS-021 (P2): usePseudocodeStore hardcode useAnimationStore() | Them indAnimationStore(store)/unbindAnimationStore() (module-level binder; KHONG dung tham so setup store vi pinia 2.3+ goi setup({action}) chiem cho tham so); default giu useAnimationStore() | FIXED |
 | 415 | PS-022 (P2): pause() goi 2 lan trong snap helpers | Bo ca 2 nimStore.pause() (goToFrame da pause); interface AnimationStoreSync ghi hop dong goToFrame tu pause | FIXED |
-| 416 | PS-023 (P2): scriptLoader khong validate cau truc script khi dang ky | alidatePseudocodeScript + egisterPseudocodeScript fail-fast (throw + console.error): languages non-empty, language hop le, lines non-empty, lineNumber duong & duy nhat, text/logicalId non-empty; registry duyet qua register | FIXED |
+| 416 | PS-023 (P2): scriptLoader khong validate cau truc script khi dang ky | alidatePseudocodeScript + 
+egisterPseudocodeScript fail-fast (throw + console.error): languages non-empty, language hop le, lines non-empty, lineNumber duong & duy nhat, text/logicalId non-empty; registry duyet qua register | FIXED |
 | 417 | PS-011 (P2): Nhieu dong cung logicalId -> chi dong dau sang (Java 5,6,7 SWAP_STEP; Python/JS 2 dong FUNC_DECL) | Chon huong ENGINE TRA DANH SACH (it pha vo test nhat): them PseudocodeSyncEngine.getPhysicalLineNumbers tra toan bo line khop + store expose ctivePhysicalLineNumbers: number[] (giu ctivePhysicalLineNumber first-match de tuong thich); TODO agent component: MultilingualCodePanel chuyen sang danh sach de ca 3 dong Java cung sang | FIXED (phan engine/store; con TODO component) |
 | 418 | PS-010 (P2): INNER_LOOP khong bao gio duoc emit (phan dsa-modules sortingGenerators.ts) | Dummy generator animation-engine + backend da emit INNER_LOOP dau moi vong j (agent khac fix); sortingGenerators.ts (dsa-modules) van chua gan activeLogicalLineId - TODO agent dsa-modules (da ghi comment trong bubble-sort.pseudocode.ts) | TODO (agent khac) |
 | 419 | PS-009/PS-024 (P2): temp trong frame swap sai + OUTER_LOOP phat cuoi pass | Da fix o animation-engine/services/algorithmApi.ts + sortingGenerators.ts + backend (agent khac) - xac nhan nhin code 2026-08-10 | FIXED (agent khac) |
@@ -1689,3 +1693,11 @@ px vue-tsc --noEmit exit code 0 (toan bo type check pass).
 | QZ-056 | Low | selectBackendAnswer dung reassignment thay splice |
 
 - **Kết quả:** frontend 2715/2715 PASS (2713 + 2 test QZ-006).
+
+
+## SQL Server Migration Review - 2026-08-19 (2 bugs da fix)
+| ID | Mức | Fix |
+| :--- | :--- | :--- |
+| DB-001 | High | Multiple cascade path: FK_ClassroomQuizAttempts_Users_StudentId + Classroom.OwnerTeacherId deu mac dinh Cascade -> SQL Server bao 'multiple cascade paths'. Fix: them config tuong minh Classroom.OwnerTeacherId + ClassroomQuizAttempt.StudentId = DeleteBehavior.NoAction, tai sinh migration InitialCreate (20260818183256). |
+| DB-002 | High | RealDataSeeder.RemoveLegacyUsersAsync fail ('association User and Course severed') do Course.TeacherId -> User la Restrict. Fix: xoa courses cua legacy users truoc khi xoa users. |
+- **Kết quả:** clean drop DB + migrate + seed SUCCESS (0 loi), counts deterministic: Users 137 (8 GV/120 SV/1 admin/8 cho), Courses 20, Classes 12, CourseModules 60, Lessons 100, QuizQuestions 418, Orders 30, Enrollments 120. API :5055 login OK + /auth/me tra dung user seed.

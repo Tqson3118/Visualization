@@ -5,6 +5,7 @@ public sealed class Question
 {
     public int Id { get; set; }
     public int ExerciseId { get; set; }                              // FK cascade
+    public QuestionType Type { get; set; } = QuestionType.Single;    // SINGLE/MULTI/BOOLEAN/LAB
     public string Content { get; set; } = string.Empty;              // Markdown
     public string OptionsJson { get; set; } = string.Empty;          // ["A","B","C","D"]
     public string AnswerJson { get; set; } = string.Empty;           // SINGLE [1]; MULTI [0,2]; BOOLEAN [1]; Lab: {type:STATE_MATCH,...}

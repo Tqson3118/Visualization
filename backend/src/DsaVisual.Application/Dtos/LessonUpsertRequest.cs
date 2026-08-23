@@ -10,5 +10,8 @@ public sealed class LessonUpsertRequest
     public string? Description { get; set; }
     public string ContentHtml { get; set; } = string.Empty;
     public LessonStatus Status { get; set; } = LessonStatus.Draft;
+    public bool IsClassOnly { get; set; }                            // Chỉ dùng trong Lớp học riêng
     public int SortOrder { get; set; }
+    /// <summary>Simulation keys đính kèm (thay thế toàn bộ danh sách cũ).</summary>
+    public List<string> SimulationKeys { get; set; } = [];
 }

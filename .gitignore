@@ -30,3 +30,29 @@ Thumbs.db
 
 # Tooling artifacts
 .playwright-mcp/
+trees/
+session/
+
+# FE artifacts
+frontend/test-results/
+frontend/*.txt
+frontend/public/screenshots/
+docs/work/
+frontend/capture_current_review.mjs
+frontend/scripts/capture-after.cjs
+frontend/scripts/capture-screenshots.cjs
+source/capture_all.cjs
+frontend/docs/
+sim-catalog-final.png
+sim-snapshot.txt
+test_api.py
+tailieu/BaoCaoDoAn_new.docx
+
+future/real-data-accounts.md
+future/be.out.log
+future/be.err.log
+dist_usb/
+*.bak
+*.bak-*
+*.backup-realdata.docx
+tailieu/database/*.bak

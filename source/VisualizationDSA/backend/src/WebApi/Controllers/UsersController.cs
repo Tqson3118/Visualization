@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using VisualizationDSA.Application.DTOs;
 using VisualizationDSA.Application.Services;
 using VisualizationDSA.Domain.Interfaces;
+using VisualizationDSA.Application.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 using VisualizationDSA.WebApi.Filters;
 
@@ -28,11 +30,15 @@ namespace VisualizationDSA.WebApi.Controllers
     {
         private readonly IUnitOfWork           _unitOfWork;
         private readonly IGamificationService  _gamification;
+        private readonly IApplicationDbContext _ctx;
+        private readonly IPasswordHasher _passwordHasher;
 
-        public UsersController(IUnitOfWork unitOfWork, IGamificationService gamification)
+        public UsersController(IUnitOfWork unitOfWork, IGamificationService gamification, IApplicationDbContext ctx, IPasswordHasher passwordHasher)
         {
             _unitOfWork   = unitOfWork;
             _gamification = gamification;
+            _ctx          = ctx;
+            _passwordHasher = passwordHasher;
         }
 
         
@@ -151,6 +157,152 @@ namespace VisualizationDSA.WebApi.Controllers
                 isPremium        = user.IsPremium,
             });
         }
+
+
+        // ── Admin user management (FE admin.ts — Màn 21 /admin/users) ──────────────
+
+        private static string RoleDto(string role)
+            => role switch
+            {
+                "Admin" => "ADMIN",
+                "Teacher" => "TEACHER",
+                "PendingTeacher" => "TEACHER_PENDING",
+                _ => "STUDENT",
+            };
+
+        /// <summary>GET /users?page&pageSize&role&status&q — PagedResponse&lt;AdminUserDto&gt;</summary>
+        [HttpGet]
+        [RequireJwtRole("Admin")]
+        public async Task<ActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+            [FromQuery] string? role = null, [FromQuery] string? status = null, [FromQuery] string? q = null)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var query = _ctx.Users.AsNoTracking();
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                var r = role.ToUpperInvariant() switch { "ADMIN" => "Admin", "TEACHER" => "Teacher", "TEACHER_PENDING" => "PendingTeacher", _ => "Student" };
+                query = query.Where(u => u.Role == r);
+            }
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var active = status.Equals("active", StringComparison.OrdinalIgnoreCase);
+                query = query.Where(u => u.IsActive == active);
+            }
+            if (!string.IsNullOrWhiteSpace(q))
+                query = query.Where(u => u.Username.Contains(q) || u.Email.Contains(q));
+
+            var total = await query.CountAsync();
+            var users = await query.OrderBy(u => u.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            var items = users.Select(u => new
+            {
+                id = u.Id.ToString(),
+                displayName = u.Username,
+                email = u.Email,
+                role = RoleDto(u.Role),
+                isActive = u.IsActive,
+                createdAt = u.CreatedAt.ToString("o"),
+                avatarUrl = (string?)null,
+                department = u.Role == "PendingTeacher" ? "Khoa CNTT" : (string?)null,
+                staffCode = u.Role == "PendingTeacher" ? "GV" + Convert.ToString(u.CreatedAt.Millisecond) : (string?)null,
+            }).ToList();
+            var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize);
+            return Ok(new { items, page, pageSize, total, totalPages });
+        }
+
+        /// <summary>GET /users/{id} — AdminUserDto đầy đủ</summary>
+        [HttpGet("{id:guid}")]
+        [RequireJwtRole("Admin,Teacher")]
+        public async Task<ActionResult> GetUser(Guid id)
+        {
+            var user = await _unitOfWork.Users.GetByIdWithDetailsAsync(id, track: false);
+            if (user == null) return NotFound();
+            var attempts = user.QuizAttempts.Count;
+            return Ok(new
+            {
+                id = user.Id.ToString(),
+                displayName = user.Username,
+                email = user.Email,
+                role = RoleDto(user.Role),
+                isActive = user.IsActive,
+                createdAt = user.CreatedAt.ToString("o"),
+                avatarUrl = (string?)null,
+                xp = user.TotalXP,
+                level = user.CurrentLevel,
+                streakDays = user.StreakDays,
+                gems = 0,
+                hearts = user.Hearts,
+                lessonsCompletedCount = user.UserLessonProgresses.Count(p => p.Status == "Completed"),
+                exercisesPassedCount = attempts,
+                joinedClassesCount = 0,
+            });
+        }
+
+        /// <summary>PUT /users/{id}/status — { isActive }</summary>
+        [HttpPut("{id}/status")]
+        [RequireJwtRole("Admin")]
+        public async Task<IActionResult> SetStatus(Guid id, [FromBody] StatusRequest req)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            user.SetActiveStatus(req.IsActive);
+            await _unitOfWork.CommitAsync();
+            return NoContent();
+        }
+
+        /// <summary>PUT /users/{id}/role — { role: STUDENT | TEACHER }</summary>
+        [HttpPut("{id}/role")]
+        [RequireJwtRole("Admin")]
+        public async Task<IActionResult> SetRole(Guid id, [FromBody] RoleRequest req)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            var role = req.Role?.ToUpperInvariant() == "TEACHER" ? "Teacher" : "Student";
+            user.SetRole(role);
+            await _unitOfWork.CommitAsync();
+            return NoContent();
+        }
+
+        /// <summary>POST /users/{id}/approve-teacher — { approve, reason }</summary>
+        [HttpPost("{id}/approve-teacher")]
+        [RequireJwtRole("Admin")]
+        public async Task<IActionResult> ApproveTeacher(Guid id, [FromBody] ApproveRequest req)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            user.SetRole(req?.Approve == true ? "Teacher" : "Student");
+            await _unitOfWork.CommitAsync();
+            return NoContent();
+        }
+
+        /// <summary>POST /users/{id}/reset-password</summary>
+        [HttpPost("{id}/reset-password")]
+        [RequireJwtRole("Admin")]
+        public async Task<IActionResult> ResetPassword(Guid id)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            user.ChangePassword(_passwordHasher.Hash("Fpt@2026"));
+            await _unitOfWork.CommitAsync();
+            return NoContent();
+        }
+
+        /// <summary>DELETE /users/{id}</summary>
+        [HttpDelete("{id:guid}")]
+        [RequireJwtRole("Admin")]
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            user.SetActiveStatus(false);
+            await _unitOfWork.CommitAsync();
+            return NoContent();
+        }
+
+
+        public class StatusRequest { public bool IsActive { get; set; } }
+        public class RoleRequest { public string? Role { get; set; } }
+        public class ApproveRequest { public bool Approve { get; set; } public string? Reason { get; set; } }
 
         private Guid GetCurrentUserId()
         {

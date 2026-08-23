@@ -4,12 +4,13 @@ import { defineStore } from 'pinia';
 import * as lessonsApi from '@/api/lessons';
 import type { LessonDto, LessonSummary, Topic } from '@/api/lessons';
 
-/** Store lesson theo SDD §3.2 */
+/** Store lesson theo SDD §3.2 — triển khai thật với API lessons/topics. */
 export const useLessonStore = defineStore('lesson', () => {
   const topics = ref<Topic[]>([]);
   const lessonsByTopic = ref<Record<number, LessonSummary[]>>({});
   const currentLesson = ref<LessonDto | null>(null);
   const loading = ref(false);
+  const error = ref<string | null>(null);
 
   const progressByTopic = computed(() =>
     topics.value.map((topic) => {
@@ -26,38 +27,63 @@ export const useLessonStore = defineStore('lesson', () => {
   );
 
   async function fetchTopics(): Promise<void> {
-    // TODO: gọi lessonsApi.fetchTopics() khi backend sẵn sàng
     loading.value = true;
+    error.value = null;
     try {
-      // topics.value = await lessonsApi.fetchTopics();
+      topics.value = await lessonsApi.fetchTopics();
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Không thể tải danh sách chủ đề';
+      throw err;
     } finally {
       loading.value = false;
     }
   }
 
   async function fetchLessons(topicId: number): Promise<void> {
-    // TODO: gọi lessonsApi.fetchLessons({ topicId })
     loading.value = true;
+    error.value = null;
     try {
-      // lessonsByTopic.value[topicId] = (await lessonsApi.fetchLessons({ topicId })).items;
+      const page = await lessonsApi.fetchLessons({ topicId });
+      lessonsByTopic.value[topicId] = page.items;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Không thể tải bài học';
+      throw err;
     } finally {
       loading.value = false;
     }
   }
 
   async function fetchLesson(id: number): Promise<void> {
-    // TODO: currentLesson.value = await lessonsApi.fetchLesson(id)
     loading.value = true;
+    error.value = null;
     try {
-      // currentLesson.value = await lessonsApi.fetchLesson(id);
+      currentLesson.value = await lessonsApi.fetchLesson(id);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Không thể tải bài học';
+      throw err;
     } finally {
       loading.value = false;
     }
   }
 
   async function markViewed(id: number): Promise<void> {
-    // TODO: await lessonsApi.markViewed(id); cập nhật progress cục bộ
-    return Promise.reject(new Error('TODO: lessonStore.markViewed chưa triển khai'));
+    await lessonsApi.markViewed(id);
+    // Cập nhật progress cục bộ
+    if (currentLesson.value) {
+      currentLesson.value.progress = {
+        viewed: true,
+        bestScore: currentLesson.value.progress?.bestScore ?? null,
+        completed: currentLesson.value.progress?.completed ?? false,
+      };
+    }
+  }
+
+  function reset(): void {
+    topics.value = [];
+    lessonsByTopic.value = {};
+    currentLesson.value = null;
+    loading.value = false;
+    error.value = null;
   }
 
   return {
@@ -65,10 +91,12 @@ export const useLessonStore = defineStore('lesson', () => {
     lessonsByTopic,
     currentLesson,
     loading,
+    error,
     progressByTopic,
     fetchTopics,
     fetchLessons,
     fetchLesson,
     markViewed,
+    reset,
   };
 });

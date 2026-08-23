@@ -39,6 +39,10 @@ public sealed class LessonDto
     public string? ContentHtml { get; set; }
 
     public string Status { get; set; } = LessonStatus.Draft.ToString();
+    public bool IsClassOnly { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public int CreatedBy { get; set; }
     public int SortOrder { get; set; }
     public List<SimulationRefDto> Simulations { get; set; } = [];
     public List<ExerciseRefDto> Exercises { get; set; } = [];

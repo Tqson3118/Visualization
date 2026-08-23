@@ -1,0 +1,32 @@
+# FEATURE PORT MAP — DSA-VISUAL Web (D:\FPT\neww)
+
+> Phase 0 audit deliverable. Current web = top-level `frontend/` (Vue3+Vite+Pinia) & `backend/` (ASP.NET Core net10.0, clean-ish DsaVisual.Application + DsaVisual.Api + tests). Reference repo = `source/VisualizationDSA` (read-only, NOT to be merged as-is).
+> Baseline (pre-change): FE build OK + 207 tests (23 files) PASS; BE build OK (0/0) + 237 tests (159 unit + 78 integration) PASS. Branch `dev` at 309e5b7 = origin/dev.
+
+## Rules observed
+- Stage only MY files (working tree contains many pre-existing dirty files under `source/VisualizationDSA` + `docker-compose.yml` — never touch/commit them).
+- `.env` is git-ignored. No secrets.
+- Each feature = 1 commit. No rewrite of architecture.
+
+## Feature matrix
+
+| Feature | Source file (reference) | Current counterpart | API hiện tại | DB/entity | Có thể tái sử dụng | Cần sửa backend | Rủi ro | Quyết định |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| F1 Teacher per-class Learning Path (create/select/reorder/draft/publish + student progress) | `source/.../teacher/TeacherClassroomCurriculumTab.vue`, `components/ModuleItemRow.vue`, `ItemFormModal.vue`, `classroom/StudentCurriculumSidebar.vue`, backend `ClassroomCurriculumController`, `ClassroomModuleItem`, `Get(Student|Teacher)ClassroomCurriculum` handlers | `backend/.../ClassService` + `ClassesController` (ClassAssignment add/remove/update, report); `frontend/.../ClassDetailView.vue` (assignments tab), `stores/classStore.ts`, `api/classes.ts` | `/api/v1/classes/{id}`, `/classes/{id}/assignments`, `/classes/{id}/report` | `Class`, `ClassAssignment` (no SortOrder, no publish flag), `ClassMember`, `UserProgress`, `ExerciseSubmission` | High: reuse Class + ClassAssignment + CanManage(owner/ADMIN) + real progress tables | YES (minimal): add `SortOrder` to ClassAssignment, curriculum meta+publish on Class, 3 new endpoints (GET/PUT curriculum, PUT reorder), auto append on AddAssignment, student status query | Medium: gating students from draft must not regress legacy classes (default published=true) | EXTEND existing entity/model (no new parallel entity), 1 migration |
+| F2 Gamification UI (level, XP→next, quests todo/in-progress/completed, badges locked/unlocked, streak) | `source/.../views/gamification/GamificationEngineView.vue`, `api/gamificationApi.ts`, gamification-engine components | `stores/gamification.ts`, `views/QuestsView.vue`, `LeaderboardView.vue`, `ShopView.vue`, `ProfileView.vue` (orphan `xp`/\`level` refs), `api/gamification.ts` | `/me/hearts`, `/me/quests`, `/me/streak`, `/me/inventory`, `/achievements`, `/leaderboard`, `/premium/status` | `Users.Xp/Gems`, `ComputeLevel (1+floor(sqrt(xp/100)))`, `UserQuest`, `UserAchievement`, `DailyQuest`, `Achievement`, `GemTransaction` | High: store + quests + achievements + streak already real | YES (minimal): add `GET /me/gamification` returning xp/level/xpInto/xpForNext computed from Users.Xp (no new tables) | Low–Med: avoid duplicate gamification state; don't break Quests/Leaderboard/Shop routes | 4 new reusable components under `components/gamification/`, store gains a summary fetch; wire into Profile + Quests |
+| F3 Code-to-Visual MVP (constrained DSL → trace events → playback) | `source/.../views/playground/PlaygroundView.vue`, `features/code-to-visualization/*` (AST instrumentation is over-engineered for MVP) | `views/CodeRunnerView.vue`, `stores/simulation.ts`, `stores/codeRunner.ts`, `composables/useCodeTracePlayback.ts`, `components/visualizer/DataStructureStage.vue`, `MiniAlgorithmPlayer.vue`, `engines/generators/helpers.ts` (Trace + arrayStructure), `engines/generators/linear/{stack,queue}.ts` (`stackStructure`/`queueStructure`), `ControlBar.vue`, `CanvasArea.vue` | (playground route doesn't exist yet; simulator pipeline exists) | n/a (in-browser, no backend) | High: reuse `ControlBar` + `CanvasArea`/\`DataStructureStage` + linear `*Structure` builders + sim store playback | NO (pure FE, no arbitrary code exec) | Low: keep old simulator/code-runner working; no executing user DSL as JS | New `features/code-to-visual/dsl/{parser,trace,toSimSteps}.ts` + tests; new `CodeToVisualView.vue` + route |
+
+## Reference data-source classification (real API vs mock/localStorage/static)
+- Reference teacher curriculum: REAL backend (ClassroomModuleItem tables, DB progress). Current counterpart: REAL backend (Class/ClassAssignment/UserProgress/ExerciseSubmission). No localStorage/static for either.
+- Reference gamification: REAL API (gamificationApi). Current: REAL API (gamification.ts) + Pinia store; xp/level currently UNPOPULATED (no endpoint) → gap.
+- Reference playground/code-to-viz: in-browser compile worker (real exec). Current MVP: NO execution — constrained DSL interpreted in-process (deliberate).
+
+## Baseline run (raw)
+- FE: `npm run build` ✓; `npx vitest run` → Test Files 23 passed (23), Tests 207 passed.
+- BE: `dotnet build DsaVisual.sln` ✓ 0 warnings/0 errors; `dotnet test` → UnitTests 159 passed; IntegrationTests 78 passed; Api.Tests 0 discovered (no tests).
+- Docker: (recheck in Phase 4).
+
+## Reference notes (from audit subagents)
+- F1 (reference): no explicit draft/publish state — visibility = boolean flags (IsHidden/IsHiddenForStudent/IsDeleted) enforced server-side; ownership = `OwnerTeacherId == acting teacher` else throw → 403; student side = active enrollment + hide flags; Status/IsUnlocked computed server-side per item from progress rows (latest attempt), client only renders; reorder renumbers all OrderIndex sequentially (two-phase to dodge unique index). Our port: simpler — one ordered item list per class, class-level draft/publish boolean, per-learnert statuses from UserProgress + ExerciseSubmission.
+- F2 (reference): single store owns data + derived getters; components dumb & prop-driven; level = server field, xpToNext/progressPercent derived; streak = StreakFire (prop streakCount); badges = BadgesCabinet(allBadges, unlockedBadges) + BADGE_TEMPLATES; reference has NO quest system (we design fresh from current QuestDto). We keep current store as single source of truth (no duplicate state).
+- F3 (reference): frame shape \`{frameIndex,type:'COMPARE'|'SWAP'|'ASSIGN'|'ACCESS',indices,arrayState,variables,lineNumber?}\` → animation frames; stepping is data-driven playback of precomputed frames; DO NOT port AST-instrument/new Function sandbox. We emit line-tagged frames from an in-process DSL interpreter.

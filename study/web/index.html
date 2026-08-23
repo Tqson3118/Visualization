@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Visualization DSA — Sổ Tay & Lộ Trình Ôn Tập Đồ Án Tốt Nghiệp</title>
+  <meta name="description" content="Cổng tài liệu ôn tập và sổ tay vấn đáp bảo vệ đồ án tốt nghiệp Visualization DSA (Vue 3 + .NET 10 + Clean Architecture + 44 Engine Generators)">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CDN Libraries: Tailwind, FontAwesome, Marked, Mermaid, Highlight.js, QRCode -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Pre-bundled Docs Data for 100% Offline & GitHub Pages standalone support -->
+  <script src="docs-data.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              900: '#134e4a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Custom Theme Backgrounds */
+    body.theme-cyber { background-color: #080c14; }
+    body.theme-oled { background-color: #000000; }
+    body.theme-navy { background-color: #0a1122; }
+
+    /* Font Size Modifiers */
+    body.font-sm .prose { font-size: 0.85rem; }
+    body.font-lg .prose { font-size: 1.05rem; }
+    body.font-xl .prose { font-size: 1.15rem; }
+
+    /* Reading Progress Bar */
+    #readingProgressBar {
+      height: 3px;
+      background: linear-gradient(90deg, #14b8a6, #38bdf8, #818cf8, #ec4899);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      transition: width 0.1s ease-out;
+    }
+
+    /* Markdown Typography & Prose */
+    .prose { color: #cbd5e1; line-height: 1.75; }
+    .prose h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      margin: 2rem 0 1.25rem;
+      color: #38bdf8;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 0.75rem;
+      letter-spacing: -0.025em;
+      position: relative;
+    }
+    .prose h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 2rem 0 0.85rem;
+      color: #34d399;
+      letter-spacing: -0.015em;
+      border-left: 4px solid #14b8a6;
+      padding-left: 0.75rem;
+      scroll-margin-top: 5rem;
+    }
+    .prose h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.6rem;
+      color: #fbbf24;
+      scroll-margin-top: 5rem;
+    }
+    .prose h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: #e2e8f0;
+      scroll-margin-top: 5rem;
+    }
+    .prose p { margin-bottom: 1rem; line-height: 1.75; font-size: 0.95rem; }
+    .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.2rem; }
+    .prose ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1.2rem; }
+    .prose li { margin-bottom: 0.4rem; line-height: 1.7; font-size: 0.93rem; }
+    .prose li::marker { color: #14b8a6; }
+    .prose strong { color: #f8fafc; font-weight: 600; }
+    .prose hr { border-color: #1e293b; margin: 2rem 0; }
+    
+    /* Table Styling */
+    .prose table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 1.5rem 0;
+      font-size: 0.86rem;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      border: 1px solid #334155;
+      background: #0f172a60;
+    }
+    .prose th {
+      background-color: #1e293b;
+      color: #38bdf8;
+      font-weight: 700;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #334155;
+      border-right: 1px solid #334155;
+    }
+    .prose td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #1e293b;
+      border-right: 1px solid #334155;
+      color: #cbd5e1;
+      vertical-align: top;
+      line-height: 1.6;
+    }
+    .prose tr:last-child td { border-bottom: none; }
+    .prose td:last-child, .prose th:last-child { border-right: none; }
+    .prose tr:nth-child(even) td { background-color: #0f172a30; }
+    .prose tr:hover td { background-color: #1e293b70; }
+    
+    /* Code Blocks */
+    .prose pre {
+      position: relative;
+      background-color: #090d16 !important;
+      border: 1px solid #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.25rem 1rem;
+      margin: 1.25rem 0;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86rem;
+      line-height: 1.6;
+      box-shadow: 0 4px 20px -2px rgba(0,0,0,0.5);
+    }
+    .prose code:not(pre code) {
+      background-color: #1e293b;
+      color: #38bdf8;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.35rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86em;
+      font-weight: 500;
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    
+    /* Callout Alerts */
+    .prose blockquote {
+      border-left: 4px solid #14b8a6;
+      background: linear-gradient(90deg, rgba(20,184,166,0.12) 0%, rgba(15,23,42,0.4) 100%);
+      padding: 0.9rem 1.2rem;
+      margin: 1.4rem 0;
+      border-radius: 0 0.75rem 0.75rem 0;
+      border-top: 1px solid rgba(20,184,166,0.2);
+      border-bottom: 1px solid rgba(20,184,166,0.2);
+      border-right: 1px solid rgba(20,184,166,0.2);
+      font-style: normal;
+      color: #e2e8f0;
+    }
+
+    /* Mermaid Architecture Container */
+    .mermaid-wrapper {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 0.85rem;
+      margin: 1.75rem 0;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    .mermaid-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 1rem;
+      background: #111827;
+      border-bottom: 1px solid #1e293b;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .mermaid-body {
+      padding: 1.5rem;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 180px;
+    }
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Table of Contents Sticky */
+    .toc-item.active {
+      color: #2dd4bf;
+      font-weight: 600;
+      border-left-color: #2dd4bf;
+      background-color: rgba(45, 212, 191, 0.08);
+    }
+  </style>
+</head>
+<body class="theme-cyber text-slate-100 min-h-screen flex flex-col font-sans selection:bg-teal-500 selection:text-white antialiased">
+
+  <!-- Top Progress Indicator -->
+  <div id="readingProgressBar" style="width: 0%;"></div>
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-6 py-2.5 flex items-center justify-between transition-colors">
+    <div class="flex items-center space-x-3">
+      <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 md:hidden transition">
+        <i class="fa-solid fa-bars text-base"></i>
+      </button>
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="loadDoc('01')">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-500 via-cyan-400 to-indigo-500 flex items-center justify-center font-black text-slate-950 text-sm shadow-lg shadow-teal-500/20">
+          <i class="fa-solid fa-bolt text-xs"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-sm sm:text-base leading-tight bg-gradient-to-r from-teal-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">Study Portal</h1>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-teal-950/80 text-teal-300 border border-teal-800/60 hidden sm:inline-block">Full v2.0 • 7 Chặng</span>
+          </div>
+          <p id="currentDocLabel" class="text-[11px] sm:text-xs text-slate-400 truncate max-w-[160px] sm:max-w-[320px]">Đang tải lộ trình...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Tools & Actions -->
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- Search Input Trigger -->
+      <button onclick="openSearchModal()" title="Tìm kiếm (Ctrl + K)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-magnifying-glass text-teal-400"></i>
+        <span class="hidden sm:inline font-medium">Tìm kiếm</span>
+        <kbd class="hidden md:inline-block text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">Ctrl K</kbd>
+      </button>
+
+      <!-- Flashcard / Q&A Mode -->
+      <button onclick="toggleQaMode()" id="btnQaMode" title="Chế độ Luyện Vấn Đáp & Phản Biện" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-brain text-amber-400"></i>
+        <span class="hidden xs:inline">Vấn đáp</span>
+        <span id="qaBadgeHeaderCount" class="text-[10px] bg-indigo-900 px-1.5 py-0.2 rounded text-indigo-200 font-mono">401</span>
+      </button>
+
+      <!-- TOC Drawer Trigger on Tablet/Mobile -->
+      <button onclick="toggleTocDrawer()" title="Mục lục bài học" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition xl:hidden">
+        <i class="fa-solid fa-list-ul"></i>
+      </button>
+
+      <!-- Font Size Adjuster -->
+      <div class="relative hidden sm:inline-block">
+        <button onclick="cycleFontSize()" title="Đổi cỡ chữ" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition text-xs font-bold font-mono">
+          <span id="fontSizeLabel">Aa</span>
+        </button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button onclick="cycleTheme()" title="Đổi giao diện nền" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition text-xs">
+        <i class="fa-solid fa-palette"></i>
+      </button>
+
+      <!-- Mobile QR Code Share Button -->
+      <button onclick="openQrModal()" title="Mở trên điện thoại bằng mã QR" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition">
+        <i class="fa-solid fa-qrcode"></i>
+      </button>
+
+      <!-- Fullscreen Toggle -->
+      <button onclick="toggleFullScreen()" title="Toàn màn hình" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition hidden lg:inline-flex">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <div class="flex-1 flex max-w-[1600px] w-full mx-auto relative px-0 sm:px-4">
+
+    <!-- LEFT SIDEBAR / ROADMAP DRAWER -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 sm:w-80 bg-slate-900/95 backdrop-blur-md border-r border-slate-800 p-4 transform -translate-x-full md:translate-x-0 md:static md:block transition-transform duration-300 ease-out overflow-y-auto flex flex-col justify-between shadow-2xl md:shadow-none">
+      <div>
+        <div class="flex items-center justify-between mb-4 md:hidden">
+          <span class="font-bold text-teal-400 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-graduation-cap"></i> Lộ trình 7 Chặng Study
+          </span>
+          <button onclick="toggleSidebar()" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Roadmap Progress Card -->
+        <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/80 rounded-2xl p-4 border border-slate-700/60 mb-5 shadow-lg relative overflow-hidden">
+          <div class="flex justify-between items-center text-xs font-semibold mb-2">
+            <span class="text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-chart-line text-teal-400"></i> Tiến độ ôn tập
+            </span>
+            <span id="progressPercent" class="text-teal-300 font-bold bg-teal-950/80 px-2 py-0.5 rounded-md border border-teal-800/60">0%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+            <div id="progressBar" class="bg-gradient-to-r from-teal-500 via-cyan-400 to-indigo-500 h-full rounded-full w-0 transition-all duration-500"></div>
+          </div>
+          <div class="flex justify-between items-center text-[11px] text-slate-400 mt-2.5">
+            <span id="completedCountText">0/7 Chặng hoàn thành</span>
+            <button onclick="resetProgress()" class="text-slate-500 hover:text-rose-400 text-[10px] transition">Reset</button>
+          </div>
+
+          <!-- Q&A Mastery Mini Bar -->
+          <div class="mt-3 pt-3 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+            <span class="text-slate-400 flex items-center gap-1">
+              <i class="fa-solid fa-check-double text-indigo-400"></i> Đã thuộc Vấn đáp:
+            </span>
+            <span id="masteredCountText" class="font-bold text-amber-300">0/401</span>
+          </div>
+        </div>
+
+        <!-- Docs Navigation List -->
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-2.5 flex items-center justify-between">
+          <span>Danh sách 7 Chặng</span>
+          <span class="text-[10px] text-teal-400 bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-900">7 Chapters</span>
+        </div>
+        <nav id="docsNav" class="space-y-1.5"></nav>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-400 text-center">
+        <p class="font-semibold text-slate-300">Visualization DSA Architecture</p>
+        <p class="text-[10px] text-slate-500 mt-0.5">Sổ tay Đồ án Tốt nghiệp • 2026</p>
+      </div>
+    </aside>
+
+    <!-- Overlay on Mobile -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden md:hidden"></div>
+
+    <!-- CONTENT MAIN AREA -->
+    <main class="flex-1 p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full min-w-0 transition-all">
+      
+      <!-- Top Stage Banner (Badge & Time) -->
+      <div id="docHeaderBanner" class="mb-6 pb-4 border-b border-slate-800/80 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center flex-wrap gap-2">
+            <span id="docBadge" class="px-3 py-1 rounded-lg text-xs font-bold bg-teal-950/90 text-teal-300 border border-teal-800/60 shadow-sm"></span>
+            <span id="docDuration" class="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+              <i class="fa-regular fa-clock text-cyan-400"></i> <span></span>
+            </span>
+            <span id="docQaCount" class="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 cursor-pointer hover:border-indigo-500 transition" onclick="toggleQaMode()">
+              <i class="fa-solid fa-brain text-amber-400"></i> <span id="docQaCountSpan">0 câu hỏi</span>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copyCurrentLink()" title="Sao chép liên kết chặng này" class="text-xs p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              <i class="fa-solid fa-share-nodes"></i>
+            </button>
+            <button onclick="toggleCompleteCurrent()" id="btnHeaderComplete" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5 font-medium shadow-sm">
+              <i class="fa-regular fa-circle-check"></i> <span>Chưa hoàn thành</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading" class="flex flex-col items-center justify-center py-28 text-slate-400">
+        <div class="relative w-14 h-14 mb-4">
+          <div class="absolute inset-0 rounded-full border-4 border-teal-500/20"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-teal-400 border-t-transparent animate-spin"></div>
+        </div>
+        <p class="text-sm font-semibold text-slate-200">Đang tải dữ liệu chặng học...</p>
+        <p class="text-xs text-slate-500 mt-1">Đang phân tích sơ đồ & câu hỏi phản biện</p>
+      </div>
+
+      <!-- Reader Article (Markdown Rendering) -->
+      <article id="docContent" class="prose max-w-none hidden"></article>
+
+      <!-- Q&A Flashcard Mode View -->
+      <section id="qaView" class="hidden space-y-4">
+        <div class="bg-gradient-to-r from-indigo-950/70 via-slate-900/90 to-indigo-950/70 border border-indigo-800/50 rounded-2xl p-5 mb-6 shadow-xl relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-400/10 text-amber-400 border border-amber-400/20 uppercase tracking-wider">Flashcard Bank</span>
+                <span class="text-xs text-indigo-300/70">• Tự luyện phản xạ</span>
+              </div>
+              <h2 class="text-base sm:text-xl font-bold text-indigo-200 mt-1 flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-amber-400"></i> Ngân Hàng Câu Hỏi Vấn Đáp & Phản Biện
+              </h2>
+              <p class="text-xs text-slate-300 mt-1.5 leading-relaxed max-w-2xl">
+                Tự tư duy và trả lời câu hỏi phản biện trước khi bấm <b>"Xem đáp án"</b> để đối chiếu với logic kiến trúc thực tế trong mã nguồn.
+              </p>
+            </div>
+            <div class="flex items-center sm:flex-col items-end gap-2">
+              <span id="qaCountBadge" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-900/80 text-indigo-200 border border-indigo-700/60 whitespace-nowrap shadow-sm">
+                0 câu hỏi
+              </span>
+            </div>
+          </div>
+
+          <!-- Q&A Filters and View Modes -->
+          <div class="mt-5 pt-4 border-t border-indigo-900/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="setQaFilter('current')" id="qaTabCurrent" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold text-xs shadow-sm transition">
+                Chặng hiện tại
+              </button>
+              <button onclick="setQaFilter('all')" id="qaTabAll" class="px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs border border-indigo-800/40 transition">
+                Tất cả 401 câu
+              </button>
+              <button onclick="setQaFilter('unmastered')" id="qaTabUnmastered" class="px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-amber-300 text-xs border border-indigo-800/40 transition">
+                <i class="fa-regular fa-star"></i> Cần ôn lại
+              </button>
+              <button onclick="setQaFilter('mastered')" id="qaTabMastered" class="px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-emerald-300 text-xs border border-indigo-800/40 transition">
+                <i class="fa-solid fa-check"></i> Đã thuộc
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="expandAllAnswers(true)" class="px-2.5 py-1 rounded bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-200 text-[11px] transition flex items-center gap-1">
+                <i class="fa-solid fa-angles-down"></i> Mở hết
+              </button>
+              <button onclick="expandAllAnswers(false)" class="px-2.5 py-1 rounded bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-200 text-[11px] transition flex items-center gap-1">
+                <i class="fa-solid fa-angles-up"></i> Thu hết
+              </button>
+            </div>
+          </div>
+
+          <!-- Q&A Keyword Search within Flashcards -->
+          <div class="mt-3 relative">
+            <input id="qaSearchInput" oninput="handleQaSearch(this.value)" type="text" placeholder="Tìm nhanh trong câu hỏi & câu trả lời..." class="w-full bg-slate-950/70 border border-indigo-800/50 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+            <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-500 text-xs"></i>
+          </div>
+        </div>
+
+        <!-- Dynamic Q&A Cards List -->
+        <div id="qaList" class="space-y-4"></div>
+      </section>
+
+      <!-- Bottom Nav Buttons -->
+      <div id="bottomNav" class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800/80 pt-6 mt-12 hidden">
+        <button id="btnPrev" onclick="navigateDoc(-1)" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 border border-slate-700 transition">
+          <i class="fa-solid fa-arrow-left"></i> Chặng trước
+        </button>
+        <button id="btnMarkComplete" onclick="toggleCompleteCurrent()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 transition transform active:scale-95">
+          <i class="fa-solid fa-check"></i> Đánh dấu đã học
+        </button>
+        <button id="btnNext" onclick="navigateDoc(1)" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 border border-slate-700 transition">
+          Chặng tiếp <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR / STICKY TABLE OF CONTENTS (TOC) -->
+    <aside id="tocSidebar" class="hidden xl:block w-72 p-6 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+        <span class="flex items-center gap-1.5 text-slate-300">
+          <i class="fa-solid fa-list-ol text-teal-400"></i> Mục lục bài học
+        </span>
+        <span id="tocCountBadge" class="text-[10px] text-slate-500">0 mục</span>
+      </div>
+      <nav id="tocNav" class="space-y-1 text-xs border-l border-slate-800 pl-2"></nav>
+    </aside>
+
+  </div>
+
+  <!-- TOC DRAWER MODAL ON MOBILE / TABLET -->
+  <div id="tocDrawer" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end hidden xl:hidden" onclick="if(event.target===this) toggleTocDrawer()">
+    <div class="bg-slate-900 border-l border-slate-800 w-80 max-w-[85vw] h-full p-5 flex flex-col justify-between shadow-2xl">
+      <div>
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+          <span class="font-bold text-teal-400 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-list-ul"></i> Mục lục chặng học
+          </span>
+          <button onclick="toggleTocDrawer()" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div id="mobileTocNav" class="overflow-y-auto max-h-[calc(100vh-8rem)] space-y-1 text-xs border-l border-slate-800 pl-2"></div>
+      </div>
+      <div class="text-[11px] text-slate-500 text-center pt-3 border-t border-slate-800">
+        Chạm mục bất kỳ để cuộn nhanh
+      </div>
+    </div>
+  </div>
+
+  <!-- QR CODE MODAL FOR MOBILE INSTANT CONNECT -->
+  <div id="qrModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden" onclick="if(event.target===this) closeQrModal()">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl relative">
+      <button onclick="closeQrModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <div class="w-12 h-12 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center mx-auto mb-3 text-xl border border-teal-500/20">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+      </div>
+      <h3 class="font-bold text-lg text-slate-100 mb-1">Mở trên Điện Thoại</h3>
+      <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+        Quét mã QR bằng Camera hoặc Zalo để ôn tập trực tiếp trên điện thoại:
+      </p>
+
+      <div class="bg-white p-4 rounded-xl inline-block shadow-inner mb-4 mx-auto" id="qrcodeContainer"></div>
+
+      <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono select-all break-all" id="qrUrlText">
+        http://...
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH MODAL (Ctrl + K) -->
+  <div id="searchModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-20 p-4 hidden" onclick="if(event.target===this) closeSearchModal()">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+      <div class="p-3.5 border-b border-slate-800 flex items-center gap-3 bg-slate-950/60">
+        <i class="fa-solid fa-magnifying-glass text-teal-400 ml-2"></i>
+        <input id="searchInput" oninput="handleSearch(this.value)" type="text" placeholder="Tìm kiếm tài liệu, khái niệm, thuật toán, mã nguồn..." class="w-full bg-transparent border-none outline-none text-slate-100 placeholder-slate-500 text-sm" autofocus>
+        <button onclick="closeSearchModal()" class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded hover:text-white transition">ESC</button>
+      </div>
+      <div id="searchResults" class="overflow-y-auto p-3 space-y-2 flex-1">
+        <!-- Dynamic search results -->
+      </div>
+      <div class="p-2.5 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center px-4">
+        <span>Tìm kiếm thời gian thực qua 7 Chặng & 401+ Câu Vấn Đáp</span>
+        <span class="font-mono">Enter để chọn</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MERMAID FULLSCREEN ZOOM MODAL -->
+  <div id="diagramModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-4 hidden" onclick="if(event.target===this) closeDiagramModal()">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="flex items-center gap-2 text-sm font-semibold text-slate-200">
+        <i class="fa-solid fa-diagram-project text-teal-400"></i>
+        <span>Sơ Đồ Kiến Trúc Chi Tiết</span>
+      </div>
+      <button onclick="closeDiagramModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs">
+        <i class="fa-solid fa-xmark mr-1"></i> Đóng
+      </button>
+    </div>
+    <div id="diagramModalBody" class="flex-1 overflow-auto flex items-center justify-center p-6"></div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 bg-slate-900 border border-teal-500/50 text-teal-300 text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <i class="fa-solid fa-circle-check text-teal-400"></i>
+    <span id="toastMessage">Thông báo</span>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    let docs = [];
+    let allQAs = [];
+    let currentDocId = '01';
+    let completedDocs = JSON.parse(localStorage.getItem('vdsa_completed_docs') || '[]');
+    let masteredQAs = JSON.parse(localStorage.getItem('vdsa_mastered_qas') || '[]');
+    let isQaMode = false;
+    let qaFilterMode = 'current'; // 'current', 'all', 'unmastered', 'mastered'
+    let currentThemeIndex = 0;
+    const themes = ['theme-cyber', 'theme-navy', 'theme-oled'];
+    let currentFontSizeIndex = 1;
+    const fontSizes = ['font-sm', 'font-normal', 'font-lg', 'font-xl'];
+    const fontLabels = ['A-', 'Aa', 'A+', 'A++'];
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      securityLevel: 'loose',
+      themeVariables: {
+        darkMode: true,
+        background: '#0b1120',
+        primaryColor: '#14b8a6',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#0d9488',
+        lineColor: '#38bdf8',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#0f172a'
+      }
+    });
+
+    async function init() {
+      // 1. Try to load bundled data from window.STUDY_DOCS_BUNDLE (Fastest & 100% Offline / GitHub Pages)
+      if (window.STUDY_DOCS_BUNDLE && window.STUDY_DOCS_BUNDLE.docs) {
+        docs = window.STUDY_DOCS_BUNDLE.docs;
+        allQAs = window.STUDY_DOCS_BUNDLE.allQAs || [];
+      } else {
+        // Fallback to fetch /api/docs
+        try {
+          const res = await fetch('/api/docs');
+          const data = await res.json();
+          docs = data.docs || [];
+        } catch (err) {
+          console.warn('Cannot fetch from API, waiting for fallback');
+        }
+      }
+
+      document.getElementById('qaBadgeHeaderCount').innerText = allQAs.length || '401';
+      renderNav();
+      updateProgress();
+      updateMasteryProgress();
+
+      const hash = window.location.hash.replace('#', '') || '01';
+      loadDoc(hash);
+    }
+
+    // Scroll Progress & TOC Spy Listener
+    window.addEventListener('scroll', () => {
+      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+      document.getElementById('readingProgressBar').style.width = scrolled + '%';
+
+      spyActiveTocHeading();
+    });
+
+    function spyActiveTocHeading() {
+      const headings = document.querySelectorAll('#docContent h2, #docContent h3');
+      if (headings.length === 0) return;
+      let activeHeading = headings[0];
+      const scrollPos = window.scrollY + 120;
+
+      for (let h of headings) {
+        if (h.offsetTop <= scrollPos) {
+          activeHeading = h;
+        } else {
+          break;
+        }
+      }
+
+      if (activeHeading && activeHeading.id) {
+        document.querySelectorAll('.toc-item').forEach(item => {
+          if (item.dataset.slug === activeHeading.id) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+      }
+    }
+
+    function renderNav() {
+      const nav = document.getElementById('docsNav');
+      nav.innerHTML = docs.map(d => {
+        const isCompleted = completedDocs.includes(d.id);
+        const isActive = d.id === currentDocId;
+        return `
+          <button onclick="loadDoc('${d.id}')" id="nav-btn-${d.id}" class="w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-between transition-all duration-150 ${isActive ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30 shadow-md font-semibold' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'}">
+            <div class="flex items-center space-x-2.5 truncate">
+              <div class="w-6 h-6 rounded-lg ${isActive ? 'bg-teal-500/20 text-teal-400' : 'bg-slate-800 text-slate-500'} flex items-center justify-center text-xs flex-shrink-0">
+                <i class="fa-solid ${d.icon}"></i>
+              </div>
+              <span class="truncate">${d.title}</span>
+            </div>
+            ${isCompleted ? '<i class="fa-solid fa-circle-check text-emerald-400 text-xs flex-shrink-0 ml-1"></i>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    async function loadDoc(id) {
+      currentDocId = id;
+      window.location.hash = id;
+      renderNav();
+      
+      const doc = docs.find(d => d.id === id) || docs[0];
+      if (!doc) return;
+
+      document.getElementById('currentDocLabel').innerText = doc.title;
+      document.getElementById('docBadge').innerText = doc.badge || 'Lộ trình';
+      document.getElementById('docDuration').querySelector('span').innerText = doc.duration || '45 phút';
+      document.getElementById('docQaCountSpan').innerText = `${doc.qaCount || doc.qas?.length || 0} câu hỏi`;
+      document.getElementById('docHeaderBanner').classList.remove('hidden');
+
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('docContent').classList.add('hidden');
+      document.getElementById('qaView').classList.add('hidden');
+      document.getElementById('bottomNav').classList.add('hidden');
+
+      try {
+        let content = doc.content;
+        if (!content) {
+          const res = await fetch(`/api/doc/${id}`);
+          const data = await res.json();
+          content = data.content;
+        }
+
+        renderTOC(doc.toc || []);
+
+        if (isQaMode) {
+          renderQaMode(doc);
+        } else {
+          renderMarkdown(content);
+        }
+
+        updateBottomNav();
+      } catch (e) {
+        console.error('Load doc error:', e);
+      } finally {
+        document.getElementById('loading').classList.add('hidden');
+        if (window.innerWidth < 768) closeSidebar();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }
+
+    function renderTOC(tocList) {
+      const tocNav = document.getElementById('tocNav');
+      const mobileTocNav = document.getElementById('mobileTocNav');
+      document.getElementById('tocCountBadge').innerText = `${tocList.length} mục`;
+
+      if (tocList.length === 0) {
+        tocNav.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Không có tiêu đề con</p>`;
+        mobileTocNav.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Không có tiêu đề con</p>`;
+        return;
+      }
+
+      const html = tocList.map(item => {
+        const indentClass = item.level === 3 ? 'pl-4 text-[11px] text-slate-400' : 'pl-2 text-xs font-semibold text-slate-300';
+        return `
+          <a href="#${item.slug}" data-slug="${item.slug}" onclick="scrollToSlug('${item.slug}', event)" class="toc-item block py-1 border-l-2 border-transparent hover:text-teal-300 hover:border-teal-400 transition truncate ${indentClass}">
+            ${item.title}
+          </a>
+        `;
+      }).join('');
+
+      tocNav.innerHTML = html;
+      mobileTocNav.innerHTML = html;
+    }
+
+    function scrollToSlug(slug, e) {
+      if (e) e.preventDefault();
+      const el = document.getElementById(slug);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.history.replaceState(null, null, `#${slug}`);
+      }
+      toggleTocDrawer(false);
+    }
+
+    function renderMarkdown(rawMd) {
+      const container = document.getElementById('docContent');
+      
+      try {
+        // Parse markdown content into HTML
+        container.innerHTML = marked.parse(rawMd);
+      } catch (err) {
+        console.error('Marked parse error:', err);
+        container.innerHTML = `<div class="p-4 bg-slate-900 rounded-xl text-sm whitespace-pre-wrap">${rawMd}</div>`;
+      }
+
+      // Display container
+      container.classList.remove('hidden');
+      document.getElementById('bottomNav').classList.remove('hidden');
+
+      // Auto-assign IDs to Headings for Table of Contents smooth scroll & Anchors
+      container.querySelectorAll('h1, h2, h3, h4').forEach(h => {
+        const plainText = (h.textContent || '').trim();
+        const slug = plainText.toLowerCase().replace(/[^\w\u00C0-\u1EF9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (slug) {
+          h.id = slug;
+          if (!h.querySelector('.heading-anchor')) {
+            const a = document.createElement('a');
+            a.className = 'heading-anchor absolute -left-6 top-1 text-slate-500 opacity-0 group-hover:opacity-100 transition text-sm';
+            a.href = `#${slug}`;
+            a.innerText = '#';
+            h.classList.add('group', 'relative');
+            h.prepend(a);
+          }
+        }
+      });
+
+      // Highlight code blocks
+      container.querySelectorAll('pre code').forEach(codeBlock => {
+        if (!codeBlock.classList.contains('language-mermaid')) {
+          try {
+            hljs.highlightElement(codeBlock);
+          } catch (e) {}
+        }
+      });
+
+      // Transform Mermaid Code blocks
+      const codeBlocks = container.querySelectorAll('pre code.language-mermaid');
+      codeBlocks.forEach((codeEl, idx) => {
+        const pre = codeEl.parentElement;
+        const mermaidCode = codeEl.textContent.trim();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-wrapper';
+        wrapper.innerHTML = `
+          <div class="mermaid-header">
+            <span><i class="fa-solid fa-diagram-project text-teal-400 mr-1.5"></i> Sơ đồ Kiến trúc / Luồng dữ liệu</span>
+            <div class="flex items-center gap-2">
+              <button onclick="openDiagramFullscreen(this)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition border border-slate-700">
+                <i class="fa-solid fa-maximize"></i> Phóng to
+              </button>
+              <span class="text-[10px] text-slate-500">Mermaid</span>
+            </div>
+          </div>
+          <div class="mermaid-body">
+            <div class="mermaid" id="mermaid-${idx}">${mermaidCode}</div>
+          </div>
+        `;
+        pre.replaceWith(wrapper);
+      });
+
+      // Transform regular pre blocks to have copy button
+      container.querySelectorAll('pre:not(.mermaid-wrapper pre)').forEach(pre => {
+        if (pre.querySelector('.copy-btn')) return;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 font-mono transition border border-slate-700/80 shadow-md';
+        copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+        copyBtn.onclick = () => {
+          const code = pre.querySelector('code')?.innerText || pre.innerText;
+          navigator.clipboard.writeText(code);
+          copyBtn.innerHTML = '<i class="fa-solid fa-check text-teal-400"></i> Copied!';
+          showToast('Đã sao chép mã nguồn!');
+          setTimeout(() => { copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy'; }, 2000);
+        };
+        pre.appendChild(copyBtn);
+      });
+
+      // Run Mermaid Safely
+      if (window.mermaid) {
+        try {
+          const p = mermaid.run({ querySelector: '.mermaid' });
+          if (p && typeof p.catch === 'function') {
+            p.catch(err => {
+              console.warn('Mermaid rendering issue (ignored):', err);
+            });
+          }
+        } catch (err) {
+          console.warn('Mermaid rendering issue:', err);
+        }
+      }
+    }
+
+    function renderQaMode(doc) {
+      const qaContainer = document.getElementById('qaList');
+      let targetQAs = [];
+
+      if (qaFilterMode === 'current') {
+        targetQAs = doc.qas || allQAs.filter(q => q.docId === currentDocId);
+      } else if (qaFilterMode === 'all') {
+        targetQAs = allQAs;
+      } else if (qaFilterMode === 'mastered') {
+        targetQAs = allQAs.filter(q => masteredQAs.includes(q.id));
+      } else if (qaFilterMode === 'unmastered') {
+        targetQAs = allQAs.filter(q => !masteredQAs.includes(q.id));
+      }
+
+      document.getElementById('qaCountBadge').innerText = `${targetQAs.length} câu hỏi`;
+
+      if (targetQAs.length === 0) {
+        qaContainer.innerHTML = `
+          <div class="text-center py-16 bg-slate-900/60 rounded-2xl border border-slate-800 p-6">
+            <i class="fa-solid fa-clipboard-question text-4xl text-slate-600 mb-3"></i>
+            <h4 class="font-bold text-slate-300 text-base mb-1">Không có câu hỏi phù hợp với bộ lọc</h4>
+            <p class="text-xs text-slate-500 mb-4">Hãy đổi chế độ xem hoặc chọn "Tất cả 401 câu" để luyện tập toàn bộ ngân hàng câu hỏi!</p>
+            <button onclick="setQaFilter('all')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg">
+              Xem tất cả câu hỏi
+            </button>
+          </div>
+        `;
+      } else {
+        qaContainer.innerHTML = targetQAs.map((pair, idx) => {
+          const isMastered = masteredQAs.includes(pair.id);
+          let parsedAns = '';
+          try {
+            parsedAns = marked.parse(pair.a);
+          } catch (e) {
+            parsedAns = pair.a;
+          }
+
+          return `
+            <div id="qa-card-${pair.id}" class="bg-slate-900/90 border ${isMastered ? 'border-emerald-800/40 bg-emerald-950/10' : 'border-slate-800 hover:border-slate-700/80'} rounded-2xl p-4 sm:p-5 transition shadow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="bg-amber-400/10 text-amber-400 text-xs px-2.5 py-0.5 rounded-md font-mono font-bold border border-amber-400/20">${pair.code || `Q${idx + 1}`}</span>
+                    <span class="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">${pair.category || pair.docTitle}</span>
+                  </div>
+                  <h3 class="font-bold text-slate-100 text-sm sm:text-base leading-snug pt-1">
+                    ${pair.q}
+                  </h3>
+                </div>
+                <button onclick="toggleMasteredQa('${pair.id}', this)" title="${isMastered ? 'Bỏ đánh dấu thuộc' : 'Đánh dấu đã thuộc'}" class="p-2 rounded-xl border ${isMastered ? 'bg-emerald-950 text-emerald-300 border-emerald-700/60' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-amber-300'} transition flex-shrink-0">
+                  <i class="fa-${isMastered ? 'solid' : 'regular'} fa-star ${isMastered ? 'text-amber-400' : ''}"></i>
+                </button>
+              </div>
+              
+              <div class="mt-4 flex items-center gap-2">
+                <button onclick="toggleAnswer('ans-${pair.id}', this)" class="text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition">
+                  <i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích
+                </button>
+              </div>
+
+              <div id="ans-${pair.id}" class="qa-answer-box hidden mt-4 pt-4 border-t border-slate-800 text-xs sm:text-sm text-slate-300 leading-relaxed prose">
+                ${parsedAns}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('qaView').classList.remove('hidden');
+      document.getElementById('bottomNav').classList.remove('hidden');
+    }
+
+    function toggleAnswer(id, btn) {
+      const el = document.getElementById(id);
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        btn.innerHTML = `<i class="fa-solid fa-eye-slash text-rose-400"></i> Ẩn đáp án`;
+        btn.className = 'text-xs font-semibold text-rose-300 hover:text-rose-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-rose-950/50 border border-rose-800/60 transition';
+      } else {
+        el.classList.add('hidden');
+        btn.innerHTML = `<i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích`;
+        btn.className = 'text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition';
+      }
+    }
+
+    function expandAllAnswers(show) {
+      document.querySelectorAll('.qa-answer-box').forEach((box) => {
+        const btn = box.previousElementSibling.querySelector('button');
+        if (show) {
+          box.classList.remove('hidden');
+          if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-eye-slash text-rose-400"></i> Ẩn đáp án`;
+            btn.className = 'text-xs font-semibold text-rose-300 hover:text-rose-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-rose-950/50 border border-rose-800/60 transition';
+          }
+        } else {
+          box.classList.add('hidden');
+          if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích`;
+            btn.className = 'text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition';
+          }
+        }
+      });
+    }
+
+    function setQaFilter(mode) {
+      qaFilterMode = mode;
+      ['qaTabCurrent', 'qaTabAll', 'qaTabUnmastered', 'qaTabMastered'].forEach(id => {
+        document.getElementById(id).className = 'px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs border border-indigo-800/40 transition';
+      });
+
+      const activeMap = {
+        current: 'qaTabCurrent',
+        all: 'qaTabAll',
+        unmastered: 'qaTabUnmastered',
+        mastered: 'qaTabMastered'
+      };
+      document.getElementById(activeMap[mode]).className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold text-xs shadow-sm transition';
+
+      const doc = docs.find(d => d.id === currentDocId) || docs[0];
+      renderQaMode(doc);
+    }
+
+    function handleQaSearch(query) {
+      const q = query.trim().toLowerCase();
+      document.querySelectorAll('#qaList > div').forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    function toggleMasteredQa(id, btn) {
+      if (masteredQAs.includes(id)) {
+        masteredQAs = masteredQAs.filter(item => item !== id);
+        showToast('Đã bỏ khỏi danh sách thuộc');
+      } else {
+        masteredQAs.push(id);
+        showToast('Đã đánh dấu ĐÃ THUỘC câu hỏi!');
+      }
+      localStorage.setItem('vdsa_mastered_qas', JSON.stringify(masteredQAs));
+      updateMasteryProgress();
+      const doc = docs.find(d => d.id === currentDocId) || docs[0];
+      renderQaMode(doc);
+    }
+
+    function updateMasteryProgress() {
+      const total = allQAs.length || 401;
+      const count = masteredQAs.length;
+      document.getElementById('masteredCountText').innerText = `${count}/${total}`;
+    }
+
+    function toggleQaMode() {
+      isQaMode = !isQaMode;
+      const btn = document.getElementById('btnQaMode');
+      if (isQaMode) {
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-teal-500/20';
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm';
+      }
+      loadDoc(currentDocId);
+    }
+
+    function toggleCompleteCurrent() {
+      if (completedDocs.includes(currentDocId)) {
+        completedDocs = completedDocs.filter(id => id !== currentDocId);
+        showToast('Đã bỏ đánh dấu hoàn thành');
+      } else {
+        completedDocs.push(currentDocId);
+        showToast('Chúc mừng! Đã hoàn thành chặng học! 🎉');
+      }
+      localStorage.setItem('vdsa_completed_docs', JSON.stringify(completedDocs));
+      renderNav();
+      updateProgress();
+      updateBottomNav();
+    }
+
+    function resetProgress() {
+      if (confirm('Bạn có chắc chắn muốn đặt lại toàn bộ tiến độ học tập?')) {
+        completedDocs = [];
+        masteredQAs = [];
+        localStorage.removeItem('vdsa_completed_docs');
+        localStorage.removeItem('vdsa_mastered_qas');
+        renderNav();
+        updateProgress();
+        updateMasteryProgress();
+        updateBottomNav();
+        showToast('Đã đặt lại tiến độ');
+      }
+    }
+
+    function updateProgress() {
+      const total = docs.length || 7;
+      const count = completedDocs.length;
+      const pct = Math.round((count / total) * 100);
+      document.getElementById('progressPercent').innerText = `${pct}%`;
+      document.getElementById('progressBar').style.width = `${pct}%`;
+      document.getElementById('completedCountText').innerText = `${count}/${total} Chặng hoàn thành`;
+    }
+
+    function updateBottomNav() {
+      const btnComplete = document.getElementById('btnMarkComplete');
+      const btnHeaderComplete = document.getElementById('btnHeaderComplete');
+      const isDone = completedDocs.includes(currentDocId);
+      
+      const text = isDone 
+        ? `<i class="fa-solid fa-check-double text-emerald-300"></i> Đã hoàn thành` 
+        : `<i class="fa-solid fa-check"></i> Đánh dấu đã học`;
+      
+      btnComplete.innerHTML = text;
+      btnComplete.className = isDone
+        ? 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition'
+        : 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 transition transform active:scale-95';
+
+      btnHeaderComplete.innerHTML = isDone 
+        ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span class="text-emerald-300 font-semibold">Đã học</span>` 
+        : `<i class="fa-regular fa-circle-check text-slate-400"></i> <span class="text-slate-400">Chưa hoàn thành</span>`;
+    }
+
+    function navigateDoc(dir) {
+      const idx = docs.findIndex(d => d.id === currentDocId);
+      const nextIdx = idx + dir;
+      if (nextIdx >= 0 && nextIdx < docs.length) {
+        loadDoc(docs[nextIdx].id);
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('-translate-x-full');
+      overlay.classList.toggle('hidden');
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebarOverlay').classList.add('hidden');
+    }
+
+    function toggleTocDrawer(force) {
+      const drawer = document.getElementById('tocDrawer');
+      if (force !== undefined) {
+        if (force) drawer.classList.remove('hidden');
+        else drawer.classList.add('hidden');
+      } else {
+        drawer.classList.toggle('hidden');
+      }
+    }
+
+    function cycleTheme() {
+      document.body.classList.remove(themes[currentThemeIndex]);
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      document.body.classList.add(themes[currentThemeIndex]);
+      showToast(`Đã đổi theme: ${themes[currentThemeIndex].replace('theme-', '')}`);
+    }
+
+    function cycleFontSize() {
+      document.body.classList.remove(fontSizes[currentFontSizeIndex]);
+      currentFontSizeIndex = (currentFontSizeIndex + 1) % fontSizes.length;
+      document.body.classList.add(fontSizes[currentFontSizeIndex]);
+      document.getElementById('fontSizeLabel').innerText = fontLabels[currentFontSizeIndex];
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    function copyCurrentLink() {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Đã sao chép link chặng học vào bộ nhớ đệm!');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    // QR Code Modal
+    function openQrModal() {
+      const targetUrl = window.location.href;
+      const qrContainer = document.getElementById('qrcodeContainer');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: targetUrl,
+        width: 180,
+        height: 180,
+        colorDark: "#080c14",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      document.getElementById('qrUrlText').innerText = targetUrl;
+      document.getElementById('qrModal').classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qrModal').classList.add('hidden');
+    }
+
+    // Mermaid Fullscreen Modal
+    function openDiagramFullscreen(btn) {
+      const wrapper = btn.closest('.mermaid-wrapper');
+      const svg = wrapper.querySelector('.mermaid svg');
+      if (!svg) return;
+      const modal = document.getElementById('diagramModal');
+      const body = document.getElementById('diagramModalBody');
+      body.innerHTML = svg.outerHTML;
+      modal.classList.remove('hidden');
+    }
+
+    function closeDiagramModal() {
+      document.getElementById('diagramModal').classList.add('hidden');
+    }
+
+    // Search Modal
+    function openSearchModal() {
+      document.getElementById('searchModal').classList.remove('hidden');
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      input.focus();
+      handleSearch('');
+    }
+
+    function closeSearchModal() {
+      document.getElementById('searchModal').classList.add('hidden');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeSearchModal();
+        closeQrModal();
+        closeDiagramModal();
+        toggleTocDrawer(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearchModal();
+      }
+    });
+
+    function handleSearch(query) {
+      const q = query.trim().toLowerCase();
+      const resultsContainer = document.getElementById('searchResults');
+      if (!q) {
+        resultsContainer.innerHTML = docs.map(d => `
+          <button onclick="loadDoc('${d.id}'); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800/80 text-slate-300 flex items-center justify-between transition border border-transparent hover:border-slate-700">
+            <div class="flex items-center space-x-3 truncate">
+              <i class="fa-solid ${d.icon} text-teal-400 w-5 text-sm"></i>
+              <div>
+                <p class="text-xs font-semibold text-slate-200 truncate">${d.title}</p>
+                <p class="text-[11px] text-slate-400 line-clamp-1">${d.desc}</p>
+              </div>
+            </div>
+            <span class="text-[10px] text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800/60">${d.badge}</span>
+          </button>
+        `).join('');
+        return;
+      }
+
+      // 1. Match in Docs
+      const docMatches = docs.filter(d => 
+        d.title.toLowerCase().includes(q) || 
+        d.desc.toLowerCase().includes(q) || 
+        d.badge.toLowerCase().includes(q) ||
+        (d.content && d.content.toLowerCase().includes(q))
+      );
+
+      // 2. Match in Q&As
+      const qaMatches = allQAs.filter(qa =>
+        qa.q.toLowerCase().includes(q) ||
+        qa.a.toLowerCase().includes(q) ||
+        qa.category.toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (docMatches.length === 0 && qaMatches.length === 0) {
+        resultsContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-10">Không tìm thấy kết quả phù hợp với từ khóa "${query}"</p>`;
+        return;
+      }
+
+      let html = '';
+
+      if (docMatches.length > 0) {
+        html += `<div class="text-[10px] font-bold uppercase text-slate-500 px-2 pt-1 pb-1">Chặng Học (${docMatches.length})</div>`;
+        html += docMatches.map(d => `
+          <button onclick="loadDoc('${d.id}'); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 text-slate-300 transition border border-slate-800/60 hover:border-slate-700">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-teal-300">${d.title}</span>
+              <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">${d.badge}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 line-clamp-2">${d.desc}</p>
+          </button>
+        `).join('');
+      }
+
+      if (qaMatches.length > 0) {
+        html += `<div class="text-[10px] font-bold uppercase text-amber-500/80 px-2 pt-3 pb-1">Ngân Hàng Vấn Đáp (${qaMatches.length})</div>`;
+        html += qaMatches.map(qa => `
+          <button onclick="loadDoc('${qa.docId}'); isQaMode=true; setQaFilter('all'); setTimeout(()=>{handleQaSearch('${qa.q.replace(/'/g, "\\'")}');}, 200); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800/90 text-slate-300 transition border border-slate-800/60 hover:border-indigo-700/60 bg-indigo-950/20">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded font-mono">${qa.code}</span>
+              <span class="text-[10px] text-slate-500">${qa.category}</span>
+            </div>
+            <p class="text-xs font-semibold text-indigo-200 line-clamp-1">${qa.q}</p>
+            <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${qa.a.replace(/[*#`]/g, '')}</p>
+          </button>
+        `).join('');
+      }
+
+      resultsContainer.innerHTML = html;
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

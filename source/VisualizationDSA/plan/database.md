@@ -1,6 +1,6 @@
 # 🗄️ Thiết Kế Cơ Sở Dữ Liệu Quan Hệ - Relational Database Schema
 
-Tài liệu này đặc tả chi tiết kiến trúc cơ sở dữ liệu quan hệ (Entity Relationship Schema) trong PostgreSQL phục vụ dự án **VisualizationDSA**. Toàn bộ lược đồ được tối ưu hóa cho hiệu năng phản hồi dưới 5ms, toàn vẹn dữ liệu ở mức cao nhất thông qua các ràng buộc ràng buộc khóa và cơ chế tự động hóa bằng Triggers.
+Tài liệu này đặc tả chi tiết kiến trúc cơ sở dữ liệu quan hệ (Entity Relationship Schema) trong SQL Server 2022 phục vụ dự án **VisualizationDSA**. Toàn bộ lược đồ được tối ưu hóa cho hiệu năng phản hồi dưới 5ms, toàn vẹn dữ liệu ở mức cao nhất thông qua các ràng buộc ràng buộc khóa và cơ chế tự động hóa bằng Triggers.
 
 ---
 
@@ -279,7 +279,7 @@ erDiagram
 
 ## 3. Bản Kịch Bản DDL Tạo Bảng Cơ Sở Dữ Liệu (DDL SQL Creation Script)
 
-Dưới đây là mã SQL DDL chuẩn hóa PostgreSQL thiết lập toàn bộ cơ cấu bảng, ràng buộc và xử lý khóa ngoại tự động:
+Dưới đây là mã SQL DDL T-SQL chuẩn hóa SQL Server thiết lập toàn bộ cơ cấu bảng, ràng buộc và xử lý khóa ngoại tự động:
 
 ```sql
 -- Kích hoạt extension hỗ trợ sinh UUID ngẫu nhiên nếu cần

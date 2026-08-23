@@ -26,6 +26,8 @@ const mockUser: UserSummary = {
   role: 'STUDENT',
   avatarUrl: null,
   createdAt: '2026-08-01T08:00:00Z',
+  xp: 100,
+  level: 2,
 };
 
 const mockLoginResponse: LoginResponse = {
@@ -59,15 +61,22 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(false);
   });
 
-  it('logout xóa token và trả về trạng thái idle', async () => {
+  it('logout xóa token và trả về trạng thái idle, reset các store cá nhân', async () => {
     vi.mocked(authApi.login).mockResolvedValue(mockLoginResponse);
     vi.mocked(authApi.logout).mockResolvedValue();
+    const { useGamificationStore } = await import('./gamification');
+    const gamification = useGamificationStore();
+    gamification.gems = 150;
+    gamification.xp = 500;
+
     const store = useAuthStore();
     await store.login('a@b.c', 'Pass@123');
     await store.logout();
     expect(store.accessToken).toBeNull();
     expect(store.user).toBeNull();
     expect(store.status).toBe('idle');
+    expect(gamification.gems).toBe(0);
+    expect(gamification.xp).toBe(0);
   });
 
   it('refresh là singleton promise — gọi 2 lần chỉ 1 request API', async () => {

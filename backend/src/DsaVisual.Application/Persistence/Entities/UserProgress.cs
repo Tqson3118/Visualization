@@ -11,4 +11,5 @@ public sealed class UserProgress
     public int? BestScore { get; set; }
     public DateTime? CompletedAt { get; set; }                       // Viewed + BestScore ≠ null
     public DateTime UpdatedAt { get; set; }
+    public byte[]? RowVersion { get; set; }                     // concurrency token (finding #3)
 }

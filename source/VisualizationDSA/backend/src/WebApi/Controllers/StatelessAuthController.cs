@@ -10,6 +10,7 @@ using System.Text;
 using VisualizationDSA.Domain.Engine;
 using VisualizationDSA.Domain.Entities;
 using VisualizationDSA.Domain.Strategies;
+using VisualizationDSA.Domain.Interfaces;
 using VisualizationDSA.Infrastructure.Data;
 using VisualizationDSA.WebApi.Filters;
 
@@ -28,40 +29,17 @@ namespace VisualizationDSA.WebApi.Controllers
         private readonly StatelessAuthStrategy _authStrategy;
         private readonly ApplicationDbContext _dbContext;
         private readonly IWebHostEnvironment _env;
+        private readonly IPasswordHasher _passwordHasher;
 
-        static StatelessAuthController()
-        {
-            StatelessAuthStrategy.VerifyPasswordDelegate = (password, hash) =>
-            {
-                if (hash.StartsWith("$2a$") || hash.StartsWith("$2b$") || hash.StartsWith("$2y$"))
-                {
-                    try
-                    {
-                        return BCrypt.Net.BCrypt.Verify(password, hash);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-                var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"));
-                var sha256Hash = Convert.ToHexString(bytes).ToLowerInvariant();
-                return sha256Hash == hash;
-            };
-        }
-
-        public StatelessAuthController(StatelessAuthStrategy authStrategy, ApplicationDbContext dbContext, IWebHostEnvironment env)
+        public StatelessAuthController(StatelessAuthStrategy authStrategy, ApplicationDbContext dbContext, IWebHostEnvironment env, IPasswordHasher passwordHasher)
         {
             _authStrategy = authStrategy;
             _dbContext = dbContext;
             _env = env;
+            _passwordHasher = passwordHasher;
         }
 
-        private static string HashPasswordSHA256(string password)
-        {
-            // BCrypt workFactor 12 — đồng bộ với AuthService chuẩn; tên giữ cũ để ít thay đổi.
-            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
-        }
+
 
         
         
@@ -94,7 +72,7 @@ namespace VisualizationDSA.WebApi.Controllers
                 Guid dbUserId;
                 try
                 {
-                    var dbUser = new User(request.Email, request.Username, HashPasswordSHA256(request.Password));
+                    var dbUser = new User(request.Email, request.Username, _passwordHasher.Hash(request.Password));
                     _dbContext.Users.Add(dbUser);
                     await _dbContext.SaveChangesAsync();
                     dbUserId = dbUser.Id;
@@ -279,13 +257,11 @@ namespace VisualizationDSA.WebApi.Controllers
                 return Unauthorized(new { error = "UNAUTHORIZED", message = "Không xác định được người dùng." });
 
 
-            // demo-user-001 chỉ tồn tại khi EnableDemoAccounts — sau restart (production) token cũ
-            // sub=demo không còn hợp lệ → 401 để frontend dọn session (thay vì 404 → profile stale).
-            if (id == "demo-user-001" && !VisualizationDSA.Domain.Strategies.StatelessAuthStrategy.EnableDemoAccounts)
+            if (!Guid.TryParse(id, out var dbUserId))
                 return Unauthorized(new { error = "UNAUTHORIZED", message = "Phiên đăng nhập không còn hiệu lực." });
             try
             {
-                if (id != "demo-user-001" && Guid.TryParse(id, out var dbUserId))
+                if (Guid.TryParse(id, out dbUserId))
                 {
                     var dbUser = await _dbContext.Users.FindAsync(dbUserId);
                     if (dbUser != null)
@@ -326,7 +302,7 @@ namespace VisualizationDSA.WebApi.Controllers
 
             try
             {
-                if (id != "demo-user-001" && Guid.TryParse(id, out var dbUserId))
+                if (Guid.TryParse(id, out var dbUserId))
                 {
                     var dbUser = await _dbContext.Users.FindAsync(dbUserId);
                     if (dbUser != null)
@@ -447,7 +423,7 @@ namespace VisualizationDSA.WebApi.Controllers
 
             try
             {
-                if (id != "demo-user-001" && Guid.TryParse(id, out var dbUserId))
+                if (Guid.TryParse(id, out var dbUserId))
                 {
                     var dbUser = await _dbContext.Users.FindAsync(dbUserId);
                     if (dbUser != null)
@@ -501,20 +477,21 @@ namespace VisualizationDSA.WebApi.Controllers
             if (string.IsNullOrEmpty(id))
                 return Unauthorized(new { error = "UNAUTHORIZED", message = "Không xác định được người dùng." });
 
-            if (id != "demo-user-001" && Guid.TryParse(id, out var dbUserId))
-            {
-                var dbUser = await _dbContext.Users.FindAsync(dbUserId);
-                if (dbUser == null)
+            if (!Guid.TryParse(id, out var dbUserId))
+                return BadRequest(new { error = "INVALID_USER_ID", message = "ID người dùng không hợp lệ." });
+
+            var dbUser = await _dbContext.Users.FindAsync(dbUserId);
+            if (dbUser == null)
                 {
                     return NotFound(new { error = "USER_NOT_FOUND", message = "Không tìm thấy người dùng." });
                 }
 
-                if (!StatelessAuthStrategy.VerifyPasswordDelegate(request.CurrentPassword, dbUser.PasswordHash))
+                if (!_passwordHasher.Verify(request.CurrentPassword, dbUser.PasswordHash))
                 {
                     return BadRequest(new { error = "INCORRECT_PASSWORD", message = "Mật khẩu hiện tại không chính xác." });
                 }
 
-                var newHash = HashPasswordSHA256(request.NewPassword);
+                var newHash = _passwordHasher.Hash(request.NewPassword);
                 dbUser.ChangePassword(newHash);
                 dbUser.RecordActivity();
                 await _dbContext.SaveChangesAsync();
@@ -530,31 +507,7 @@ namespace VisualizationDSA.WebApi.Controllers
                     dbUser.CurrentLevel,
                     dbUser.StreakDays
                 );
-                _authStrategy.UpdateUserPassword(id, newHash);
-            }
-            else if (id == "demo-user-001")
-            {
-                try
-                {
-                    // Verify theo HASH hiện tại (không so chuỗi cứng "Demo@2024" —
-                    // trước đây sau lần đổi đầu tiên không đổi lại được).
-                    var currentHash = _authStrategy.GetUserPasswordHash(id);
-                    if (currentHash == null || !StatelessAuthStrategy.VerifyPasswordDelegate(request.CurrentPassword, currentHash))
-                    {
-                        return BadRequest(new { error = "INCORRECT_PASSWORD", message = "Mật khẩu hiện tại không chính xác." });
-                    }
-                    var newHash = HashPasswordSHA256(request.NewPassword);
-                    _authStrategy.UpdateUserPassword(id, newHash);
-                }
-                catch (KeyNotFoundException ex)
-                {
-                    return NotFound(new { error = "USER_NOT_FOUND", message = ex.Message });
-                }
-            }
-            else
-            {
-                return BadRequest(new { error = "INVALID_USER_ID", message = "ID người dùng không hợp lệ." });
-            }
+            _authStrategy.UpdateUserPassword(id, newHash);
 
             return Ok(new { message = "Đổi mật khẩu thành công!" });
         }
@@ -578,7 +531,7 @@ namespace VisualizationDSA.WebApi.Controllers
 
             try
             {
-                if (id != "demo-user-001" && Guid.TryParse(id, out var dbUserId))
+                if (Guid.TryParse(id, out var dbUserId))
                 {
                     var dbUser = await _dbContext.Users.FindAsync(dbUserId);
                     if (dbUser != null)
@@ -635,22 +588,7 @@ namespace VisualizationDSA.WebApi.Controllers
         
         
         [HttpGet("demo-credentials")]
-        public ActionResult<object> GetDemoCredentials()
-        {
-            // Không lộ thông tin đăng nhập demo ra môi trường production.
-            if (!_env.IsDevelopment())
-            {
-                return NotFound();
-            }
-
-            return Ok(new
-            {
-                message = "Tài khoản demo để kiểm thử",
-                email = "demo@visualizationdsa.dev",
-                password = "Demo@2024",
-                note = "Dữ liệu đăng ký được lưu vĩnh viễn vào PostgreSQL. In-memory cache tự khởi tạo lại khi restart."
-            });
-        }
+        public IActionResult GetDemoCredentials() => NotFound();
     }
 }
     public class SaveLessonProgressRequest

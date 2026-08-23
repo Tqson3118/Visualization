@@ -1,0 +1,44 @@
+### Bố cục trang:
+- **Tiêu đề**: "Đăng ký tài khoản"
+- **Form đăng ký**: Không hiển thị trong ảnh.
+- **Thông báo**: Khối thông báo xanh với nội dung "Đăng ký thành công! Tài khoản giảng viên đang chờ duyệt — bạn sẽ nhận email khi được duyệt. Vé đăng nhập".
+- **Nút**: Không hiển thị trong ảnh.
+
+### Màu sắc:
+- **Hàng đầu trang**: Màu trắng.
+- **Khối thông báo**: Màu xanh lá cây (hợp với màu của DSA Visual).
+- **Tiêu đề và nội dung chính**: Màu đen, dễ đọc.
+
+### Phát hiện lỗi hiển thị:
+1. **Lay-out lệch**: Khối thông báo "Đăng ký thành công!" bị lệch ra khỏi vị trí trung tâm.
+2. **Cắt chữ**: Không có dấu chấm hoặc dấu cách để phân biệt các từ trong thông báo, gây khó đọc.
+
+### Chấm 7 tiêu chí:
+
+#### UI-1 Thẩm mỹ:
+**X/5 - Nhận xét:** Màu xanh lá cây không hài hòa với màu trắng nền trang.
+**Gợi ý:** Sử dụng màu xanh dương hoặc màu khác để làm nổi bật thông báo.
+
+#### UI-2 Nhất quán:
+**X/5 - Nhận xét:** Không có sự đồng nhất trong font, khoảng cách và độ sáng của các phần tử trên trang.
+**Gợi ý:** Đánh giá lại thiết kế màu sắc và font chữ để đảm bảo thống nhất.
+
+#### UI-3 Rõ ràng:
+**X/5 - Nhận xét:** Thông báo bị cắt ở đầu và cuối, không rõ ràng.
+**Gợi ý:** Thêm khoảng cách hoặc dấu chấm để phân biệt từng phần thông tin.
+
+#### UI-4 Phản hồi trực quan:
+**X/5 - Nhận xét:** Không có phản hồi trực quan như hover effect hay loading animation.
+**Gợi ý:** Thêm các hiệu ứng tương tác để tăng tính tương tác cho người dùng.
+
+#### UX-5 Luồng thao tác:
+**X/5 - Nhận xét:** Người dùng cần tìm kiếm thông báo "Đăng ký thành công!" và không rõ ràng hướng dẫn.
+**Gợi ý:** Tạo một nút hoặc link trực quan dẫn đến thông báo này.
+
+#### UX-6 Khả năng tiếp cận:
+**X/5 - Nhận xét:** Contrast text yếu, khó đọc.
+**Gợi ý:** Tăng cường contrast giữa màu nền và màu chữ để dễ đọc hơn.
+
+#### UX-7 Độ thỏa mãn:
+**X/5 - Nhận xét:** Người dùng cảm thấy không hài lòng với bố cục và thông báo.
+**Gợi ý:** Đánh giá lại thiết kế để tạo ra trải nghiệm người dùng tốt hơn.
