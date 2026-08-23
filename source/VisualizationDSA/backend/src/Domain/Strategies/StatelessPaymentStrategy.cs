@@ -29,7 +29,7 @@ namespace VisualizationDSA.Domain.Strategies
             new() { Id = "advanced-lessons",  Name = "Bài giảng cao cấp",        Description = "Truy cập SOLID, Design Patterns, System Design chuyên sâu", Icon = "📚", RequiresPremium = true },
             new() { Id = "premium-sandbox",   Name = "Sandbox đặc biệt",         Description = "Mở khóa sân chơi Premium với dữ liệu lớn", Icon = "🎮", RequiresPremium = true },
             new() { Id = "leaderboard-badge",  Name = "Huy hiệu Premium",         Description = "Hiển thị huy hiệu vàng trên bảng xếp hạng", Icon = "👑", RequiresPremium = true },
-            new() { Id = "basic-viz",         Name = "Trực quan hóa cơ bản",     Description = "Sorting, BFS, DFS với dữ liệu mẫu", Icon = "📊", RequiresPremium = false },
+            new() { Id = "basic-viz",         Name = "Trực quan hóa cơ bản",     Description = "Sorting, BFS, DFS trên input do người học cung cấp", Icon = "📊", RequiresPremium = false },
             new() { Id = "quiz-basic",        Name = "Quiz cơ bản",              Description = "Trắc nghiệm 6 chủ đề miễn phí", Icon = "❓", RequiresPremium = false },
         };
 

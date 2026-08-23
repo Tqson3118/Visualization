@@ -113,15 +113,57 @@ export async function fetchMySubmissions(id: number, params: { page?: number; pa
   return Array.isArray(paged.items) ? paged.items : [];
 }
 
+export interface QuestionUpsertDto {
+  content: string;
+  type?: 'Single' | 'Multiple' | 'Boolean' | 'Lab';
+  options: string[];
+  answerJson: string;
+  explanation?: string;
+  points?: number;
+  sortOrder?: number;
+}
+
+export interface ExerciseUpsertPayload {
+  lessonId: number;
+  nodeId?: number | null;
+  stage?: number | null;
+  title: string;
+  description?: string;
+  type: 'Mcq' | 'Predict' | 'Code';
+  durationMinutes?: number | null;
+  maxScore?: number;
+  status?: 'Draft' | 'Active' | 'Hidden';
+  configJson?: string;
+  questions?: QuestionUpsertDto[];
+}
+
+export interface ImportCsvResultDto {
+  createdCount: number;
+  message: string;
+}
+
 /** Admin/Teacher: CRUD bài tập (API_REFERENCE §4.6) */
-export async function createExercise(payload: Partial<ExerciseDto> & { title: string; type: ExerciseDto['type'] }): Promise<ExerciseDto> {
+export async function createExercise(payload: ExerciseUpsertPayload): Promise<ExerciseDto> {
   return getData<ExerciseDto>({ method: 'POST', url: EXERCISE_ENDPOINTS.create, data: payload });
 }
 
-export async function updateExercise(id: number, payload: Partial<ExerciseDto>): Promise<ExerciseDto> {
+export async function updateExercise(id: number, payload: Partial<ExerciseUpsertPayload>): Promise<ExerciseDto> {
   return getData<ExerciseDto>({ method: 'PUT', url: EXERCISE_ENDPOINTS.update(id), data: payload });
 }
 
 export async function deleteExercise(id: number): Promise<void> {
   await client.delete(EXERCISE_ENDPOINTS.remove(id));
+}
+
+/** Admin/Teacher: Nhập danh sách câu hỏi trắc nghiệm từ file CSV */
+export async function importExerciseCsv(lessonId: number, file: File): Promise<ImportCsvResultDto> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('lessonId', String(lessonId));
+  return getData<ImportCsvResultDto>({
+    method: 'POST',
+    url: '/exercises/import-csv',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 }

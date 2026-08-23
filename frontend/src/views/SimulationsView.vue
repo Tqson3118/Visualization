@@ -45,17 +45,15 @@ import {
 import { messages } from '@/i18n/vi';
 
 // Tab content nặng → lazy-load theo tab (trục 10: route-level splitting)
-const BenchmarkPanel = defineAsyncComponent(() => import('@/components/benchmark/BenchmarkPanel.vue'));
 const CheatSheetTable = defineAsyncComponent(() => import('@/components/lesson/CheatSheetTable.vue'));
 
 const router = useRouter();
 
-type ExploreTab = 'catalog' | 'compare' | 'cheatsheet';
+type ExploreTab = 'catalog' | 'cheatsheet';
 const tab = ref<ExploreTab>('catalog');
 
 const TAB_ITEMS: TabItem[] = [
   { key: 'catalog', label: messages.explore.tabCatalog },
-  { key: 'compare', label: messages.explore.tabCompare },
   { key: 'cheatsheet', label: messages.explore.tabCheatsheet },
 ];
 
@@ -459,13 +457,8 @@ function referenceUrl(key: string): string | undefined {
         </nav>
       </section>
 
-      <!-- Tab 2: So sánh -->
-      <section v-else-if="tab === 'compare'">
-        <BenchmarkPanel />
-      </section>
-
-      <!-- Tab 3: CheatSheet -->
-      <section v-else>
+      <!-- Tab 2: CheatSheet -->
+      <section v-else-if="tab === 'cheatsheet'">
         <CheatSheetTable @open-simulation="openSimulation" />
       </section>
     </Tabs>

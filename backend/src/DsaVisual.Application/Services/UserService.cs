@@ -95,6 +95,127 @@ public sealed class UserService(
         return Result<AdminUserDto>.Ok(dto);
     }
 
+    public async Task<Result<AdminUserDto>> CreateUserAsync(
+        int actorId, bool actorIsPrimaryAdmin, AdminCreateUserRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length < 2)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Họ tên phải từ 2 ký tự trở lên");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Email không hợp lệ");
+        }
+
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var emailExists = await db.Users.AsNoTracking().AnyAsync(u => u.Email == normalizedEmail && u.DeletedAt == null, ct);
+        if (emailExists)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.EMAIL_EXISTS, "Email đã được sử dụng");
+        }
+
+        var policyErrors = PasswordPolicy.Validate(request.Password);
+        if (policyErrors.Count > 0)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.WEAK_PASSWORD, "Mật khẩu yếu", new() { ["password"] = policyErrors.ToArray() });
+        }
+
+        if (!RoleNames.TryParse(request.Role, out var role))
+        {
+            role = UserRole.Student;
+        }
+
+        if (role == UserRole.Admin && !actorIsPrimaryAdmin)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính mới có quyền tạo tài khoản Admin khác");
+        }
+
+        var user = new User
+        {
+            Email = normalizedEmail,
+            DisplayName = request.DisplayName.Trim(),
+            PasswordHash = PasswordHasher.Hash(request.Password),
+            Role = role,
+            IsActive = true,
+            Department = request.Department?.Trim(),
+            StaffCode = request.StaffCode?.Trim(),
+            CreatedAt = clock.UtcNow,
+            UpdatedAt = clock.UtcNow,
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("User {UserId} ({Email}) created by Admin {ActorId}", user.Id, user.Email, actorId);
+        return Result<AdminUserDto>.Ok(ToDto(user));
+    }
+
+    public async Task<Result<AdminUserDto>> UpdateUserAsync(
+        int actorId, bool actorIsPrimaryAdmin, int id, AdminUpdateUserRequest request, CancellationToken ct)
+    {
+        var user = await GetActiveAsync(id, ct);
+        if (user is null)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (user.Role == UserRole.Admin && !actorIsPrimaryAdmin && actorId != id)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Không thể chỉnh sửa thông tin tài khoản Quản trị viên cùng cấp");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            user.DisplayName = request.DisplayName.Trim();
+        }
+
+        if (request.Department is not null) user.Department = request.Department.Trim();
+        if (request.StaffCode is not null) user.StaffCode = request.StaffCode.Trim();
+        if (request.AcademicDegree is not null) user.AcademicDegree = request.AcademicDegree.Trim();
+        if (request.ProfileLink is not null) user.ProfileLink = request.ProfileLink.Trim();
+        if (request.TeacherBio is not null) user.TeacherBio = request.TeacherBio.Trim();
+
+        if (request.IsActive.HasValue && request.IsActive.Value != user.IsActive)
+        {
+            if (user.Role == UserRole.Admin && !actorIsPrimaryAdmin)
+            {
+                return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính được khóa/mở tài khoản Admin khác");
+            }
+            if (!request.IsActive.Value && user.Role == UserRole.Admin && !await HasOtherActiveAdminAsync(id, ct))
+            {
+                return Result<AdminUserDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Không thể khóa Admin cuối cùng còn hoạt động");
+            }
+            user.IsActive = request.IsActive.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Role) && RoleNames.TryParse(request.Role, out var newRole))
+        {
+            if (user.Role == UserRole.Admin && newRole != UserRole.Admin && !actorIsPrimaryAdmin)
+            {
+                return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính mới có quyền hạ cấp vai trò Admin khác");
+            }
+            if (newRole == UserRole.Admin && !actorIsPrimaryAdmin)
+            {
+                return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Không thể gán quyền Admin");
+            }
+            user.Role = newRole;
+        }
+
+        user.UpdatedAt = clock.UtcNow;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
+        }
+
+        logger.LogInformation("User {TargetId} updated by Admin {ActorId}", id, actorId);
+        return Result<AdminUserDto>.Ok(ToDto(user));
+    }
+
     public async Task<Result> SetStatusAsync(int actorId, bool actorIsPrimaryAdmin, int id, bool isActive, CancellationToken ct)
     {
         var user = await GetActiveAsync(id, ct);

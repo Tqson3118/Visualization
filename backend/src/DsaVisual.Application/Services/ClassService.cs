@@ -944,6 +944,62 @@ public sealed class ClassService(
         CreatedAt = classRoom.CreatedAt
     };
 
+    public async Task<Result<ClassDetailDto>> ImportCourseAsync(int userId, string role, int id, int courseId, CancellationToken ct)
+    {
+        var classRoom = await db.Classes.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (classRoom is null)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.NOT_FOUND, "Không tìm thấy lớp học");
+        }
+
+        var canManage = role == RoleNames.Admin || classRoom.OwnerId == userId;
+        if (!canManage)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền quản lý lớp này");
+        }
+
+        var course = await db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == courseId && p.IsActive, ct);
+        if (course is null)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.NOT_FOUND, "Không tìm thấy lộ trình");
+        }
+
+        var nodes = await db.LearningPathNodes.AsNoTracking()
+            .Where(n => n.PathId == courseId)
+            .OrderBy(n => n.SortOrder)
+            .ToListAsync(ct);
+
+        var existingAssignments = await db.ClassAssignments.AsNoTracking()
+            .Where(a => a.ClassId == id)
+            .ToListAsync(ct);
+
+        var maxSort = existingAssignments.Count > 0 ? existingAssignments.Max(a => a.SortOrder) : 0;
+        var now = clock.UtcNow;
+
+        foreach (var node in nodes)
+        {
+            if (node.LessonId is { } lessonId)
+            {
+                var alreadyExists = existingAssignments.Any(a => a.LessonId == lessonId);
+                if (!alreadyExists)
+                {
+                    maxSort++;
+                    db.ClassAssignments.Add(new ClassAssignment
+                    {
+                        ClassId = id,
+                        LessonId = lessonId,
+                        SortOrder = maxSort,
+                        CreatedAt = now,
+                        AllowLateSubmission = true
+                    });
+                }
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return await GetByIdAsync(userId, role, id, ct);
+    }
+
     private static string Csv(string value) =>
         value.Contains(',') || value.Contains('"')
             ? $"\"{value.Replace("\"", "\"\"")}\""

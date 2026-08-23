@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// HelpView â€” MÃ n 12: FAQ accordion + liÃªn há»‡ (FR-7.2).
-// View-quality (nhÃ³m A): bá» hero aurora-soft + gradient icon/title + shadow â†’ surface band
-// level-2; FAQ item bá» .card legacy (shadow + all 250ms ease) â†’ token card; trigger qua
-// buttonVariants ghost + aria-controls; chevron/FAQ transition easing chuáº©n; submit size lg.
-// GIá»® NGUYÃŠN logic FAQ/contact + aria-expanded.
+// HelpView — Màn 12: FAQ accordion + liên hệ (FR-7.2).
+// Nội dung FAQ dùng i18n UTF-8 để tránh lỗi mojibake trên trang trợ giúp.
+// View-quality (nhóm A): bỏ hero aurora-soft + gradient icon/title + shadow â†’ surface band
+// level-2; FAQ item bỏ .card legacy (shadow + all 250ms ease) â†’ token card; trigger qua
+// buttonVariants ghost + aria-controls; chevron/FAQ transition easing chuẩn; submit size lg.
+// GIá»® NGUYÊN logic FAQ/contact + aria-expanded.
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Motion } from 'motion-v';
@@ -18,30 +19,12 @@ import { messages } from '@/i18n/vi';
 const openIndex = ref<number | null>(0);
 
 const FAQS = [
-  {
-    q: 'ÄÄƒng kÃ½ tÃ i khoáº£n giáº£ng viÃªn nhÆ° tháº¿ nÃ o?',
-    a: 'TÃ­ch checkbox "TÃ´i lÃ  giáº£ng viÃªn" á»Ÿ form Ä‘Äƒng kÃ½. TÃ i khoáº£n sáº½ á»Ÿ tráº¡ng thÃ¡i chá» duyá»‡t â€” Admin duyá»‡t xong báº¡n nháº­n email thÃ´ng bÃ¡o.',
-  },
-  {
-    q: 'QuÃªn máº­t kháº©u pháº£i lÃ m sao?',
-    a: 'VÃ o trang "QuÃªn máº­t kháº©u?", nháº­p email Ä‘Äƒng kÃ½ â€” chÃºng tÃ´i gá»­i link Ä‘áº·t láº¡i (hiá»‡u lá»±c 30 phÃºt, dÃ¹ng 1 láº§n).',
-  },
-  {
-    q: 'MÃ´ phá»ng bÃ¡o "Háº¿t tim" â€” tim há»“i nhÆ° tháº¿ nÃ o?',
-    a: 'Báº£n Free: 5 tim, há»“i 1 tim sau 30 phÃºt. Má»—i láº§n má»Ÿ node/mÃ´ phá»ng trá»« 1 tim (trá»« 3 demo cÃ´ng khai vÃ  ná»™i dung Ä‘Ã£ pass). Premium: 30 tim, há»“i 10 phÃºt.',
-  },
-  {
-    q: 'Táº¡i sao khÃ´ng tháº¥y nÃºt "Xuáº¥t PDF CheatSheet"?',
-    a: 'Xuáº¥t PDF CheatSheet lÃ  quyá»n lá»£i Premium (FR-10.7). NÃ¢ng cáº¥p táº¡i /premium.',
-  },
-  {
-    q: 'Code bá»‹ lá»—i "VÆ°á»£t quÃ¡ giá»›i háº¡n sandbox" nghÄ©a lÃ  gÃ¬?',
-    a: 'Sandbox giá»›i háº¡n 10 giÃ¢y / 64MB / 200 dÃ²ng code / 50.000 bÆ°á»›c trace. Kiá»ƒm tra vÃ²ng láº·p vÃ´ háº¡n hoáº·c dá»¯ liá»‡u quÃ¡ lá»›n.',
-  },
-  {
-    q: 'LÃ m sao bÃ¡o lá»—i há»‡ thá»‘ng?',
-    a: 'Báº¡n cÃ³ thá»ƒ gá»­i pháº£n há»“i qua form liÃªn há»‡ bÃªn dÆ°á»›i â€” chÃºng tÃ´i ghi nháº­n vÃ  pháº£n há»“i sá»›m nháº¥t cÃ³ thá»ƒ.',
-  },
+  { q: 'Đăng ký tài khoản giảng viên như thế nào?', a: 'Tích checkbox "Tôi là giảng viên" ở form đăng ký. Tài khoản sẽ ở trạng thái chờ duyệt — Admin duyệt xong bạn nhận email thông báo.' },
+  { q: 'Quên mật khẩu phải làm sao?', a: 'Vào trang "Quên mật khẩu?", nhập email đăng ký — chúng tôi gửi link đặt lại (hiệu lực 30 phút, dùng 1 lần).' },
+  { q: 'Mô phỏng báo "Hết tim" — tim hồi như thế nào?', a: 'Bản Free: 5 tim, hồi 1 tim sau 30 phút. Premium: 30 tim, hồi 10 phút.' },
+  { q: 'Tại sao không thấy nút "Xuất PDF CheatSheet"?', a: 'Xuất PDF CheatSheet là quyền lợi Premium. Nâng cấp tại /premium.' },
+  { q: 'Code bị lỗi "Vượt quá giới hạn sandbox" nghĩa là gì?', a: 'Sandbox giới hạn thời gian, bộ nhớ và số bước trace để bảo vệ hệ thống. Hãy kiểm tra vòng lặp vô hạn hoặc dữ liệu quá lớn.' },
+  { q: 'Làm sao báo lỗi hệ thống?', a: 'Bạn có thể gửi phản hồi qua form liên hệ bên dưới — chúng tôi ghi nhận và phản hồi sớm nhất có thể.' },
 ];
 
 const contact = ref({ name: '', email: '', message: '' });
@@ -51,11 +34,11 @@ const contactSent = ref(false);
 function submitContact(): void {
   contactError.value = '';
   if (contact.value.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.value.email)) {
-    contactError.value = 'Vui lÃ²ng Ä‘iá»n tÃªn vÃ  email há»£p lá»‡.';
+    contactError.value = 'Vui lòng điền tên và email hợp lệ.';
     return;
   }
   if (contact.value.message.trim().length < 10) {
-    contactError.value = 'Ná»™i dung pháº£i tá»« 10 kÃ½ tá»±.';
+    contactError.value = 'Nội dung phải từ 10 ký tự.';
     return;
   }
   contactSent.value = true;
@@ -68,7 +51,7 @@ function toggle(idx: number): void {
 
 <template>
   <main class="help container">
-    <!-- Hero â€” surface band level-2 (bá» gradient aurora + shadow, Â§1/Â§6) -->
+    <!-- Hero â€” surface band level-2 (bỏ gradient aurora + shadow, Â§1/Â§6) -->
     <Motion
       class="help__chrome"
       :initial="{ opacity: 0, y: 12 }"
@@ -170,7 +153,7 @@ function toggle(idx: number): void {
               rows="5"
               maxlength="1000"
               :placeholder="messages.help.messagePlaceholder"
-              aria-label="Ná»™i dung"
+              aria-label="Nội dung cần hỗ trợ"
             />
           </div>
           <p v-if="contactError" class="help__error" role="alert">{{ contactError }}</p>
@@ -192,7 +175,7 @@ function toggle(idx: number): void {
   max-width: 900px;
 }
 
-/* â”€â”€ Hero â€” surface band level-2 (Â§6): card-raised + border-subtle, KHÃ”NG shadow â”€â”€ */
+/* â”€â”€ Hero â€” surface band level-2 (Â§6): card-raised + border-subtle, KHÔNG shadow â”€â”€ */
 .help__chrome {
   display: flex;
   flex-direction: column;
@@ -377,7 +360,7 @@ function toggle(idx: number): void {
 
 .help__sent-desc { font-size: var(--text-xs); color: var(--color-text-secondary); margin-top: var(--space-xs); }
 
-/* FAQ expand â€” enter/exit easing chuáº©n DESIGN.md Â§7 (transform + opacity) */
+/* FAQ expand â€” enter/exit easing chuẩn DESIGN.md Â§7 (transform + opacity) */
 .faq-enter-active {
   transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }

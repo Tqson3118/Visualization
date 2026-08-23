@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using VisualizationDSA.Domain.Enums;
+using VisualizationDSA.Domain.Interfaces;
+using VisualizationDSA.Domain.Security;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,11 +17,13 @@ namespace VisualizationDSA.Infrastructure.Data
         private readonly ApplicationDbContext _context;
         // Tài khoản admin/demo với credential công khai chỉ nên tồn tại ở Development.
         private readonly bool _includeDemoAdmin;
+        private readonly IPasswordHasher _passwordHasher;
 
-        public DbSeeder(ApplicationDbContext context, bool includeDemoAdmin = false)
+        public DbSeeder(ApplicationDbContext context, bool includeDemoAdmin = false, IPasswordHasher? passwordHasher = null)
         {
             _context = context;
             _includeDemoAdmin = includeDemoAdmin;
+            _passwordHasher = passwordHasher ?? new BcryptPasswordHasher();
         }
 
         public async Task SeedAsync()
@@ -28,7 +32,7 @@ namespace VisualizationDSA.Infrastructure.Data
             try { await SeedQuizzesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedQuizzes Error]: {ex.Message}"); }
             try { await SeedCoursesAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedCourses Error]: {ex}"); }
             try { await SeedSemanticGraphAsync(); } catch (Exception ex) { Console.WriteLine($"[SeedGraph Error]: {ex.Message}"); }
-            try { await new RealDataSeeder(_context).SeedAsync(); } catch (Exception ex) { Console.WriteLine($"[RealData Error]: {ex}"); }
+            try { await new RealDataSeeder(_context, _passwordHasher).SeedAsync(); } catch (Exception ex) { Console.WriteLine($"[RealData Error]: {ex}"); }
         }
 
         private async Task SeedBadgesAsync()
@@ -740,7 +744,7 @@ namespace VisualizationDSA.Infrastructure.Data
                 var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
                 if (existingUser == null)
                 {
-                    var passwordHash = HashPasswordSHA256(password);
+                    var passwordHash = HashPassword(password);
                     var user = new User(email, username, passwordHash);
                     if (xp > 0) user.AwardXP(xp);
                     user.SetRole(role);
@@ -752,7 +756,7 @@ namespace VisualizationDSA.Infrastructure.Data
                     if (_includeDemoAdmin && IsDevelopmentCredential(email))
                     {
                         existingUser.SetActiveStatus(true);
-                        existingUser.ChangePassword(HashPasswordSHA256(password));
+                        existingUser.ChangePassword(HashPassword(password));
                     }
                 }
             }
@@ -762,8 +766,8 @@ namespace VisualizationDSA.Infrastructure.Data
 
         private static bool IsDevelopmentCredential(string email) => false;
 
-        private static string HashPasswordSHA256(string password)
-            => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
+        private string HashPassword(string password)
+            => _passwordHasher.Hash(password);
 
         private async Task SeedSemanticGraphAsync()
         {
@@ -812,7 +816,7 @@ namespace VisualizationDSA.Infrastructure.Data
                       ?? await _context.Users.FirstOrDefaultAsync();
         if (teacher == null)
         {
-            teacher = new User("teacher1@fpt.edu.vn", "TS. Lê Văn Minh", HashPasswordSHA256("RealData@2024"));
+            teacher = new User("teacher1@fpt.edu.vn", "TS. Lê Văn Minh", HashPassword("RealData@2024"));
             teacher.SetRole("Teacher");
             await _context.Users.AddAsync(teacher);
             await _context.SaveChangesAsync();

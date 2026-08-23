@@ -33,46 +33,80 @@ const stepLabel = computed(() =>
 
 <template>
   <div class="stats" aria-label="Thống kê">
-    <span class="stats__item stats__item--step">
-      <ListOrdered :size="13" aria-hidden="true" />
-      {{ stepLabel }}
-    </span>
-    <span class="stats__item">
-      <ArrowRightLeft :size="13" aria-hidden="true" />
-      So sánh: {{ comparisons }}
-    </span>
-    <span class="stats__item">
-      <Repeat :size="13" aria-hidden="true" />
-      Hoán đổi: {{ swaps }}
-    </span>
-    <span class="stats__item">
-      <PenLine :size="13" aria-hidden="true" />
-      Ghi: {{ writes }}
-    </span>
+    <span class="stats__title">Trạng thái:</span>
+    <div class="stats__items">
+      <span class="stats__item stats__item--step">
+        <ListOrdered :size="12" aria-hidden="true" />
+        {{ stepLabel }}
+      </span>
+      <span class="stats__item">
+        <ArrowRightLeft :size="12" aria-hidden="true" />
+        So sánh: {{ comparisons }}
+      </span>
+      <span class="stats__item">
+        <Repeat :size="12" aria-hidden="true" />
+        Hoán đổi: {{ swaps }}
+      </span>
+      <span class="stats__item">
+        <PenLine :size="12" aria-hidden="true" />
+        Ghi: {{ writes }}
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .stats {
+  position: relative;
+  z-index: 2;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+  min-height: 32px;
+  padding: 4px 10px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stats__title {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.stats__items {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .stats__item {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  padding: var(--space-xs) var(--space-sm);
+  padding: 2px 8px;
   border-radius: var(--radius-full);
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--color-foreground);
+  flex-shrink: 0;
 }
 
 .stats__item svg { color: var(--color-primary); }
@@ -81,8 +115,7 @@ const stepLabel = computed(() =>
   background: var(--color-primary);
   border-color: transparent;
   color: var(--color-on-primary);
-  font-weight: 600;
 }
 
-.stats__item--step svg { color: var(--color-on-primary); }
+.stats__item--step svg { color: currentColor; }
 </style>

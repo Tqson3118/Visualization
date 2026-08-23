@@ -10,6 +10,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  BarChart3,
   BookOpen,
   CalendarClock,
   Check,
@@ -27,6 +28,7 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Download,
 } from 'lucide-vue-next';
 import type { Component } from 'vue';
 
@@ -36,6 +38,7 @@ import { useUiStore } from '@/stores/ui';
 import * as classesApi from '@/api/classes';
 import * as lessonsApi from '@/api/lessons';
 import * as exercisesApi from '@/api/exercises';
+import { courseApi, type CourseListDto } from '@/services/courseApi';
 import { formatDate } from '@/utils/format';
 import { messages } from '@/i18n/vi';
 import type { ClassAssignmentDto, ClassCurriculumItemDto } from '@/api/types';
@@ -89,6 +92,42 @@ const curriculumTitle = ref('');
 const curriculumDesc = ref('');
 const curriculumBusy = ref(false);
 const curriculumRemoveId = ref<number | null>(null);
+
+// Modal Nhập từ Lộ trình có sẵn
+const importCourseModalOpen = ref(false);
+const availableCourses = ref<CourseListDto[]>([]);
+const loadingCourses = ref(false);
+const selectedCourseIdToImport = ref<number | null>(null);
+const importingCourse = ref(false);
+
+async function openImportCourseModal(): Promise<void> {
+  importCourseModalOpen.value = true;
+  selectedCourseIdToImport.value = null;
+  loadingCourses.value = true;
+  try {
+    availableCourses.value = await courseApi.getCourses();
+  } catch {
+    availableCourses.value = [];
+  } finally {
+    loadingCourses.value = false;
+  }
+}
+
+async function handleImportCourse(): Promise<void> {
+  if (!selectedCourseIdToImport.value) return;
+  importingCourse.value = true;
+  try {
+    await classesApi.importCourseToClass(classId.value, selectedCourseIdToImport.value);
+    ui.showToast('Đã nạp toàn bộ bài học từ Lộ trình vào Lớp thành công!', 'success');
+    importCourseModalOpen.value = false;
+    await classStore.fetchClass(classId.value);
+    await classStore.fetchCurriculum(classId.value).catch(() => undefined);
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể nạp lộ trình.', 'error');
+  } finally {
+    importingCourse.value = false;
+  }
+}
 
 // ── Task 2: thống kê nộp bài thật từ GET /classes/{id}/report (chỉ manager, không
 // chặn màn nếu báo cáo lỗi) — dùng cho thanh tiến độ + badge hạn nộp của bài gán
@@ -570,7 +609,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
               class="class-detail__hero-link"
               @click="router.push({ name: 'class-report', params: { id: String(classId) } })"
             >
-              {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
+              <BarChart3 :size="14" /> {{ messages.classes.detailReportBtn }} <ArrowRight :size="14" aria-hidden="true" />
             </Button>
           </div>
         </template>
@@ -800,10 +839,15 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
 
         <!-- Teacher: builder (thêm + sắp xếp + xóa) -->
         <template v-if="isManager">
-          <div class="class-detail__toolbar">
-            <Button size="md" @click="openAssign">
-              <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.curriculumAddBtn }}
-            </Button>
+          <div class="class-detail__toolbar flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Button size="md" @click="openAssign">
+                <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.curriculumAddBtn }}
+              </Button>
+              <Button size="md" variant="secondary" @click="openImportCourseModal">
+                <Download :size="14" aria-hidden="true" /> Nhập từ Lộ trình có sẵn (Course)
+              </Button>
+            </div>
           </div>
           <EmptyState
             v-if="classStore.assignments.length === 0"
@@ -1073,6 +1117,58 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
         <Button variant="ghost" @click="confirmDelete = false">{{ messages.classes.cancel }}</Button>
         <Button variant="danger" @click="confirmDeleteClass">
           <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.detailDeleteBtn }}
+        </Button>
+      </template>
+    </Modal>
+
+    <!-- Modal Nhập từ Lộ trình có sẵn -->
+    <Modal :open="importCourseModalOpen" title="Nhập Lộ trình học vào Lớp học phần" @close="importCourseModalOpen = false">
+      <div class="space-y-4">
+        <p class="text-sm text-vdsa-secondary">
+          Chọn một Lộ trình học (Course) để tự động nạp toàn bộ danh sách bài học và bài tập của khóa vào lộ trình lớp này.
+        </p>
+        <div v-if="loadingCourses" class="py-6 text-center text-sm text-vdsa-muted">
+          Đang tải danh sách lộ trình...
+        </div>
+        <div v-else-if="availableCourses.length === 0" class="py-6 text-center text-sm text-vdsa-muted">
+          Chưa có lộ trình nào trên hệ thống.
+        </div>
+        <div v-else class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+          <label
+            v-for="c in availableCourses"
+            :key="c.id"
+            class="flex items-start gap-3 p-3 rounded-xl border border-vdsa-border bg-vdsa-surface hover:bg-vdsa-hover cursor-pointer transition-colors"
+            :class="{ 'ring-2 ring-vdsa-accent border-vdsa-accent': selectedCourseIdToImport === Number(c.id) }"
+          >
+            <input
+              v-model="selectedCourseIdToImport"
+              type="radio"
+              name="import-course"
+              :value="Number(c.id)"
+              class="mt-1 accent-purple-600 cursor-pointer"
+            />
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-white text-sm">{{ c.title }}</span>
+                <Badge variant="secondary">{{ c.category || 'DSA' }}</Badge>
+              </div>
+              <p class="text-xs text-vdsa-muted line-clamp-1 mt-0.5">{{ c.description }}</p>
+              <span class="text-xs text-vdsa-purple-light font-semibold mt-1 inline-block">
+                {{ c.totalLessons || c.lessons?.length || 0 }} bài học · {{ c.xpReward || 0 }} XP
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="ghost" @click="importCourseModalOpen = false">{{ messages.classes.cancel }}</Button>
+        <Button
+          variant="primary"
+          :disabled="selectedCourseIdToImport === null || importingCourse"
+          @click="handleImportCourse"
+        >
+          <span v-if="importingCourse" class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+          Xác nhận nạp vào Lớp
         </Button>
       </template>
     </Modal>

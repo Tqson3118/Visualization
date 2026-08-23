@@ -10,7 +10,7 @@ import { Moon, Sun } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
-import { avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
+import { avatarImageUrl, avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
 import { messages } from '@/i18n/vi';
 import HeartsGemsWidget from '@/components/simulator/HeartsGemsWidget.vue';
 import brandLogo from '@/assets/brand-logo.png';
@@ -30,8 +30,8 @@ const themeToggleLabel = computed(() =>
   ui.theme === 'light' ? messages.common.toDarkTheme : messages.common.toLightTheme,
 );
 
-// Quản trị: TEACHER → /admin/content (roles TEACHER|ADMIN); ADMIN → /admin/users
-const adminTarget = computed(() => ({ name: auth.role === 'TEACHER' ? 'admin-content' : 'admin-users' }));
+// Quản trị & Soạn bài: TEACHER & ADMIN → /studio (curriculum-studio)
+const studioTarget = computed(() => ({ name: 'curriculum-studio' }));
 
 const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
 const equippedAvatar = computed(() => equippedItem(gamification.inventory, 'avatar'));
@@ -73,8 +73,8 @@ async function onLogout(): Promise<void> {
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
-        <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__link">
-          {{ messages.nav.admin }}
+        <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
+          {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
         </RouterLink>
       </nav>
 
@@ -103,7 +103,20 @@ async function onLogout(): Promise<void> {
               :aria-label="auth.user?.displayName ?? 'Hồ sơ'"
               @click="menuOpen = !menuOpen"
             >
-              {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+              <img
+                v-if="equippedAvatar && avatarImageUrl(equippedAvatar.itemKey)"
+                :src="avatarImageUrl(equippedAvatar.itemKey)"
+                :alt="equippedAvatar.name"
+                class="app-header__user-avatar-image"
+              />
+              <img
+                v-else-if="auth.user?.avatarUrl"
+                :src="auth.user.avatarUrl"
+                :alt="auth.user.displayName ?? 'Avatar'"
+                class="app-header__user-avatar-image"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+              <span v-else>{{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}</span>
             </button>
           </span>
           <Transition name="app-menu">
@@ -158,8 +171,8 @@ async function onLogout(): Promise<void> {
           <RouterLink :to="{ name: 'shop' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Cửa hàng
           </RouterLink>
-          <RouterLink v-if="isTeacherOrAdmin" :to="adminTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            {{ messages.nav.admin }}
+          <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
+            {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
           </RouterLink>
         </nav>
       </Transition>
@@ -398,6 +411,8 @@ async function onLogout(): Promise<void> {
 }
 
 /* Avatar theme theo itemKey đang trang bị — gradient tối + chữ sáng */
+.app-header__user-avatar-image { width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block; }
+
 .app-header__user-avatar--cyber { background: linear-gradient(135deg, #0e7490, #155e75); color: #a5f3fc; }
 .app-header__user-avatar--gold { background: linear-gradient(135deg, #b45309, #92400e); color: #fef3c7; }
 .app-header__user-avatar--neon { background: linear-gradient(135deg, #be185d, #6b21a8); color: #fbcfe8; }

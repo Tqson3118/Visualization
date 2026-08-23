@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Asp.Versioning;
 using System;
 using System.Collections.Generic;
@@ -22,16 +21,13 @@ namespace VisualizationDSA.WebApi.Controllers
     {
         private readonly GamificationStrategy _gamification;
         private readonly ApplicationDbContext _dbContext;
-        private readonly IMemoryCache _cache;
 
         public StatelessGamificationController(
-            GamificationStrategy gamification, 
-            ApplicationDbContext dbContext,
-            IMemoryCache cache)
+            GamificationStrategy gamification,
+            ApplicationDbContext dbContext)
         {
             _gamification = gamification;
             _dbContext = dbContext;
-            _cache = cache;
         }
 
         [HttpGet("profile")]
@@ -128,11 +124,7 @@ namespace VisualizationDSA.WebApi.Controllers
         public async Task<IActionResult> GetLeaderboard([FromQuery] int limit = 10)
         {
             limit = Math.Clamp(limit, 1, 50);
-            var cacheKey = $"StatelessGamification_Leaderboard_{limit}";
-
-            if (!_cache.TryGetValue(cacheKey, out List<StatelessLeaderboardEntry>? leaderboard))
-            {
-                var dbUsers = await _dbContext.Users
+            var dbUsers = await _dbContext.Users
                     .OrderByDescending(u => u.TotalXP)
                     .Take(limit)
                     .Select(u => new
@@ -145,7 +137,7 @@ namespace VisualizationDSA.WebApi.Controllers
                     })
                     .ToListAsync();
 
-                leaderboard = dbUsers.Select((u, index) => new StatelessLeaderboardEntry
+            var leaderboard = dbUsers.Select((u, index) => new StatelessLeaderboardEntry
                 {
                     Rank = index + 1,
                     Username = u.Username,
@@ -155,13 +147,6 @@ namespace VisualizationDSA.WebApi.Controllers
                     BadgeCount = u.BadgeCount,
                     StreakDays = u.StreakDays
                 }).ToList();
-
-                var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromSeconds(15))
-                    .SetAbsoluteExpiration(TimeSpan.FromSeconds(60));
-
-                _cache.Set(cacheKey, leaderboard, cacheOptions);
-            }
 
             return Ok(leaderboard);
         }

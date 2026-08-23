@@ -41,20 +41,32 @@ function escapeHtml(raw: string): string {
   return raw
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;');
 }
 
 const KEYWORDS =
   '\\b(if|else|then|for|while|do|repeat|until|return|break|function|end|begin|procedure)\\b';
 
 function highlightLine(line: string): string {
-  const escaped = escapeHtml(line);
-  return escaped
-    .replace(/(\/\/.*$|#.*$|--.*$)/g, '<span class="pseudo__tok--comment">$1</span>')
-    .replace(/"([^"]*)"/g, '<span class="pseudo__tok--string">"$1"</span>')
+  // Tách phần comment trước nếu có để tránh conflict với thẻ span
+  const commentMatch = line.match(/(\/\/.*$|#.*$|--.*$)/);
+  let codePart = line;
+  let commentPart = '';
+  if (commentMatch && commentMatch.index !== undefined) {
+    codePart = line.slice(0, commentMatch.index);
+    commentPart = line.slice(commentMatch.index);
+  }
+
+  let escapedCode = escapeHtml(codePart)
+    .replace(/"([^"]*)"/g, '<span class="pseudo__tok--string">&quot;$1&quot;</span>')
     .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="pseudo__tok--num">$1</span>')
     .replace(new RegExp(KEYWORDS, 'g'), '<span class="pseudo__tok--kw">$1</span>');
+
+  if (commentPart) {
+    escapedCode += `<span class="pseudo__tok--comment">${escapeHtml(commentPart)}</span>`;
+  }
+
+  return escapedCode;
 }
 
 function highlight(line: string): string {

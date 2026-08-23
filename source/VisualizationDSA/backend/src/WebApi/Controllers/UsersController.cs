@@ -31,12 +31,14 @@ namespace VisualizationDSA.WebApi.Controllers
         private readonly IUnitOfWork           _unitOfWork;
         private readonly IGamificationService  _gamification;
         private readonly IApplicationDbContext _ctx;
+        private readonly IPasswordHasher _passwordHasher;
 
-        public UsersController(IUnitOfWork unitOfWork, IGamificationService gamification, IApplicationDbContext ctx)
+        public UsersController(IUnitOfWork unitOfWork, IGamificationService gamification, IApplicationDbContext ctx, IPasswordHasher passwordHasher)
         {
             _unitOfWork   = unitOfWork;
             _gamification = gamification;
             _ctx          = ctx;
+            _passwordHasher = passwordHasher;
         }
 
         
@@ -280,7 +282,7 @@ namespace VisualizationDSA.WebApi.Controllers
         {
             var user = await _unitOfWork.Users.GetByIdAsync(id);
             if (user == null) return NotFound();
-            user.ChangePassword(HashPasswordSHA256("Fpt@2026"));
+            user.ChangePassword(_passwordHasher.Hash("Fpt@2026"));
             await _unitOfWork.CommitAsync();
             return NoContent();
         }
@@ -297,11 +299,6 @@ namespace VisualizationDSA.WebApi.Controllers
             return NoContent();
         }
 
-        private static string HashPasswordSHA256(string password)
-        {
-            var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"));
-            return Convert.ToHexString(bytes).ToLowerInvariant();
-        }
 
         public class StatusRequest { public bool IsActive { get; set; } }
         public class RoleRequest { public string? Role { get; set; } }

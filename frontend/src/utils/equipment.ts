@@ -43,3 +43,15 @@ const AVATAR_VARIANTS: Record<string, AvatarVariant> = {
 export function avatarVariant(itemKey: string): AvatarVariant {
   return AVATAR_VARIANTS[itemKey] ?? '';
 }
+
+const AVATAR_IMAGE_URLS: Record<string, string> = {
+  'avatar-cyber-hacker': '/assets/avatars/cyber-hacker.svg',
+  'avatar-gold-knight': '/assets/avatars/gold-knight.svg',
+  'avatar-neon-ninja': '/assets/avatars/neon-ninja.svg',
+  'avatar-wizard': '/assets/avatars/wizard.svg',
+  'avatar-ai-bot': '/assets/avatars/ai-bot.svg',
+};
+
+export function avatarImageUrl(itemKey: string): string {
+  return AVATAR_IMAGE_URLS[itemKey] ?? '';
+}

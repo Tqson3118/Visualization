@@ -1,4 +1,4 @@
-import { getData } from '@/api/client';
+import { client, getData } from '@/api/client';
 
 export interface CourseHighlightDto {
   title: string;
@@ -99,9 +99,41 @@ export interface CourseListDto {
   lessons?: CourseLessonDto[];
 }
 
+export interface CourseUpsertPayload {
+  title: string;
+  description?: string;
+  category?: string;
+  difficulty?: string;
+  topicId?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+  learningObjectives?: string[];
+  keyOutcomes?: string[];
+  highlights?: CourseHighlightDto[];
+}
+
+export interface CourseNodePayload {
+  title: string;
+  lessonId?: number;
+  sortOrder?: number;
+  finalTestId?: number;
+}
+
 export const courseApi = {
   getCourses: () => getData<CourseListDto[]>({ method: 'GET', url: '/concepts/courses' }),
-  getCourseById: (id: string) => getData<CourseDetailDto>({ method: 'GET', url: `/concepts/courses/${encodeURIComponent(id)}` }),
+  getCourseById: (id: string | number) => getData<CourseDetailDto>({ method: 'GET', url: `/concepts/courses/${encodeURIComponent(String(id))}` }),
+  createCourse: (payload: CourseUpsertPayload) =>
+    getData<CourseDetailDto>({ method: 'POST', url: '/concepts/courses', data: payload }),
+  updateCourse: (id: string | number, payload: CourseUpsertPayload) =>
+    getData<CourseDetailDto>({ method: 'PUT', url: `/concepts/courses/${encodeURIComponent(String(id))}`, data: payload }),
+  deleteCourse: (id: string | number) =>
+    client.delete(`/concepts/courses/${encodeURIComponent(String(id))}`),
+  addCourseNode: (courseId: string | number, payload: CourseNodePayload) =>
+    getData<unknown>({ method: 'POST', url: `/concepts/courses/${encodeURIComponent(String(courseId))}/nodes`, data: payload }),
+  deleteCourseNode: (courseId: string | number, nodeId: number) =>
+    client.delete(`/concepts/courses/${encodeURIComponent(String(courseId))}/nodes/${nodeId}`),
+  reorderCourseNodes: (courseId: string | number, nodeIds: number[]) =>
+    client.put(`/concepts/courses/${encodeURIComponent(String(courseId))}/reorder`, { nodeIds }),
 
   submitCourseFeedback: (payload: CourseFeedbackPayload) =>
     getData<CourseFeedbackDto>({ method: 'POST', url: '/courses/feedback', data: payload }),
@@ -111,6 +143,9 @@ export const courseApi = {
 
   getCourseFeedbackAll: (courseId: number, status?: string) =>
     getData<CourseFeedbackDto[]>({ method: 'GET', url: '/courses/feedback/all', params: { courseId, ...(status ? { status } : {}) } }),
+
+  getTeacherFeedback: (params?: { courseId?: number; status?: string; type?: string }) =>
+    getData<CourseFeedbackDto[]>({ method: 'GET', url: '/courses/feedback/for-teacher', params }),
 
   replyCourseFeedback: (id: number, payload: CourseFeedbackReplyPayload) =>
     getData<CourseFeedbackDto>({ method: 'PUT', url: `/courses/feedback/${id}`, data: payload }),

@@ -14,6 +14,7 @@ import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta } from '@/engines/catalog';
 import { messages } from '@/i18n/vi';
+import { allowLocalFallbacks } from '@/config/runtime';
 import LadderShell from '@/components/ladder/LadderShell.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -29,6 +30,7 @@ const topicId = ref<number>(1);
 const simKey = computed(() => {
   // Suy key mô phỏng từ nodeId (fallback cục bộ)
   const keys = ['sort.bubble', 'search.binary', 'graph.bfs', 'tree.bst-insert', 'stack.push', 'queue.enqueue', 'sort.merge', 'sort.quick'];
+  if (!allowLocalFallbacks) return '';
   const key = keys[(Number(nodeId.value) - 1) % keys.length];
   return getCatalogMeta(key) ? key : 'sort.bubble';
 });

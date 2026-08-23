@@ -40,6 +40,9 @@ export interface LessonSummary {
   topicId: number;
   sortOrder: number;
   status: LessonStatusValue;
+  isClassOnly?: boolean;
+  publishedAt?: string | null;
+  createdBy?: number;
   simulationCount: number;
   exerciseCount: number;
   progress: LessonProgressDto | null;
@@ -59,7 +62,9 @@ export interface LessonUpsertRequest {
   description?: string;
   contentHtml: string;
   status: LessonStatusValue;
+  isClassOnly?: boolean;
   sortOrder?: number;
+  simulationKeys?: string[];
   simulations?: Array<{ simulationKey: string; title?: string; defaultInput?: unknown }>;
 }
 

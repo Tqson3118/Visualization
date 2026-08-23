@@ -50,11 +50,25 @@ public sealed class GamificationService(
 
     public async Task<Result<GamificationSummaryDto>> GetGamificationSummaryAsync(int userId, CancellationToken ct)
     {
-        var xp = await db.Users.AsNoTracking()
+        var user = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId && u.DeletedAt == null)
-            .Select(u => u.Xp)
+            .Select(u => new { u.Xp, u.Gems })
             .FirstOrDefaultAsync(ct);
 
+        if (user is null)
+        {
+            return Result<GamificationSummaryDto>.Ok(new GamificationSummaryDto
+            {
+                Xp = 0,
+                Level = 1,
+                XpIntoLevel = 0,
+                XpForNextLevel = 100,
+                LevelProgressPct = 0,
+                Gems = 0
+            });
+        }
+
+        var xp = user.Xp;
         var level = ComputeLevel(xp);
         var xpFloor = (level - 1) * (level - 1) * 100;                  // XP tối thiểu của level hiện tại
         var xpIntoLevel = Math.Max(0, xp - xpFloor);
@@ -69,7 +83,8 @@ public sealed class GamificationService(
             Level = level,
             XpIntoLevel = xpIntoLevel,
             XpForNextLevel = xpForNextLevel,
-            LevelProgressPct = levelProgressPct
+            LevelProgressPct = levelProgressPct,
+            Gems = user.Gems
         });
     }
 
@@ -870,7 +885,15 @@ public sealed class GamificationService(
             return Result.Fail(ErrorCodes.NOT_FOUND, "Vật phẩm không tồn tại");
         }
 
-        if (item.Type == 0)
+        // Nhận diện nhóm trang bị: Avatar (1) hoặc Frame (2)
+        int targetType = item.Type;
+        if (targetType == 0)
+        {
+            if (item.ItemKey.StartsWith("avatar")) targetType = 1;
+            else if (item.ItemKey.StartsWith("frame")) targetType = 2;
+        }
+
+        if (targetType == 0)
         {
             return Result.Fail(ErrorCodes.VALIDATION_FAILED,
                 "Vật phẩm tiêu hao không thể trang bị", new() { ["itemId"] = ["Vật phẩm tiêu hao không thể trang bị"] });
@@ -878,16 +901,18 @@ public sealed class GamificationService(
 
         // v2.9: equip cùng loại → set IsEquipped=false các dòng khác (SDD §7.3.27)
         var sameTypeItemIds = await db.ShopItems.AsNoTracking()
-            .Where(i => i.Type == item.Type)
+            .Where(i => i.Type == targetType || (targetType == 1 && i.ItemKey.StartsWith("avatar")) || (targetType == 2 && i.ItemKey.StartsWith("frame")))
             .Select(i => i.Id)
             .ToListAsync(ct);
 
         var owned = await db.UserInventory
             .Where(i => i.UserId == userId && sameTypeItemIds.Contains(i.ItemId))
             .ToListAsync(ct);
+
+        bool willEquip = !row.IsEquipped;
         foreach (var ownedRow in owned)
         {
-            ownedRow.IsEquipped = ownedRow.ItemId == request.ItemId;
+            ownedRow.IsEquipped = willEquip && (ownedRow.ItemId == request.ItemId);
         }
 
         try
@@ -901,7 +926,7 @@ public sealed class GamificationService(
             return Result.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
         }
 
-        logger.LogInformation("User {UserId} equipped item {ItemId}", userId, request.ItemId);
+        logger.LogInformation("User {UserId} toggled equip for item {ItemId} -> {IsEquipped}", userId, request.ItemId, willEquip);
         return Result.Ok();
     }
 
@@ -1146,7 +1171,8 @@ public sealed class GamificationService(
             Hearts = hearts,
             HeartsMax = maxHearts,
             LastHeartAt = lastHeartAt,
-            NextHeartInSeconds = nextHeartInSeconds
+            NextHeartInSeconds = nextHeartInSeconds,
+            Gems = user.Gems
         };
     }
 

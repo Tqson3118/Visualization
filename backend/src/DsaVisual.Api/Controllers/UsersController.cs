@@ -45,6 +45,22 @@ public class UsersController(IUserService service, AppDbContext db) : ApiControl
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpPost]
+    public async Task<ActionResult<AdminUserDto>> CreateUser(
+        [FromBody] AdminCreateUserRequest request, CancellationToken ct)
+    {
+        var result = await _service.CreateUserAsync(CurrentUserId(), ActorIsPrimaryAdmin(), request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<AdminUserDto>> UpdateUser(
+        [FromRoute] int id, [FromBody] AdminUpdateUserRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateUserAsync(CurrentUserId(), ActorIsPrimaryAdmin(), id, request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     [HttpPut("{id:int}/status")]
     public async Task<ActionResult> SetStatus(
         [FromRoute] int id, [FromBody] SetStatusRequest request, CancellationToken ct)

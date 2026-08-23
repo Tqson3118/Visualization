@@ -33,6 +33,7 @@ export interface GamificationSummaryDto {
   xpIntoLevel: number;
   xpForNextLevel: number;
   levelProgressPct: number;
+  gems?: number;
 }
 
 export interface HeartsStatusDto {
@@ -40,6 +41,7 @@ export interface HeartsStatusDto {
   heartsMax: number;
   lastHeartAt: string | null;
   nextHeartAt: string | null;
+  gems?: number;
 }
 
 export interface QuestDto {
@@ -75,7 +77,10 @@ export interface ShopItemDto {
 
 export interface PremiumStatusDto {
   isPremium: boolean;
+  status?: 'none' | 'active' | 'expired';
+  planId?: string | null;
   plan: string | null;
+  startedAt?: string | null;
   expiresAt: string | null;
 }
 
@@ -269,7 +274,15 @@ export async function fetchAchievements(): Promise<AchievementDto[]> {
 }
 
 export async function fetchPremiumStatus(): Promise<PremiumStatusDto> {
-  return getData<PremiumStatusDto>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.premiumStatus });
+  const raw = await getData<any>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.premiumStatus });
+  return {
+    isPremium: Boolean(raw?.isPremium ?? (raw?.status === 'active')),
+    status: raw?.status ?? (raw?.isPremium ? 'active' : 'none'),
+    planId: raw?.planId ?? null,
+    plan: raw?.plan ?? raw?.planId ?? 'Premium',
+    startedAt: raw?.startedAt ?? null,
+    expiresAt: raw?.expiresAt ?? null,
+  };
 }
 
 export async function upgradePremium(planId: string | number): Promise<PremiumUpgradeResultDto> {
@@ -281,5 +294,13 @@ export async function upgradePremium(planId: string | number): Promise<PremiumUp
 }
 
 export async function mockPayPremium(orderId: number): Promise<PremiumStatusDto> {
-  return getData<PremiumStatusDto>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.premiumMockPay, data: { orderId } });
+  const raw = await getData<any>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.premiumMockPay, data: { orderId } });
+  return {
+    isPremium: Boolean(raw?.isPremium ?? (raw?.status === 'active')),
+    status: raw?.status ?? (raw?.isPremium ? 'active' : 'none'),
+    planId: raw?.planId ?? null,
+    plan: raw?.plan ?? raw?.planId ?? 'Premium',
+    startedAt: raw?.startedAt ?? null,
+    expiresAt: raw?.expiresAt ?? null,
+  };
 }

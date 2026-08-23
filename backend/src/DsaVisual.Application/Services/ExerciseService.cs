@@ -555,8 +555,21 @@ public sealed class ExerciseService(
         var questions = new List<Question>();
         var lines = csvText.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
+        // Lấy danh sách câu hỏi đã có trong bài học để chống trùng
+        var lessonExerciseIds = await db.Exercises.AsNoTracking()
+            .Where(e => e.LessonId == lessonId && e.DeletedAt == null)
+            .Select(e => e.Id)
+            .ToListAsync(ct);
+
+        var existingQuestions = await db.Questions.AsNoTracking()
+            .Where(q => lessonExerciseIds.Contains(q.ExerciseId))
+            .Select(q => q.Content.Trim().ToLower())
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existingQuestions, StringComparer.OrdinalIgnoreCase);
+        var seenInCsv = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         // Bỏ header nếu có
-        var start = lines.Length > 0 && lines[0].Contains("content", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        var start = lines.Length > 0 && (lines[0].Contains("content", StringComparison.OrdinalIgnoreCase) || lines[0].Contains("question", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
 
         for (var i = start; i < lines.Length; i++)
         {
@@ -564,41 +577,94 @@ public sealed class ExerciseService(
             var parts = SplitCsvLine(lines[i]);
             if (parts.Count < 5)
             {
-                result.Errors.Add($"Dòng {lineNumber}: thiếu cột (cần: content,type,options,points,answer,explanation)");
+                result.Errors.Add($"Dòng {lineNumber}: thiếu cột dữ liệu.");
                 result.Skipped++;
                 continue;
             }
 
             try
             {
-                if (!Enum.TryParse<QuestionType>(parts[1].Trim(), true, out var type))
+                string content;
+                QuestionType type = QuestionType.Single;
+                string optionsJson;
+                string answerJson;
+                string? explanation = null;
+                int points = 1;
+
+                // TH1: Format mẫu chuẩn (7 cột: question, option_a, option_b, option_c, option_d, correct_option, explanation)
+                if (parts.Count >= 6 && !parts[1].Trim().Equals("SINGLE", StringComparison.OrdinalIgnoreCase) && !parts[1].Trim().Equals("MULTI", StringComparison.OrdinalIgnoreCase))
                 {
-                    result.Errors.Add($"Dòng {lineNumber}: type không hợp lệ '{parts[1]}' (SINGLE/MULTI/BOOLEAN/LAB)");
+                    content = parts[0].Trim();
+                    var opts = new List<string> { parts[1].Trim(), parts[2].Trim(), parts[3].Trim() };
+                    if (parts.Count > 4 && !string.IsNullOrWhiteSpace(parts[4])) opts.Add(parts[4].Trim());
+
+                    var correctLetter = parts.Count > 5 ? parts[5].Trim().ToUpperInvariant() : "A";
+                    var correctIdx = correctLetter switch
+                    {
+                        "A" or "0" => 0,
+                        "B" or "1" => 1,
+                        "C" or "2" => 2,
+                        "D" or "3" => 3,
+                        _ => 0
+                    };
+
+                    optionsJson = JsonSerializer.Serialize(opts);
+                    answerJson = JsonSerializer.Serialize(new[] { correctIdx });
+                    explanation = parts.Count > 6 ? parts[6].Trim() : null;
+                    points = 1;
+                }
+                else
+                {
+                    // TH2: Format cũ (content, type, options, points, answer, explanation)
+                    content = parts[0].Trim();
+                    if (!Enum.TryParse<QuestionType>(parts[1].Trim(), true, out type))
+                    {
+                        result.Errors.Add($"Dòng {lineNumber}: type không hợp lệ '{parts[1]}'");
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    if (!int.TryParse(parts[3].Trim(), out points) || points is < 1 or > 10)
+                    {
+                        points = 1;
+                    }
+
+                    optionsJson = parts[2].Trim();
+                    answerJson = parts[4].Trim();
+                    explanation = parts.Count > 5 ? parts[5].Trim() : null;
+                }
+
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    result.Errors.Add($"Dòng {lineNumber}: Nội dung câu hỏi trống.");
                     result.Skipped++;
                     continue;
                 }
 
-                if (!int.TryParse(parts[3].Trim(), out var points) || points is < 1 or > 10)
+                // Kiểm tra trùng lặp câu hỏi
+                var normalized = content.Trim().ToLowerInvariant();
+                if (existingSet.Contains(normalized) || seenInCsv.Contains(normalized))
                 {
-                    result.Errors.Add($"Dòng {lineNumber}: points phải là số 1-10");
+                    result.Errors.Add($"Dòng {lineNumber}: Bỏ qua do trùng lặp nội dung câu hỏi '{content}'.");
                     result.Skipped++;
                     continue;
                 }
 
+                seenInCsv.Add(normalized);
                 questions.Add(new Question
                 {
                     Type = type,
-                    Content = parts[0].Trim(),
-                    OptionsJson = parts[2].Trim(),
-                    AnswerJson = parts[4].Trim(),
-                    Explanation = parts.Count > 5 ? parts[5].Trim() : null,
+                    Content = content,
+                    OptionsJson = optionsJson,
+                    AnswerJson = answerJson,
+                    Explanation = explanation,
                     Points = points,
                     SortOrder = questions.Count
                 });
             }
             catch (Exception)
             {
-                result.Errors.Add($"Dòng {lineNumber}: dữ liệu không hợp lệ");
+                result.Errors.Add($"Dòng {lineNumber}: dữ liệu không hợp lệ.");
                 result.Skipped++;
             }
         }

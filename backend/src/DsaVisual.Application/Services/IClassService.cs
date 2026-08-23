@@ -28,5 +28,6 @@ public interface IClassService
     Task<Result<ClassDetailDto>> UpdateCurriculumAsync(int userId, string role, int id, ClassCurriculumUpsertRequest request, CancellationToken ct);
     Task<Result> ReorderCurriculumAsync(int userId, string role, int id, ClassCurriculumReorderRequest request, CancellationToken ct);
     Task<Result<ClassCurriculumDto>> GetCurriculumAsync(int userId, string role, int id, CancellationToken ct);
+    Task<Result<ClassDetailDto>> ImportCourseAsync(int userId, string role, int id, int courseId, CancellationToken ct);
     Task<Result<CsvFileDto>> ExportReportCsvAsync(int userId, string role, int id, CancellationToken ct);
 }

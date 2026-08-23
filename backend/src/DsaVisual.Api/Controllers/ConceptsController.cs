@@ -51,6 +51,40 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public List<ConceptsLessonDto> Lessons { get; set; } = [];
     }
 
+    public sealed class CourseContentMetadata
+    {
+        public List<CourseHighlightDto> Highlights { get; set; } = [];
+        public List<string> LearningObjectives { get; set; } = [];
+        public List<string> KeyOutcomes { get; set; } = [];
+    }
+
+    public sealed class CourseUpsertRequest
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Category { get; set; }
+        public string? Difficulty { get; set; }
+        public int? TopicId { get; set; }
+        public int SortOrder { get; set; } = 1;
+        public bool IsActive { get; set; } = true;
+        public List<string> LearningObjectives { get; set; } = [];
+        public List<string> KeyOutcomes { get; set; } = [];
+        public List<CourseHighlightDto> Highlights { get; set; } = [];
+    }
+
+    public sealed class CourseNodeCreateRequest
+    {
+        public string Title { get; set; } = string.Empty;
+        public int? LessonId { get; set; }
+        public int SortOrder { get; set; } = 1;
+        public int? FinalTestId { get; set; }
+    }
+
+    public sealed class CourseReorderNodesRequest
+    {
+        public List<int> NodeIds { get; set; } = [];
+    }
+
     public sealed class CourseHighlightDto
     {
         public string Title { get; set; } = string.Empty;
@@ -88,10 +122,37 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public bool Locked { get; set; }
     }
 
+    private static string DetermineCategory(LearningPath path)
+    {
+        var title = path.Title;
+        if (title.Contains("Data Structures", StringComparison.OrdinalIgnoreCase) || title.Contains("CTDL", StringComparison.OrdinalIgnoreCase) || title.Contains("Cấu trúc dữ liệu", StringComparison.OrdinalIgnoreCase) || title.Contains("Cây", StringComparison.OrdinalIgnoreCase) || title.Contains("Bảng băm", StringComparison.OrdinalIgnoreCase))
+            return "Cấu trúc dữ liệu";
+        if (title.Contains("Algorithms", StringComparison.OrdinalIgnoreCase) || title.Contains("Giải thuật", StringComparison.OrdinalIgnoreCase) || title.Contains("Thuật toán", StringComparison.OrdinalIgnoreCase) || title.Contains("Đồ thị", StringComparison.OrdinalIgnoreCase))
+            return "Giải thuật";
+        if (title.Contains("Cơ bản", StringComparison.OrdinalIgnoreCase) || title.Contains("Sắp xếp", StringComparison.OrdinalIgnoreCase) || title.Contains("tuyến tính", StringComparison.OrdinalIgnoreCase))
+            return "Cơ bản";
+        if (title.Contains("Trung cấp", StringComparison.OrdinalIgnoreCase))
+            return "Trung cấp";
+        if (title.Contains("Nâng cao", StringComparison.OrdinalIgnoreCase))
+            return "Nâng cao";
+        return "DSA";
+    }
+
+    private static string DetermineDifficulty(LearningPath path)
+    {
+        var title = path.Title;
+        if (title.Contains("Cơ bản", StringComparison.OrdinalIgnoreCase) || title.Contains("Data Structures", StringComparison.OrdinalIgnoreCase) || title.Contains("Sắp xếp", StringComparison.OrdinalIgnoreCase) || title.Contains("tuyến tính", StringComparison.OrdinalIgnoreCase) || path.SortOrder <= 1)
+            return "Beginner";
+        if (title.Contains("Đồ thị", StringComparison.OrdinalIgnoreCase) || title.Contains("Nâng cao", StringComparison.OrdinalIgnoreCase) || path.SortOrder >= 5)
+            return "Advanced";
+        return "Intermediate";
+    }
+
     [HttpGet("courses")]
+    [AllowAnonymous]
     public async Task<ActionResult<List<ConceptsCourseDto>>> GetCourses(CancellationToken ct)
     {
-        var userId = CurrentUserId();
+        var userId = TryGetCurrentUserId();
         var paths = await _db.LearningPaths.AsNoTracking()
             .Where(p => p.IsActive)
             .OrderBy(p => p.SortOrder)
@@ -112,10 +173,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .ToDictionary(g => g.Key, g => g.ToList());
 
         var allNodeIds = allNodes.Select(n => n.Id).ToList();
-        var passedNodeIds = allNodeIds.Count == 0
+        var passedNodeIds = allNodeIds.Count == 0 || userId is null
             ? new HashSet<int>()
             : (await _db.UserNodeProgress.AsNoTracking()
-                .Where(p => p.UserId == userId && allNodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Where(p => p.UserId == userId.Value && allNodeIds.Contains(p.NodeId) && p.Status == 2)
                 .Select(p => p.NodeId)
                 .ToListAsync(ct))
                 .ToHashSet();
@@ -142,7 +203,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
             var xp = nodes.Sum(n => LessonXpByTitle.GetValueOrDefault(n.LessonId ?? 0, 100));
             var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
-            var highlights = ParseHighlights(path.HighlightsJson);
+            var meta = ParseMetadata(path.HighlightsJson, path.Title);
             var testimonials = ParseTestimonials(path.TestimonialsJson);
             var author = path.AuthorId is { } aId ? authorsMap.GetValueOrDefault(aId) : null;
 
@@ -151,8 +212,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 Id = path.Id.ToString(),
                 Title = path.Title,
                 Description = path.Description ?? string.Empty,
-                Category = "DSA",
-                Difficulty = "Intermediate",
+                Category = DetermineCategory(path),
+                Difficulty = DetermineDifficulty(path),
                 IsPremium = false,
                 IsPublished = true,
                 CreatedAt = path.CreatedBy > 0 ? DateTime.UtcNow.AddDays(-30) : DateTime.UtcNow,
@@ -160,11 +221,11 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 CompletedLessons = completed,
                 ProgressPercent = nodes.Count == 0 ? 0 : (int)Math.Round(completed * 100.0 / nodes.Count),
                 XpReward = xp,
-                LearningObjectives = CourseLearningObjectives(path.Title),
-                KeyOutcomes = CourseKeyOutcomes(path.Title),
+                LearningObjectives = meta.LearningObjectives,
+                KeyOutcomes = meta.KeyOutcomes,
                 Rating = rating,
                 RatingCount = ratingCount,
-                Highlights = highlights,
+                Highlights = meta.Highlights,
                 Testimonials = testimonials,
                 Author = author,
                 Lessons = await BuildLessonsAsync(userId, nodes, ct)
@@ -175,9 +236,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     }
 
     [HttpGet("courses/{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<ConceptsCourseDto>> GetCourse(int id, CancellationToken ct)
     {
-        var userId = CurrentUserId();
+        var userId = TryGetCurrentUserId();
         var path = await _db.LearningPaths.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id && p.IsActive, ct);
         if (path is null)
@@ -191,10 +253,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .ToListAsync(ct);
 
         var nodeIds = nodes.Select(n => n.Id).ToList();
-        var passedNodeIds = nodeIds.Count == 0
+        var passedNodeIds = nodeIds.Count == 0 || userId is null
             ? new HashSet<int>()
             : (await _db.UserNodeProgress.AsNoTracking()
-                .Where(p => p.UserId == userId && nodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Where(p => p.UserId == userId.Value && nodeIds.Contains(p.NodeId) && p.Status == 2)
                 .Select(p => p.NodeId)
                 .ToListAsync(ct))
                 .ToHashSet();
@@ -202,13 +264,14 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         var completed = nodes.Count(n => passedNodeIds.Contains(n.Id));
         var lessons = await BuildLessonsAsync(userId, nodes, ct);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
+        var meta = ParseMetadata(path.HighlightsJson, path.Title);
         return Ok(new ConceptsCourseDto
         {
             Id = path.Id.ToString(),
             Title = path.Title,
             Description = path.Description ?? string.Empty,
-            Category = "DSA",
-            Difficulty = "Intermediate",
+            Category = DetermineCategory(path),
+            Difficulty = DetermineDifficulty(path),
             IsPremium = false,
             IsPublished = true,
             CreatedAt = DateTime.UtcNow.AddDays(-30),
@@ -216,15 +279,208 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             CompletedLessons = completed,
             ProgressPercent = nodes.Count == 0 ? 0 : (int)Math.Round(completed * 100.0 / nodes.Count),
             XpReward = lessons.Sum(l => l.XpReward),
-            LearningObjectives = CourseLearningObjectives(path.Title),
-            KeyOutcomes = CourseKeyOutcomes(path.Title),
+            LearningObjectives = meta.LearningObjectives,
+            KeyOutcomes = meta.KeyOutcomes,
             Rating = rating,
             RatingCount = ratingCount,
-            Highlights = ParseHighlights(path.HighlightsJson),
+            Highlights = meta.Highlights,
             Testimonials = ParseTestimonials(path.TestimonialsJson),
             Author = await CourseAuthorAsync(path.AuthorId, ct),
             Lessons = lessons
         });
+    }
+
+    [HttpPost("courses")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<ConceptsCourseDto>> CreateCourse([FromBody] CourseUpsertRequest request, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { message = "Tiêu đề khóa học không được để trống." });
+        }
+
+        var meta = new CourseContentMetadata
+        {
+            Highlights = request.Highlights,
+            LearningObjectives = request.LearningObjectives,
+            KeyOutcomes = request.KeyOutcomes
+        };
+
+        var path = new LearningPath
+        {
+            Title = request.Title.Trim(),
+            Description = request.Description?.Trim(),
+            TopicId = request.TopicId,
+            SortOrder = request.SortOrder,
+            IsActive = request.IsActive,
+            CreatedBy = userId,
+            AuthorId = userId,
+            HighlightsJson = JsonSerializer.Serialize(meta)
+        };
+
+        _db.LearningPaths.Add(path);
+        await _db.SaveChangesAsync(ct);
+
+        return await GetCourse(path.Id, ct);
+    }
+
+    [HttpPut("courses/{id:int}")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<ConceptsCourseDto>> UpdateCourse([FromRoute] int id, [FromBody] CourseUpsertRequest request, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (path is null)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        if (!canManage)
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { message = "Tiêu đề khóa học không được để trống." });
+        }
+
+        var meta = new CourseContentMetadata
+        {
+            Highlights = request.Highlights,
+            LearningObjectives = request.LearningObjectives,
+            KeyOutcomes = request.KeyOutcomes
+        };
+
+        path.Title = request.Title.Trim();
+        path.Description = request.Description?.Trim();
+        path.TopicId = request.TopicId;
+        path.SortOrder = request.SortOrder;
+        path.IsActive = request.IsActive;
+        path.HighlightsJson = JsonSerializer.Serialize(meta);
+
+        await _db.SaveChangesAsync(ct);
+        return await GetCourse(path.Id, ct);
+    }
+
+    [HttpDelete("courses/{id:int}")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> DeleteCourse([FromRoute] int id, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (path is null)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        if (!canManage)
+        {
+            return Forbid();
+        }
+
+        path.IsActive = false;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("courses/{id:int}/nodes")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<object>> AddCourseNode([FromRoute] int id, [FromBody] CourseNodeCreateRequest request, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (path is null)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        if (!canManage)
+        {
+            return Forbid();
+        }
+
+        var maxSort = await _db.LearningPathNodes.Where(n => n.PathId == id).MaxAsync(n => (int?)n.SortOrder, ct) ?? 0;
+        var node = new LearningPathNode
+        {
+            PathId = id,
+            Title = string.IsNullOrWhiteSpace(request.Title) ? "Bài học mới" : request.Title.Trim(),
+            LessonId = request.LessonId,
+            SortOrder = request.SortOrder > 0 ? request.SortOrder : maxSort + 1,
+            FinalTestId = request.FinalTestId
+        };
+
+        _db.LearningPathNodes.Add(node);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { id = node.Id, pathId = node.PathId, title = node.Title, lessonId = node.LessonId, sortOrder = node.SortOrder });
+    }
+
+    [HttpDelete("courses/{id:int}/nodes/{nodeId:int}")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> DeleteCourseNode([FromRoute] int id, [FromRoute] int nodeId, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (path is null)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        if (!canManage)
+        {
+            return Forbid();
+        }
+
+        var node = await _db.LearningPathNodes.FirstOrDefaultAsync(n => n.Id == nodeId && n.PathId == id, ct);
+        if (node is not null)
+        {
+            _db.LearningPathNodes.Remove(node);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return NoContent();
+    }
+
+    [HttpPut("courses/{id:int}/reorder")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> ReorderCourseNodes([FromRoute] int id, [FromBody] CourseReorderNodesRequest request, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (path is null)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        if (!canManage)
+        {
+            return Forbid();
+        }
+
+        var nodes = await _db.LearningPathNodes.Where(n => n.PathId == id).ToListAsync(ct);
+        for (var i = 0; i < request.NodeIds.Count; i++)
+        {
+            var targetNode = nodes.FirstOrDefault(n => n.Id == request.NodeIds[i]);
+            if (targetNode is not null)
+            {
+                targetNode.SortOrder = i + 1;
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     /// <summary>Rating trung bình của khóa = AVG/COUNT ContentFeedback của các bài học trong path (dữ liệu thật).</summary>
@@ -245,22 +501,44 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         return aggregate is null ? (0, 0) : (Math.Round(aggregate.Avg, 1), aggregate.Count);
     }
 
-    /// <summary>Highlights ("Why choose") — JSON tùy biến theo khóa, seed từ backend (không hardcode FE).</summary>
-    private static List<CourseHighlightDto> ParseHighlights(string? json)
+    /// <summary>Metadata ("Why choose" + Mục tiêu + Kết quả) — JSON tùy biến theo khóa.</summary>
+    private static CourseContentMetadata ParseMetadata(string? json, string courseTitle)
     {
+        var meta = new CourseContentMetadata();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return [];
+            meta.LearningObjectives = CourseLearningObjectives(courseTitle);
+            meta.KeyOutcomes = CourseKeyOutcomes(courseTitle);
+            return meta;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<List<CourseHighlightDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            var trimmed = json.Trim();
+            if (trimmed.StartsWith('{'))
+            {
+                var parsed = JsonSerializer.Deserialize<CourseContentMetadata>(trimmed, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (parsed != null)
+                {
+                    meta.Highlights = parsed.Highlights ?? [];
+                    meta.LearningObjectives = parsed.LearningObjectives?.Count > 0 ? parsed.LearningObjectives : CourseLearningObjectives(courseTitle);
+                    meta.KeyOutcomes = parsed.KeyOutcomes?.Count > 0 ? parsed.KeyOutcomes : CourseKeyOutcomes(courseTitle);
+                    return meta;
+                }
+            }
+            else if (trimmed.StartsWith('['))
+            {
+                meta.Highlights = JsonSerializer.Deserialize<List<CourseHighlightDto>>(trimmed, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            }
         }
         catch
         {
-            return [];
+            // fallback
         }
+
+        meta.LearningObjectives = CourseLearningObjectives(courseTitle);
+        meta.KeyOutcomes = CourseKeyOutcomes(courseTitle);
+        return meta;
     }
 
     /// <summary>Testimonials — JSON tùy biến theo khóa, seed từ backend (không hardcode FE).</summary>
@@ -356,15 +634,15 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     /// Node đã tự pass thì luôn mở (được xem lại). Nghiệp vụ: học từ trên xuống —
     /// hết bài 1 mới mở bài 2 → xong bài 2 mới mở quiz → xong quiz mới mở assignment → sang module sau.
     /// </summary>
-    private async Task<bool> IsNodeLockedAsync(int userId, LearningPathNode node, CancellationToken ct)
+    private async Task<bool> IsNodeLockedAsync(int? userId, LearningPathNode node, CancellationToken ct)
     {
-        if (DisableNodeLocks)
+        if (DisableNodeLocks || userId is null)
         {
             return false;
         }
 
         var passed = await _db.UserNodeProgress.AsNoTracking()
-            .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
+            .AnyAsync(p => p.UserId == userId.Value && p.NodeId == node.Id && p.Status == 2, ct);
         if (passed)
         {
             return false;
@@ -380,12 +658,12 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         }
 
         var prevPassed = await _db.UserNodeProgress.AsNoTracking()
-            .AnyAsync(p => p.UserId == userId && p.NodeId == prev.Id && p.Status == 2, ct);
+            .AnyAsync(p => p.UserId == userId.Value && p.NodeId == prev.Id && p.Status == 2, ct);
         return !prevPassed;
     }
 
     private async Task<List<ConceptsLessonDto>> BuildLessonsAsync(
-        int userId, List<LearningPathNode> nodes, CancellationToken ct)
+        int? userId, List<LearningPathNode> nodes, CancellationToken ct)
     {
         if (nodes.Count == 0)
         {
@@ -414,11 +692,13 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .GroupBy(e => e.NodeId!.Value)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var passedNodeIds = (await _db.UserNodeProgress.AsNoTracking()
-            .Where(p => p.UserId == userId && nodeIds.Contains(p.NodeId) && p.Status == 2)
-            .Select(p => p.NodeId)
-            .ToListAsync(ct))
-            .ToHashSet();
+        var passedNodeIds = userId is null
+            ? new HashSet<int>()
+            : (await _db.UserNodeProgress.AsNoTracking()
+                .Where(p => p.UserId == userId.Value && nodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Select(p => p.NodeId)
+                .ToListAsync(ct))
+                .ToHashSet();
 
         var result = new List<ConceptsLessonDto>();
         var prevPassed = true; // node đầu tiên luôn mở

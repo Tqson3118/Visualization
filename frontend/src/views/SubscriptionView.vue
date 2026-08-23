@@ -98,7 +98,7 @@ async function cancelRenewal(): Promise<void> {
     />
 
     <EmptyState
-      v-else-if="!status?.isPremium"
+      v-else-if="!status?.isPremium && status?.status !== 'active'"
       icon="sparkles"
       :title="messages.subscription.emptyTitle"
       :description="messages.subscription.emptyDesc"

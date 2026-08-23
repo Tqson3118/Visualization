@@ -5,14 +5,16 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using VisualizationDSA.Domain.Entities;
 using VisualizationDSA.Domain.Enums;
+using VisualizationDSA.Domain.Interfaces;
 
 namespace VisualizationDSA.Infrastructure.Data;
 
 /// <summary>Deterministic Phase B dataset. Kept separate from the legacy seed content.</summary>
-internal sealed class RealDataSeeder
+public sealed class RealDataSeeder
 {
     private const string Password = "RealData@2024";
     private readonly ApplicationDbContext _db;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly Dictionary<string, User> _users = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly (string Name, string Email, int[] Courses, string[] Classes)[] Teachers =
@@ -59,7 +61,11 @@ internal sealed class RealDataSeeder
     private static readonly string[] Surnames = { "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đinh", "Trịnh" };
     private static readonly string[] Given = { "Nam", "Sơn", "Hùng", "Dũng", "Phong", "Khôi", "Bảo", "Vinh", "Đạt", "Kiên", "Hiếu", "Long", "Việt", "Tùng", "Quân", "Thắng", "Duy", "Hải", "Phúc", "An" };
 
-    public RealDataSeeder(ApplicationDbContext db) => _db = db;
+    public RealDataSeeder(ApplicationDbContext db, IPasswordHasher passwordHasher)
+    {
+        _db = db;
+        _passwordHasher = passwordHasher;
+    }
 
     public async Task SeedAsync()
     {
@@ -382,7 +388,7 @@ internal sealed class RealDataSeeder
         foreach (var key in favoriteKeys) if (!await _db.Favorites.AnyAsync(f => f.UserId == bao.Id && f.SimulationKey == key)) await _db.Favorites.AddAsync(new Favorite(bao.Id, key));
     }
 
-    private static string Hash(string password) => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
+    private string Hash(string password) => _passwordHasher.Hash(password);
     private static string Transliterate(string value)
     {
         var normalized = value.Normalize(NormalizationForm.FormD);

@@ -1,10 +1,7 @@
 <script setup lang="ts">
-// ProfileView — Màn 32: 5 tab (Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt) + thẻ tắt nhanh.
-// View-quality C (DESIGN.md §1/§6): hero = surface band level-2 (bỏ gradient/blob/shadow),
-// 1 stat hero duy nhất (XP — block-token tối canvas-ink + index mono), stat phụ level-1,
-// radar + vùng dữ liệu LUÔN tối, icon lucide-vue-next (cấm emoji), không hover-lift/shadow card.
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
   Check,
   Circle,
@@ -22,6 +19,11 @@ import {
   Target,
   Trophy,
   Users,
+  User,
+  Mail,
+  ShieldCheck,
+  Calendar,
+  Sparkles,
 } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
@@ -30,8 +32,9 @@ import { useProgressStore } from '@/stores/progress';
 import * as progressApi from '@/api/progress';
 import * as authApi from '@/api/auth';
 import type { InventoryItemDto } from '@/api/gamification';
-import { avatarVariant, equipGroup, equippedItem, frameVariant } from '@/utils/equipment';
+import { avatarImageUrl, avatarVariant, equipGroup, equippedItem, frameVariant } from '@/utils/equipment';
 import { useUiStore } from '@/stores/ui';
+import { formatDate } from '@/utils/format';
 import Tabs from '@/components/ui/Tabs.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Button from '@/components/ui/Button.vue';
@@ -42,12 +45,15 @@ import BlockToken from '@/components/ui/BlockToken.vue';
 import Input from '@/components/ui/Input.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { messages } from '@/i18n/vi';
-// Gamification dashboard (feature port — dữ liệu thật từ store/API)
+
+// Gamification dashboard
 import XpProgressCard from '@/components/gamification/XpProgressCard.vue';
 import StreakCard from '@/components/gamification/StreakCard.vue';
 import QuestProgressCard from '@/components/gamification/QuestProgressCard.vue';
 import BadgeGrid from '@/components/gamification/BadgeGrid.vue';
 
+const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 const gamification = useGamificationStore();
 const progressStore = useProgressStore();
@@ -57,17 +63,103 @@ const tab = ref<'overview' | 'progress' | 'achievements' | 'inventory' | 'settin
 const loading = ref(true);
 const loadError = ref('');
 
+// Profile Name Form
+const displayNameInput = ref('');
+const nameUpdating = ref(false);
+
+// Password Form
 const passwordForm = ref({ current: '', next: '' });
 const passwordError = ref('');
 const passwordBusy = ref(false);
 
+// Avatar upload
+const avatarFile = ref<File | null>(null);
+const avatarPreview = ref<string | null>(null);
+const avatarError = ref('');
+const avatarUploading = ref(false);
+
+function onAvatarSelected(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+  const file = input.files[0];
+  if (file.size > 2 * 1024 * 1024) {
+    avatarError.value = 'Ảnh không được vượt quá 2MB.';
+    return;
+  }
+  avatarError.value = '';
+  avatarFile.value = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    avatarPreview.value = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadAvatar(): Promise<void> {
+  if (!avatarFile.value) return;
+  avatarUploading.value = true;
+  avatarError.value = '';
+  try {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(avatarFile.value!);
+    });
+    await authApi.updateProfile({ avatarUrl: base64 });
+    await auth.fetchMe();
+    ui.showToast('Cập nhật ảnh đại diện thành công!', 'success');
+    avatarFile.value = null;
+    avatarPreview.value = null;
+  } catch (err) {
+    avatarError.value = err instanceof Error ? err.message : 'Không thể upload ảnh.';
+  } finally {
+    avatarUploading.value = false;
+  }
+}
+
+async function removeAvatar(): Promise<void> {
+  avatarUploading.value = true;
+  try {
+    await authApi.updateProfile({ avatarUrl: null });
+    await auth.fetchMe();
+    ui.showToast('Đã xóa ảnh đại diện.', 'success');
+  } catch (err) {
+    avatarError.value = err instanceof Error ? err.message : 'Không thể xóa ảnh.';
+  } finally {
+    avatarUploading.value = false;
+  }
+}
+
+async function onUpdateDisplayName(): Promise<void> {
+  if (displayNameInput.value.trim().length < 2) {
+    ui.showToast('Họ và tên phải từ 2 ký tự trở lên.', 'warning');
+    return;
+  }
+  nameUpdating.value = true;
+  try {
+    await authApi.updateProfile({ displayName: displayNameInput.value.trim() });
+    await auth.fetchMe();
+    ui.showToast('Cập nhật họ tên thành công!', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Cập nhật thất bại.', 'error');
+  } finally {
+    nameUpdating.value = false;
+  }
+}
+
 const level = computed(() => gamification.level);
 const xp = computed(() => gamification.xp);
-
 const isTeacherPending = computed(() => auth.role === 'TEACHER_PENDING');
 
 onMounted(async () => {
   loading.value = true;
+  // Initialize tab from route query if present
+  const qTab = route.query.tab as string;
+  if (qTab && ['overview', 'progress', 'achievements', 'inventory', 'settings'].includes(qTab)) {
+    tab.value = qTab as typeof tab.value;
+  }
+
   await Promise.allSettled([
     gamification.fetchAll(),
     gamification.fetchQuests(),
@@ -75,6 +167,11 @@ onMounted(async () => {
     gamification.fetchAchievements(),
     auth.fetchMe().catch(() => undefined),
   ]);
+
+  if (auth.user) {
+    displayNameInput.value = auth.user.displayName || '';
+  }
+
   try {
     await progressStore.fetchOverview();
   } catch {
@@ -82,6 +179,15 @@ onMounted(async () => {
   }
   loading.value = false;
 });
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && typeof newTab === 'string' && ['overview', 'progress', 'achievements', 'inventory', 'settings'].includes(newTab)) {
+      tab.value = newTab as typeof tab.value;
+    }
+  },
+);
 
 async function retryOverview(): Promise<void> {
   loadError.value = '';
@@ -96,15 +202,16 @@ async function retryOverview(): Promise<void> {
 
 function changeTab(next: string): void {
   tab.value = next as typeof tab.value;
+  void router.replace({ query: { ...route.query, tab: next } });
 }
 
 function goSettings(): void {
-  tab.value = 'settings';
+  changeTab('settings');
 }
 
 async function onChangePassword(): Promise<void> {
   passwordError.value = '';
-  if (passwordForm.value.next.length < 8) {
+  if (passwordForm.value.next.length < 6) {
     passwordError.value = messages.profile.passwordTooShort;
     return;
   }
@@ -122,7 +229,6 @@ async function onChangePassword(): Promise<void> {
 
 const overview = computed(() => progressStore.overview);
 
-// Tiến độ lộ trình tổng (data thật từ /progress/me)
 const levelProgressPct = computed(() => {
   const o = overview.value;
   if (!o || o.lessonsTotal === 0) return 0;
@@ -147,8 +253,8 @@ const consumableItems = computed(() => gamification.inventory.filter((item) => e
 
 const invGroups = computed(() =>
   [
-    { key: 'avatar', label: 'Avatar', icon: ImageIcon, items: avatarItems.value },
-    { key: 'frame', label: 'Khung viền', icon: Frame, items: frameItems.value },
+    { key: 'avatar', label: 'Avatar tùy biến', icon: ImageIcon, items: avatarItems.value },
+    { key: 'frame', label: 'Khung viền hồ sơ', icon: Frame, items: frameItems.value },
   ].filter((group) => group.items.length > 0),
 );
 
@@ -176,10 +282,7 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
   }
 }
 
-// ── Skill radar (vue-echarts — G-F2d) ──
-// 5-6 kỹ năng = chủ đề (topics) từ /progress/me. Giá trị = progressPct thật — KHÔNG bịa.
-// Rỗng → EmptyState. Nền chart LUÔN tối (canvas-ink — vùng dữ liệu, quyết định xuyên-nhóm #5).
-
+// ── Skill radar (vue-echarts) ──
 const skillData = computed(() =>
   (overview.value?.topics ?? []).map((topic) => ({
     name: topic.name.length > 18 ? `${topic.name.slice(0, 18)}…` : topic.name,
@@ -187,7 +290,6 @@ const skillData = computed(() =>
   })),
 );
 
-/** Đọc CSS variable thành màu cụ thể (ECharts canvas không hiểu var()). */
 function cssVar(name: string, fallback: string): string {
   if (typeof document === 'undefined') return fallback;
   const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -195,7 +297,6 @@ function cssVar(name: string, fallback: string): string {
 }
 
 const radarOption = computed(() => {
-  // Phụ thuộc theme (ui.theme) → recompute option khi toggle sáng/tối
   void ui.theme;
   const indexMuted = cssVar('--color-index-muted', '#6B7385');
   const dataCore = cssVar('--vdsa-purple', '#8b5cf6');
@@ -278,11 +379,24 @@ function csvExport(): void {
       <span>Hồ sơ giảng viên của bạn đang chờ xét duyệt — tính năng giảng dạy sẽ mở khóa khi Admin duyệt.</span>
     </div>
 
-    <!-- Hero profile card — surface band level-2 (không gradient, không blob, không shadow) -->
+    <!-- Hero profile card — surface band level-2 -->
     <header class="profile__hero">
       <div class="profile__hero-main">
         <span class="profile__avatar-frame" :class="frameThemeClass">
-          <span class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
+          <img
+            v-if="equippedAvatar && avatarImageUrl(equippedAvatar.itemKey)"
+            :src="avatarImageUrl(equippedAvatar.itemKey)"
+            :alt="equippedAvatar.name"
+            class="profile__avatar profile__avatar-image"
+            :class="avatarThemeClass"
+          />
+          <img
+            v-else-if="auth.user?.avatarUrl"
+            :src="auth.user.avatarUrl"
+            :alt="auth.user?.displayName ?? 'Avatar'"
+            class="profile__avatar profile__avatar-image"
+          />
+          <span v-else class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
             {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
           </span>
         </span>
@@ -293,6 +407,8 @@ function csvExport(): void {
             <Badge variant="primary">Lv {{ level }}</Badge>
             <Badge variant="success" class="profile__streak-chip"><Flame :size="12" class="profile__flame" /> {{ gamification.streakDays }} ngày streak</Badge>
             <Badge v-if="gamification.isPremium" variant="warning">Premium</Badge>
+            <Badge v-if="auth.role === 'TEACHER'" variant="secondary">Giảng viên</Badge>
+            <Badge v-else-if="auth.role === 'ADMIN'" variant="success">Quản trị viên</Badge>
           </div>
         </div>
         <div class="profile__actions">
@@ -302,8 +418,7 @@ function csvExport(): void {
         </div>
       </div>
 
-      <!-- Stat hierarchy (DESIGN.md §6): 1 hero duy nhất = XP (block-token tối + index mono),
-           còn lại stat phụ level-1. Streak = block-token resolved (dữ liệu tuần tự). -->
+      <!-- Stat hierarchy: 1 hero duy nhất = XP -->
       <div class="profile__stats-row">
         <BlockToken
           label="XP"
@@ -350,12 +465,12 @@ function csvExport(): void {
       </div>
     </header>
 
-    <!-- Tabs shadcn: Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt -->
+    <!-- Tabs: Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt -->
     <Tabs
       :tabs="[
         { key: 'overview', label: 'Tổng quan' },
         { key: 'progress', label: 'Tiến độ' },
-        { key: 'inventory', label: 'Túi đồ' },
+        { key: 'inventory', label: 'Túi đồ', badge: gamification.inventory.length > 0 ? gamification.inventory.length : undefined },
         { key: 'achievements', label: 'Thành tích' },
         { key: 'settings', label: 'Cài đặt' },
       ]"
@@ -367,7 +482,7 @@ function csvExport(): void {
       <Skeleton v-for="i in 4" :key="i" height="48px" />
     </div>
 
-    <!-- Tab Tổng quan -->
+    <!-- ═══ TAB 1: TỔNG QUAN ═══ -->
     <section v-else-if="tab === 'overview'" class="profile__panel">
       <EmptyState
         v-if="loadError"
@@ -401,7 +516,7 @@ function csvExport(): void {
           </div>
         </div>
 
-        <!-- Skill radar (vue-echarts lazy) — data thật từ /progress/me, nền LUÔN tối -->
+        <!-- Skill radar -->
         <div class="card profile__radar-card">
           <div class="profile__radar-head">
             <h2 class="profile__panel-title">Skill radar</h2>
@@ -421,7 +536,7 @@ function csvExport(): void {
           </p>
         </div>
 
-        <!-- Gamification dashboard (feature port — dữ liệu thật từ store /me/gamification, quests, achievements, streak) -->
+        <!-- Gamification dashboard -->
         <div class="profile__gamification">
           <div class="profile__gamification-row">
             <XpProgressCard
@@ -444,7 +559,7 @@ function csvExport(): void {
       </template>
     </section>
 
-    <!-- Tab Tiến độ -->
+    <!-- ═══ TAB 2: TIẾN ĐỘ ═══ -->
     <section v-else-if="tab === 'progress'" class="profile__panel">
       <div class="profile__progress-actions">
         <Button variant="secondary" size="sm" @click="reloadProgress">
@@ -489,19 +604,33 @@ function csvExport(): void {
       </div>
     </section>
 
-    <!-- Tab Túi đồ (Kho đồ — Màn N-8): avatar + khung viền từ /me/inventory -->
+    <!-- ═══ TAB 3: TÚI ĐỒ ═══ -->
     <section v-else-if="tab === 'inventory'" class="profile__panel">
-      <div class="profile__inv-groups">
+      <div v-if="gamification.inventory.length > 0" class="profile__inv-groups">
         <section v-for="group in invGroups" :key="group.key" class="profile__inv-group">
           <h2 class="profile__panel-title profile__inv-title">{{ group.label }}</h2>
           <div class="profile__inv-grid">
-            <article v-for="item in group.items" :key="item.id" class="card profile__inv-card">
+            <article
+              v-for="item in group.items"
+              :key="item.id"
+              class="card profile__inv-card"
+              :class="{ 'profile__inv-card--equipped': item.isEquipped }"
+            >
               <span class="profile__inv-icon" aria-hidden="true">
-                <component :is="group.icon" :size="20" />
+                <img
+                  v-if="avatarImageUrl(item.itemKey)"
+                  :src="avatarImageUrl(item.itemKey)"
+                  :alt="item.name"
+                  class="w-10 h-10 rounded-full object-cover shadow-sm"
+                />
+                <component :is="group.icon" v-else :size="20" />
               </span>
               <div class="profile__inv-body">
                 <p class="profile__inv-name">{{ item.name }}</p>
-                <Badge variant="muted">x{{ item.quantity }}</Badge>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <Badge v-if="item.isEquipped" variant="success" class="text-[10px]">✨ Đang dùng</Badge>
+                  <Badge v-else variant="muted" class="text-[10px]">x{{ item.quantity }}</Badge>
+                </div>
               </div>
               <Button
                 size="sm"
@@ -510,33 +639,37 @@ function csvExport(): void {
                 :disabled="equippingId !== null && equippingId !== item.itemId"
                 @click="toggleEquip(item)"
               >
-                {{ item.isEquipped ? 'Đang trang bị' : 'Trang bị' }}
+                {{ item.isEquipped ? 'Gỡ trang bị' : 'Trang bị' }}
               </Button>
             </article>
           </div>
         </section>
 
         <section v-if="consumableItems.length > 0" class="profile__inv-group">
-          <h2 class="profile__panel-title profile__inv-title">Vật phẩm khác</h2>
+          <h2 class="profile__panel-title profile__inv-title">Vật phẩm tiêu hao & hỗ trợ</h2>
           <ul class="card profile__inv-other">
             <li v-for="item in consumableItems" :key="item.id" class="profile__inv-other-row">
-              <Package :size="16" aria-hidden="true" />
-              <span class="profile__inv-name">{{ item.name }}</span>
-              <Badge variant="muted">x{{ item.quantity }}</Badge>
+              <div class="flex items-center gap-2">
+                <Package :size="16" class="text-vdsa-purple" aria-hidden="true" />
+                <span class="profile__inv-name">{{ item.name }}</span>
+              </div>
+              <Badge variant="primary">Số lượng: {{ item.quantity }}</Badge>
             </li>
           </ul>
         </section>
       </div>
 
       <EmptyState
-        v-if="gamification.inventory.length === 0"
+        v-else
         icon="package"
         title="Túi đồ trống"
-        description="Mua avatar và khung viền tại Cửa hàng — trang bị ngay tại đây."
+        description="Bạn chưa sở hữu vật phẩm nào. Ghé thăm Cửa hàng để trang bị avatar và khung viền độc đáo!"
+        action-label="Đến Cửa hàng ngay"
+        @action="router.push('/shop')"
       />
     </section>
 
-    <!-- Tab Thành tích (data thật từ /achievements) -->
+    <!-- ═══ TAB 4: THÀNH TÍCH ═══ -->
     <section v-else-if="tab === 'achievements'" class="profile__panel">
       <div class="profile__achievements">
         <div
@@ -562,16 +695,96 @@ function csvExport(): void {
       />
     </section>
 
-    <!-- Tab Cài đặt -->
+    <!-- ═══ TAB 5: CÀI ĐẶT ═══ -->
     <section v-else class="profile__panel">
-      <div class="card profile__settings">
-        <h2 class="profile__panel-title">Đổi mật khẩu</h2>
-        <form class="profile__password" novalidate @submit.prevent="onChangePassword">
-          <Input v-model="passwordForm.current" label="Mật khẩu hiện tại" type="password" autocomplete="current-password" required />
-          <Input v-model="passwordForm.next" label="Mật khẩu mới" type="password" autocomplete="new-password" required />
-          <p v-if="passwordError" class="profile__password-error" role="alert">{{ passwordError }}</p>
-          <Button type="submit" :loading="passwordBusy">{{ messages.profile.savePassword }}</Button>
-        </form>
+      <div class="card profile__settings space-y-6">
+        <!-- 1. Thông tin cá nhân -->
+        <section>
+          <h2 class="profile__panel-title mb-3">Thông tin tài khoản</h2>
+          <form class="space-y-4 max-w-lg" @submit.prevent="onUpdateDisplayName">
+            <Input v-model="displayNameInput" label="Họ và tên hiển thị" placeholder="Nhập họ và tên..." required />
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Địa chỉ Email</label>
+                <div class="px-3 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-xs text-vdsa-muted flex items-center justify-between">
+                  <span>{{ auth.user?.email }}</span>
+                  <Badge variant="success" class="text-[10px]">Đã xác thực</Badge>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Vai trò hệ thống</label>
+                <div class="px-3 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-xs text-vdsa-muted flex items-center gap-1.5">
+                  <ShieldCheck :size="14" class="text-vdsa-purple" />
+                  <span class="font-bold text-white">{{ auth.role }}</span>
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit" size="sm" variant="primary" :loading="nameUpdating">
+              Lưu thay đổi họ tên
+            </Button>
+          </form>
+        </section>
+
+        <hr class="profile__divider" />
+
+        <!-- 2. Ảnh đại diện -->
+        <section>
+          <h2 class="profile__panel-title mb-3">Ảnh đại diện</h2>
+          <div class="profile__avatar-upload">
+            <div class="profile__avatar-preview">
+              <img
+                v-if="auth.user?.avatarUrl || avatarPreview"
+                :src="(avatarPreview ?? auth.user?.avatarUrl) || ''"
+                alt="Avatar"
+                class="profile__avatar-preview-img"
+              />
+              <span v-else class="profile__avatar-preview-placeholder">📷</span>
+            </div>
+            <div class="profile__avatar-actions">
+              <input
+                type="file"
+                accept="image/*"
+                class="profile__avatar-input"
+                @change="onAvatarSelected"
+              />
+              <Button
+                v-if="auth.user?.avatarUrl"
+                variant="secondary"
+                size="sm"
+                :loading="avatarUploading"
+                @click="removeAvatar"
+              >
+                Xóa ảnh
+              </Button>
+              <Button
+                v-if="avatarFile"
+                variant="primary"
+                size="sm"
+                :loading="avatarUploading"
+                @click="uploadAvatar"
+              >
+                Cập nhật
+              </Button>
+            </div>
+            <p v-if="avatarError" class="profile__avatar-error" role="alert">{{ avatarError }}</p>
+          </div>
+        </section>
+
+        <hr class="profile__divider" />
+
+        <!-- 3. Đổi mật khẩu -->
+        <section>
+          <h2 class="profile__panel-title mb-3">Bảo mật & Đổi mật khẩu</h2>
+          <form class="profile__password max-w-lg" novalidate @submit.prevent="onChangePassword">
+            <Input v-model="passwordForm.current" label="Mật khẩu hiện tại" type="password" autocomplete="current-password" required />
+            <Input v-model="passwordForm.next" label="Mật khẩu mới (tối thiểu 6 ký tự)" type="password" autocomplete="new-password" required />
+            <p v-if="passwordError" class="profile__password-error" role="alert">{{ passwordError }}</p>
+            <Button type="submit" size="sm" :loading="passwordBusy">{{ messages.profile.savePassword }}</Button>
+          </form>
+        </section>
       </div>
     </section>
   </main>
@@ -579,26 +792,20 @@ function csvExport(): void {
 
 <style scoped>
 .profile {
-  /* Bộ tím (khớp --vdsa-purple / tab Sorting Sandbox) — accent riêng cho trang hồ sơ */
   --p-purple: #8b5cf6;
   --p-purple-light: #a78bfa;
   --p-purple-dark: #7c3aed;
-  /* Remap token shadcn primary (teal) → tím NGAY TRONG scope trang:
-     ProgressBar, Badge primary, Button primary, Tabs active đều tự đổi sang tím. */
   --primary: oklch(0.56 0.24 293);
   --primary-foreground: oklch(0.99 0 0);
   --ring: oklch(0.56 0.24 293);
-  /* BlockToken XP hero đang dùng --data-core (xanh #4255FF) → tím */
   --data-core: var(--p-purple);
   padding-block: var(--space-lg) var(--space-2xl);
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  max-width: 920px;
+  max-width: 960px;
 }
 
-/* Card — kính mờ (glass) đồng bộ phong cách hiện tại: nền bán trong suốt + blur +
-   viền sáng nhẹ + glow tông primary. Thay cho card phẳng shadow-none cũ. */
 .profile .card {
   background: color-mix(in srgb, var(--color-card) 72%, transparent);
   backdrop-filter: blur(10px);
@@ -615,7 +822,7 @@ function csvExport(): void {
     0 10px 34px color-mix(in srgb, var(--p-purple) 12%, transparent);
 }
 
-/* ── Hero profile — glass band + dải accent gradient trên đỉnh ── */
+/* ── Hero profile ── */
 .profile__hero {
   position: relative;
   display: flex;
@@ -634,484 +841,565 @@ function csvExport(): void {
   overflow: hidden;
 }
 
-/* Dải accent gradient (primary → data-core) trên đỉnh hero */
 .profile__hero::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--p-purple), var(--p-purple-dark), transparent);
-  opacity: 0.85;
+  background: linear-gradient(90deg, var(--p-purple-light), var(--p-purple), transparent 80%);
 }
 
-.profile__hero-main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
-
-/* Banner hồ sơ giảng viên chờ duyệt — warning band kính mờ */
 .profile__banner {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
-  backdrop-filter: blur(10px);
-  color: var(--color-foreground);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, #eab308 14%, transparent);
+  border: 1px solid color-mix(in srgb, #eab308 40%, transparent);
+  color: #fde047;
   font-size: var(--text-sm);
-  font-weight: 500;
 }
 
-.profile__banner svg { color: var(--color-warning); flex-shrink: 0; }
+.profile__hero-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
 
-/* Khung viền avatar — gradient theo itemKey (frameVariant), fallback primary */
 .profile__avatar-frame {
-  border-radius: var(--radius-full);
-  padding: 3px;
+  position: relative;
   display: inline-flex;
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 250ms ease;
 }
 
 .profile__avatar-frame--neon {
   background: linear-gradient(135deg, #ec4899, #22d3ee);
   box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
 }
-
 .profile__avatar-frame--gold {
   background: linear-gradient(135deg, #f59e0b, #fde68a, #f59e0b);
   box-shadow: 0 0 18px rgba(250, 204, 21, 0.5);
 }
-
 .profile__avatar-frame--cyber {
   background: linear-gradient(135deg, #22d3ee, #6366f1);
   box-shadow: 0 0 16px rgba(34, 211, 238, 0.45);
 }
-
 .profile__avatar-frame--fire {
   background: linear-gradient(135deg, #ef4444, #f97316);
   box-shadow: 0 0 16px rgba(239, 68, 68, 0.5);
 }
-
 .profile__avatar-frame--ice {
   background: linear-gradient(135deg, #7dd3fc, #93c5fd);
   box-shadow: 0 0 14px rgba(125, 211, 252, 0.5);
 }
-
 .profile__avatar-frame--default {
-  background: linear-gradient(135deg, var(--p-purple), var(--p-purple-dark));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--p-purple) 45%, transparent);
+  background: linear-gradient(135deg, var(--p-purple-light), var(--p-purple-dark));
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
 }
 
 .profile__avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-full);
-  background: var(--color-muted);
-  color: var(--color-text-secondary);
-  display: inline-flex;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--p-purple);
+  color: #ffffff;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  flex-shrink: 0;
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  object-fit: cover;
+  transition: all 250ms ease;
 }
 
-/* Avatar theme theo itemKey đang trang bị — gradient tối + chữ sáng (đọc được cả 2 theme) */
 .profile__avatar--cyber { background: linear-gradient(135deg, #0e7490, #155e75); color: #a5f3fc; }
 .profile__avatar--gold { background: linear-gradient(135deg, #b45309, #92400e); color: #fef3c7; }
 .profile__avatar--neon { background: linear-gradient(135deg, #be185d, #6b21a8); color: #fbcfe8; }
 .profile__avatar--wizard { background: linear-gradient(135deg, #6d28d9, #4c1d95); color: #ddd6fe; }
 .profile__avatar--bot { background: linear-gradient(135deg, #0f766e, #134e4a); color: #99f6e4; }
 
-.profile__identity { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+.profile__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 200px;
+}
 
 .profile__name {
   font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--color-foreground);
+  font-weight: 800;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.profile__email {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
-.profile__email { font-size: var(--text-sm); color: var(--color-text-muted); }
+.profile__chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
 
-.profile__chips { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+.profile__flame { color: #f97316; }
 
-.profile__actions { margin-left: auto; }
+.profile__actions {
+  margin-left: auto;
+}
 
-/* ── Stat hierarchy: 1 hero (XP) + stat phụ level-1 — compact 1 hàng ── */
 .profile__stats-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
-/* Mobile: XP hero full width, stat phụ 2 cột — không chiếm cả màn hình */
-.profile__stats-hero { grid-column: 1 / -1; }
-
-@media (min-width: 640px) {
-  .profile__stats-row { grid-template-columns: repeat(4, 1fr); }
-  .profile__stats-hero { grid-column: span 2; }
-}
-
-@media (min-width: 1024px) {
-  .profile__stats-row { grid-template-columns: repeat(6, 1fr); }
-  .profile__stats-hero { grid-column: span 2; }
-}
-
-/* Khoảnh khắc đầu tư duy nhất của màn: hero-stat vào nhẹ (transform+opacity, easing chuẩn) */
-@keyframes profile-hero-enter {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.profile__stats-hero {
-  animation: profile-hero-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Stat phụ — glass + viền trên màu riêng từng loại (Level=cyan, Gems=xanh lá, Tim=đỏ) */
 .profile__stat-block {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-sm);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  border-top: 2px solid var(--p-purple);
+  gap: 2px;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-card) 75%, transparent);
-  backdrop-filter: blur(8px);
-  min-width: 0;
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.profile__stat-block:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--p-purple) 12%, transparent);
-}
-.profile__stat-block--level { border-top-color: #a78bfa; }
-.profile__stat-block--gems { border-top-color: #8b5cf6; }
-.profile__stat-block--hearts { border-top-color: #7c3aed; }
-.profile__stat-block--level .profile__stat-value { color: color-mix(in srgb, #a78bfa 62%, var(--color-foreground)); }
-.profile__stat-block--gems .profile__stat-value { color: color-mix(in srgb, #8b5cf6 62%, var(--color-foreground)); }
-.profile__stat-block--hearts .profile__stat-value { color: color-mix(in srgb, #7c3aed 62%, var(--color-foreground)); }
 
 .profile__stat-label {
-  font-size: var(--text-xs);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
   color: var(--color-text-tertiary);
-  font-weight: 500;
+  letter-spacing: 0.05em;
 }
 
-.profile__stat-line { display: flex; align-items: baseline; gap: var(--space-xs); }
+.profile__stat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
 
 .profile__stat-value {
-  font-size: var(--text-xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--color-foreground);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
 }
 
 .profile__stat-unit {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-size: 10px;
+  font-weight: 600;
   color: var(--color-text-tertiary);
 }
 
-.profile__level-progress { display: flex; flex-direction: column; gap: var(--space-xs); }
-.profile__level-progress-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
-.profile__level-progress-label { font-size: var(--text-sm); font-weight: 600; }
-.profile__level-progress-note { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
-
-.profile__loading { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.profile__panel { display: flex; flex-direction: column; gap: var(--space-lg); }
-
-.profile__panel-title {
-  font-size: var(--text-xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin-bottom: var(--space-sm);
-  padding-left: var(--space-sm);
-  border-left: 3px solid var(--p-purple);
+.profile__level-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
-.profile__overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+.profile__level-progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
 
-.profile__overview-card { display: flex; flex-direction: column; gap: var(--space-xs); }
-.profile__overview-progress { display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-sm); }
+/* ── Panel & Tabs ── */
+.profile__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
 
-.profile__mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+.profile__overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
 
-.profile__quick { display: flex; flex-direction: column; gap: var(--space-sm); }
+@media (max-width: 720px) {
+  .profile__overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile__overview-card {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.profile__panel-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.profile__mono {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.profile__overview-progress {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile__quick {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
 
 .profile__quick-link {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--p-purple) 20%, var(--color-border-subtle));
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-card) 70%, transparent);
-  backdrop-filter: blur(8px);
-  color: var(--color-foreground);
-  font-weight: 500;
-  font-size: var(--text-sm);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 180ms ease;
 }
 
 .profile__quick-link:hover {
-  border-color: color-mix(in srgb, var(--p-purple) 55%, var(--color-border-subtle));
-  transform: translateX(3px);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--p-purple) 12%, transparent);
-  text-decoration: none;
+  background: color-mix(in srgb, var(--p-purple) 15%, var(--color-surface));
+  border-color: var(--p-purple-light);
 }
-
-.profile__quick-link svg { color: var(--p-purple); }
 
 .profile__quick-idx {
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-size: 10px;
   color: var(--color-text-tertiary);
 }
 
-/* ── Skill radar card — vùng dữ liệu LUÔN tối ── */
-.profile__radar-card { display: flex; flex-direction: column; gap: var(--space-xs); }
-.profile__radar-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-sm); flex-wrap: wrap; }
-.profile__radar-note { font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: var(--space-xs); }
-
-.profile__radar-canvas {
-  margin-top: var(--space-xs);
-  border: 1px solid color-mix(in srgb, var(--p-purple-dark) 20%, transparent);
+/* ── Radar ── */
+.profile__radar-card {
+  padding: var(--space-lg);
   border-radius: var(--radius-lg);
-  background: var(--color-canvas-ink);
-  padding: var(--space-sm);
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
-.profile__progress-actions { display: flex; gap: var(--space-sm); justify-content: flex-end; }
+.profile__radar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-.profile__topics { display: flex; flex-direction: column; gap: var(--space-lg); }
+.profile__radar-note {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
 
-.profile__topic { display: flex; flex-direction: column; gap: var(--space-sm); }
+/* ── Gamification ── */
+.profile__gamification {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
 
-.profile__topic-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
-.profile__topic-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; }
-.profile__topic-pct { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-tertiary); }
+.profile__gamification-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
 
-.profile__topic-lessons { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+@media (max-width: 720px) {
+  .profile__gamification-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Progress Tab ── */
+.profile__progress-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+}
+
+.profile__topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.profile__topic {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.profile__topic-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile__topic-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+}
+
+.profile__topic-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--p-purple-light);
+}
+
+.profile__topic-lessons {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-xs) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .profile__topic-lesson {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .profile__done {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-success);
-  font-weight: 500;
+  gap: 6px;
+  color: var(--color-text-primary);
 }
 
 .profile__todo {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 6px;
   color: var(--color-text-tertiary);
 }
 
-.profile__achievements {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--space-md);
-}
-
-.profile__achievement {
+/* ── Inventory Tab ── */
+.profile__inv-groups {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: var(--space-lg);
+}
+
+.profile__inv-group {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
-  text-align: center;
-  padding: var(--space-lg) var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--p-purple) 18%, var(--color-border-subtle));
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-card) 72%, transparent);
-  backdrop-filter: blur(8px);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.profile__achievement:hover { border-color: color-mix(in srgb, var(--p-purple) 45%, var(--color-border-subtle)); }
-
-.profile__achievement--locked { opacity: 0.55; }
-
-.profile__achievement-icon { color: var(--color-text-quaternary); }
-.profile__achievement-icon--open {
-  color: var(--color-success);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-success) 60%, transparent));
-}
-.profile__achievement-img { width: 24px; height: 24px; object-fit: contain; border-radius: var(--radius-sm); }
-.profile__achievement-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-foreground); }
-.profile__achievement-desc { font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-muted); }
-
-/* ── Kho đồ — nhóm avatar/khung + vật phẩm khác ── */
-.profile__inv-groups { display: flex; flex-direction: column; gap: var(--space-lg); }
-
-.profile__inv-group { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.profile__inv-title { margin-bottom: 0; }
 
 .profile__inv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-md);
 }
 
-.profile__inv-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+@media (max-width: 800px) {
+  .profile__inv-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .profile__inv-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.profile__inv-card:hover {
-  border-color: color-mix(in srgb, var(--p-purple) 50%, var(--color-border-subtle));
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--p-purple) 12%, transparent);
+.profile__inv-card {
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  position: relative;
+}
+
+.profile__inv-card--equipped {
+  border-color: #10b981;
+  background: color-mix(in srgb, #10b981 6%, var(--color-card));
 }
 
 .profile__inv-icon {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--p-purple) 16%, var(--color-muted)), var(--color-muted));
-  color: var(--p-purple);
-  display: inline-flex;
+  background: color-mix(in srgb, var(--p-purple) 15%, transparent);
+  color: var(--p-purple-light);
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-
-.profile__inv-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  min-width: 0;
-  flex: 1;
 }
 
 .profile__inv-name {
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
+  font-weight: 700;
+  margin: 0;
 }
 
 .profile__inv-other {
   list-style: none;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  padding: var(--space-md);
+  margin: 0;
 }
 
 .profile__inv-other-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* ── Achievements Tab ── */
+.profile__achievements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-md);
+}
+
+.profile__achievement {
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.profile__achievement--locked {
+  opacity: 0.55;
+  filter: grayscale(0.8);
+}
+
+.profile__achievement-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+}
+
+.profile__achievement-icon--open {
+  background: color-mix(in srgb, #eab308 20%, transparent);
+  color: #facc15;
+}
+
+.profile__achievement-label {
   font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
 }
 
-.profile__inv-other-row svg { color: var(--color-text-tertiary); flex-shrink: 0; }
-.profile__inv-other-row .profile__inv-name { flex: 1; }
-
-.profile__settings { display: flex; flex-direction: column; gap: var(--space-md); max-width: 440px; }
-
-.profile__password { display: flex; flex-direction: column; gap: var(--space-sm); }
-
-.profile__password-error { color: var(--color-destructive); font-size: var(--text-sm); }
-
-@media (prefers-reduced-motion: reduce) {
-  .profile__stats-hero { animation: none; }
+.profile__achievement-desc {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin: 0;
 }
 
-/* ── Streak: ngọn lửa bập bùng ── */
-.profile__streak-chip { position: relative; }
-
-/* Halo cam phía sau badge streak */
-.profile__streak-chip::after {
-  content: '';
-  position: absolute;
-  inset: -3px -6px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, transparent 70%);
-  filter: blur(7px);
-  z-index: -1;
-  animation: flame-glow 1.6s ease-in-out infinite;
+/* ── Settings Tab ── */
+.profile__settings {
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
 }
 
-/* Ngọn lửa icon: bập bùng nghiêng + phóng to nhỏ */
-.profile__flame {
-  color: #fb923c;
-  transform-origin: center bottom;
-  animation: flame-flicker 1.5s ease-in-out infinite;
-  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.8));
+.profile__divider {
+  border: none;
+  border-top: 1px solid var(--color-border-subtle);
+  margin-block: var(--space-md);
 }
 
-/* Streak token (BlockToken) — hơi thở phát sáng cam */
-.profile__streak-token {
-  animation: streak-breathe 2.4s ease-in-out infinite;
+.profile__avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
 }
 
-@keyframes flame-flicker {
-  0%, 100% { transform: scale(1) rotate(-2deg); }
-  20%      { transform: scale(1.14) rotate(2deg) translateY(-1px); }
-  45%      { transform: scale(0.94) rotate(-1.5deg); }
-  70%      { transform: scale(1.08) rotate(1deg) translateY(-0.5px); }
+.profile__avatar-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-@keyframes flame-glow {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 1; transform: scale(1.15); }
+.profile__avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-@keyframes streak-breathe {
-  0%, 100% { box-shadow: 0 0 0 rgba(251, 146, 60, 0); }
-  50%      { box-shadow: 0 0 20px rgba(251, 146, 60, 0.4); }
+.profile__avatar-preview-placeholder {
+  font-size: 24px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .profile__flame,
-  .profile__streak-chip::after,
-  .profile__streak-token { animation: none; }
+.profile__avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .profile__overview-grid { grid-template-columns: 1fr; }
-  .profile__actions { margin-left: 0; }
+.profile__avatar-input {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
 }
 
+.profile__avatar-error,
+.profile__password-error {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+}
 
-/* ── Gamification dashboard (feature port) ── */
-.profile__gamification { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-md); }
-.profile__gamification-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
-
-@media (max-width: 768px) {
-  .profile__gamification-row { grid-template-columns: 1fr; }
+.profile__password {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
 }
 </style>

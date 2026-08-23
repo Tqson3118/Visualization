@@ -15,6 +15,7 @@ import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto } from '@/api/exercises';
 import { getCatalogMeta, type CatalogMeta } from '@/engines/catalog';
 import { TOPIC_NODE_LESSONS } from '@/data/nodeHubData';
+import { allowLocalFallbacks } from '@/config/runtime';
 import { buildSimOverviewHtml, escapeHtml } from '@/utils/simOverview';
 import { getReference } from '@/data/referenceLinks';
 import { messages } from '@/i18n/vi';
@@ -45,7 +46,7 @@ const TABS: TabItem[] = [
 
 /** Node → bài học lý thuyết (map cục bộ topic×node) — fallback khi backend chưa gắn lesson */
 const lessonId = computed(() => {
-  const map = TOPIC_NODE_LESSONS[Number(topicId.value)]?.[nodeId.value];
+  const map = allowLocalFallbacks ? TOPIC_NODE_LESSONS[Number(topicId.value)]?.[nodeId.value] : undefined;
   return map ?? null;
 });
 
@@ -97,6 +98,10 @@ const passedStages = ref<Set<LadderStageKey>>(new Set());
 const nodeCompleted = computed(() => LADDER_STAGES.every((s) => passedStages.value.has(s)));
 
 function refreshProgress(): void {
+  if (!allowLocalFallbacks) {
+    passedStages.value = new Set();
+    return;
+  }
   try {
     const raw = localStorage.getItem(`dsa-ladder-${nodeId.value}`);
     passedStages.value = new Set(raw ? (JSON.parse(raw) as LadderStageKey[]) : []);

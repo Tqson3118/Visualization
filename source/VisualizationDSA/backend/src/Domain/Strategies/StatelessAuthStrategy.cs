@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using VisualizationDSA.Domain.Interfaces;
 using VisualizationDSA.Domain.Engine;
 
 namespace VisualizationDSA.Domain.Strategies
@@ -20,86 +21,11 @@ namespace VisualizationDSA.Domain.Strategies
         private readonly ConcurrentDictionary<string, (string UserId, DateTime ExpiresAt)> _refreshTokens = new(); 
         private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
         private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
+        private readonly IPasswordHasher _passwordHasher;
 
-        public static Func<string, string, bool> VerifyPasswordDelegate { get; set; } = (password, hash) =>
+        public StatelessAuthStrategy(IPasswordHasher passwordHasher)
         {
-            // Default an toàn: BCrypt trước, fallback SHA256 cho dữ liệu legacy.
-            if (hash.StartsWith("$2a$") || hash.StartsWith("$2b$") || hash.StartsWith("$2y$"))
-            {
-                try { return BCrypt.Net.BCrypt.Verify(password, hash); }
-                catch { return false; }
-            }
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password + "visualizationdsa-salt"));
-            return Convert.ToHexString(bytes).ToLowerInvariant() == hash;
-        };
-
-        /// <summary>
-        /// Chỉ seed tài khoản demo/admin mặc định ở môi trường Development.
-        /// Program.cs set giá trị này theo IWebHostEnvironment — nếu bật ở production,
-        /// ai biết credential công khai trong source sẽ login được quyền Admin/Teacher.
-        /// </summary>
-        public static bool EnableDemoAccounts { get; set; } = false;
-
-        public StatelessAuthStrategy()
-        {
-            if (!EnableDemoAccounts) return;
-
-            var demoUser = new InMemoryUser
-            {
-                Id = "teacher-user-001",
-                Email = "teacher1@fpt.edu.vn",
-                Username = "TS. Lê Văn Minh",
-                PasswordHash = HashPassword("RealData@2024"),
-                TotalXP = 1500,
-                CurrentLevel = 5,
-                StreakDays = 10,
-                IsPremium = true,
-                Role = "Teacher",
-                CreatedAt = DateTime.UtcNow.AddDays(-30),
-                LastLoginAt = DateTime.UtcNow.AddHours(-2),
-                Badges = new List<InMemoryBadge>
-                {
-                    new() { Id = "first-steps", Name = "Bước Đầu Tiên", Description = "Hoàn thành bài học đầu tiên", Icon = "🎯", Color = "#10B981", EarnedAt = DateTime.UtcNow.AddDays(-25) },
-                }
-            };
-            _usersByEmail[demoUser.Email] = demoUser;
-            _usersById[demoUser.Id] = demoUser;
-
-            var adminUser = new InMemoryUser
-            {
-                Id = "admin-user-001",
-                Email = "admin@fpt.edu.vn",
-                Username = "Nguyễn Văn Hùng",
-                PasswordHash = HashPassword("RealData@2024"),
-                TotalXP = 9999,
-                CurrentLevel = 10,
-                StreakDays = 30,
-                IsPremium = true,
-                Role = "Admin",
-                CreatedAt = DateTime.UtcNow.AddDays(-90),
-                LastLoginAt = DateTime.UtcNow,
-                Badges = new List<InMemoryBadge>()
-            };
-            _usersByEmail[adminUser.Email] = adminUser;
-            _usersById[adminUser.Id] = adminUser;
-
-            var easyAdmin = new InMemoryUser
-            {
-                Id = "admin-user-002",
-                Email = "hungnv@fpt.edu.vn",
-                Username = "Nguyễn Văn Hùng",
-                PasswordHash = HashPassword("RealData@2024"),
-                TotalXP = 9999,
-                CurrentLevel = 10,
-                StreakDays = 30,
-                IsPremium = true,
-                Role = "Admin",
-                CreatedAt = DateTime.UtcNow.AddDays(-90),
-                LastLoginAt = DateTime.UtcNow,
-                Badges = new List<InMemoryBadge>()
-            };
-            _usersByEmail[easyAdmin.Email] = easyAdmin;
-            _usersById[easyAdmin.Id] = easyAdmin;
+            _passwordHasher = passwordHasher;
         }
 
         public StatelessAuthResponse Register(StatelessRegisterRequest request, string? dbUserId = null)
@@ -333,15 +259,15 @@ namespace VisualizationDSA.Domain.Strategies
             if (newLevel > user.CurrentLevel) user.CurrentLevel = newLevel;
         }
 
-        private static string HashPassword(string password)
+        private string HashPassword(string password)
         {
             // BCrypt — KHÔNG dùng SHA256 (salt tĩnh, yếu) để DB đồng bộ với AuthService chuẩn,
             // tránh tài khoản đăng ký/đổi mật khẩu qua stateless không login được qua hệ chuẩn.
-            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+            return _passwordHasher.Hash(password);
         }
 
-        private static bool VerifyPassword(string password, string hash)
-            => VerifyPasswordDelegate(password, hash);
+        private bool VerifyPassword(string password, string hash)
+            => _passwordHasher.Verify(password, hash);
 
         public void EnsureUserInMemory(
             string id,

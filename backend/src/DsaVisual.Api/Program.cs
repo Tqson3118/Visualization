@@ -23,12 +23,14 @@ using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // JsonOptions dùng chung cho envelope lỗi của JWT challenge/forbidden + fallback 404 (camelCase — §2.1)
 var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+jsonOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
 
 // ── Serilog bootstrap (SDD §5.8: console dev + rolling file 30 ngày prod) ──
 Log.Logger = new LoggerConfiguration()
@@ -61,6 +63,10 @@ if (jwtSecret.Length < 32)
 
 // ── Services ──
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         // exc#4a: [ApiController] auto-400 khi model binding fail → envelope { error } (API_REFERENCE §2.1)

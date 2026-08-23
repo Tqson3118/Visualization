@@ -1,7 +1,7 @@
 <template>
   <div class="sorting-trace-table flex flex-col min-h-0 w-full" data-tour-id="trace-table">
     <!-- Table -->
-    <div class="flex-1 min-h-0 overflow-auto relative">
+    <div ref="tableScrollRef" class="flex-1 min-h-0 overflow-auto relative">
       <table class="w-full h-full border-collapse text-[11px] font-mono leading-tight">
         <thead class="sticky top-0 z-10">
           <tr class="text-left" style="background: var(--color-bg-secondary); border-bottom: 1px solid var(--vis-panel-border)">
@@ -182,13 +182,27 @@ function isHighlightedCell(frame: SortFrame, col: TraceColumn): boolean {
   return false;
 }
 
+const tableScrollRef = ref<HTMLElement | null>(null);
 const activeRowRef = ref<HTMLElement | null>(null);
 
 watch(
   () => props.currentIndex,
   async () => {
     await nextTick();
-    activeRowRef.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (tableScrollRef.value && activeRowRef.value) {
+      const container = tableScrollRef.value;
+      const row = activeRowRef.value;
+      const rowTop = row.offsetTop;
+      const rowHeight = row.offsetHeight;
+      const scrollTop = container.scrollTop;
+      const clientHeight = container.clientHeight;
+
+      if (rowTop < scrollTop) {
+        container.scrollTop = rowTop;
+      } else if (rowTop + rowHeight > scrollTop + clientHeight) {
+        container.scrollTop = rowTop + rowHeight - clientHeight;
+      }
+    }
   },
 );
 </script>

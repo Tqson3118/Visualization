@@ -34,7 +34,7 @@ Tài liệu này đặc tả chi tiết danh mục thư viện công nghệ, cá
 | **Asp.Versioning.Mvc** | `8.1.0` | WebApi / Controllers | Quản lý phiên bản API chính thức theo chuẩn RESTful qua route. |
 | **Asp.Versioning.Mvc.ApiExplorer** | `8.1.0` | WebApi / Swagger | Hỗ trợ Swagger tự động phát hiện và hiển thị tài liệu các phiên bản API. |
 | **FluentValidation.AspNetCore** | `11.3.0` | WebApi / Validation | Tự động hóa kiểm tra tính hợp lệ dữ liệu đầu vào. |
-| **Npgsql.EntityFrameworkCore.PostgreSQL** | `9.0.2` | Infrastructure | Adapter kết nối PostgreSQL, hỗ trợ Connection Resiliency và xmin concurrency. |
+| **Microsoft.EntityFrameworkCore.SqlServer** | `10.0.10` | Infrastructure/WebApi | Provider EF Core chính thức cho SQL Server 2022; thay thế provider PostgreSQL runtime. |
 | **Serilog.AspNetCore** | `8.0.0` | WebApi / Logging | Thay thế ILogger mặc định, ghi log có cấu trúc (Structured Logging). |
 
 ---
@@ -54,3 +54,11 @@ Tài liệu này đặc tả chi tiết danh mục thư viện công nghệ, cá
 *   **Monaco Sandbox Security:** Phải cô lập Monaco Editor trong chế độ chặn nhấp chuột select văn bản (read-only pointer blockers) khi chạy VCR playback để bảo toàn dòng code.
 | **@babel/parser** | `^7.29.3` | AST Parsing | Instrumentation mới của `CompilerStepExecutor` (thay regex hoist) — trước đây chỉ là transitive dependency, nay import trực tiếp nên khai báo tường minh. |
 | **@babel/types** | `^7.29.0` | AST Types | Kiểu `Node` cho `instrumentAst` (scope-aware walker). |
+
+
+## 5. EF Provider: SQLite -> SQL Server (2026-08-19)
+| Package | Version | Vai tro |
+| :--- | :--- | :--- |
+| **Microsoft.EntityFrameworkCore.SqlServer** | `10.0.10` | Provider chinh; UseSqlServer + MigrationsAssembly(Infrastructure) |
+- Da go: `Microsoft.EntityFrameworkCore.Sqlite`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `AspNetCore.HealthChecks.NpgSql` (health check chuyen sang `DatabaseHealthCheck` + CanConnectAsync).
+- Connection string: `Server=localhost,1433;Database=VisualizationDSA;User Id=sa;Password=Dsa!2026Pass;TrustServerCertificate=True;` (dev local, khong duoc dung o Production).

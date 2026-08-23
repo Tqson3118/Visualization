@@ -26,6 +26,17 @@ public abstract class ApiControllerBase : ControllerBase
         return userId;
     }
 
+    protected int? TryGetCurrentUserId()
+    {
+        var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (sub is null || !int.TryParse(sub, out var userId))
+        {
+            return null;
+        }
+
+        return userId;
+    }
+
     protected string CurrentRole()
     {
         var role = User.FindFirst(ClaimTypes.Role)?.Value;

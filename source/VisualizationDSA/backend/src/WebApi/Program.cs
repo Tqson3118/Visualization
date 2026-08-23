@@ -192,9 +192,6 @@ if (builder.Environment.IsProduction() &&
 }
 VisualizationDSA.Domain.JwtSigningConfig.Configure(jwtKey);
 
-// Tài khoản demo/admin mặc định CHỈ ở Development (tránh backdoor credential công khai ở production).
-VisualizationDSA.Domain.Strategies.StatelessAuthStrategy.EnableDemoAccounts = builder.Environment.IsDevelopment();
-
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
@@ -412,9 +409,11 @@ try
         
         context.Database.Migrate();
         
-        var seeder = new DbSeeder(context, includeDemoAdmin: app.Environment.IsDevelopment());
+        var seeder = new RealDataSeeder(
+            context,
+            scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
         await seeder.SeedAsync();
-        Console.WriteLine("[DB SEEDER SUCCESS]: Real-data seed completed; verify counts from the database before capture.");
+        Console.WriteLine("[REAL DATA SEEDER SUCCESS]: Real-data seed completed; verify counts from the database before capture.");
     }
 }
 catch (Exception ex)

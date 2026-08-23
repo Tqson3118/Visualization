@@ -933,7 +933,7 @@ export const messages = {
     detailOpen: 'Đang mở',
     detailClosed: 'Đã đóng',
     detailSettingsDanger: 'Nguy hiểm',
-    detailSettingsNote: 'Xóa lớp sẽ ẩn lớp khỏi mọi thành viên (xóa mềm).',
+    detailSettingsNote: 'Xóa lớp sẽ ẩn lớp khỏi mọi thành viên',
     detailDeleteBtn: 'Xóa lớp này',
     detailDeleteTitle: 'Xóa lớp',
     detailDeleteConfirm: (name: string) => `Xóa lớp "${name}"? Hành động này không thể hoàn tác.`,
