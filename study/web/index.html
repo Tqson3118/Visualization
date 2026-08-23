@@ -7,7 +7,7 @@
   <meta name="description" content="Cổng tài liệu ôn tập và sổ tay vấn đáp bảo vệ đồ án tốt nghiệp Visualization DSA (Vue 3 + .NET 10 + Clean Architecture + 44 Engine Generators)">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
 
-  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace']
           },
           colors: {
@@ -56,17 +56,35 @@
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-    /* Custom Theme Backgrounds */
-    body.theme-cyber { background-color: #080c14; }
-    body.theme-oled { background-color: #000000; }
-    body.theme-navy { background-color: #0a1122; }
+    /* Theme Styles */
+    body.theme-cyber { background-color: #0b0f19; color: #cbd5e1; }
+    body.theme-oled { background-color: #000000; color: #e2e8f0; }
+    body.theme-navy { background-color: #070d1e; color: #cbd5e1; }
+    body.theme-light { background-color: #f8fafc; color: #1e293b; }
+
+    body.theme-light .prose { color: #334155; }
+    body.theme-light .prose h1 { color: #0284c7; border-bottom-color: #e2e8f0; }
+    body.theme-light .prose h2 { color: #059669; }
+    body.theme-light .prose h3 { color: #d97706; }
+    body.theme-light .prose p, body.theme-light .prose li { color: #334155; }
+    body.theme-light .prose table { border-color: #cbd5e1; background: #ffffff; }
+    body.theme-light .prose th { background-color: #f1f5f9; color: #0369a1; border-color: #cbd5e1; }
+    body.theme-light .prose td { border-color: #e2e8f0; color: #334155; }
+    body.theme-light .prose tr:nth-child(even) td { background-color: #f8fafc; }
+    body.theme-light .prose blockquote { background: #f0fdfa; border-left-color: #0d9488; color: #0f766e; border-color: #ccfbf1; }
+    body.theme-light .prose code:not(pre code) { background-color: #f1f5f9; color: #e11d48; border-color: #cbd5e1; }
+    body.theme-light .mermaid-wrapper { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    body.theme-light .mermaid-header { background: #f8fafc; border-bottom-color: #e2e8f0; color: #64748b; }
+    body.theme-light aside, body.theme-light header, body.theme-light nav { background-color: #ffffff; border-color: #e2e8f0; }
+    body.theme-light #mobileBottomNav { background-color: #ffffff; border-color: #e2e8f0; }
 
     /* Font Size Modifiers */
-    body.font-sm .prose { font-size: 0.85rem; }
-    body.font-lg .prose { font-size: 1.05rem; }
-    body.font-xl .prose { font-size: 1.15rem; }
+    body.font-sm .prose { font-size: 0.86rem; line-height: 1.65; }
+    body.font-normal .prose { font-size: 0.96rem; line-height: 1.78; }
+    body.font-lg .prose { font-size: 1.08rem; line-height: 1.82; }
+    body.font-xl .prose { font-size: 1.18rem; line-height: 1.9; }
 
-    /* Reading Progress Bar */
+    /* Top Reading Progress Bar */
     #readingProgressBar {
       height: 3px;
       background: linear-gradient(90deg, #14b8a6, #38bdf8, #818cf8, #ec4899);
@@ -78,11 +96,11 @@
     }
 
     /* Markdown Typography & Prose */
-    .prose { color: #cbd5e1; line-height: 1.75; }
+    .prose { color: #cbd5e1; line-height: 1.78; }
     .prose h1 {
-      font-size: 1.85rem;
+      font-size: 1.75rem;
       font-weight: 800;
-      margin: 2rem 0 1.25rem;
+      margin: 1.75rem 0 1.25rem;
       color: #38bdf8;
       border-bottom: 2px solid #1e293b;
       padding-bottom: 0.75rem;
@@ -90,38 +108,39 @@
       position: relative;
     }
     .prose h2 {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 700;
       margin: 2rem 0 0.85rem;
       color: #34d399;
       letter-spacing: -0.015em;
       border-left: 4px solid #14b8a6;
       padding-left: 0.75rem;
-      scroll-margin-top: 5rem;
+      scroll-margin-top: 5.5rem;
     }
     .prose h3 {
-      font-size: 1.15rem;
+      font-size: 1.12rem;
       font-weight: 600;
       margin: 1.5rem 0 0.6rem;
       color: #fbbf24;
-      scroll-margin-top: 5rem;
+      scroll-margin-top: 5.5rem;
     }
     .prose h4 {
-      font-size: 1rem;
+      font-size: 0.98rem;
       font-weight: 600;
       margin: 1.25rem 0 0.5rem;
       color: #e2e8f0;
-      scroll-margin-top: 5rem;
+      scroll-margin-top: 5.5rem;
     }
-    .prose p { margin-bottom: 1rem; line-height: 1.75; font-size: 0.95rem; }
-    .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.2rem; }
-    .prose ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1.2rem; }
-    .prose li { margin-bottom: 0.4rem; line-height: 1.7; font-size: 0.93rem; }
+    .prose p { margin-bottom: 1rem; line-height: 1.78; }
+    .prose ul { list-style-type: disc; margin-left: 1.4rem; margin-bottom: 1.2rem; }
+    .prose ol { list-style-type: decimal; margin-left: 1.4rem; margin-bottom: 1.2rem; }
+    .prose li { margin-bottom: 0.45rem; line-height: 1.7; font-size: 0.93em; }
     .prose li::marker { color: #14b8a6; }
     .prose strong { color: #f8fafc; font-weight: 600; }
+    body.theme-light .prose strong { color: #0f172a; }
     .prose hr { border-color: #1e293b; margin: 2rem 0; }
     
-    /* Table Styling */
+    /* Table Styling with Card Mode for Mobile */
     .prose table {
       width: 100%;
       border-collapse: separate;
@@ -131,7 +150,7 @@
       border-radius: 0.75rem;
       overflow: hidden;
       border: 1px solid #334155;
-      background: #0f172a60;
+      background: rgba(15, 23, 42, 0.4);
     }
     .prose th {
       background-color: #1e293b;
@@ -152,8 +171,8 @@
     }
     .prose tr:last-child td { border-bottom: none; }
     .prose td:last-child, .prose th:last-child { border-right: none; }
-    .prose tr:nth-child(even) td { background-color: #0f172a30; }
-    .prose tr:hover td { background-color: #1e293b70; }
+    .prose tr:nth-child(even) td { background-color: rgba(15, 23, 42, 0.2); }
+    .prose tr:hover td { background-color: rgba(30, 41, 59, 0.6); }
     
     /* Code Blocks */
     .prose pre {
@@ -165,7 +184,7 @@
       margin: 1.25rem 0;
       overflow-x: auto;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.86rem;
+      font-size: 0.85rem;
       line-height: 1.6;
       box-shadow: 0 4px 20px -2px rgba(0,0,0,0.5);
     }
@@ -230,79 +249,68 @@
 
     /* Table of Contents Sticky */
     .toc-item.active {
-      color: #2dd4bf;
-      font-weight: 600;
-      border-left-color: #2dd4bf;
-      background-color: rgba(45, 212, 191, 0.08);
+      color: #2dd4bf !important;
+      font-weight: 700 !important;
+      border-left-color: #2dd4bf !important;
+      background-color: rgba(45, 212, 191, 0.1) !important;
     }
   </style>
 </head>
-<body class="theme-cyber text-slate-100 min-h-screen flex flex-col font-sans selection:bg-teal-500 selection:text-white antialiased">
+<body class="theme-cyber min-h-screen flex flex-col font-sans selection:bg-teal-500 selection:text-white antialiased pb-20 md:pb-0">
 
-  <!-- Top Progress Indicator -->
+  <!-- Top Reading Progress Indicator -->
   <div id="readingProgressBar" style="width: 0%;"></div>
 
   <!-- TOP HEADER -->
-  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-6 py-2.5 flex items-center justify-between transition-colors">
-    <div class="flex items-center space-x-3">
-      <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 md:hidden transition">
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-6 py-2.5 flex items-center justify-between transition-colors shadow-sm">
+    <div class="flex items-center space-x-2 sm:space-x-3 truncate">
+      <button onclick="toggleSidebar()" aria-label="Mở menu" class="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 md:hidden transition flex-shrink-0">
         <i class="fa-solid fa-bars text-base"></i>
       </button>
-      <div class="flex items-center space-x-3 cursor-pointer" onclick="loadDoc('01')">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-500 via-cyan-400 to-indigo-500 flex items-center justify-center font-black text-slate-950 text-sm shadow-lg shadow-teal-500/20">
-          <i class="fa-solid fa-bolt text-xs"></i>
+      
+      <div class="flex items-center space-x-2.5 truncate">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-500 via-cyan-400 to-indigo-500 flex items-center justify-center font-extrabold text-slate-950 text-sm shadow-md shadow-teal-500/20 flex-shrink-0">
+          ⚡
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-bold text-sm sm:text-base leading-tight bg-gradient-to-r from-teal-400 via-cyan-300 to-sky-400 bg-clip-text text-transparent">Study Portal</h1>
-            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-teal-950/80 text-teal-300 border border-teal-800/60 hidden sm:inline-block">Full v2.0 • 7 Chặng</span>
+        <div class="truncate">
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-bold text-xs sm:text-sm leading-tight bg-gradient-to-r from-teal-400 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">Study Portal</h1>
+            <span class="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-teal-950 text-teal-400 border border-teal-800/80 hidden sm:inline">v2.1</span>
           </div>
-          <p id="currentDocLabel" class="text-[11px] sm:text-xs text-slate-400 truncate max-w-[160px] sm:max-w-[320px]">Đang tải lộ trình...</p>
+          <p id="currentDocLabel" class="text-[11px] sm:text-xs text-slate-400 truncate max-w-[170px] sm:max-w-[320px]">Đang tải lộ trình...</p>
         </div>
       </div>
     </div>
 
-    <!-- Quick Tools & Actions -->
+    <!-- Header Actions -->
     <div class="flex items-center space-x-1.5 sm:space-x-2">
       <!-- Search Input Trigger -->
-      <button onclick="openSearchModal()" title="Tìm kiếm (Ctrl + K)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60 transition flex items-center gap-1.5">
+      <button onclick="openSearchModal()" title="Tìm kiếm (Ctrl + K)" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition flex items-center gap-2 text-xs">
         <i class="fa-solid fa-magnifying-glass text-teal-400"></i>
-        <span class="hidden sm:inline font-medium">Tìm kiếm</span>
-        <kbd class="hidden md:inline-block text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">Ctrl K</kbd>
+        <span class="hidden lg:inline text-slate-400 pr-1">Tìm kiếm...</span>
+        <kbd class="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-900 text-slate-400 rounded border border-slate-700">Ctrl K</kbd>
       </button>
 
-      <!-- Flashcard / Q&A Mode -->
-      <button onclick="toggleQaMode()" id="btnQaMode" title="Chế độ Luyện Vấn Đáp & Phản Biện" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm">
+      <!-- Toggle Q&A Flashcard Mode -->
+      <button onclick="toggleQaMode()" id="btnQaMode" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm">
         <i class="fa-solid fa-brain text-amber-400"></i>
-        <span class="hidden xs:inline">Vấn đáp</span>
-        <span id="qaBadgeHeaderCount" class="text-[10px] bg-indigo-900 px-1.5 py-0.2 rounded text-indigo-200 font-mono">401</span>
+        <span class="hidden sm:inline">Luyện</span> Vấn đáp
+        <span id="qaBadgeHeaderCount" class="text-[10px] bg-indigo-900/90 text-indigo-200 px-1.5 py-0.2 rounded-full border border-indigo-700/80 font-mono">401</span>
       </button>
 
-      <!-- TOC Drawer Trigger on Tablet/Mobile -->
-      <button onclick="toggleTocDrawer()" title="Mục lục bài học" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition xl:hidden">
-        <i class="fa-solid fa-list-ul"></i>
+      <!-- Mobile TOC Toggle Button -->
+      <button onclick="toggleTocDrawer()" title="Mục lục bài học" class="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition xl:hidden">
+        <i class="fa-solid fa-list-ul text-teal-400"></i>
       </button>
 
-      <!-- Font Size Adjuster -->
-      <div class="relative hidden sm:inline-block">
-        <button onclick="cycleFontSize()" title="Đổi cỡ chữ" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition text-xs font-bold font-mono">
-          <span id="fontSizeLabel">Aa</span>
-        </button>
-      </div>
-
-      <!-- Theme Switcher -->
-      <button onclick="cycleTheme()" title="Đổi giao diện nền" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition text-xs">
-        <i class="fa-solid fa-palette"></i>
+      <!-- Settings / Display Menu -->
+      <button onclick="openSettingsModal()" title="Tùy chỉnh giao diện" class="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition">
+        <i class="fa-solid fa-sliders"></i>
       </button>
 
-      <!-- Mobile QR Code Share Button -->
-      <button onclick="openQrModal()" title="Mở trên điện thoại bằng mã QR" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-teal-300 hover:bg-slate-700 border border-slate-700/60 transition">
+      <!-- Share QR on Mobile -->
+      <button onclick="openQrModal()" title="Mở trên điện thoại" class="p-2 rounded-xl bg-slate-800/80 text-teal-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition hidden sm:inline-flex">
         <i class="fa-solid fa-qrcode"></i>
-      </button>
-
-      <!-- Fullscreen Toggle -->
-      <button onclick="toggleFullScreen()" title="Toàn màn hình" class="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition hidden lg:inline-flex">
-        <i class="fa-solid fa-expand"></i>
       </button>
     </div>
   </header>
@@ -479,21 +487,45 @@
       </div>
     </main>
 
-    <!-- RIGHT SIDEBAR / STICKY TABLE OF CONTENTS (TOC) -->
-    <aside id="tocSidebar" class="hidden xl:block w-72 p-6 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+    <!-- RIGHT SIDEBAR / STICKY TABLE OF CONTENTS (TOC) - Hiển thị từ màn hình lg (1024px) -->
+    <aside id="tocSidebar" class="hidden lg:block w-64 xl:w-72 p-5 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto border-l border-slate-800/60">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
         <span class="flex items-center gap-1.5 text-slate-300">
           <i class="fa-solid fa-list-ol text-teal-400"></i> Mục lục bài học
         </span>
-        <span id="tocCountBadge" class="text-[10px] text-slate-500">0 mục</span>
+        <span id="tocCountBadge" class="text-[10px] text-slate-500 font-mono">0 mục</span>
       </div>
       <nav id="tocNav" class="space-y-1 text-xs border-l border-slate-800 pl-2"></nav>
     </aside>
 
   </div>
 
+  <!-- FIXED BOTTOM NAVIGATION BAR FOR MOBILE (Ngón tay cái bấm cực tiện) -->
+  <nav id="mobileBottomNav" class="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex items-center justify-around md:hidden shadow-2xl">
+    <button onclick="toggleSidebar()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-teal-400 transition">
+      <i class="fa-solid fa-layer-group text-base"></i>
+      <span class="text-[10px] font-medium">Lộ trình</span>
+    </button>
+    <button onclick="toggleTocDrawer()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-teal-400 transition">
+      <i class="fa-solid fa-list-ul text-base"></i>
+      <span class="text-[10px] font-medium">Mục lục</span>
+    </button>
+    <button onclick="toggleQaMode()" id="mobileBtnQa" class="flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 transition">
+      <i class="fa-solid fa-brain text-base"></i>
+      <span class="text-[10px] font-medium">Vấn đáp</span>
+    </button>
+    <button onclick="openSearchModal()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-teal-400 transition">
+      <i class="fa-solid fa-magnifying-glass text-base"></i>
+      <span class="text-[10px] font-medium">Tìm kiếm</span>
+    </button>
+    <button onclick="openSettingsModal()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-teal-400 transition">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span class="text-[10px] font-medium">Cài đặt</span>
+    </button>
+  </nav>
+
   <!-- TOC DRAWER MODAL ON MOBILE / TABLET -->
-  <div id="tocDrawer" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end hidden xl:hidden" onclick="if(event.target===this) toggleTocDrawer()">
+  <div id="tocDrawer" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end hidden lg:hidden" onclick="if(event.target===this) toggleTocDrawer()">
     <div class="bg-slate-900 border-l border-slate-800 w-80 max-w-[85vw] h-full p-5 flex flex-col justify-between shadow-2xl">
       <div>
         <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
@@ -508,6 +540,55 @@
       </div>
       <div class="text-[11px] text-slate-500 text-center pt-3 border-t border-slate-800">
         Chạm mục bất kỳ để cuộn nhanh
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS / DISPLAY MODAL -->
+  <div id="settingsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden" onclick="if(event.target===this) closeSettingsModal()">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-sm w-full p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-teal-400"></i> Tùy Chỉnh Giao Diện & Đọc
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Theme Selection -->
+      <div class="mb-4">
+        <label class="block text-xs font-semibold text-slate-300 mb-2">Chủ đề giao diện (Theme)</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="setTheme('theme-cyber')" class="p-2.5 rounded-xl border border-slate-700 bg-slate-950 text-slate-200 text-xs font-semibold hover:border-teal-500 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-teal-400"></span> Cyber Dark
+          </button>
+          <button onclick="setTheme('theme-oled')" class="p-2.5 rounded-xl border border-slate-700 bg-black text-slate-200 text-xs font-semibold hover:border-teal-500 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400"></span> OLED Black
+          </button>
+          <button onclick="setTheme('theme-navy')" class="p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 text-xs font-semibold hover:border-teal-500 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-indigo-400"></span> Midnight Navy
+          </button>
+          <button onclick="setTheme('theme-light')" class="p-2.5 rounded-xl border border-slate-300 bg-slate-100 text-slate-800 text-xs font-semibold hover:border-teal-500 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400"></span> Clean Light
+          </button>
+        </div>
+      </div>
+
+      <!-- Font Size Selection -->
+      <div class="mb-4">
+        <label class="block text-xs font-semibold text-slate-300 mb-2">Cỡ chữ bài học</label>
+        <div class="grid grid-cols-4 gap-1.5">
+          <button onclick="setFontSize('font-sm')" class="py-2 rounded-lg border border-slate-700 text-xs text-slate-300 hover:border-teal-400">Nhỏ</button>
+          <button onclick="setFontSize('font-normal')" class="py-2 rounded-lg border border-slate-700 text-xs text-slate-300 hover:border-teal-400 font-bold">Chuẩn</button>
+          <button onclick="setFontSize('font-lg')" class="py-2 rounded-lg border border-slate-700 text-xs text-slate-300 hover:border-teal-400">Lớn</button>
+          <button onclick="setFontSize('font-xl')" class="py-2 rounded-lg border border-slate-700 text-xs text-slate-300 hover:border-teal-400 font-extrabold">Cực lớn</button>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
+        <span>Cài đặt lưu tự động vào trình duyệt</span>
+        <button onclick="closeSettingsModal()" class="px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-semibold">Đóng</button>
       </div>
     </div>
   </div>
@@ -547,27 +628,38 @@
       </div>
       <div class="p-2.5 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center px-4">
         <span>Tìm kiếm thời gian thực qua 7 Chặng & 401+ Câu Vấn Đáp</span>
-        <span class="font-mono">Enter để chọn</span>
+        <span class="font-mono">Nhấp để xem</span>
       </div>
     </div>
   </div>
 
-  <!-- MERMAID FULLSCREEN ZOOM MODAL -->
-  <div id="diagramModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-4 hidden" onclick="if(event.target===this) closeDiagramModal()">
+  <!-- MERMAID FULLSCREEN ZOOM & PAN MODAL -->
+  <div id="diagramModal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-3 sm:p-6 hidden" onclick="if(event.target===this) closeDiagramModal()">
     <div class="flex items-center justify-between pb-3 border-b border-slate-800">
       <div class="flex items-center gap-2 text-sm font-semibold text-slate-200">
         <i class="fa-solid fa-diagram-project text-teal-400"></i>
-        <span>Sơ Đồ Kiến Trúc Chi Tiết</span>
+        <span>Sơ Đồ Kiến Trúc & Luồng Dữ Liệu</span>
       </div>
-      <button onclick="closeDiagramModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs">
-        <i class="fa-solid fa-xmark mr-1"></i> Đóng
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="zoomDiagram(1.2)" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs border border-slate-700">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </button>
+        <button onclick="zoomDiagram(0.8)" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs border border-slate-700">
+          <i class="fa-solid fa-magnifying-glass-minus"></i>
+        </button>
+        <button onclick="resetDiagramZoom()" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs border border-slate-700">
+          100%
+        </button>
+        <button onclick="closeDiagramModal()" class="px-3 py-1 rounded-lg bg-rose-900/60 hover:bg-rose-800 text-rose-200 text-xs border border-rose-700">
+          <i class="fa-solid fa-xmark mr-1"></i> Đóng
+        </button>
+      </div>
     </div>
-    <div id="diagramModalBody" class="flex-1 overflow-auto flex items-center justify-center p-6"></div>
+    <div id="diagramModalBody" class="flex-1 overflow-auto flex items-center justify-center p-4 cursor-grab active:cursor-grabbing"></div>
   </div>
 
   <!-- TOAST NOTIFICATION -->
-  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 bg-slate-900 border border-teal-500/50 text-teal-300 text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+  <div id="toastNotification" class="fixed bottom-16 sm:bottom-6 right-4 z-50 bg-slate-900 border border-teal-500/50 text-teal-300 text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
     <i class="fa-solid fa-circle-check text-teal-400"></i>
     <span id="toastMessage">Thông báo</span>
   </div>
@@ -581,11 +673,7 @@
     let masteredQAs = JSON.parse(localStorage.getItem('vdsa_mastered_qas') || '[]');
     let isQaMode = false;
     let qaFilterMode = 'current'; // 'current', 'all', 'unmastered', 'mastered'
-    let currentThemeIndex = 0;
-    const themes = ['theme-cyber', 'theme-navy', 'theme-oled'];
-    let currentFontSizeIndex = 1;
-    const fontSizes = ['font-sm', 'font-normal', 'font-lg', 'font-xl'];
-    const fontLabels = ['A-', 'Aa', 'A+', 'A++'];
+    let currentDiagramScale = 1;
 
     mermaid.initialize({
       startOnLoad: false,
@@ -613,11 +701,17 @@
         try {
           const res = await fetch('/api/docs');
           const data = await res.json();
-          docs = data.docs || [];
+          docs = data.docs || data || [];
         } catch (err) {
           console.warn('Cannot fetch from API, waiting for fallback');
         }
       }
+
+      // Restore user theme & font preference
+      const savedTheme = localStorage.getItem('vdsa_theme') || 'theme-cyber';
+      const savedFont = localStorage.getItem('vdsa_font') || 'font-normal';
+      setTheme(savedTheme, false);
+      setFontSize(savedFont, false);
 
       document.getElementById('qaBadgeHeaderCount').innerText = allQAs.length || '401';
       renderNav();
@@ -626,6 +720,20 @@
 
       const hash = window.location.hash.replace('#', '') || '01';
       loadDoc(hash);
+
+      // Keyboard Shortcut: Ctrl + K
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          openSearchModal();
+        }
+        if (e.key === 'Escape') {
+          closeSearchModal();
+          closeDiagramModal();
+          closeSettingsModal();
+          closeQrModal();
+        }
+      });
     }
 
     // Scroll Progress & TOC Spy Listener
@@ -642,7 +750,7 @@
       const headings = document.querySelectorAll('#docContent h2, #docContent h3');
       if (headings.length === 0) return;
       let activeHeading = headings[0];
-      const scrollPos = window.scrollY + 120;
+      const scrollPos = window.scrollY + 140;
 
       for (let h of headings) {
         if (h.offsetTop <= scrollPos) {
@@ -765,31 +873,21 @@
       const container = document.getElementById('docContent');
       
       try {
-        // Parse markdown content into HTML
         container.innerHTML = marked.parse(rawMd);
       } catch (err) {
         console.error('Marked parse error:', err);
         container.innerHTML = `<div class="p-4 bg-slate-900 rounded-xl text-sm whitespace-pre-wrap">${rawMd}</div>`;
       }
 
-      // Display container
       container.classList.remove('hidden');
       document.getElementById('bottomNav').classList.remove('hidden');
 
-      // Auto-assign IDs to Headings for Table of Contents smooth scroll & Anchors
+      // Auto-assign IDs to Headings
       container.querySelectorAll('h1, h2, h3, h4').forEach(h => {
         const plainText = (h.textContent || '').trim();
         const slug = plainText.toLowerCase().replace(/[^\w\u00C0-\u1EF9]+/g, '-').replace(/^-+|-+$/g, '');
         if (slug) {
           h.id = slug;
-          if (!h.querySelector('.heading-anchor')) {
-            const a = document.createElement('a');
-            a.className = 'heading-anchor absolute -left-6 top-1 text-slate-500 opacity-0 group-hover:opacity-100 transition text-sm';
-            a.href = `#${slug}`;
-            a.innerText = '#';
-            h.classList.add('group', 'relative');
-            h.prepend(a);
-          }
         }
       });
 
@@ -813,7 +911,7 @@
           <div class="mermaid-header">
             <span><i class="fa-solid fa-diagram-project text-teal-400 mr-1.5"></i> Sơ đồ Kiến trúc / Luồng dữ liệu</span>
             <div class="flex items-center gap-2">
-              <button onclick="openDiagramFullscreen(this)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition border border-slate-700">
+              <button onclick="openDiagramFullscreen(this)" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] transition border border-slate-700 flex items-center gap-1">
                 <i class="fa-solid fa-maximize"></i> Phóng to
               </button>
               <span class="text-[10px] text-slate-500">Mermaid</span>
@@ -830,7 +928,7 @@
       container.querySelectorAll('pre:not(.mermaid-wrapper pre)').forEach(pre => {
         if (pre.querySelector('.copy-btn')) return;
         const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 font-mono transition border border-slate-700/80 shadow-md';
+        copyBtn.className = 'copy-btn absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] text-slate-300 font-mono transition border border-slate-700/80 shadow-md flex items-center gap-1';
         copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
         copyBtn.onclick = () => {
           const code = pre.querySelector('code')?.innerText || pre.innerText;
@@ -880,7 +978,7 @@
             <h4 class="font-bold text-slate-300 text-base mb-1">Không có câu hỏi phù hợp với bộ lọc</h4>
             <p class="text-xs text-slate-500 mb-4">Hãy đổi chế độ xem hoặc chọn "Tất cả 401 câu" để luyện tập toàn bộ ngân hàng câu hỏi!</p>
             <button onclick="setQaFilter('all')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg">
-              Xem tất cả câu hỏi
+              Xem tất cả 401 câu hỏi
             </button>
           </div>
         `;
@@ -895,29 +993,33 @@
           }
 
           return `
-            <div id="qa-card-${pair.id}" class="bg-slate-900/90 border ${isMastered ? 'border-emerald-800/40 bg-emerald-950/10' : 'border-slate-800 hover:border-slate-700/80'} rounded-2xl p-4 sm:p-5 transition shadow-sm">
+            <div id="qa-card-${pair.id}" class="bg-slate-900/90 border ${isMastered ? 'border-emerald-800/50 bg-emerald-950/15' : 'border-slate-800 hover:border-slate-700/80'} rounded-2xl p-4 sm:p-5 transition shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div class="space-y-1">
                   <div class="flex items-center gap-2">
-                    <span class="bg-amber-400/10 text-amber-400 text-xs px-2.5 py-0.5 rounded-md font-mono font-bold border border-amber-400/20">${pair.code || `Q${idx + 1}`}</span>
-                    <span class="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">${pair.category || pair.docTitle}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                      #${idx + 1} • ${pair.docTitle || `Chặng ${pair.docId}`}
+                    </span>
+                    ${isMastered ? '<span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><i class="fa-solid fa-check"></i> Đã thuộc</span>' : ''}
                   </div>
                   <h3 class="font-bold text-slate-100 text-sm sm:text-base leading-snug pt-1">
                     ${pair.q}
                   </h3>
                 </div>
-                <button onclick="toggleMasteredQa('${pair.id}', this)" title="${isMastered ? 'Bỏ đánh dấu thuộc' : 'Đánh dấu đã thuộc'}" class="p-2 rounded-xl border ${isMastered ? 'bg-emerald-950 text-emerald-300 border-emerald-700/60' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:text-amber-300'} transition flex-shrink-0">
-                  <i class="fa-${isMastered ? 'solid' : 'regular'} fa-star ${isMastered ? 'text-amber-400' : ''}"></i>
-                </button>
-              </div>
-              
-              <div class="mt-4 flex items-center gap-2">
-                <button onclick="toggleAnswer('ans-${pair.id}', this)" class="text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition">
-                  <i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích
+
+                <!-- Mark Mastered Checkbox Button -->
+                <button onclick="toggleMasteredQa('${pair.id}', event)" title="${isMastered ? 'Bỏ đánh dấu đã thuộc' : 'Đánh dấu đã thuộc câu này'}" class="p-2 rounded-xl ${isMastered ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'} transition text-xs flex-shrink-0 shadow-sm">
+                  <i class="fa-solid fa-check"></i>
                 </button>
               </div>
 
-              <div id="ans-${pair.id}" class="qa-answer-box hidden mt-4 pt-4 border-t border-slate-800 text-xs sm:text-sm text-slate-300 leading-relaxed prose">
+              <!-- Accordion Toggle Button -->
+              <button onclick="toggleAnswer('ans-${pair.id}', this)" class="mt-3.5 text-xs font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-800/80 border border-slate-700/60 transition">
+                <i class="fa-solid fa-eye"></i> <span>Xem đáp án & Phân tích</span>
+              </button>
+
+              <!-- Collapsible Answer Section -->
+              <div id="ans-${pair.id}" class="hidden mt-3.5 pt-3.5 border-t border-slate-800 text-xs sm:text-sm text-slate-300 leading-relaxed prose">
                 ${parsedAns}
               </div>
             </div>
@@ -933,54 +1035,84 @@
       const el = document.getElementById(id);
       if (el.classList.contains('hidden')) {
         el.classList.remove('hidden');
-        btn.innerHTML = `<i class="fa-solid fa-eye-slash text-rose-400"></i> Ẩn đáp án`;
-        btn.className = 'text-xs font-semibold text-rose-300 hover:text-rose-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-rose-950/50 border border-rose-800/60 transition';
+        btn.querySelector('span').innerText = 'Ẩn đáp án';
+        btn.querySelector('i').className = 'fa-solid fa-eye-slash';
+        btn.classList.add('bg-teal-950/60', 'text-teal-300', 'border-teal-700/60');
       } else {
         el.classList.add('hidden');
-        btn.innerHTML = `<i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích`;
-        btn.className = 'text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition';
+        btn.querySelector('span').innerText = 'Xem đáp án & Phân tích';
+        btn.querySelector('i').className = 'fa-solid fa-eye';
+        btn.classList.remove('bg-teal-950/60', 'text-teal-300', 'border-teal-700/60');
       }
     }
 
-    function expandAllAnswers(show) {
-      document.querySelectorAll('.qa-answer-box').forEach((box) => {
-        const btn = box.previousElementSibling.querySelector('button');
-        if (show) {
-          box.classList.remove('hidden');
-          if (btn) {
-            btn.innerHTML = `<i class="fa-solid fa-eye-slash text-rose-400"></i> Ẩn đáp án`;
-            btn.className = 'text-xs font-semibold text-rose-300 hover:text-rose-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-rose-950/50 border border-rose-800/60 transition';
+    function toggleQaMode() {
+      isQaMode = !isQaMode;
+      const btn = document.getElementById('btnQaMode');
+      const mobileBtn = document.getElementById('mobileBtnQa');
+
+      if (isQaMode) {
+        btn.className = 'px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-500 text-slate-950 shadow-md transition flex items-center gap-1.5';
+        mobileBtn.className = 'flex flex-col items-center gap-1 text-teal-400 font-bold transition';
+      } else {
+        btn.className = 'px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm';
+        mobileBtn.className = 'flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 transition';
+      }
+      loadDoc(currentDocId);
+    }
+
+    function setQaFilter(mode) {
+      qaFilterMode = mode;
+      ['current', 'all', 'unmastered', 'mastered'].forEach(m => {
+        const tab = document.getElementById(`qaTab${m.charAt(0).toUpperCase() + m.slice(1)}`);
+        if (tab) {
+          if (m === mode) {
+            tab.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold text-xs shadow-sm transition';
+          } else {
+            tab.className = 'px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs border border-indigo-800/40 transition';
+          }
+        }
+      });
+      const doc = docs.find(d => d.id === currentDocId) || docs[0];
+      renderQaMode(doc);
+    }
+
+    function toggleMasteredQa(id, event) {
+      if (event) event.stopPropagation();
+      if (masteredQAs.includes(id)) {
+        masteredQAs = masteredQAs.filter(item => item !== id);
+        showToast('Đã chuyển câu hỏi về mục "Cần ôn lại"');
+      } else {
+        masteredQAs.push(id);
+        showToast('Tuyệt vời! Đã thuộc câu hỏi này! 🎉');
+      }
+      localStorage.setItem('vdsa_mastered_qas', JSON.stringify(masteredQAs));
+      updateMasteryProgress();
+      const doc = docs.find(d => d.id === currentDocId) || docs[0];
+      renderQaMode(doc);
+    }
+
+    function expandAllAnswers(open) {
+      document.querySelectorAll('#qaList [id^="ans-"]').forEach(el => {
+        const btn = el.previousElementSibling;
+        if (open) {
+          el.classList.remove('hidden');
+          if (btn && btn.querySelector('span')) {
+            btn.querySelector('span').innerText = 'Ẩn đáp án';
+            btn.querySelector('i').className = 'fa-solid fa-eye-slash';
           }
         } else {
-          box.classList.add('hidden');
-          if (btn) {
-            btn.innerHTML = `<i class="fa-solid fa-eye"></i> Hiện đáp án & Phân tích`;
-            btn.className = 'text-xs font-semibold text-teal-300 hover:text-teal-200 flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-teal-950/70 border border-teal-800/60 hover:bg-teal-900/50 transition';
+          el.classList.add('hidden');
+          if (btn && btn.querySelector('span')) {
+            btn.querySelector('span').innerText = 'Xem đáp án & Phân tích';
+            btn.querySelector('i').className = 'fa-solid fa-eye';
           }
         }
       });
     }
 
-    function setQaFilter(mode) {
-      qaFilterMode = mode;
-      ['qaTabCurrent', 'qaTabAll', 'qaTabUnmastered', 'qaTabMastered'].forEach(id => {
-        document.getElementById(id).className = 'px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs border border-indigo-800/40 transition';
-      });
-
-      const activeMap = {
-        current: 'qaTabCurrent',
-        all: 'qaTabAll',
-        unmastered: 'qaTabUnmastered',
-        mastered: 'qaTabMastered'
-      };
-      document.getElementById(activeMap[mode]).className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold text-xs shadow-sm transition';
-
-      const doc = docs.find(d => d.id === currentDocId) || docs[0];
-      renderQaMode(doc);
-    }
-
     function handleQaSearch(query) {
-      const q = query.trim().toLowerCase();
+      const q = query.toLowerCase().trim();
       document.querySelectorAll('#qaList > div').forEach(card => {
         const text = card.innerText.toLowerCase();
         if (!q || text.includes(q)) {
@@ -991,63 +1123,18 @@
       });
     }
 
-    function toggleMasteredQa(id, btn) {
-      if (masteredQAs.includes(id)) {
-        masteredQAs = masteredQAs.filter(item => item !== id);
-        showToast('Đã bỏ khỏi danh sách thuộc');
-      } else {
-        masteredQAs.push(id);
-        showToast('Đã đánh dấu ĐÃ THUỘC câu hỏi!');
-      }
-      localStorage.setItem('vdsa_mastered_qas', JSON.stringify(masteredQAs));
-      updateMasteryProgress();
-      const doc = docs.find(d => d.id === currentDocId) || docs[0];
-      renderQaMode(doc);
-    }
-
-    function updateMasteryProgress() {
-      const total = allQAs.length || 401;
-      const count = masteredQAs.length;
-      document.getElementById('masteredCountText').innerText = `${count}/${total}`;
-    }
-
-    function toggleQaMode() {
-      isQaMode = !isQaMode;
-      const btn = document.getElementById('btnQaMode');
-      if (isQaMode) {
-        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-teal-500/20';
-      } else {
-        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 hover:bg-indigo-900 transition flex items-center gap-1.5 shadow-sm';
-      }
-      loadDoc(currentDocId);
-    }
-
     function toggleCompleteCurrent() {
       if (completedDocs.includes(currentDocId)) {
         completedDocs = completedDocs.filter(id => id !== currentDocId);
-        showToast('Đã bỏ đánh dấu hoàn thành');
+        showToast('Đã bỏ đánh dấu hoàn thành chặng này');
       } else {
         completedDocs.push(currentDocId);
-        showToast('Chúc mừng! Đã hoàn thành chặng học! 🎉');
+        showToast('Tuyệt vời! Đã hoàn thành 1 chặng học! 🚀');
       }
       localStorage.setItem('vdsa_completed_docs', JSON.stringify(completedDocs));
       renderNav();
       updateProgress();
       updateBottomNav();
-    }
-
-    function resetProgress() {
-      if (confirm('Bạn có chắc chắn muốn đặt lại toàn bộ tiến độ học tập?')) {
-        completedDocs = [];
-        masteredQAs = [];
-        localStorage.removeItem('vdsa_completed_docs');
-        localStorage.removeItem('vdsa_mastered_qas');
-        renderNav();
-        updateProgress();
-        updateMasteryProgress();
-        updateBottomNav();
-        showToast('Đã đặt lại tiến độ');
-      }
     }
 
     function updateProgress() {
@@ -1059,23 +1146,45 @@
       document.getElementById('completedCountText').innerText = `${count}/${total} Chặng hoàn thành`;
     }
 
+    function updateMasteryProgress() {
+      const total = allQAs.length || 401;
+      const count = masteredQAs.length;
+      document.getElementById('masteredCountText').innerText = `${count}/${total}`;
+    }
+
+    function resetProgress() {
+      if (confirm('Bạn có chắc muốn đặt lại toàn bộ tiến độ học tập và câu hỏi đã thuộc?')) {
+        completedDocs = [];
+        masteredQAs = [];
+        localStorage.removeItem('vdsa_completed_docs');
+        localStorage.removeItem('vdsa_mastered_qas');
+        renderNav();
+        updateProgress();
+        updateMasteryProgress();
+        loadDoc(currentDocId);
+        showToast('Đã đặt lại tiến độ học tập!');
+      }
+    }
+
     function updateBottomNav() {
       const btnComplete = document.getElementById('btnMarkComplete');
       const btnHeaderComplete = document.getElementById('btnHeaderComplete');
       const isDone = completedDocs.includes(currentDocId);
       
-      const text = isDone 
-        ? `<i class="fa-solid fa-check-double text-emerald-300"></i> Đã hoàn thành` 
-        : `<i class="fa-solid fa-check"></i> Đánh dấu đã học`;
-      
-      btnComplete.innerHTML = text;
-      btnComplete.className = isDone
-        ? 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition'
-        : 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 transition transform active:scale-95';
+      if (btnComplete) {
+        btnComplete.innerHTML = isDone 
+          ? `<i class="fa-solid fa-circle-check text-emerald-300"></i> Đã hoàn thành chặng này` 
+          : `<i class="fa-solid fa-check"></i> Đánh dấu đã học xong`;
+        btnComplete.className = isDone
+          ? 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-700/90 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-emerald-500/40 shadow-lg'
+          : 'w-full sm:w-auto px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 transition transform active:scale-95';
+      }
 
-      btnHeaderComplete.innerHTML = isDone 
-        ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span class="text-emerald-300 font-semibold">Đã học</span>` 
-        : `<i class="fa-regular fa-circle-check text-slate-400"></i> <span class="text-slate-400">Chưa hoàn thành</span>`;
+      if (btnHeaderComplete) {
+        btnHeaderComplete.innerHTML = isDone
+          ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span class="text-emerald-300">Đã hoàn thành</span>`
+          : `<i class="fa-regular fa-circle-check"></i> <span>Chưa hoàn thành</span>`;
+      }
     }
 
     function navigateDoc(dir) {
@@ -1098,82 +1207,51 @@
       document.getElementById('sidebarOverlay').classList.add('hidden');
     }
 
-    function toggleTocDrawer(force) {
+    function toggleTocDrawer(forceState) {
       const drawer = document.getElementById('tocDrawer');
-      if (force !== undefined) {
-        if (force) drawer.classList.remove('hidden');
-        else drawer.classList.add('hidden');
+      if (forceState !== undefined) {
+        drawer.classList.toggle('hidden', !forceState);
       } else {
         drawer.classList.toggle('hidden');
       }
     }
 
-    function cycleTheme() {
-      document.body.classList.remove(themes[currentThemeIndex]);
-      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-      document.body.classList.add(themes[currentThemeIndex]);
-      showToast(`Đã đổi theme: ${themes[currentThemeIndex].replace('theme-', '')}`);
-    }
-
-    function cycleFontSize() {
-      document.body.classList.remove(fontSizes[currentFontSizeIndex]);
-      currentFontSizeIndex = (currentFontSizeIndex + 1) % fontSizes.length;
-      document.body.classList.add(fontSizes[currentFontSizeIndex]);
-      document.getElementById('fontSizeLabel').innerText = fontLabels[currentFontSizeIndex];
-    }
-
-    function toggleFullScreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+    // Theme Engine
+    function setTheme(themeClass, showNotify = true) {
+      document.body.className = `${themeClass} min-h-screen flex flex-col font-sans selection:bg-teal-500 selection:text-white antialiased pb-20 md:pb-0`;
+      localStorage.setItem('vdsa_theme', themeClass);
+      if (themeClass === 'theme-light') {
+        document.documentElement.classList.remove('dark');
       } else {
-        if (document.exitFullscreen) document.exitFullscreen();
+        document.documentElement.classList.add('dark');
       }
+      if (showNotify) showToast('Đã áp dụng chủ đề giao diện mới!');
     }
 
-    function copyCurrentLink() {
-      navigator.clipboard.writeText(window.location.href);
-      showToast('Đã sao chép link chặng học vào bộ nhớ đệm!');
+    function setFontSize(sizeClass, showNotify = true) {
+      document.body.classList.remove('font-sm', 'font-normal', 'font-lg', 'font-xl');
+      document.body.classList.add(sizeClass);
+      localStorage.setItem('vdsa_font', sizeClass);
+      if (showNotify) showToast('Đã điều chỉnh cỡ chữ!');
     }
 
-    function showToast(msg) {
-      const toast = document.getElementById('toastNotification');
-      document.getElementById('toastMessage').innerText = msg;
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
-      }, 2500);
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
     }
 
-    // QR Code Modal
-    function openQrModal() {
-      const targetUrl = window.location.href;
-      const qrContainer = document.getElementById('qrcodeContainer');
-      qrContainer.innerHTML = '';
-      new QRCode(qrContainer, {
-        text: targetUrl,
-        width: 180,
-        height: 180,
-        colorDark: "#080c14",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-
-      document.getElementById('qrUrlText').innerText = targetUrl;
-      document.getElementById('qrModal').classList.remove('hidden');
-    }
-
-    function closeQrModal() {
-      document.getElementById('qrModal').classList.add('hidden');
-    }
-
-    // Mermaid Fullscreen Modal
+    // Diagram Fullscreen Modal
     function openDiagramFullscreen(btn) {
       const wrapper = btn.closest('.mermaid-wrapper');
-      const svg = wrapper.querySelector('.mermaid svg');
-      if (!svg) return;
+      const mermaidSvg = wrapper.querySelector('.mermaid-body svg');
+      if (!mermaidSvg) return;
+
       const modal = document.getElementById('diagramModal');
-      const body = document.getElementById('diagramModalBody');
-      body.innerHTML = svg.outerHTML;
+      const modalBody = document.getElementById('diagramModalBody');
+      modalBody.innerHTML = mermaidSvg.outerHTML;
+      currentDiagramScale = 1;
       modal.classList.remove('hidden');
     }
 
@@ -1181,12 +1259,55 @@
       document.getElementById('diagramModal').classList.add('hidden');
     }
 
+    function zoomDiagram(factor) {
+      currentDiagramScale *= factor;
+      const svg = document.querySelector('#diagramModalBody svg');
+      if (svg) {
+        svg.style.transform = `scale(${currentDiagramScale})`;
+        svg.style.transformOrigin = 'center center';
+        svg.style.transition = 'transform 0.2s ease-out';
+      }
+    }
+
+    function resetDiagramZoom() {
+      currentDiagramScale = 1;
+      const svg = document.querySelector('#diagramModalBody svg');
+      if (svg) svg.style.transform = 'scale(1)';
+    }
+
+    // QR Code Modal
+    function openQrModal() {
+      const modal = document.getElementById('qrModal');
+      const container = document.getElementById('qrcodeContainer');
+      const currentUrl = window.location.href.split('#')[0];
+      
+      container.innerHTML = '';
+      new QRCode(container, {
+        text: currentUrl,
+        width: 180,
+        height: 180,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      document.getElementById('qrUrlText').innerText = currentUrl;
+      modal.classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qrModal').classList.add('hidden');
+    }
+
+    function copyCurrentLink() {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Đã sao chép liên kết chặng học!');
+    }
+
     // Search Modal
     function openSearchModal() {
       document.getElementById('searchModal').classList.remove('hidden');
-      const input = document.getElementById('searchInput');
-      input.value = '';
-      input.focus();
+      setTimeout(() => document.getElementById('searchInput').focus(), 50);
       handleSearch('');
     }
 
@@ -1194,88 +1315,94 @@
       document.getElementById('searchModal').classList.add('hidden');
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeSearchModal();
-        closeQrModal();
-        closeDiagramModal();
-        toggleTocDrawer(false);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        openSearchModal();
-      }
-    });
-
     function handleSearch(query) {
-      const q = query.trim().toLowerCase();
+      const q = query.toLowerCase().trim();
       const resultsContainer = document.getElementById('searchResults');
+
       if (!q) {
-        resultsContainer.innerHTML = docs.map(d => `
-          <button onclick="loadDoc('${d.id}'); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800/80 text-slate-300 flex items-center justify-between transition border border-transparent hover:border-slate-700">
-            <div class="flex items-center space-x-3 truncate">
-              <i class="fa-solid ${d.icon} text-teal-400 w-5 text-sm"></i>
-              <div>
-                <p class="text-xs font-semibold text-slate-200 truncate">${d.title}</p>
-                <p class="text-[11px] text-slate-400 line-clamp-1">${d.desc}</p>
-              </div>
-            </div>
-            <span class="text-[10px] text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800/60">${d.badge}</span>
-          </button>
-        `).join('');
+        resultsContainer.innerHTML = `
+          <div class="text-xs text-slate-500 p-4 text-center">
+            Nhập từ khóa (ví dụ: <code>JWT</code>, <code>RateLimiting</code>, <code>VCR</code>, <code>Generators</code>, <code>VietQR</code>, <code>Middleware</code>)...
+          </div>
+        `;
         return;
       }
 
-      // 1. Match in Docs
-      const docMatches = docs.filter(d => 
-        d.title.toLowerCase().includes(q) || 
-        d.desc.toLowerCase().includes(q) || 
-        d.badge.toLowerCase().includes(q) ||
-        (d.content && d.content.toLowerCase().includes(q))
-      );
+      const matches = [];
 
-      // 2. Match in Q&As
-      const qaMatches = allQAs.filter(qa =>
-        qa.q.toLowerCase().includes(q) ||
-        qa.a.toLowerCase().includes(q) ||
-        qa.category.toLowerCase().includes(q)
-      ).slice(0, 8);
+      // Search in Docs Content
+      docs.forEach(doc => {
+        const lines = (doc.content || '').split('\n');
+        lines.forEach((line, idx) => {
+          if (line.toLowerCase().includes(q) && line.trim().length > 5) {
+            matches.push({
+              type: 'doc',
+              docId: doc.id,
+              docTitle: doc.title,
+              snippet: line.trim().slice(0, 140),
+              lineNum: idx + 1
+            });
+          }
+        });
+      });
 
-      if (docMatches.length === 0 && qaMatches.length === 0) {
-        resultsContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-10">Không tìm thấy kết quả phù hợp với từ khóa "${query}"</p>`;
+      // Search in Q&As
+      allQAs.forEach(qa => {
+        if (qa.q.toLowerCase().includes(q) || qa.a.toLowerCase().includes(q)) {
+          matches.push({
+            type: 'qa',
+            docId: qa.docId,
+            docTitle: qa.docTitle || `Chặng ${qa.docId}`,
+            snippet: `❓ ${qa.q}`,
+            qaId: qa.id
+          });
+        }
+      });
+
+      if (matches.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            Không tìm thấy kết quả nào cho "${query}"
+          </div>
+        `;
         return;
       }
 
-      let html = '';
-
-      if (docMatches.length > 0) {
-        html += `<div class="text-[10px] font-bold uppercase text-slate-500 px-2 pt-1 pb-1">Chặng Học (${docMatches.length})</div>`;
-        html += docMatches.map(d => `
-          <button onclick="loadDoc('${d.id}'); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 text-slate-300 transition border border-slate-800/60 hover:border-slate-700">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-teal-300">${d.title}</span>
-              <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">${d.badge}</span>
+      resultsContainer.innerHTML = matches.slice(0, 30).map(m => `
+        <div onclick="selectSearchResult('${m.docId}', '${m.type}', '${m.qaId || ''}')" class="p-3 rounded-xl bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/80 cursor-pointer transition flex items-start justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-1.5 text-[11px] mb-1">
+              <span class="font-bold ${m.type === 'qa' ? 'text-amber-400 bg-amber-400/10' : 'text-teal-400 bg-teal-400/10'} px-1.5 py-0.2 rounded font-mono">
+                ${m.type === 'qa' ? 'Vấn đáp' : 'Tài liệu'}
+              </span>
+              <span class="text-slate-400">${m.docTitle}</span>
             </div>
-            <p class="text-[11px] text-slate-400 line-clamp-2">${d.desc}</p>
-          </button>
-        `).join('');
-      }
+            <p class="text-xs text-slate-200 line-clamp-2">${m.snippet}</p>
+          </div>
+          <i class="fa-solid fa-chevron-right text-slate-600 text-xs mt-1"></i>
+        </div>
+      `).join('');
+    }
 
-      if (qaMatches.length > 0) {
-        html += `<div class="text-[10px] font-bold uppercase text-amber-500/80 px-2 pt-3 pb-1">Ngân Hàng Vấn Đáp (${qaMatches.length})</div>`;
-        html += qaMatches.map(qa => `
-          <button onclick="loadDoc('${qa.docId}'); isQaMode=true; setQaFilter('all'); setTimeout(()=>{handleQaSearch('${qa.q.replace(/'/g, "\\'")}');}, 200); closeSearchModal();" class="w-full text-left p-3 rounded-xl hover:bg-slate-800/90 text-slate-300 transition border border-slate-800/60 hover:border-indigo-700/60 bg-indigo-950/20">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded font-mono">${qa.code}</span>
-              <span class="text-[10px] text-slate-500">${qa.category}</span>
-            </div>
-            <p class="text-xs font-semibold text-indigo-200 line-clamp-1">${qa.q}</p>
-            <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${qa.a.replace(/[*#`]/g, '')}</p>
-          </button>
-        `).join('');
+    function selectSearchResult(docId, type, qaId) {
+      closeSearchModal();
+      if (type === 'qa') {
+        if (!isQaMode) toggleQaMode();
+      } else {
+        if (isQaMode) toggleQaMode();
       }
+      loadDoc(docId);
+      showToast(`Đã chuyển tới ${docId}`);
+    }
 
-      resultsContainer.innerHTML = html;
+    // Toast Notification Helper
+    function showToast(message) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMessage').innerText = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
     }
 
     window.addEventListener('DOMContentLoaded', init);
