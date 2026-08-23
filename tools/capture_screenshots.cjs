@@ -1,4 +1,4 @@
-const { chromium } = require('@playwright/test');
+const { chromium } = require('../frontend/node_modules/@playwright/test');
 const path = require('path');
 const fs = require('fs');
 
@@ -10,10 +10,11 @@ if (!fs.existsSync(OUT_DIR)) {
 }
 
 const SAMPLE_IDS = {
-  courseId: '054aea3b-0971-419e-846b-7fdbe5e55766',
-  classId: '2052c098-bd7f-40e0-a769-b6cc3d2eeec8',
-  lessonId: 'c6e0dd79-9521-4fdc-ac8b-fc0d93d68918',
-  quizId: '705a9360-7559-4d78-a0b6-ac1f97b292d3'
+  courseId: '1002',
+  classId: '1',
+  lessonId: '1',
+  conceptLessonId: '1002',
+  quizId: '1'
 };
 
 async function run() {
@@ -32,8 +33,7 @@ async function run() {
       deviceScaleFactor: 1
     });
 
-    const page = context.newPage();
-    const p = await page;
+    const p = await context.newPage();
 
     // Set dark theme in localStorage
     await p.addInitScript(() => {
@@ -45,63 +45,59 @@ async function run() {
 
     let currentToken = '';
 
-    // Route intercept ONLY for POST /auth/refresh as permitted in prompt §3.1
-    await p.route('**/api/v1/auth/refresh', async (route) => {
-      if (currentToken) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            accessToken: currentToken,
-            expiresIn: 3600
-          })
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    // Track console 404/500 errors
-    p.on('response', (res) => {
+    // Capture token from login response
+    p.on('response', async (res) => {
       const status = res.status();
       const url = res.url();
+      if (url.includes('/api/v1/auth/login') && status === 200) {
+        try {
+          const data = await res.json();
+          if (data.accessToken) {
+            currentToken = data.accessToken;
+            console.log(`[AUTH] Token acquired for ${role}: ${currentToken.slice(0, 15)}...`);
+          }
+        } catch (e) {}
+      }
       if ((status === 404 || status >= 500) && url.includes('/api/')) {
         console.warn(`[API ERROR ${status}] ${url}`);
       }
     });
 
+    // Mock refresh endpoint and attach auth header
+    await p.route('**/api/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/api/v1/auth/refresh')) {
+        if (currentToken) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              accessToken: currentToken,
+              expiresIn: 3600
+            })
+          });
+          return;
+        }
+      }
+      await route.continue();
+    });
+
     if (role === 'student') {
-      console.log('Logging in as Student (Lê Quốc Bảo)...');
-      await p.goto(`${BASE_URL}/login`);
-      await p.fill('input[type="email"], input[name="email"]', 'baolqse1801@fpt.edu.vn');
-      await p.fill('input[type="password"], input[name="password"]', 'RealData@2024');
+      console.log('Logging in as Student (showcase@demo.local)...');
+      await p.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+      await p.fill('#email', 'showcase@demo.local');
+      await p.fill('#password', 'Student@123');
       await p.click('button[type="submit"]');
-      await p.waitForTimeout(2000);
-      currentToken = await p.evaluate(() => {
-        try {
-          const pinia = window.__pinia || window.pinia;
-          const auth = pinia ? pinia.state.value.auth : null;
-          return auth ? auth.accessToken : '';
-        } catch (e) {
-          return '';
-        }
-      });
+      await p.waitForTimeout(3000);
+      console.log('Student logged in, token available:', !!currentToken);
     } else if (role === 'admin') {
-      console.log('Logging in as Admin (Nguyễn Văn Hùng)...');
-      await p.goto(`${BASE_URL}/login`);
-      await p.fill('input[type="email"], input[name="email"]', 'hungnv@fpt.edu.vn');
-      await p.fill('input[type="password"], input[name="password"]', 'RealData@2024');
+      console.log('Logging in as Admin (admin@system.local)...');
+      await p.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
+      await p.fill('#email', 'admin@system.local');
+      await p.fill('#password', 'Admin@123');
       await p.click('button[type="submit"]');
-      await p.waitForTimeout(2000);
-      currentToken = await p.evaluate(() => {
-        try {
-          const pinia = window.__pinia || window.pinia;
-          const auth = pinia ? pinia.state.value.auth : null;
-          return auth ? auth.accessToken : '';
-        } catch (e) {
-          return '';
-        }
-      });
+      await p.waitForTimeout(3000);
+      console.log('Admin logged in, token available:', !!currentToken);
     }
 
     return { page: p, context };
@@ -149,7 +145,7 @@ async function run() {
     await snap(pub.page, '/register', '03_register.png');
     await pub.context.close();
 
-    // ── STUDENT SESSION (Lê Quốc Bảo) ──
+    // ── STUDENT SESSION (showcase@demo.local) ──
     console.log('\n--- 2. Student Session ---');
     const stu = await createPage('student');
     await snap(stu.page, '/path', '05_lo_trinh.png');
@@ -158,7 +154,7 @@ async function run() {
       scroll: true,
       scrollSelector: '.course-detail__modules, .course-detail__curriculum, [class*="module"], [class*="lesson"]'
     });
-    await snap(stu.page, `/lessons/${SAMPLE_IDS.lessonId}`, '14_lesson_detail.png');
+    await snap(stu.page, `/lessons/${SAMPLE_IDS.conceptLessonId}`, '14_lesson_detail.png');
     await snap(stu.page, '/simulations', '08_mo_phong.png');
     await snap(stu.page, '/simulator/sort.bubble', '09_mo_phong_detail.png', {
       actions: async (p) => {
@@ -187,7 +183,7 @@ async function run() {
     await snap(stu.page, '/benchmark/sort.bubble/sort.quick', '19_benchmark.png');
     await stu.context.close();
 
-    // ── ADMIN SESSION (Nguyễn Văn Hùng) ──
+    // ── ADMIN SESSION (admin@system.local) ──
     console.log('\n--- 3. Admin Session ---');
     const adm = await createPage('admin');
     await snap(adm.page, '/admin/stats', '20_admin_dashboard.png');
