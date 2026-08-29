@@ -70,6 +70,8 @@ const stepLabel = computed(() =>
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -118,4 +120,14 @@ const stepLabel = computed(() =>
 }
 
 .stats__item--step svg { color: currentColor; }
+
+@media (max-width: 640px) {
+  .stats {
+    gap: 6px;
+  }
+  .stats__items {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
 </style>

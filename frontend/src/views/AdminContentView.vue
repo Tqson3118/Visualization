@@ -59,6 +59,7 @@ import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
+import ActionDropdown, { type ActionDropdownItem } from '@/components/ui/ActionDropdown.vue';
 import { useConfirm } from '@/composables/useConfirm';
 
 type LessonStatusValue = 'draft' | 'pendingreview' | 'active' | 'hidden';
@@ -996,6 +997,56 @@ async function rejectLesson(lesson: LessonRow): Promise<void> {
   }
 }
 
+function getLessonActionItems(lesson: LessonRow): ActionDropdownItem[] {
+  const items: ActionDropdownItem[] = [
+    {
+      id: 'preview',
+      label: 'Xem trước bài học',
+      icon: Eye,
+      onClick: () => openLessonPreview(lesson),
+    },
+  ];
+
+  if (canManageLesson(lesson)) {
+    items.push({
+      id: 'add-quiz',
+      label: 'Thêm Quiz / Lab',
+      icon: Plus,
+      onClick: () => openCreateQuizForLesson(lesson.id),
+    });
+  }
+
+  if (isAdmin.value && lesson.status === 'pendingreview') {
+    items.push(
+      {
+        id: 'approve',
+        label: 'Phê duyệt xuất bản',
+        icon: CheckCircle2,
+        onClick: () => approveLesson(lesson),
+      },
+      {
+        id: 'reject',
+        label: 'Từ chối bài học',
+        icon: AlertCircle,
+        danger: true,
+        onClick: () => rejectLesson(lesson),
+      },
+    );
+  }
+
+  if (canManageLesson(lesson)) {
+    items.push({
+      id: 'delete',
+      label: 'Xóa bài học',
+      icon: Trash2,
+      danger: true,
+      onClick: () => deleteLesson(lesson),
+    });
+  }
+
+  return items;
+}
+
 const statusLabel: Record<string, string> = {
   draft: 'Bản nháp',
   pendingreview: 'Chờ duyệt',
@@ -1014,7 +1065,7 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 </script>
 
 <template>
-  <main class="studio-view container">
+  <section class="studio-view container">
     <!-- ═══ HEADER STUDIO BANNER ═══ -->
     <header class="studio-hero">
       <div class="studio-hero__info">
@@ -1447,26 +1498,13 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 
                     <!-- Actions -->
                     <div class="lesson-row__actions">
-                      <template v-if="isAdmin && lesson.status === 'pendingreview'">
-                        <Button size="sm" variant="secondary" @click="approveLesson(lesson)">Duyệt</Button>
-                        <Button size="sm" variant="danger" @click="rejectLesson(lesson)">Từ chối</Button>
-                      </template>
-
-                      <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)">
-                        <Eye :size="15" /> Xem trước
-                      </Button>
-
                       <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openEditLesson(lesson)">
                         <Pencil :size="15" /> Soạn / Sửa
                       </Button>
-
-                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openCreateQuizForLesson(lesson.id)">
-                        <Plus :size="15" /> Thêm Quiz / Lab
+                      <Button v-else size="sm" variant="ghost" @click="openLessonPreview(lesson)">
+                        <Eye :size="15" /> Xem trước
                       </Button>
-
-                      <Button v-if="canManageLesson(lesson)" size="sm" variant="danger" @click="deleteLesson(lesson)">
-                        <Trash2 :size="15" />
-                      </Button>
+                      <ActionDropdown :items="getLessonActionItems(lesson)" />
                     </div>
                   </div>
                 </div>
@@ -1525,10 +1563,13 @@ const pad = (n: number): string => String(n).padStart(2, '0');
                   </td>
                   <td class="text-right whitespace-nowrap">
                     <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                      <Button size="sm" variant="ghost" @click="openLessonPreview(lesson)" title="Xem trước bài học"><Eye :size="15" /></Button>
-                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openEditLesson(lesson)" title="Chỉnh sửa nội dung"><Pencil :size="15" /></Button>
-                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openCreateQuizForLesson(lesson.id)" title="Thêm Quiz / Lab"><Plus :size="15" /></Button>
-                      <Button v-if="canManageLesson(lesson)" size="sm" variant="danger" @click="deleteLesson(lesson)" title="Xóa bài học"><Trash2 :size="15" /></Button>
+                      <Button v-if="canManageLesson(lesson)" size="sm" variant="ghost" @click="openEditLesson(lesson)" title="Chỉnh sửa nội dung">
+                        <Pencil :size="15" /> Sửa
+                      </Button>
+                      <Button v-else size="sm" variant="ghost" @click="openLessonPreview(lesson)" title="Xem trước bài học">
+                        <Eye :size="15" /> Xem
+                      </Button>
+                      <ActionDropdown :items="getLessonActionItems(lesson)" />
                     </div>
                   </td>
                 </tr>
@@ -1882,7 +1923,7 @@ const pad = (n: number): string => String(n).padStart(2, '0');
         </div>
       </template>
     </Modal>
-  </main>
+  </section>
 </template>
 
 <style scoped>
@@ -2338,11 +2379,13 @@ const pad = (n: number): string => String(n).padStart(2, '0');
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .flat-table table {
   width: 100%;
+  min-width: 650px;
   border-collapse: collapse;
 }
 

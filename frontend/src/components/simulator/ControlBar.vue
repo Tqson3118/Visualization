@@ -165,7 +165,8 @@ function onSliderChange(event: Event): void {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  max-width: 100%;
   width: 100%;
 }
 
@@ -328,5 +329,16 @@ function onSliderChange(event: Event): void {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+@media (max-width: 640px) {
+  .control-bar__row {
+    gap: 8px;
+  }
+  .control-bar__timeline {
+    order: 3;
+    width: 100%;
+    flex-basis: 100%;
+  }
 }
 </style>

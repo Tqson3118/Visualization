@@ -77,7 +77,7 @@ function highlight(line: string): string {
 <template>
   <section class="pseudo" :class="{ 'pseudo--collapsed': collapsed }" aria-label="Mã giả">
     <header class="pseudo__header">
-      <h3 class="pseudo__title">{{ messages.simulator.controlsTitle }}</h3>
+      <h3 class="pseudo__title">Mã giả thuật toán</h3>
       <button
         type="button"
         class="pseudo__collapse"
@@ -217,8 +217,10 @@ function highlight(line: string): string {
 /* ── Breakpoint (GP-T4): chấm tròn toggle — đỏ khi bật ── */
 .pseudo__bp {
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -198,10 +198,10 @@ function groupKeyFor(item: CatalogMeta): CatalogGroupKey {
   return GROUP_DEFS.find((g) => item.key.startsWith(g.prefix))?.key ?? 'structure';
 }
 
-/** Nhóm danh sách trang hiện tại — nhóm rỗng sau filter/search bị loại (ẩn heading). */
+/** Nhóm danh sách đã lọc — các nhóm luôn toàn vẹn, không bị phân mảnh cắt ngang */
 const allGrouped = computed<CatalogGroup[]>(() => {
   const buckets = new Map<CatalogGroupKey, CatalogMeta[]>();
-  for (const item of paged.value) {
+  for (const item of filtered.value) {
     const key = groupKeyFor(item);
     const list = buckets.get(key);
     if (list) list.push(item);
@@ -257,7 +257,7 @@ function referenceUrl(key: string): string | undefined {
 </script>
 
 <template>
-  <main class="simulations container">
+  <section class="simulations container">
     <!-- Chrome header — surface band level-2 (bỏ gradient mint + shadow, §1/§6) -->
     <Motion
       class="simulations__chrome"
@@ -486,7 +486,7 @@ function referenceUrl(key: string): string | undefined {
         <CheatSheetTable @open-simulation="openSimulation" />
       </section>
     </Tabs>
-  </main>
+  </section>
 </template>
 
 <style scoped>

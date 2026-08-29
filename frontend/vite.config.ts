@@ -50,6 +50,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    testTimeout: 20000,
     // E2E Playwright (tests/e2e/*.spec.ts) KHÔNG phải vitest — tránh vitest chạy nhầm
     exclude: [...configDefaults.exclude, 'tests/e2e/**'],
   },

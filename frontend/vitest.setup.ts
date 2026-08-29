@@ -33,3 +33,20 @@ if (typeof globalThis.localStorage === 'undefined') {
 if (typeof globalThis.sessionStorage === 'undefined') {
   (globalThis as Record<string, unknown>).sessionStorage = new MemoryStorage();
 }
+
+if (typeof window !== 'undefined') {
+  window.scrollTo = (() => {}) as any;
+  if (!window.matchMedia) {
+    window.matchMedia = () => ({
+      matches: false,
+      media: '',
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    });
+  }
+}
+

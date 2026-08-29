@@ -75,7 +75,7 @@ async function cancelRenewal(): Promise<void> {
 </script>
 
 <template>
-  <main class="subscription container">
+  <section class="subscription container">
     <!-- Hero — surface band level-2 (không gradient, không blob) + hero-stat days-left -->
     <header class="subscription__hero">
       <div class="subscription__hero-body">
@@ -177,7 +177,7 @@ async function cancelRenewal(): Promise<void> {
         </Button>
       </template>
     </Modal>
-  </main>
+  </section>
 </template>
 
 <style scoped>

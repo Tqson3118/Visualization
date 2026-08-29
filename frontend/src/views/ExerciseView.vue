@@ -79,7 +79,7 @@ function onFinished(): void {
 </script>
 
 <template>
-  <main class="exercise container">
+  <section class="exercise container">
     <nav class="exercise__breadcrumb" aria-label="Breadcrumb">
       <RouterLink :to="{ name: 'courses' }">Lộ trình</RouterLink>
       <span aria-hidden="true">/</span>
@@ -135,7 +135,7 @@ function onFinished(): void {
         @finished="onFinished"
       />
     </template>
-  </main>
+  </section>
 
   <!-- Drawer lịch sử -->
   <Drawer

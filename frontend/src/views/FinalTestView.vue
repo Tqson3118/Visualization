@@ -92,7 +92,7 @@ function onPassed(scorePct: number): void {
 </script>
 
 <template>
-  <main class="final-test container">
+  <section class="final-test container">
     <!-- Chrome header — surface band level-2 + kicker mono (DESIGN.md §1/§6, không gradient) -->
     <Motion
       as="header"
@@ -174,7 +174,7 @@ function onPassed(scorePct: number): void {
         {{ messages.finalTest.backToMap }}
       </Button>
     </div>
-  </main>
+  </section>
 </template>
 
 <style scoped>

@@ -136,7 +136,7 @@ async function createClass(): Promise<void> {
 </script>
 
 <template>
-  <main class="classes container">
+  <section class="classes container">
     <!-- Banner: surface band level-2 (DESIGN §1/#1 — KHÔNG gradient, KHÔNG shadow) -->
     <header class="classes__hero">
       <div class="classes__hero-inner">
@@ -306,7 +306,7 @@ async function createClass(): Promise<void> {
         </div>
       </form>
     </Modal>
-  </main>
+  </section>
 </template>
 
 <style scoped>
