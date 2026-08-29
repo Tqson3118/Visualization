@@ -15,6 +15,7 @@ import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, QuestionDto } from '@/api/exercises';
 import { useUiStore } from '@/stores/ui';
 import { useProgressStore } from '@/stores/progress';
+import { fireConfetti } from '@/composables/useConfetti';
 import { messages } from '@/i18n/vi';
 import QuizStage from '@/components/quiz/QuizStage.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -32,6 +33,7 @@ const topicId = computed(() => String(route.params.topicId ?? ''));
 
 const exercise = ref<ExerciseDto | null>(null);
 const loading = ref(true);
+const isTestPassed = ref(false);
 const passThreshold = computed(() => exercise.value?.passThreshold ?? exercise.value?.passingScore ?? 70);
 
 onMounted(async () => {
@@ -84,6 +86,7 @@ function buildLocalFinalTest(): ExerciseDto {
 
 async function onPassed(scorePct: number): Promise<void> {
   const isPassed = scorePct >= passThreshold.value;
+  isTestPassed.value = isPassed;
   ui.showToast(
     isPassed
       ? messages.finalTest.toastPassed
@@ -91,6 +94,7 @@ async function onPassed(scorePct: number): Promise<void> {
     isPassed ? 'success' : 'warning',
   );
   if (isPassed) {
+    fireConfetti('success');
     try {
       const progressStore = useProgressStore();
       await progressStore.fetchOverview();
@@ -169,8 +173,25 @@ async function onPassed(scorePct: number): Promise<void> {
       </Card>
     </div>
 
+    <!-- Khối chúc mừng hoàn thành lộ trình -->
+    <div
+      v-if="isTestPassed"
+      class="p-8 rounded-2xl bg-vdsa-surface border border-purple-500/30 text-center space-y-4 shadow-xl"
+    >
+      <div class="text-4xl" aria-hidden="true">🎉</div>
+      <h2 class="text-2xl font-black text-white">Chúc mừng! Bạn đã hoàn thành lộ trình</h2>
+      <p class="text-sm text-vdsa-muted max-w-md mx-auto leading-relaxed">
+        Bạn đã vượt qua bài kiểm tra tổng kết với kết quả xuất sắc. Hãy tiếp tục khám phá và chinh phục các chủ đề thuật toán tiếp theo!
+      </p>
+      <div class="pt-2">
+        <Button variant="primary" size="md" @click="router.push({ name: 'path-list' })">
+          Quay lại Lộ trình
+        </Button>
+      </div>
+    </div>
+
     <QuizStage
-      v-else
+      v-else-if="!loading"
       :exercise="exercise"
       @passed="onPassed"
       @finished="router.push({ name: 'path-topic', params: { topicId } })"

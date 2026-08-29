@@ -243,7 +243,7 @@ export const messages = {
       'Hệ thống bài học được thiết kế chuẩn sư phạm, dẫn dắt bạn qua 4 bước vững chắc: Lý thuyết, Trực quan hoá, Thực hành Code, Trắc nghiệm.',
     roadmapFeature1: 'Lộ trình từ cơ bản đến nâng cao (Mảng, Cây, Đồ thị, Quy hoạch động).',
     roadmapFeature2: 'Theo dõi tiến độ học tập chi tiết theo từng chủ đề.',
-    roadmapFeature3: 'Nhận chứng nhận khi hoàn thành lộ trình.',
+    roadmapFeature3: 'Chúc mừng mỗi chặng lộ trình bạn chinh phục.',
     roadmapStepLabel: (n: number) => `BƯỚC ${n}`,
     roadmapStep1Title: 'Lý thuyết nền tảng',
     roadmapStep1Desc: 'Khái niệm cốt lõi & mã giả trực quan',

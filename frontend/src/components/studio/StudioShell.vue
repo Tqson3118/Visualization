@@ -155,7 +155,7 @@ function handleNavClick(item: typeof navItems[0]): void {
           <span class="text-xs font-black text-white">DSA Pro Premium</span>
         </div>
         <p class="text-[11px] text-slate-300 leading-relaxed">
-          Mở khóa không giới hạn mô phỏng nâng cao, AI giải thuật và chứng chỉ tốt nghiệp.
+          Mở khóa không giới hạn mô phỏng nâng cao và AI giải thuật.
         </p>
         <button
           type="button"
