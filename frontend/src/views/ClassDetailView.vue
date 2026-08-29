@@ -458,14 +458,14 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
       query: { classAssignmentId: String(item.assignmentId) },
     });
   } else if (item.lessonId !== null) {
-    void router.push({ name: 'lesson', params: { lessonId: String(item.lessonId) } });
+    void router.push({ name: 'lesson-study', params: { id: String(item.lessonId) } });
   }
 }
 
 </script>
 
 <template>
-  <main class="class-detail container">
+  <section class="class-detail container">
     <nav class="class-detail__breadcrumb" aria-label="Breadcrumb">
       <RouterLink :to="{ name: 'classes' }">{{ messages.classes.detailBreadcrumb }}</RouterLink>
       <span aria-hidden="true">/</span>
@@ -988,7 +988,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
         </Button>
       </template>
     </Modal>
-  </main>
+  </section>
 </template>
 
 <style scoped>

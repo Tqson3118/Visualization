@@ -14,7 +14,6 @@ const FinalTestView = () => import('@/views/FinalTestView.vue');
 
 const SimulationsView = () => import('@/views/SimulationsView.vue');
 const SimulatorView = () => import('@/views/SimulatorView.vue');
-const LessonView = () => import('@/views/LessonView.vue');
 const ExerciseView = () => import('@/views/ExerciseView.vue');
 const LadderView = () => import('@/views/LadderView.vue');
 const LabView = () => import('@/views/LabView.vue');
@@ -124,12 +123,14 @@ const router = createRouter({
       path: '/courses/:id',
       redirect: '/path/:id',
     },
-    // Màn 04 — Chi tiết bài học
+    // Alias cũ: /learn/:lessonId & /courses/:courseId/lessons/:lessonId → /lessons/:id
     {
       path: '/learn/:lessonId',
-      name: 'lesson',
-      component: LessonView,
-      meta: { requiresAuth: true },
+      redirect: (to) => ({ name: 'lesson-study', params: { id: to.params.lessonId } }),
+    },
+    {
+      path: '/courses/:courseId/lessons/:lessonId',
+      redirect: (to) => ({ name: 'lesson-study', params: { id: to.params.lessonId }, query: { courseId: to.params.courseId } }),
     },
     // Legacy deep link roadmap — topicId cũ ≠ pathId mới: không mapping an toàn → /path (D2)
     {
