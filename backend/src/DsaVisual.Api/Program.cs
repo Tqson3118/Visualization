@@ -375,7 +375,27 @@ if (args.Contains("--seed"))
     return;
 }
 
+// Tự động kiểm tra và apply migrations khi khởi động nếu là cơ sở dữ liệu quan hệ (SQL Server)
+using (var startupScope = app.Services.CreateScope())
+{
+    var startupDb = startupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (startupDb.Database.IsRelational())
+    {
+        try
+        {
+            await startupDb.Database.MigrateAsync();
+            Log.Information("Database migrations verified and applied on startup.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to apply database migrations on startup.");
+        }
+    }
+}
+
 try
+
+
 {
     app.Run();
 }
