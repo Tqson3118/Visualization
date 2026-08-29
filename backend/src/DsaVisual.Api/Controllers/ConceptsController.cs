@@ -36,6 +36,14 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public bool IsPremium { get; set; }
         public string CoverImageUrl { get; set; } = string.Empty;
         public bool IsPublished { get; set; } = true;
+        public string Status { get; set; } = "draft";
+        public string? RejectionReason { get; set; }
+        public int? ReviewedBy { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public DateTime? SubmittedAt { get; set; }
+        public string? AuthorName { get; set; }
+        public int CreatedBy { get; set; }
+        public int? AuthorId { get; set; }
         public DateTime CreatedAt { get; set; }
         public int TotalLessons { get; set; }
         public int CompletedLessons { get; set; }
@@ -49,6 +57,12 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public List<CourseTestimonialDto> Testimonials { get; set; } = [];
         public CourseAuthorDto? Author { get; set; }
         public List<ConceptsLessonDto> Lessons { get; set; } = [];
+    }
+
+    public sealed class CourseReviewRequest
+    {
+        public bool Approve { get; set; }
+        public string? Reason { get; set; }
     }
 
     public sealed class CourseContentMetadata
@@ -110,6 +124,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     public sealed class ConceptsLessonDto
     {
         public string Id { get; set; } = string.Empty;
+        public int? NodeId { get; set; }
+        public int? LessonId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string ContentMd { get; set; } = string.Empty;
         public string SandboxType { get; set; } = "dsa";
@@ -148,15 +164,38 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         return "Intermediate";
     }
 
+    private static string FormatLearningPathStatus(LearningPathStatus status) => status switch
+    {
+        LearningPathStatus.PendingReview => "pending_review",
+        LearningPathStatus.Active => "active",
+        LearningPathStatus.Rejected => "rejected",
+        _ => "draft"
+    };
+
     [HttpGet("courses")]
     [AllowAnonymous]
     public async Task<ActionResult<List<ConceptsCourseDto>>> GetCourses(CancellationToken ct)
     {
         var userId = TryGetCurrentUserId();
-        var paths = await _db.LearningPaths.AsNoTracking()
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.SortOrder)
-            .ToListAsync(ct);
+        var role = TryGetCurrentRole();
+
+        var query = _db.LearningPaths.AsNoTracking();
+        if (role == "ADMIN")
+        {
+            // Admin thấy tất cả lộ trình
+        }
+        else if (role == "TEACHER" && userId is not null)
+        {
+            // Teacher thấy lộ trình Active + lộ trình do mình tạo
+            query = query.Where(p => p.Status == LearningPathStatus.Active || p.CreatedBy == userId.Value || (p.AuthorId != null && p.AuthorId == userId.Value));
+        }
+        else
+        {
+            // Student / Khách chỉ thấy lộ trình Active
+            query = query.Where(p => p.Status == LearningPathStatus.Active);
+        }
+
+        var paths = await query.OrderBy(p => p.SortOrder).ToListAsync(ct);
 
         if (paths.Count == 0)
         {
@@ -215,7 +254,15 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 Category = DetermineCategory(path),
                 Difficulty = DetermineDifficulty(path),
                 IsPremium = false,
-                IsPublished = true,
+                IsPublished = path.Status == LearningPathStatus.Active,
+                Status = FormatLearningPathStatus(path.Status),
+                RejectionReason = path.RejectionReason,
+                ReviewedBy = path.ReviewedBy,
+                ReviewedAt = path.ReviewedAt,
+                SubmittedAt = path.SubmittedAt,
+                AuthorName = author?.Name,
+                CreatedBy = path.CreatedBy,
+                AuthorId = path.AuthorId,
                 CreatedAt = path.CreatedBy > 0 ? DateTime.UtcNow.AddDays(-30) : DateTime.UtcNow,
                 TotalLessons = nodes.Count,
                 CompletedLessons = completed,
@@ -240,11 +287,18 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     public async Task<ActionResult<ConceptsCourseDto>> GetCourse(int id, CancellationToken ct)
     {
         var userId = TryGetCurrentUserId();
+        var role = TryGetCurrentRole();
         var path = await _db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id && p.IsActive, ct);
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (path is null)
         {
             return NotFound(new { message = "Khóa học không tồn tại." });
+        }
+
+        var canViewNonActive = role == "ADMIN" || (userId != null && (path.CreatedBy == userId.Value || path.AuthorId == userId.Value));
+        if (path.Status != LearningPathStatus.Active && !canViewNonActive)
+        {
+            return NotFound(new { message = "Khóa học không tồn tại hoặc chưa xuất bản." });
         }
 
         var nodes = await _db.LearningPathNodes.AsNoTracking()
@@ -265,6 +319,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         var lessons = await BuildLessonsAsync(userId, nodes, ct);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
         var meta = ParseMetadata(path.HighlightsJson, path.Title);
+        var author = await CourseAuthorAsync(path.AuthorId, ct);
         return Ok(new ConceptsCourseDto
         {
             Id = path.Id.ToString(),
@@ -273,7 +328,15 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             Category = DetermineCategory(path),
             Difficulty = DetermineDifficulty(path),
             IsPremium = false,
-            IsPublished = true,
+            IsPublished = path.Status == LearningPathStatus.Active,
+            Status = FormatLearningPathStatus(path.Status),
+            RejectionReason = path.RejectionReason,
+            ReviewedBy = path.ReviewedBy,
+            ReviewedAt = path.ReviewedAt,
+            SubmittedAt = path.SubmittedAt,
+            AuthorName = author?.Name,
+            CreatedBy = path.CreatedBy,
+            AuthorId = path.AuthorId,
             CreatedAt = DateTime.UtcNow.AddDays(-30),
             TotalLessons = nodes.Count,
             CompletedLessons = completed,
@@ -285,7 +348,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             RatingCount = ratingCount,
             Highlights = meta.Highlights,
             Testimonials = ParseTestimonials(path.TestimonialsJson),
-            Author = await CourseAuthorAsync(path.AuthorId, ct),
+            Author = author,
             Lessons = lessons
         });
     }
@@ -295,6 +358,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     public async Task<ActionResult<ConceptsCourseDto>> CreateCourse([FromBody] CourseUpsertRequest request, CancellationToken ct)
     {
         var userId = CurrentUserId();
+        var role = CurrentRole();
         if (string.IsNullOrWhiteSpace(request.Title))
         {
             return BadRequest(new { message = "Tiêu đề khóa học không được để trống." });
@@ -307,17 +371,29 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             KeyOutcomes = request.KeyOutcomes
         };
 
+        var status = role == "ADMIN"
+            ? (request.IsActive ? LearningPathStatus.Active : LearningPathStatus.Draft)
+            : LearningPathStatus.Draft;
+        var isActive = role == "ADMIN" && request.IsActive;
+
         var path = new LearningPath
         {
             Title = request.Title.Trim(),
             Description = request.Description?.Trim(),
             TopicId = request.TopicId,
             SortOrder = request.SortOrder,
-            IsActive = request.IsActive,
+            IsActive = isActive,
+            Status = status,
             CreatedBy = userId,
             AuthorId = userId,
             HighlightsJson = JsonSerializer.Serialize(meta)
         };
+
+        if (status == LearningPathStatus.Active)
+        {
+            path.ReviewedBy = userId;
+            path.ReviewedAt = DateTime.UtcNow;
+        }
 
         _db.LearningPaths.Add(path);
         await _db.SaveChangesAsync(ct);
@@ -359,11 +435,217 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         path.Description = request.Description?.Trim();
         path.TopicId = request.TopicId;
         path.SortOrder = request.SortOrder;
-        path.IsActive = request.IsActive;
         path.HighlightsJson = JsonSerializer.Serialize(meta);
+
+        if (role == "ADMIN")
+        {
+            path.IsActive = request.IsActive;
+            if (request.IsActive && path.Status != LearningPathStatus.Active)
+            {
+                path.Status = LearningPathStatus.Active;
+                path.RejectionReason = null;
+                path.ReviewedBy = userId;
+                path.ReviewedAt = DateTime.UtcNow;
+                await ActivateAllLessonsInPath(path.Id, userId, ct);
+            }
+            else if (!request.IsActive && path.Status == LearningPathStatus.Active)
+            {
+                path.Status = LearningPathStatus.Draft;
+            }
+        }
 
         await _db.SaveChangesAsync(ct);
         return await GetCourse(path.Id, ct);
+    }
+
+    // ═══ Helper: Active tất cả bài trong lộ trình ═══
+    private async Task ActivateAllLessonsInPath(int pathId, int adminUserId, CancellationToken ct)
+    {
+        var lessonIds = await _db.LearningPathNodes
+            .Where(n => n.PathId == pathId && n.LessonId != null)
+            .Select(n => n.LessonId!.Value)
+            .ToListAsync(ct);
+
+        if (lessonIds.Count == 0) return;
+
+        var lessons = await _db.Lessons
+            .Where(l => lessonIds.Contains(l.Id) && l.DeletedAt == null)
+            .ToListAsync(ct);
+
+        var now = DateTime.UtcNow;
+        foreach (var lesson in lessons)
+        {
+            if (lesson.Status != LessonStatus.Active)
+            {
+                lesson.Status = LessonStatus.Active;
+                lesson.PublishedAt ??= now;
+                lesson.UpdatedBy = adminUserId;
+                lesson.UpdatedAt = now;
+            }
+        }
+    }
+
+    // ═══ GV gửi duyệt lộ trình ═══
+    [HttpPost("courses/{id:int}/submit-review")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> SubmitCourseForReview(int id, CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+        var path = await _db.LearningPaths.FindAsync([id], ct);
+        if (path is null) return NotFound(new { message = "Lộ trình không tồn tại." });
+
+        if (role != "ADMIN" && path.CreatedBy != userId && path.AuthorId != userId)
+            return Forbid();
+
+        var nodeCount = await _db.LearningPathNodes.CountAsync(n => n.PathId == id && n.LessonId != null, ct);
+        if (nodeCount == 0)
+            return BadRequest(new { message = "Lộ trình phải có ít nhất 1 bài học trước khi gửi duyệt." });
+
+        if (role == "ADMIN")
+        {
+            path.Status = LearningPathStatus.Active;
+            path.IsActive = true;
+            path.RejectionReason = null;
+            path.ReviewedBy = userId;
+            path.ReviewedAt = DateTime.UtcNow;
+            await ActivateAllLessonsInPath(id, userId, ct);
+        }
+        else
+        {
+            path.Status = LearningPathStatus.PendingReview;
+            path.SubmittedAt = DateTime.UtcNow;
+            path.RejectionReason = null;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new
+        {
+            message = role == "ADMIN"
+                ? "Lộ trình đã xuất bản thành công!"
+                : "Lộ trình đã được gửi đến Admin để duyệt."
+        });
+    }
+
+    // ═══ Admin duyệt lộ trình ═══
+    [HttpPost("courses/{id:int}/review")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<ActionResult> ReviewCourse(
+        int id,
+        [FromBody] CourseReviewRequest request,
+        CancellationToken ct)
+    {
+        var path = await _db.LearningPaths.FindAsync([id], ct);
+        if (path is null) return NotFound(new { message = "Lộ trình không tồn tại." });
+
+        if (path.Status != LearningPathStatus.PendingReview)
+            return BadRequest(new { message = "Lộ trình không ở trạng thái chờ duyệt." });
+
+        var adminId = CurrentUserId();
+        var now = DateTime.UtcNow;
+
+        if (request.Approve)
+        {
+            path.Status = LearningPathStatus.Active;
+            path.IsActive = true;
+            path.RejectionReason = null;
+            path.ReviewedBy = adminId;
+            path.ReviewedAt = now;
+            await ActivateAllLessonsInPath(id, adminId, ct);
+        }
+        else
+        {
+            path.Status = LearningPathStatus.Rejected;
+            path.IsActive = false;
+            path.RejectionReason = request.Reason?.Trim();
+            path.ReviewedBy = adminId;
+            path.ReviewedAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new
+        {
+            message = request.Approve
+                ? "Lộ trình và tất cả bài giảng đã được duyệt thành công!"
+                : "Đã từ chối lộ trình và gửi lý do tới Giảng viên."
+        });
+    }
+
+    // ═══ Admin lấy danh sách lộ trình chờ duyệt ═══
+    [HttpGet("courses/pending")]
+    [Authorize(Roles = "ADMIN")]
+    public async Task<ActionResult<List<ConceptsCourseDto>>> GetPendingCourses(CancellationToken ct)
+    {
+        var paths = await _db.LearningPaths.AsNoTracking()
+            .Where(p => p.Status == LearningPathStatus.PendingReview)
+            .OrderBy(p => p.SubmittedAt)
+            .ToListAsync(ct);
+
+        if (paths.Count == 0) return Ok(new List<ConceptsCourseDto>());
+
+        var pathIds = paths.Select(p => p.Id).ToList();
+        var allNodes = await _db.LearningPathNodes.AsNoTracking()
+            .Where(n => pathIds.Contains(n.PathId))
+            .OrderBy(n => n.SortOrder)
+            .ToListAsync(ct);
+
+        var nodesByPath = allNodes.GroupBy(n => n.PathId).ToDictionary(g => g.Key, g => g.ToList());
+
+        var authorIds = paths.Where(p => p.AuthorId != null).Select(p => p.AuthorId!.Value).Distinct().ToList();
+        var authorsMap = authorIds.Count > 0
+            ? await _db.Users.AsNoTracking()
+                .Where(u => authorIds.Contains(u.Id) && u.DeletedAt == null)
+                .ToDictionaryAsync(u => u.Id, u => new CourseAuthorDto
+                {
+                    Name = u.DisplayName,
+                    AcademicDegree = u.AcademicDegree,
+                    Bio = u.TeacherBio,
+                    ProfileLink = u.ProfileLink,
+                    AvatarUrl = u.AvatarUrl
+                }, ct)
+            : new Dictionary<int, CourseAuthorDto>();
+
+        var result = new List<ConceptsCourseDto>();
+        foreach (var path in paths)
+        {
+            var nodes = nodesByPath.GetValueOrDefault(path.Id, []);
+            var meta = ParseMetadata(path.HighlightsJson, path.Title);
+            var author = path.AuthorId is { } aId ? authorsMap.GetValueOrDefault(aId) : null;
+
+            result.Add(new ConceptsCourseDto
+            {
+                Id = path.Id.ToString(),
+                Title = path.Title,
+                Description = path.Description ?? string.Empty,
+                Category = DetermineCategory(path),
+                Difficulty = DetermineDifficulty(path),
+                IsPremium = false,
+                IsPublished = false,
+                Status = FormatLearningPathStatus(path.Status),
+                RejectionReason = path.RejectionReason,
+                ReviewedBy = path.ReviewedBy,
+                ReviewedAt = path.ReviewedAt,
+                SubmittedAt = path.SubmittedAt,
+                AuthorName = author?.Name,
+                CreatedBy = path.CreatedBy,
+                AuthorId = path.AuthorId,
+                CreatedAt = path.SubmittedAt ?? DateTime.UtcNow,
+                TotalLessons = nodes.Count,
+                CompletedLessons = 0,
+                ProgressPercent = 0,
+                XpReward = 0,
+                LearningObjectives = meta.LearningObjectives,
+                KeyOutcomes = meta.KeyOutcomes,
+                Rating = 5.0,
+                RatingCount = 0,
+                Highlights = meta.Highlights,
+                Testimonials = ParseTestimonials(path.TestimonialsJson),
+                Author = author,
+                Lessons = await BuildLessonsAsync(null, nodes, ct)
+            });
+        }
+
+        return Ok(result);
     }
 
     [HttpDelete("courses/{id:int}")]
@@ -750,6 +1032,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             result.Add(new ConceptsLessonDto
             {
                 Id = node.Id.ToString(),
+                NodeId = node.Id,
+                LessonId = node.LessonId,
                 Title = title,
                 ContentMd = content,
                 SandboxType = sandboxType,
@@ -1185,39 +1469,31 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             }
         }
 
-        // Node pass khi "Hoàn thành bài học" (cờ Completed — bài lý thuyết / quiz node KHÔNG có bài
-        // code): node pass để mở khoá bài sau. NGƯỢC LẠI node có bài CODE (ASM / kiểm tra cuối) KHÔNG
-        // được pass qua đây — bắt buộc nộp qua /exercises/{id}/code-submit để MÁY CHỦ chấm code thật
-        // (Jint) mới pass (nghiệp vụ 15/08: chạy đúng mới pass, chạy sai không pass).
-        if (payload.Completed == true)
+        // Node pass khi "Hoàn thành bài học" (cờ Completed hoặc CodelabCompleted)
+        if (payload.Completed == true || payload.CodelabCompleted == true)
         {
-            var hasCodeExercise = await _db.Exercises.AsNoTracking()
-                .AnyAsync(e => e.NodeId == id && e.Type == ExerciseType.Code && e.DeletedAt == null, ct);
-            if (!hasCodeExercise)
+            var nodeProgress = await _db.UserNodeProgress
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
+            if (nodeProgress is null)
             {
-                var nodeProgress = await _db.UserNodeProgress
-                    .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
-                if (nodeProgress is null)
+                _db.UserNodeProgress.Add(new UserNodeProgress
                 {
-                    _db.UserNodeProgress.Add(new UserNodeProgress
-                    {
-                        UserId = userId,
-                        NodeId = id,
-                        Status = 2,
-                        Stars = 3,
-                        NodeScore = 100,
-                        PassedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                }
-                else if (nodeProgress.Status != 2)
-                {
-                    nodeProgress.Status = 2;
-                    nodeProgress.Stars = 3;
-                    nodeProgress.NodeScore = 100;
-                    nodeProgress.PassedAt = DateTime.UtcNow;
-                    nodeProgress.UpdatedAt = DateTime.UtcNow;
-                }
+                    UserId = userId,
+                    NodeId = id,
+                    Status = 2,
+                    Stars = 3,
+                    NodeScore = 100,
+                    PassedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            else if (nodeProgress.Status != 2)
+            {
+                nodeProgress.Status = 2;
+                nodeProgress.Stars = 3;
+                nodeProgress.NodeScore = 100;
+                nodeProgress.PassedAt = DateTime.UtcNow;
+                nodeProgress.UpdatedAt = DateTime.UtcNow;
             }
         }
 

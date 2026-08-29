@@ -7,21 +7,21 @@
       <img v-if="course.coverImageUrl || course.coverImage" :src="course.coverImageUrl || course.coverImage" alt="Course Cover" class="w-full h-full object-cover" />
       <CourseCover v-else :course="course" class="w-full h-full" />
       <div class="absolute inset-0 bg-gradient-to-t from-vdsa-bg-secondary via-transparent to-transparent" />
-      <div class="absolute top-3 right-3 flex gap-1.5">
+      <div class="absolute top-3 right-3 flex gap-1.5 flex-wrap justify-end">
         <span
           v-if="course.isPremium"
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-yellow text-black shadow-sm"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-yellow text-black shadow-sm whitespace-nowrap shrink-0"
         >
           Premium
         </span>
         <span
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0"
           :class="difficultyBadgeClass"
         >
-          {{ course.difficulty }}
+          {{ difficultyLabel }}
         </span>
         <span
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-surface/80 text-vdsa-secondary"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-surface/80 text-vdsa-secondary whitespace-nowrap shrink-0"
         >
           {{ course.category }}
         </span>
@@ -65,7 +65,7 @@
 
           <router-link
             :to="{ name: 'course-detail', params: { id: course.id } }"
-            class="px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg cursor-pointer"
+            class="px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg cursor-pointer whitespace-nowrap shrink-0"
             :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green hover:bg-vdsa-green text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent hover:bg-vdsa-accent text-white shadow-vdsa-accent/30')"
           >
             {{ !isEnrolled ? 'Xem chi tiết' : (progressPercent === 100 ? 'Ôn tập' : 'Tiếp tục học') }}
@@ -99,6 +99,18 @@ const progressPercent = computed(() => {
 
 const isEnrolled = computed(() => {
   return courseStore.isEnrolled(props.course.id);
+});
+
+const difficultyLabel = computed(() => {
+  const map: Record<string, string> = {
+    Easy: 'Cơ bản',
+    Beginner: 'Cơ bản',
+    Medium: 'Trung cấp',
+    Intermediate: 'Trung cấp',
+    Hard: 'Nâng cao',
+    Advanced: 'Nâng cao',
+  };
+  return map[props.course.difficulty] ?? props.course.difficulty;
 });
 
 const difficultyBadgeClass = computed(() => {

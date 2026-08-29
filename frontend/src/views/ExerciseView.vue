@@ -138,11 +138,13 @@ function onFinished(): void {
   </main>
 
   <!-- Drawer lịch sử -->
-  <Drawer v-model:open="historyOpen" side="right" size="md">
-    <template #header>
-      <h2 class="text-lg font-semibold">Lịch sử làm bài</h2>
-      <p class="text-sm text-muted-foreground">Các lần nộp bài trước đây</p>
-    </template>
+  <Drawer
+    :open="historyOpen"
+    title="Lịch sử làm bài"
+    description="Các lần nộp bài trước đây"
+    width="520px"
+    @close="historyOpen = false"
+  >
     <div v-if="historyLoading" class="flex items-center justify-center py-8">
       <Skeleton height="48px" :lines="3" />
     </div>

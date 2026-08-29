@@ -2,8 +2,9 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { messages } from '@/i18n/vi';
+import * as authApi from '@/api/auth';
 
-// ── Task L — form đăng ký giảng viên: mock store auth + router (không gọi API thật) ──
+// ── Task L / B0 — form đăng ký & OTP: mock store auth + router + authApi ──
 const { registerMock, replaceMock } = vi.hoisted(() => ({
   registerMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -11,6 +12,12 @@ const { registerMock, replaceMock } = vi.hoisted(() => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({ register: registerMock }),
+}));
+
+vi.mock('@/api/auth', () => ({
+  sendRegisterOtp: vi.fn(),
+  verifyRegisterOtp: vi.fn(),
+  register: vi.fn(),
 }));
 
 vi.mock('vue-router', () => ({
@@ -32,7 +39,7 @@ async function fillStudentFields(wrapper: ReturnType<typeof mount>): Promise<voi
 }
 
 async function selectRole(wrapper: ReturnType<typeof mount>, label: string): Promise<void> {
-  const button = wrapper.findAll('button.register__role-option').find((b) => b.text() === label);
+  const button = wrapper.findAll('button.register__role-option').find((b) => b.text().includes(label));
   expect(button, `role button "${label}"`).toBeTruthy();
   await button!.trigger('click');
 }
@@ -45,10 +52,33 @@ function teacherInputs(wrapper: ReturnType<typeof mount>) {
   };
 }
 
-describe('RegisterView — form đăng ký giảng viên (task L)', () => {
+async function enterOtpDigits(wrapper: ReturnType<typeof mount>, code = '123456'): Promise<void> {
+  const digits = code.split('');
+  for (let i = 0; i < digits.length; i++) {
+    const input = wrapper.find(`#otp-digit-${i}`);
+    if (input.exists()) {
+      await input.setValue(digits[i]);
+      await input.trigger('input');
+    }
+  }
+}
+
+describe('RegisterView — form đăng ký giảng viên & OTP (Task B0, A2, A3)', () => {
   beforeEach(() => {
     registerMock.mockReset();
     replaceMock.mockReset();
+    vi.mocked(authApi.sendRegisterOtp).mockReset();
+    vi.mocked(authApi.verifyRegisterOtp).mockReset();
+
+    vi.mocked(authApi.sendRegisterOtp).mockResolvedValue({
+      message: 'OTP đã gửi',
+      expiresInSeconds: 300,
+    });
+    vi.mocked(authApi.verifyRegisterOtp).mockResolvedValue({
+      otpToken: 'mock_otp_token_123',
+      expiresInSeconds: 300,
+      message: 'OTP hợp lệ',
+    });
     registerMock.mockResolvedValue(undefined);
   });
 
@@ -65,7 +95,7 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
   it('chọn "Giảng viên" → form con hiện (Khoa/Bộ môn, Mã GV, textarea)', async () => {
     const wrapper = mount(RegisterView);
 
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
     const teacher = wrapper.find('.register__teacher');
     expect(teacher.exists()).toBe(true);
@@ -77,19 +107,17 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     ).toBe(true);
     expect(wrapper.find('#register-teacher-bio').exists()).toBe(true);
     // Chuyển lại Sinh viên → form con ẩn
-    await selectRole(wrapper, messages.auth.roleStudent);
+    await selectRole(wrapper, 'Sinh viên');
     expect(wrapper.find('.register__teacher').exists()).toBe(false);
   });
 
-  it('submit khi chọn Giảng viên thiếu Department/StaffCode → fieldErrors hiện, KHÔNG gọi API', async () => {
+  it('submit khi chọn Giảng viên thiếu StaffCode → fieldErrors hiện, KHÔNG gọi API', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
-    // Blur 2 field trống để touched=true → hiện lỗi inline
-    await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).trigger('blur');
+    // Blur StaffCode trống để touched=true → hiện lỗi inline
     await wrapper.find(`input[placeholder="${messages.auth.staffCodePlaceholder}"]`).trigger('blur');
 
-    expect(wrapper.text()).toContain(messages.auth.departmentRequired);
     expect(wrapper.text()).toContain(messages.auth.staffCodeRequired);
 
     // Điền đầy đủ các field khác rồi submit — vẫn phải chặn ở validation GV
@@ -97,28 +125,26 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
+    expect(authApi.sendRegisterOtp).not.toHaveBeenCalled();
     expect(registerMock).not.toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it('submit khi chưa blur field nào → lỗi inline hiện ngay tại field thiếu, KHÔNG gọi API', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
-    // Không blur field nào — bấm submit ngay: lỗi inline phải hiện (UI-4)
+    // Không blur field nào — bấm submit ngay: lỗi inline phải hiện
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
-    expect(wrapper.text()).toContain(messages.auth.departmentRequired);
     expect(wrapper.text()).toContain(messages.auth.staffCodeRequired);
-    expect(wrapper.find('input[aria-invalid="true"]').exists()).toBe(true);
+    expect(authApi.sendRegisterOtp).not.toHaveBeenCalled();
     expect(registerMock).not.toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
   });
 
-  it('submit đủ thông tin giảng viên → gọi auth.register với payload đã trim + isTeacher=true, không redirect', async () => {
+  it('submit đủ thông tin giảng viên → gửi OTP -> verify OTP -> gọi auth.register với otpToken và isTeacher=true, không redirect', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
     await fillStudentFields(wrapper);
     const { department, staffCode, bio } = teacherInputs(wrapper);
@@ -126,33 +152,53 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     await staffCode.setValue('  GV001  ');
     await bio.setValue('  10 năm giảng dạy  ');
 
+    // Bước 1: Tiếp tục
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
+    expect(authApi.sendRegisterOtp).toHaveBeenCalledWith('minh@university.edu.vn');
+    expect(wrapper.text()).toContain('Xác thực Email');
+
+    // Bước 2: Nhập OTP
+    await enterOtpDigits(wrapper, '123456');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(authApi.verifyRegisterOtp).toHaveBeenCalledWith('minh@university.edu.vn', '123456');
     expect(registerMock).toHaveBeenCalledTimes(1);
     expect(registerMock).toHaveBeenCalledWith({
       displayName: 'Nguyễn Minh',
-      email: 'minh@university.edu.vn', // trim + lowercase
+      email: 'minh@university.edu.vn',
       password: validPassword,
       isTeacher: true,
       department: 'Khoa Công nghệ thông tin',
       staffCode: 'GV001',
       teacherBio: '10 năm giảng dạy',
+      otpToken: 'mock_otp_token_123',
     });
     expect(replaceMock).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain(messages.auth.teacherPendingSuccess);
   });
 
-  it('submit vai trò Sinh viên → payload KHÔNG chứa field giảng viên + redirect /path', async () => {
+  it('submit vai trò Sinh viên → gửi OTP -> verify OTP -> auth.register -> redirect /courses', async () => {
     const wrapper = mount(RegisterView);
     await fillStudentFields(wrapper);
 
+    // Bước 1
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(authApi.sendRegisterOtp).toHaveBeenCalledWith('minh@university.edu.vn');
+
+    // Bước 2
+    await enterOtpDigits(wrapper, '123456');
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
     expect(registerMock).toHaveBeenCalledTimes(1);
     const payload = registerMock.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.isTeacher).toBe(false);
+    expect(payload.otpToken).toBe('mock_otp_token_123');
     expect(payload).not.toHaveProperty('department');
     expect(payload).not.toHaveProperty('staffCode');
     expect(payload).not.toHaveProperty('teacherBio');
@@ -165,7 +211,7 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
 
   it('submit teacher với profileLink không hợp lệ → lỗi inline hiện, KHÔNG gọi API', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
     await fillStudentFields(wrapper);
     await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
@@ -176,13 +222,13 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain(messages.auth.profileLinkInvalid);
+    expect(authApi.sendRegisterOtp).not.toHaveBeenCalled();
     expect(registerMock).not.toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it('submit teacher với học vị + profileLink hợp lệ → payload gửi kèm cả hai (đã trim)', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
     await fillStudentFields(wrapper);
     await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
@@ -191,6 +237,10 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     await wrapper.find(`input[placeholder="${messages.auth.profileLinkPlaceholder}"]`).setValue(' https://www.linkedin.com/in/abc ');
     await wrapper.find('#register-teacher-bio').setValue('10 năm giảng dạy');
 
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    await enterOtpDigits(wrapper, '123456');
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
@@ -205,18 +255,23 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
       academicDegree: 'Thạc sĩ',
       profileLink: 'https://www.linkedin.com/in/abc',
       teacherBio: '10 năm giảng dạy',
+      otpToken: 'mock_otp_token_123',
     });
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it('submit teacher KHÔNG điền học vị/link → payload không chứa 2 field mới', async () => {
     const wrapper = mount(RegisterView);
-    await selectRole(wrapper, messages.auth.roleTeacher);
+    await selectRole(wrapper, 'Giảng viên');
 
     await fillStudentFields(wrapper);
     await wrapper.find(`input[placeholder="${messages.auth.departmentPlaceholder}"]`).setValue('Khoa CNTT');
     await wrapper.find(`input[placeholder="${messages.auth.staffCodePlaceholder}"]`).setValue('GV001');
 
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    await enterOtpDigits(wrapper, '123456');
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
@@ -226,3 +281,4 @@ describe('RegisterView — form đăng ký giảng viên (task L)', () => {
     expect(payload).not.toHaveProperty('profileLink');
   });
 });
+

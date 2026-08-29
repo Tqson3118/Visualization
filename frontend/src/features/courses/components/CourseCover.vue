@@ -176,7 +176,9 @@ const iconKey = computed(() => {
 const badgeLabel = computed(() => {
   const c = category.value;
   if (!c) return 'DSA';
-  return c.toUpperCase().slice(0, 14);
+  const upper = c.toUpperCase();
+  if (upper.length <= 20) return upper;
+  return upper.slice(0, 20);
 });
 
 // Gradient id phải duy nhất theo course để tránh xung đột khi nhiều SVG cùng trang.

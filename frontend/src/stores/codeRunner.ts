@@ -80,6 +80,17 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     editorCode.value = TEMPLATES[simKey] ?? `// Chưa có code mẫu cho '${simKey}'\n// Code chạy trong sandbox: array (mảng dữ liệu), compare(i,j), swap(i,j)\n`;
     runState.value = 'idle';
     runError.value = null;
+
+    // Nạp lịch sử trước đó từ localStorage nếu có
+    try {
+      const localKey = `coderun_history_${simKey}`;
+      const saved = JSON.parse(localStorage.getItem(localKey) ?? '[]') as CodeRunSummary[];
+      if (Array.isArray(saved)) {
+        submissions.value = saved;
+      }
+    } catch {
+      submissions.value = [];
+    }
   }
 
   /** Chạy code trong sandbox client (SDD §4.0.3 — runCode; giới hạn 50.000 event). */
@@ -101,33 +112,87 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
       if (result.error) {
         runState.value = 'error';
         runError.value = `Lỗi dòng ${result.error.line}: ${result.error.message}`;
+
+        const errSummary: CodeRunSummary = {
+          id: Date.now(),
+          exerciseId: null,
+          key: key.value,
+          code: editorCode.value,
+          status: 'Error',
+          durationMs: 0,
+          output: null,
+          error: `Dòng ${result.error.line}: ${result.error.message}`,
+          passed: 0,
+          total: 1,
+          createdAt: new Date().toISOString(),
+        };
+        lastRun.value = errSummary;
+        submissions.value = [errSummary, ...submissions.value.filter(s => s.id !== errSummary.id)];
+        saveHistoryToLocal();
         return null;
       }
       lastOutput.value = result.output;
       lastStats.value = result.stats;
       runState.value = 'passed';
-      // Lưu vết lần chạy lên server (bỏ qua lỗi mạng — chạy client vẫn OK).
-      // Contract CodeRunRequest = {exerciseId?, key, code, input? (string), status, durationMs, ...} — ADR-012 (SETUP_TODO §6.7)
+
+      // Lưu vết lần chạy lên server và đồng bộ lịch sử
+      let savedSummary: CodeRunSummary;
       try {
-        lastRun.value = await codeRunnerApi.saveCodeRun({
+        const saved = await codeRunnerApi.saveCodeRun({
           key: key.value,
           code: editorCode.value,
           input: JSON.stringify(defaultArray),
           status: 'Success',
           durationMs: result.stats?.durationMs ?? 0,
+          output: result.output !== undefined ? JSON.stringify(result.output) : null,
           stats: result.stats
             ? { comparisons: result.stats.comparisons, swaps: result.stats.swaps }
             : undefined,
         });
+        savedSummary = {
+          id: saved.id || Date.now(),
+          exerciseId: saved.exerciseId ?? null,
+          key: saved.key || key.value,
+          code: editorCode.value,
+          status: saved.status || 'Success',
+          durationMs: saved.durationMs ?? (result.stats?.durationMs ?? 0),
+          output: saved.output ?? (result.output !== undefined ? JSON.stringify(result.output) : null),
+          passed: 1,
+          total: 1,
+          createdAt: saved.createdAt || new Date().toISOString(),
+        };
       } catch {
-        lastRun.value = null;
+        savedSummary = {
+          id: Date.now(),
+          exerciseId: null,
+          key: key.value,
+          code: editorCode.value,
+          status: 'Success',
+          durationMs: result.stats?.durationMs ?? 0,
+          output: result.output !== undefined ? JSON.stringify(result.output) : null,
+          passed: 1,
+          total: 1,
+          createdAt: new Date().toISOString(),
+        };
       }
+      lastRun.value = savedSummary;
+      submissions.value = [savedSummary, ...submissions.value.filter(s => s.id !== savedSummary.id)];
+      saveHistoryToLocal();
+
       return result;
     } catch (err) {
       runState.value = 'error';
       runError.value = err instanceof Error ? err.message : 'Lỗi không xác định khi chạy code.';
       return null;
     }
+  }
+
+  function saveHistoryToLocal(): void {
+    if (!key.value) return;
+    try {
+      const localKey = `coderun_history_${key.value}`;
+      localStorage.setItem(localKey, JSON.stringify(submissions.value.slice(0, 30)));
+    } catch {}
   }
 
   async function submit(exerciseId: number, classAssignmentId?: number | null): Promise<CodeSubmitResult> {
@@ -145,11 +210,39 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     }
   }
 
-  async function fetchHistory(exerciseId: number): Promise<void> {
-    try {
-      submissions.value = await codeRunnerApi.fetchMyCodeSubmissions(exerciseId);
-    } catch {
-      submissions.value = [];
+  async function fetchHistory(exerciseId?: number | null): Promise<void> {
+    if (exerciseId && exerciseId > 0) {
+      try {
+        const remote = await codeRunnerApi.fetchMyCodeSubmissions(exerciseId);
+        if (Array.isArray(remote) && remote.length > 0) {
+          const map = new Map<number, CodeRunSummary>();
+          for (const s of submissions.value) map.set(s.id, s);
+          for (const r of remote) map.set(r.id, r);
+          submissions.value = Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          saveHistoryToLocal();
+          return;
+        }
+      } catch {
+        // Giữ nguyên submissions hiện tại
+      }
+    }
+
+    // Nạp từ localStorage
+    if (key.value) {
+      try {
+        const localKey = `coderun_history_${key.value}`;
+        const saved = JSON.parse(localStorage.getItem(localKey) ?? '[]') as CodeRunSummary[];
+        if (Array.isArray(saved) && saved.length > 0) {
+          const map = new Map<number, CodeRunSummary>();
+          for (const s of submissions.value) map.set(s.id, s);
+          for (const s of saved) map.set(s.id, s);
+          submissions.value = Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+        }
+      } catch {}
     }
   }
 

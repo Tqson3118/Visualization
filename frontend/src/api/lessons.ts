@@ -22,6 +22,7 @@ export interface Topic {
   name: string;
   description: string;
   sortOrder: number;
+  createdBy?: number;
   children: Topic[];
 }
 

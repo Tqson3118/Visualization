@@ -4,6 +4,9 @@ import type { Lesson, QuizQuestion, CodeLabTask } from '../types/lesson.types';
 import { fetchLessonProgress, saveLessonProgress, awardXp, fetchLessonDetail, getLessonAuthToken, type LessonDetailResponse } from '../services/lessonApi';
 import { statelessQuizApi } from '../../quiz-system/service/statelessQuizApi';
 import { parseSandboxDemo, parseSandboxSimulationKey } from '../utils/sandboxConfig';
+import { useAuthStore } from '@/stores/auth';
+import { useCourseStore } from '@/features/courses/store/useCourseStore';
+import { courseApi, type CourseDetailDto } from '@/services/courseApi';
 
 /** Thông tin bổ sung từ backend (không nằm trong Lesson local). */
 export interface LessonMeta {
@@ -78,12 +81,48 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     }
   }
 
-  function markLessonCompleted(id: string) {
+  async function markLessonCompleted(id: string) {
     if (!completedLessonIds.value.includes(id)) {
       completedLessonIds.value.push(id);
       localStorage.setItem('dsa.completedLessons', JSON.stringify(completedLessonIds.value));
     }
     lessonFinished.value = true;
+
+    // Chặn nhận XP free nếu bài học thuộc lộ trình mà user chưa tham gia lộ trình đó
+    if (lessonMeta.value?.courseId) {
+      try {
+        const courseStore = useCourseStore();
+        if (!courseStore.isEnrolled(String(lessonMeta.value.courseId))) {
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (currentLesson.value) {
+      const totalXp = currentLesson.value.xpReward ?? 100;
+      if (xpAwarded.value < totalXp) {
+        const diff = totalXp - xpAwarded.value;
+        try {
+          await awardXp(diff, `Hoàn thành bài học: ${currentLesson.value.title}`);
+          xpAwarded.value += diff;
+          saveToLocalStorage();
+          try {
+            const authStore = useAuthStore();
+            if (authStore.user) {
+              authStore.user.xp = (authStore.user.xp ?? 0) + diff;
+            }
+          } catch {
+            // Pinia store update
+          }
+        } catch (e) {
+          console.warn('API award-xp lỗi, lưu XP local', e);
+          xpAwarded.value += diff;
+          saveToLocalStorage();
+        }
+      }
+    }
   }
 
   // ── Computed ──
@@ -329,9 +368,50 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           activeStep.value = 3;
         }
       } catch (e) {
-        console.warn('Không tải được bài học từ server:', e);
-        currentLesson.value = null;
-        error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';
+        console.warn('Không tải được bài học từ server, thử tìm từ lộ trình khóa học:', e);
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const courseIdParam = urlParams.get('courseId') || '7';
+          const courseData = await courseApi.getCourseById(courseIdParam) as unknown as CourseDetailDto;
+          const found = courseData.lessons?.find(l => String(l.id) === String(lessonId));
+          if (found && requestId === lessonLoadRequestId) {
+            const detail: LessonDetailResponse = {
+              id: String(found.id),
+              courseId: String(courseData.id),
+              courseTitle: courseData.title,
+              title: found.title,
+              contentMd: found.contentMd || '',
+              sandboxType: found.sandboxType || 'dsa',
+              sandboxConfig: found.sandboxConfig || '',
+              quizId: found.quizId || null,
+              exerciseId: null,
+              xpReward: found.xpReward || 100,
+              orderIndex: found.orderIndex || 0,
+              status: found.status || 'NotStarted',
+              lastActiveFrameIndex: 0,
+              lastScrollPercent: 0,
+            };
+            const lesson = await buildLessonFromApi(detail);
+            if (requestId !== lessonLoadRequestId) return;
+            currentLesson.value = lesson;
+            lessonMeta.value = {
+              courseId: detail.courseId,
+              courseTitle: detail.courseTitle,
+              quizId: detail.quizId,
+              exerciseId: detail.exerciseId,
+              sandboxType: detail.sandboxType,
+              sandboxConfig: detail.sandboxConfig,
+              orderIndex: detail.orderIndex,
+            };
+            error.value = null;
+          } else {
+            currentLesson.value = null;
+            error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';
+          }
+        } catch {
+          currentLesson.value = null;
+          error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';
+        }
       }
     } else if (!currentLesson.value) {
       error.value = 'Không tìm thấy bài học';
@@ -423,6 +503,12 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           xpAwarded.value += diff;
           saveToLocalStorage();
           await syncToServer(true);
+          try {
+            const authStore = useAuthStore();
+            if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
+          } catch {
+            // Pinia store update
+          }
         } catch (e) {
           console.warn('API award-xp lỗi, lưu XP local', e);
           xpAwarded.value += diff;
@@ -453,6 +539,12 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           xpAwarded.value += diff;
           saveToLocalStorage();
           await syncToServer(true);
+          try {
+            const authStore = useAuthStore();
+            if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
+          } catch {
+            // Pinia store update
+          }
         } catch (e) {
           console.warn('API award-xp lỗi, lưu XP local', e);
           xpAwarded.value += diff;

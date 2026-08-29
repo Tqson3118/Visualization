@@ -38,8 +38,8 @@
         :disabled="vcrStore.totalFrames === 0"
         :aria-label="vcrStore.isPlaying ? 'Tạm dừng' : 'Phát'"
         :aria-pressed="vcrStore.isPlaying"
-        class="w-9 h-9 flex items-center justify-center rounded-xl font-bold transition-all shadow-md shadow-accent/30 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
-        :class="vcrStore.isPlaying ? 'bg-accent-red hover:bg-accent-red-light text-white' : 'bg-accent hover:bg-accent-hover text-white'"
+        class="w-9 h-9 flex items-center justify-center rounded-xl font-bold transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+        :class="vcrStore.isPlaying ? 'bg-accent-red hover:bg-accent-red-light text-white shadow-md shadow-accent-red/30' : 'bg-accent-green hover:bg-accent-green-light text-white shadow-md shadow-accent-green/30'"
         title="Phát / Tạm dừng"
       >
         <BaseIcon v-if="vcrStore.isPlaying" name="pause" class="w-4 h-4" />

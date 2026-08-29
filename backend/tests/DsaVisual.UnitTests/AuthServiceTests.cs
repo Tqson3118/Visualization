@@ -1,6 +1,7 @@
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Services;
 using DsaVisual.UnitTests;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,13 +23,21 @@ public class AuthServiceTests
         IsTeacher = false
     };
 
+    /// <summary>B0 helper: xây RegisterRequest + xin otpToken (send→verify) để đăng ký qua OTP — TestServices.DevOtpCode = "123456".</summary>
+    private static async Task<RegisterRequest> ValidRegisterWithOtp(AuthService service, string email = "minh@university.edu.vn")
+    {
+        var request = ValidRegister(email);
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, email);
+        return request;
+    }
+
     [Fact]
     public async Task Register_DuplicateEmail_ReturnsEmailExists()
     {
         var db = TestServices.CreateInMemoryDb(nameof(Register_DuplicateEmail_ReturnsEmailExists));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Register_DuplicateEmail_ReturnsEmailExists));
 
-        var first = await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        var first = await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
         var second = await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
@@ -63,6 +72,7 @@ public class AuthServiceTests
         request.IsTeacher = true;
         request.Department = "Khoa Công nghệ thông tin";
         request.StaffCode = "GV001";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -71,22 +81,23 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task Register_Teacher_MissingDepartment_ReturnsValidationFailed()
+    public async Task Register_Teacher_MissingDepartment_Succeeds_DepartmentOptional()
     {
-        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_MissingDepartment_ReturnsValidationFailed));
-        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_MissingDepartment_ReturnsValidationFailed));
+        // A2: Khoa/Bộ môn là TÙY CHỌN — không nhập Department vẫn đăng ký GV được
+        var db = TestServices.CreateInMemoryDb(nameof(Register_Teacher_MissingDepartment_Succeeds_DepartmentOptional));
+        var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Teacher_MissingDepartment_Succeeds_DepartmentOptional));
 
         var request = ValidRegister();
         request.IsTeacher = true;
         request.StaffCode = "GV001";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
-        Assert.NotNull(result.FieldErrors);
-        Assert.True(result.FieldErrors!.ContainsKey("department"));
-        Assert.False(result.FieldErrors.ContainsKey("staffCode"));
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var saved = await db.Users.SingleAsync(u => u.Email == "minh@university.edu.vn");
+        Assert.Null(saved.Department);
+        Assert.Equal("GV001", saved.StaffCode);
     }
 
     [Fact]
@@ -145,7 +156,8 @@ public class AuthServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
         Assert.NotNull(result.FieldErrors);
-        Assert.True(result.FieldErrors!.ContainsKey("department"));
+        // A2: Department toàn khoảng trắng → coi như bỏ trống → TÙY CHỌN, không còn lỗi
+        Assert.False(result.FieldErrors!.ContainsKey("department"));
         Assert.True(result.FieldErrors.ContainsKey("staffCode"));
         // Bio sau trim = rỗng → không lỗi độ dài
         Assert.False(result.FieldErrors.ContainsKey("teacherBio"));
@@ -163,6 +175,7 @@ public class AuthServiceTests
         request.Department = "Khoa Công nghệ thông tin";
         request.StaffCode = "GV001";
         request.TeacherBio = new string('b', 500);
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -224,6 +237,7 @@ public class AuthServiceTests
         request.IsTeacher = true;
         request.Department = new string('d', 100);
         request.StaffCode = "GV001";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -243,6 +257,7 @@ public class AuthServiceTests
         request.IsTeacher = true;
         request.Department = "Khoa Công nghệ thông tin";
         request.StaffCode = new string('s', 50);
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -263,6 +278,7 @@ public class AuthServiceTests
         request.Department = "Khoa Công nghệ thông tin";
         request.StaffCode = "GV001";
         request.TeacherBio = "   ";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -283,6 +299,7 @@ public class AuthServiceTests
         request.Department = new string('d', 101);
         request.StaffCode = new string('s', 51);
         request.TeacherBio = new string('b', 501);
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -304,6 +321,7 @@ public class AuthServiceTests
         request.Department = "  Khoa Công nghệ thông tin  ";
         request.StaffCode = "  GV001  ";
         request.TeacherBio = "  10 năm giảng dạy  ";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -325,6 +343,7 @@ public class AuthServiceTests
         request.Department = "Khoa Công nghệ thông tin";
         request.StaffCode = "GV001";
         request.TeacherBio = "Giới thiệu";
+        request.OtpToken = await TestServices.IssueRegisterOtpTokenAsync(service, request.Email);
 
         var result = await service.RegisterAsync(request, null, CancellationToken.None);
 
@@ -365,7 +384,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Register_Gmail_WithoutDomainSetting_Succeeds));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Register_Gmail_WithoutDomainSetting_Succeeds));
 
-        var result = await service.RegisterAsync(ValidRegister("student@gmail.com"), null, CancellationToken.None);
+        var result = await service.RegisterAsync(await ValidRegisterWithOtp(service, "student@gmail.com"), null, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.NotEqual(ErrorCodes.DOMAIN_NOT_ALLOWED, result.ErrorCode);
@@ -377,7 +396,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Register_UniversityEduVn_WithoutDomainSetting_Succeeds));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Register_UniversityEduVn_WithoutDomainSetting_Succeeds));
 
-        var result = await service.RegisterAsync(ValidRegister("student@university.edu.vn"), null, CancellationToken.None);
+        var result = await service.RegisterAsync(await ValidRegisterWithOtp(service, "student@university.edu.vn"), null, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
     }
@@ -398,7 +417,7 @@ public class AuthServiceTests
         });
         await db.SaveChangesAsync();
 
-        var result = await service.RegisterAsync(ValidRegister("student@gmail.com"), null, CancellationToken.None);
+        var result = await service.RegisterAsync(await ValidRegisterWithOtp(service, "student@gmail.com"), null, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.NotEqual(ErrorCodes.DOMAIN_NOT_ALLOWED, result.ErrorCode);
@@ -410,7 +429,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Login_Success_ReturnsTokenAndUser));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Login_Success_ReturnsTokenAndUser));
 
-        await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
         var result = await service.LoginAsync(new LoginRequest { Email = "minh@university.edu.vn", Password = "MatKhau@123" }, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -425,7 +444,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Login_WrongPassword_ReturnsInvalidCredentials));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Login_WrongPassword_ReturnsInvalidCredentials));
 
-        await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
         var result = await service.LoginAsync(new LoginRequest { Email = "minh@university.edu.vn", Password = "SaiMatKhau@1" }, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -438,7 +457,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Login_FiveWrongAttempts_LocksAccount));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Login_FiveWrongAttempts_LocksAccount));
 
-        await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
 
         var last = new Result<RefreshResponse>();
         for (var i = 0; i < 5; i++)
@@ -456,7 +475,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Refresh_RotatesAndInvalidatesOldToken));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Refresh_RotatesAndInvalidatesOldToken));
 
-        await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
         var login = await service.LoginAsync(
             new LoginRequest { Email = "minh@university.edu.vn", Password = "MatKhau@123" }, null, CancellationToken.None);
         Assert.True(login.IsSuccess);
@@ -477,7 +496,7 @@ public class AuthServiceTests
         var db = TestServices.CreateInMemoryDb(nameof(Refresh_ReplayToken_RevokesWholeChain));
         var service = TestServices.CreateAuthService(db, _clock, nameof(Refresh_ReplayToken_RevokesWholeChain));
 
-        await service.RegisterAsync(ValidRegister(), null, CancellationToken.None);
+        await service.RegisterAsync(await ValidRegisterWithOtp(service), null, CancellationToken.None);
         var login = await service.LoginAsync(
             new LoginRequest { Email = "minh@university.edu.vn", Password = "MatKhau@123" }, null, CancellationToken.None);
 

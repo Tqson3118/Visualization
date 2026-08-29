@@ -68,7 +68,7 @@ public class ClassesController(
             return invalid;
         }
 
-        var result = await _service.JoinAsync(CurrentUserId(), id, request, ct);
+        var result = await _service.JoinAsync(CurrentUserId(), CurrentRole(), id, request, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 
@@ -76,7 +76,14 @@ public class ClassesController(
     [HttpPost("join-by-code")]
     public async Task<ActionResult<ClassDetailDto>> JoinByCode([FromBody] JoinClassByCodeRequest request, CancellationToken ct)
     {
-        var result = await _service.JoinByCodeAsync(CurrentUserId(), request, ct);
+        var result = await _service.JoinByCodeAsync(CurrentUserId(), CurrentRole(), request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    [HttpGet("{id:int}/members")]
+    public async Task<ActionResult<List<ClassMemberDto>>> GetMembers([FromRoute] int id, CancellationToken ct)
+    {
+        var result = await _service.GetMembersAsync(CurrentUserId(), CurrentRole(), id, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 
@@ -99,6 +106,13 @@ public class ClassesController(
     public async Task<ActionResult> RemoveMember([FromRoute] int id, [FromRoute] int userId, CancellationToken ct)
     {
         var result = await _service.RemoveMemberAsync(CurrentUserId(), CurrentRole(), id, userId, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    [HttpGet("{id:int}/assignments")]
+    public async Task<ActionResult<List<ClassAssignmentDto>>> GetAssignments([FromRoute] int id, CancellationToken ct)
+    {
+        var result = await _service.GetAssignmentsAsync(CurrentUserId(), CurrentRole(), id, ct);
         return MapResultExtensions.MapResult(this, result);
     }
 

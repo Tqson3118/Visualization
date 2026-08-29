@@ -508,6 +508,10 @@ onUnmounted(stopPlay);
 </script>
 
 <style scoped>
+/* Sky/Ocean blue palette — intentionally different from brand purple.
+   Each sandbox has its own color identity for visual context switching.
+   Sorting → Purple | Graph → Cyan/Emerald | Stack/Queue → Sky blue */
+
 /* ── Root ── */
 .sq-root {
   display: flex; flex-direction: column; height: 100%; width: 100%;

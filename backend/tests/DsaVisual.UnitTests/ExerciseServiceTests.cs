@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
@@ -572,7 +572,7 @@ public class ExerciseServiceTests
         });
         await db.SaveChangesAsync();
 
-        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+        var result = await service.GetListAsync(null, null, null, null, null, null, 1, 10, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var dto = Assert.Single(result.Value!.Items);
@@ -588,7 +588,7 @@ public class ExerciseServiceTests
             new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 7, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
-        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+        var result = await service.GetListAsync(null, null, null, null, null, null, 1, 10, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var dto = Assert.Single(result.Value!.Items);
@@ -605,7 +605,7 @@ public class ExerciseServiceTests
             new ExerciseSubmission { UserId = 1, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
-        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+        var result = await service.GetListAsync(null, null, null, null, null, null, 1, 10, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var dto = Assert.Single(result.Value!.Items);
@@ -623,7 +623,7 @@ public class ExerciseServiceTests
             new ExerciseSubmission { UserId = 3, ExerciseId = exerciseId, Score = 10, AnswersJson = "{}", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
-        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+        var result = await service.GetListAsync(null, null, null, null, null, null, 1, 10, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var dto = Assert.Single(result.Value!.Items);
@@ -640,7 +640,7 @@ public class ExerciseServiceTests
             new CodeSubmission { UserId = 2, ExerciseId = exerciseId, Score = 10, PassedTests = 10, TotalTests = 10, Code = "x", ResultJson = "{}", SubmittedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
-        var result = await service.GetListAsync(null, null, null, 1, 10, CancellationToken.None);
+        var result = await service.GetListAsync(null, null, null, null, null, null, 1, 10, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var dto = Assert.Single(result.Value!.Items);

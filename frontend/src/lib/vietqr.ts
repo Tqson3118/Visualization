@@ -79,7 +79,21 @@ export function getCrc16(data: string): string {
 }
 
 /**
- * Build chuỗi EMVCo VietQR hoàn chỉnh (kèm CRC tag 63).
+ * Build chuỗi EMVCo VietQR hoàn chỉnh (kèm CRC tag 63) theo chuẩn NAPAS / VietQR:
+ * - `00` Payload Format Indicator = '01'
+ * - `01` Point of Initiation = '11' (Static)
+ * - `38` Merchant Account Information (NAPAS VietQR):
+ *        - `00`: GUID NAPAS 'A000000727'
+ *        - `01`: Beneficiary Bank Info (00: BIN, 01: Số tài khoản)
+ *        - `02`: Service code 'QRIBFTTA' (chuyển nhanh qua tài khoản)
+ * - `53` '704' (VND)
+ * - `54` Số tiền VND (không dấu phẩy)
+ * - `58` 'VN'
+ * - `59` Tên chủ tài khoản
+ * - `60` Thành phố (HANOI)
+ * - `62` Additional Data (08: Nội dung chuyển khoản)
+ * - `63` '04' + CRC16-CCITT (poly 0x1021, init 0xFFFF)
+ *
  * @param amount số tiền VND — VD 49000 (KHÔNG dấu phẩy, không format)
  * @param content nội dung CK tự động DSV{userId}T{months} (VD DSV1002T3)
  */
@@ -90,16 +104,22 @@ export function buildVietQrPayload(
 ): string {
   const tlv = (id: string, value: string): string => `${id}${getLength(value)}${value}`;
 
+  const beneficiaryInfo = tlv('00', beneficiary.bankBin) + tlv('01', beneficiary.bankNumber);
+  const merchantAccountInfo =
+    tlv('00', 'A000000727') +
+    tlv('01', beneficiaryInfo) +
+    tlv('02', 'QRIBFTTA');
+
   const head = [
     tlv('00', '01'), // payload format
-    tlv('01', '11'), // static (xem chú thích đầu file)
-    tlv('52', beneficiary.bankBin),
+    tlv('01', '11'), // static
+    tlv('38', merchantAccountInfo), // NAPAS VietQR info
     tlv('53', '704'), // VND
     tlv('54', String(amount)), // VD 49000 — không dấu phẩy
     tlv('58', 'VN'), // country
     tlv('59', beneficiary.name), // tên chủ TK
-    tlv('60', 'HANOI'), // thành phố (tùy chọn)
-    tlv('62', tlv('01', 'QRIBFTTA') + tlv('08', content)), // service code + nội dung CK
+    tlv('60', 'HANOI'), // thành phố
+    tlv('62', tlv('08', content)), // nội dung CK (tag 08 trong template 62)
   ].join('');
 
   const crcBlock = `${head}6304`;

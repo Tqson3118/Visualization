@@ -24,10 +24,10 @@ public sealed class GamificationService(
     ISimulationCatalogService catalog,
     ILogger<GamificationService> logger) : IGamificationService
 {
-    private const int SessionMinutes = 30;
-
+    private const int SessionMinutes = 36 * 60; // 36 giờ (2160 phút) theo quyết định PM
+ 
     // ── Hearts ────────────────────────────────────────────────
-
+ 
     public async Task<Result<HeartsStatusDto>> GetHeartsAsync(int userId, CancellationToken ct)
     {
         var user = await db.Users.AsNoTracking()
@@ -44,6 +44,30 @@ public sealed class GamificationService(
         await PersistHeartRegenAsync(userId, ct);
 
         return Result<HeartsStatusDto>.Ok(ComputeHearts(user));
+    }
+
+    public async Task<Result<HeartsStatusDto>> SpendHeartAsync(int userId, CancellationToken ct)
+    {
+        var user = await db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<HeartsStatusDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        await EnsureHeartsMaxSyncAsync(user, ct);
+        await PersistHeartRegenAsync(user, ct);
+
+        var affected = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Users SET Hearts = Hearts - 1 WHERE Id = {userId} AND Hearts > 0", ct);
+        if (affected == 0)
+        {
+            return Result<HeartsStatusDto>.Fail(ErrorCodes.HEARTS_EMPTY,
+                "Bạn cần ít nhất 1 tim để đăng ký lộ trình. Hãy chờ hồi hoặc nâng cấp Premium.");
+        }
+
+        var updatedUser = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+        return Result<HeartsStatusDto>.Ok(ComputeHearts(updatedUser));
     }
 
     // ── Gamification summary (level + XP — hồi đáp UI) ──────
@@ -229,11 +253,29 @@ public sealed class GamificationService(
         // 1 transaction: gia hạn session hết hạn / tạo session mới (UNIQUE) → trừ tim (SDD §7.3.29, v2.5)
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // (b) Gia hạn session hết hạn: ROWCOUNT=1 → session mới, KHÔNG trừ tim
+        // (b) Gia hạn session hết hạn: ROWCOUNT=1 → session mới
         var renewed = await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE NodeSessions SET StartedAt = {now}, ExpiresAt = {expiresAt}, Stage = {request?.Stage}, StepIndex = {request?.StepIndex} WHERE UserId = {userId} AND NodeId = {nodeId} AND ExpiresAt < {now}", ct);
 
-        if (renewed == 0)
+        if (renewed > 0)
+        {
+            // Hết hạn + chưa pass → TRỪ 1 tim; Hết hạn + đã pass → xem lại FREE (FEAT-02)
+            if (!alreadyPassed)
+            {
+                var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+                await PersistHeartRegenAsync(user, ct);
+
+                var affected = await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Hearts = Hearts - 1 WHERE Id = {userId} AND Hearts > 0", ct);
+                if (affected == 0)
+                {
+                    await tx.RollbackAsync(ct);
+                    return Result<NodeEnterResultDto>.Fail(ErrorCodes.HEARTS_EMPTY,
+                        "Bạn đã hết tim. Hãy chờ hồi hoặc nâng cấp Premium.");
+                }
+            }
+        }
+        else
         {
             // (c) INSERT — UNIQUE (UserId, NodeId) tuần tự hóa double-spend
             var insertFailed = false;

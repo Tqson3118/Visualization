@@ -53,6 +53,22 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown);
   checkFavorite();
   initResponsive();
+
+  if (route.query.input) {
+    try {
+      const rawInput = route.query.input as string;
+      const parsed = JSON.parse(decodeURIComponent(rawInput));
+      if (parsed !== null && parsed !== undefined) {
+        if (parsed && typeof parsed === 'object' && 'data' in parsed) {
+          void configureInput(parsed as any);
+        } else {
+          void configureInput({ data: parsed } as any);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse input from query string', e);
+    }
+  }
 });
 
 const {
@@ -231,9 +247,7 @@ function onKeydown(event: KeyboardEvent): void {
       break;
     case 'End':
       if (steps.value.length > 0) {
-        reset();
-        stepForward();
-        while (!isLast.value) stepForward();
+        jumpTo(steps.value.length - 1);
       }
       break;
     case '[':

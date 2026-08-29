@@ -15,9 +15,14 @@ export const CODE_RUNNER_ENDPOINTS = {
 export interface CodeRunSummary {
   id: number;
   exerciseId: number | null;
-  status: 'pending' | 'running' | 'passed' | 'failed' | 'error';
-  passed: number | null;
-  total: number | null;
+  key?: string;
+  code?: string;
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'error' | 'Success' | 'Error' | string;
+  durationMs?: number;
+  output?: string | null;
+  error?: string | null;
+  passed?: number | null;
+  total?: number | null;
   createdAt: string;
 }
 

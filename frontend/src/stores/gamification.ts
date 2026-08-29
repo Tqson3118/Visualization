@@ -5,6 +5,7 @@ import * as gamificationApi from '@/api/gamification';
 import type {
   AchievementDto,
   GamificationSummaryDto,
+  HeartsStatusDto,
   InventoryItemDto,
   PremiumStatusDto,
   QuestDto,
@@ -13,8 +14,8 @@ import type {
 
 /** Store gamification theo SDD §3.2 — Module J (ADR-011) — triển khai thật với API. */
 export const useGamificationStore = defineStore('gamification', () => {
-  const hearts = ref(0);
-  const heartsMax = ref(5);
+  const hearts = ref(10);
+  const heartsMax = ref(10);
   const lastHeartAt = ref<string | null>(null);
   const gems = ref(0);
   const streakDays = ref(0);
@@ -72,6 +73,14 @@ export const useGamificationStore = defineStore('gamification', () => {
   async function enterNode(pathId: number, nodeId: number): Promise<{ session: unknown; heartsLeft: number }> {
     const result = await gamificationApi.enterNode(pathId, nodeId);
     hearts.value = result.heartsLeft;
+    return result;
+  }
+
+  async function spendHeart(): Promise<HeartsStatusDto> {
+    const result = await gamificationApi.spendHeart();
+    hearts.value = result.hearts;
+    heartsMax.value = result.heartsMax;
+    lastHeartAt.value = result.lastHeartAt;
     return result;
   }
 
@@ -189,6 +198,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     fetchHearts,
     fetchSummary,
     enterNode,
+    spendHeart,
     fetchQuests,
     claimQuest,
     fetchInventory,

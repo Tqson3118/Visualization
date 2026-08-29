@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // HomeView — Màn 01: trang chủ công khai (SDD Màn 01).
 // Tân trang 15/08: chủ đề "vũ trụ toán học" — sao/nebula/lưới tọa độ/glyph công thức
 // nổi (O(log n), Σ, √, λ...) + panel demo chạy engine THẬT kiểu terminal glass.
@@ -7,6 +7,7 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import {
+  AlertCircle,
   ArrowRight,
   ArrowUpDown,
   Gauge,
@@ -16,6 +17,7 @@ import {
   Play,
   Search,
   Target,
+  Users,
 } from 'lucide-vue-next';
 
 import type { Component, Directive } from 'vue';
@@ -23,10 +25,13 @@ import type { InputConfig, Step } from '@/engines/core/types';
 import { CATALOG } from '@/engines/catalog';
 import { getSimulation } from '@/engines/registry';
 import { messages } from '@/i18n/vi';
+import { getActivePinia } from 'pinia';
+import { useAuthStore } from '@/stores/auth';
 import Button from '@/components/ui/Button.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
 
 const router = useRouter();
+const auth = getActivePinia() ? useAuthStore() : ({ role: null, isAuthenticated: false } as unknown as ReturnType<typeof useAuthStore>);
 
 /* ── v-reveal: hiện dần khi lướt xuống (IntersectionObserver — fade + slide lên).
    `v-reveal` không delay, `v-reveal="120"` → delay 120ms (stagger cho card). ── */
@@ -245,7 +250,41 @@ function blockStatusClass(status: string): string {
             {{ messages.home.heroTitle }}
           </h1>
           <p class="home__subtitle">{{ messages.home.heroSubtitle }}</p>
-          <div class="home__cta">
+          <div v-if="auth.role === 'TEACHER_PENDING'" class="home__pending-banner" role="status">
+            <AlertCircle class="home__pending-icon" :size="18" aria-hidden="true" />
+            <span>Tài khoản chờ Admin phê duyệt</span>
+          </div>
+          <div v-else-if="auth.role === 'TEACHER'" class="home__cta">
+            <RouterLink :to="{ path: '/studio' }" class="home__cta-primary">
+              Vào Studio Soạn bài
+              <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+            </RouterLink>
+            <RouterLink :to="{ name: 'classes' }" class="home__cta-ghost">
+              <Users class="home__cta-ghost-icon" :size="15" aria-hidden="true" />
+              Quản lý lớp học
+            </RouterLink>
+          </div>
+          <div v-else-if="auth.role === 'ADMIN'" class="home__cta">
+            <RouterLink :to="{ name: 'admin-users' }" class="home__cta-primary">
+              Admin Console
+              <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+            </RouterLink>
+            <RouterLink :to="{ path: '/studio' }" class="home__cta-ghost">
+              <Layers class="home__cta-ghost-icon" :size="15" aria-hidden="true" />
+              Studio Lộ trình
+            </RouterLink>
+          </div>
+          <div v-else-if="auth.isAuthenticated" class="home__cta">
+            <RouterLink :to="{ name: 'courses' }" class="home__cta-primary">
+              Vào học Lộ trình
+              <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+            </RouterLink>
+            <RouterLink :to="{ name: 'simulations' }" class="home__cta-ghost">
+              <Play class="home__cta-ghost-icon" :size="15" aria-hidden="true" />
+              Mô phỏng thuật toán
+            </RouterLink>
+          </div>
+          <div v-else class="home__cta">
             <RouterLink :to="{ name: 'courses' }" class="home__cta-primary">
               {{ messages.home.ctaExplore }}
               <ArrowRight class="home__cta-arrow" aria-hidden="true" />
@@ -451,13 +490,44 @@ function blockStatusClass(status: string): string {
       <div class="home__cta-band-inner" v-reveal>
         <h2 class="home__cta-band-title">{{ messages.home.ctaBandTitle }}</h2>
         <p class="home__cta-band-desc">{{ messages.home.ctaBandDesc }}</p>
-        <div class="home__cta">
+        <div v-if="auth.role === 'TEACHER_PENDING'" class="home__pending-banner" role="status">
+          <AlertCircle class="home__pending-icon" :size="18" aria-hidden="true" />
+          <span>Tài khoản chờ Admin phê duyệt</span>
+        </div>
+        <div v-else-if="auth.role === 'TEACHER'" class="home__cta">
+          <RouterLink :to="{ path: '/studio' }" class="home__cta-primary">
+            Vào Studio Soạn bài
+            <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+          </RouterLink>
+          <RouterLink :to="{ name: 'classes' }" class="home__cta-ghost">
+            Quản lý lớp học
+          </RouterLink>
+        </div>
+        <div v-else-if="auth.role === 'ADMIN'" class="home__cta">
+          <RouterLink :to="{ name: 'admin-users' }" class="home__cta-primary">
+            Admin Console
+            <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+          </RouterLink>
+          <RouterLink :to="{ path: '/studio' }" class="home__cta-ghost">
+            Studio Lộ trình
+          </RouterLink>
+        </div>
+        <div v-else-if="auth.isAuthenticated" class="home__cta">
           <RouterLink :to="{ name: 'courses' }" class="home__cta-primary">
             {{ messages.home.ctaGoCourses }}
             <ArrowRight class="home__cta-arrow" aria-hidden="true" />
           </RouterLink>
           <RouterLink :to="{ name: 'simulations' }" class="home__cta-ghost">
             {{ messages.home.ctaGoSims }}
+          </RouterLink>
+        </div>
+        <div v-else class="home__cta">
+          <RouterLink :to="{ name: 'courses' }" class="home__cta-primary">
+            {{ messages.home.ctaGoCourses }}
+            <ArrowRight class="home__cta-arrow" aria-hidden="true" />
+          </RouterLink>
+          <RouterLink :to="{ name: 'register' }" class="home__cta-ghost">
+            Đăng ký học ngay
           </RouterLink>
         </div>
       </div>
@@ -796,6 +866,24 @@ function blockStatusClass(status: string): string {
   backdrop-filter: blur(12px) saturate(1.3);
   color: var(--cos-text);
   border: 1px solid var(--cos-border-strong);
+}
+
+.home__pending-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-lg);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.home__pending-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
 .home__cta-ghost:hover {

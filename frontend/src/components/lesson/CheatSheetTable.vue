@@ -21,6 +21,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/button/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { messages } from '@/i18n/vi';
+import { normalizeVi } from '@/utils/searchNormalize';
 
 const emit = defineEmits<{
   'open-simulation': [key: string];
@@ -42,9 +43,14 @@ const filtered = computed(() => {
   if (activeGroup.value !== messages.cheatsheet.all) {
     list = list.filter((item) => item.dataStructure === activeGroup.value);
   }
-  const q = filterKey.value.trim().toLowerCase();
+  const q = normalizeVi(filterKey.value);
   if (q) {
-    list = list.filter((item) => item.key.toLowerCase().includes(q) || item.title.toLowerCase().includes(q));
+    list = list.filter((item) => {
+      const normKey = normalizeVi(item.key);
+      const normTitle = normalizeVi(item.title);
+      const normDataStructure = normalizeVi(item.dataStructure);
+      return normKey.includes(q) || normTitle.includes(q) || normDataStructure.includes(q);
+    });
   }
   return list;
 });
@@ -104,7 +110,7 @@ const REFERENCE_DOCS = [
 <template>
   <section class="cheatsheet">
     <!-- Top Action Bar for PDF Print -->
-    <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print-hide">
+    <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print-hide no-print">
       <div>
         <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
           <FileText :size="20" class="text-vdsa-accent" />
@@ -151,7 +157,7 @@ const REFERENCE_DOCS = [
     </div>
 
     <!-- 2. BỘ TÀI LIỆU PDF & THAM KHẢO CHÍNH THỐNG -->
-    <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4 print-hide">
+    <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4 print-hide no-print">
       <h3 class="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
         <BookOpen :size="16" class="text-vdsa-purple-light" />
         2. Tài Liệu PDF &amp; Nguồn Tra Cứu Chính Thống
@@ -181,14 +187,14 @@ const REFERENCE_DOCS = [
 
     <!-- 3. BẢNG CHI TIẾT ĐỘ PHỨC TẠP 44 MÔ PHỎNG (INTERACTIVE TABLE) -->
     <div class="space-y-4">
-      <div class="flex items-center justify-between print-hide">
+      <div class="flex items-center justify-between print-hide no-print">
         <h3 class="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
           <Layers :size="16" class="text-vdsa-accent" />
           3. Bảng Chi Tiết Độ Phức Tạp {{ CATALOG.length }} Thuật Toán &amp; Cấu Trúc Dữ Liệu
         </h3>
       </div>
 
-      <header class="cheatsheet__header print-hide">
+      <header class="cheatsheet__header print-hide no-print">
         <div class="cheatsheet__filters" role="group" :aria-label="messages.cheatsheet.filterGroupAria">
           <Button
             v-for="group in groups"
@@ -234,7 +240,7 @@ const REFERENCE_DOCS = [
               <th scope="col">{{ messages.cheatsheet.colAverage }}</th>
               <th scope="col">{{ messages.cheatsheet.colWorst }}</th>
               <th scope="col">{{ messages.cheatsheet.colSpace }}</th>
-              <th scope="col" class="print-hide" :aria-label="messages.cheatsheet.colAction"></th>
+              <th scope="col" class="print-hide no-print" :aria-label="messages.cheatsheet.colAction"></th>
             </tr>
           </thead>
           <tbody>
@@ -261,7 +267,7 @@ const REFERENCE_DOCS = [
               <td :data-label="messages.cheatsheet.colSpace">
                 <code class="cheatsheet__bigo">{{ item.complexity.space }}</code>
               </td>
-              <td class="print-hide" :data-label="messages.cheatsheet.colAction">
+              <td class="print-hide no-print" :data-label="messages.cheatsheet.colAction">
                 <div class="cheatsheet__actions">
                   <a
                     v-if="referenceUrl(item.key)"
@@ -290,7 +296,7 @@ const REFERENCE_DOCS = [
         </table>
       </div>
 
-      <footer class="cheatsheet__footer print-hide">
+      <footer class="cheatsheet__footer print-hide no-print">
         {{ messages.cheatsheet.source(CATALOG.length) }}
       </footer>
     </div>
@@ -461,31 +467,54 @@ const REFERENCE_DOCS = [
 
 /* ── PDF Print Styles: In A4 chuẩn và đẹp ── */
 @media print {
-  .print-hide { display: none !important; }
-  .cheatsheet { padding: 0 !important; gap: 12px !important; }
+  .print-hide,
+  .no-print {
+    display: none !important;
+  }
+  .cheatsheet {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 12px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .cheatsheet__table-wrap {
+    overflow: visible !important;
+  }
   .cheatsheet__table {
     background: #ffffff !important;
     color: #000000 !important;
-    border: 1px solid #333333 !important;
-    font-size: 11px !important;
+    border: 1px solid #d1d5db !important;
+    font-size: 11pt !important;
+    width: 100% !important;
     min-width: 100% !important;
+    box-shadow: none !important;
   }
   .cheatsheet__table th {
-    background: #f0f0f0 !important;
+    background: #f3f4f6 !important;
     color: #000000 !important;
-    border-bottom: 1px solid #333333 !important;
+    border: 1px solid #d1d5db !important;
     font-weight: bold !important;
   }
   .cheatsheet__table td {
     color: #000000 !important;
-    border-bottom: 1px solid #e0e0e0 !important;
-    padding: 6px 8px !important;
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 10px !important;
+    background: #ffffff !important;
+  }
+  .cheatsheet__table tbody tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .cheatsheet__name {
+    color: #000000 !important;
+    font-weight: 600 !important;
   }
   .cheatsheet__bigo {
     background: #f3f4f6 !important;
     color: #111827 !important;
     border: 1px solid #d1d5db !important;
-    font-weight: bold !important;
+    font-weight: 600 !important;
   }
 }
 </style>

@@ -145,8 +145,9 @@ export async function submitCodelab(exerciseId: string, code: string, taskId: st
   if (!res.ok) {
     let message = `Máy chủ chấm bài thất bại (HTTP ${res.status})`;
     try {
-      const body = await res.json() as { message?: string };
-      if (body?.message) message = body.message;
+      const body = await res.json() as { message?: string; error?: { message?: string } };
+      if (body?.error?.message) message = body.error.message;
+      else if (body?.message) message = body.message;
     } catch {
       // giữ message mặc định
     }

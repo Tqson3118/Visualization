@@ -15,12 +15,7 @@ export interface ModalState {
 const THEME_KEY = 'dsa.theme';
 
 function readStoredTheme(): 'light' | 'dark' {
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
-  } catch {
-    /* localStorage unavailable — fallback dark */
-  }
+  // Web chỉ dùng Dark Mode — luôn trả 'dark' bất kể localStorage
   return 'dark';
 }
 

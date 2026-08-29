@@ -106,6 +106,12 @@ async function onSubmit(): Promise<void> {
             Nộp bài
           </Button>
         </div>
+
+        <!-- Thanh progress màu xám khi đang chạy code (F1) -->
+        <div v-if="codeStore.isRunning" class="w-full h-1 bg-gray-700 rounded overflow-hidden mt-2">
+          <div class="h-full bg-gray-400 animate-pulse w-full"></div>
+        </div>
+
         <p v-if="codeStore.runError" class="code-stage__status code-stage__status--error" role="alert">
           {{ codeStore.runError }}
         </p>

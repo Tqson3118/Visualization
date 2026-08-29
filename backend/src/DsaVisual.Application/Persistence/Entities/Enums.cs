@@ -18,6 +18,15 @@ public enum LessonStatus
     Hidden = 3          // Tạm ẩn
 }
 
+/// <summary>Trạng thái lộ trình học (0=Draft, 1=PendingReview, 2=Active, 3=Rejected).</summary>
+public enum LearningPathStatus
+{
+    Draft = 0,          // GV đang soạn
+    PendingReview = 1,  // GV đã gửi duyệt, chờ Admin
+    Active = 2,         // Admin đã duyệt, SV thấy được
+    Rejected = 3        // Admin từ chối, GV sửa lại
+}
+
 /// <summary>Loại bài tập (SDD §7.3.9: 0=MCQ, 1=SIMULATION_PREDICT, 2=SIMULATION_LAB, 3=CODE).</summary>
 public enum ExerciseType
 {

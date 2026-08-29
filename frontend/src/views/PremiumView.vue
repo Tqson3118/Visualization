@@ -23,13 +23,14 @@ import Modal from '@/components/ui/Modal.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
 import { messages } from '@/i18n/vi';
 
-// ── TK nhận tiền (pm-decision-log-gp.md — ĐÃ CHỐT, KHÔNG đổi) ──
+// ── TK nhận tiền (pm-decision-log-gp.md) ──
 const MB_BENEFICIARY = {
-  bankBin: '970422', // MB Bank
-  bankNumber: '83863112088386',
-  name: 'NGUYEN THI NHU HOA',
+  bankBin: (import.meta.env.VITE_BANK_BIN as string) || '970422', // MB Bank
+  bankNumber: (import.meta.env.VITE_BANK_NUMBER as string) || '83863112088386',
+  name: (import.meta.env.VITE_BANK_NAME as string) || 'NGUYEN THI NHU HOA',
 } as const;
-const ACCOUNT_DISPLAY = '8386 3112 0883 86';
+const ACCOUNT_DISPLAY = (import.meta.env.VITE_BANK_NUMBER_DISPLAY as string) || '8386 3112 0883 86';
+
 
 // ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược ──
 const COUNTDOWN_SECONDS = 60;
@@ -181,20 +182,40 @@ async function copyContent(): Promise<void> {
   }
 }
 
+watch(checkoutPlan, (val) => {
+  if (!val) {
+    if (redirectTimer) {
+      clearTimeout(redirectTimer);
+      redirectTimer = null;
+    }
+    stopCountdown();
+    success.value = false;
+    step.value = 1;
+  }
+});
+
 async function confirmPaid(): Promise<void> {
   if (!checkoutPlan.value || !confirmEnabled.value) return;
   paying.value = true;
   try {
-    // Bước 1: tạo đơn checkout (OrderRef = DSV{userId}T{months}) → Bước 2: mock-pay kích hoạt ngay
+    // Bước 1: tạo đơn checkout (OrderRef = DSV{userId}T{months})
     const order = await gamificationApi.upgradePremium(checkoutPlan.value.id);
-    await gamificationApi.mockPayPremium(order.orderId);
-    success.value = true;
-    fireConfetti('success');
-    await gamification.fetchPremium();
-    ui.showToast(messages.premium.upgraded, 'success');
-    redirectTimer = setTimeout(() => void router.replace({ name: 'home' }), 2500);
+    
+    // Bước 2: thử kích hoạt mock-pay nếu môi trường cho phép
+    try {
+      await gamificationApi.mockPayPremium(order.orderId);
+      await gamification.fetchPremium();
+      ui.showToast(messages.premium.upgraded, 'success');
+      fireConfetti('success');
+      success.value = true;
+      redirectTimer = setTimeout(() => void router.replace({ name: 'home' }), 3000);
+    } catch {
+      // Khi server tắt MockPay (production), hệ thống ghi nhận đơn và đóng modal
+      ui.showToast('Đã ghi nhận thông tin chuyển khoản (Mã đơn: ' + order.contentRef + '). Gói Premium sẽ được kích hoạt sau khi hệ thống đối soát.', 'info');
+      checkoutPlan.value = null;
+    }
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Xác nhận chuyển khoản thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : 'Tạo yêu cầu chuyển khoản thất bại.', 'error');
   } finally {
     paying.value = false;
   }

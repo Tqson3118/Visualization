@@ -23,6 +23,7 @@ import { courseApi, type CourseFeedbackDto } from '@/services/courseApi';
 import * as adminApi from '@/api/admin';
 import type { SystemSettingsDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
+import { normalizeVi } from '@/utils/searchNormalize';
 import AdminNav from '@/components/admin/AdminNav.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -142,10 +143,10 @@ const filteredReports = computed(() => {
     if (statusFilter.value && r.status !== statusFilter.value) return false;
     if (typeFilter.value && r.type !== typeFilter.value) return false;
     if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim();
-      const matchContent = r.content?.toLowerCase().includes(q);
-      const matchUser = r.userName?.toLowerCase().includes(q);
-      const matchCourse = r.courseTitle?.toLowerCase().includes(q);
+      const q = normalizeVi(searchQuery.value);
+      const matchContent = normalizeVi(r.content).includes(q);
+      const matchUser = normalizeVi(r.userName).includes(q);
+      const matchCourse = normalizeVi(r.courseTitle).includes(q);
       if (!matchContent && !matchUser && !matchCourse) return false;
     }
     return true;

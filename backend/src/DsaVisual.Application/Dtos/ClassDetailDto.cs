@@ -16,7 +16,7 @@ public sealed class ClassDetailDto
     // ── Learning Path / Curriculum (per-class) ──
     public string? CurriculumTitle { get; set; }
     public string? CurriculumDescription { get; set; }
-    public bool CurriculumPublished { get; set; } = true;
+    public bool CurriculumPublished { get; set; } = false;
 
     public List<ClassMemberDto> Members { get; set; } = [];
     public List<ClassAssignmentDto> Assignments { get; set; } = [];

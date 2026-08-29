@@ -258,7 +258,7 @@ public sealed class ClassService(
 
     // ── Thành viên ────────────────────────────────────────────
 
-    public async Task<Result<ClassDetailDto>> JoinAsync(int userId, int id, JoinClassRequest request, CancellationToken ct)
+    public async Task<Result<ClassDetailDto>> JoinAsync(int userId, string role, int id, JoinClassRequest request, CancellationToken ct)
     {
         var classRoom = await db.Classes.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
@@ -291,14 +291,14 @@ public sealed class ClassService(
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("User {UserId} joined class {ClassId}", userId, id);
-        return await GetByIdAsync(userId, RoleTeacher, id, ct);
+        return await GetByIdAsync(userId, role, id, ct);
     }
 
     /// <summary>
     /// v2.15 (Vấn đề 14/4.1): tham gia lớp bằng mã mời — tìm Class theo InviteCode, kiểm tra
     /// Status == Open, thêm vào ClassMembers. Sinh viên không cần biết classId trước.
     /// </summary>
-    public async Task<Result<ClassDetailDto>> JoinByCodeAsync(int userId, JoinClassByCodeRequest request, CancellationToken ct)
+    public async Task<Result<ClassDetailDto>> JoinByCodeAsync(int userId, string role, JoinClassByCodeRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.InviteCode))
         {
@@ -334,7 +334,7 @@ public sealed class ClassService(
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("User {UserId} joined class {ClassId} by invite code {InviteCode}", userId, classRoom.Id, code);
-        return await GetByIdAsync(userId, RoleTeacher, classRoom.Id, ct);
+        return await GetByIdAsync(userId, role, classRoom.Id, ct);
     }
 
     public async Task<Result<ClassDetailDto>> AddMemberAsync(int userId, string role, int id, AddMemberRequest request, CancellationToken ct)
@@ -391,6 +391,38 @@ public sealed class ClassService(
 
         logger.LogInformation("Member {MemberId} removed from class {ClassId} by user {UserId}", memberUserId, id, userId);
         return Result.Ok();
+    }
+
+    public async Task<Result<List<ClassMemberDto>>> GetMembersAsync(int userId, string role, int id, CancellationToken ct)
+    {
+        var classRoom = await db.Classes.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
+        if (classRoom is null)
+        {
+            return Result<List<ClassMemberDto>>.Fail(ErrorCodes.NOT_FOUND, "Lớp học không tồn tại");
+        }
+
+        var canManage = CanManage(userId, role, classRoom);
+        var isMember = await db.ClassMembers.AsNoTracking()
+            .AnyAsync(m => m.ClassId == id && m.UserId == userId, ct);
+        if (!canManage && !isMember)
+        {
+            return Result<List<ClassMemberDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem danh sách thành viên lớp này");
+        }
+
+        var members = await db.ClassMembers.AsNoTracking()
+            .Where(m => m.ClassId == id)
+            .OrderBy(m => m.JoinedAt)
+            .Join(db.Users.AsNoTracking(), m => m.UserId, u => u.Id, (m, u) => new ClassMemberDto
+            {
+                UserId = u.Id,
+                DisplayName = u.DisplayName,
+                Email = canManage ? u.Email : EmailMasker.Mask(u.Email),
+                JoinedAt = m.JoinedAt
+            })
+            .ToListAsync(ct);
+
+        return Result<List<ClassMemberDto>>.Ok(members);
     }
 
     // ── Bài gán ───────────────────────────────────────────────
@@ -463,10 +495,7 @@ public sealed class ClassService(
             return Result.Fail(ErrorCodes.NOT_FOUND, "Bài gán không tồn tại");
         }
 
-        if (request.DueAt is { } dueAt)
-        {
-            assignment.DueAt = dueAt;
-        }
+        assignment.DueAt = request.DueAt;
 
         // v2.15: cho phép GV bật/tắt nhận bài muộn
         if (request.AllowLateSubmission is { } allowLate)
@@ -501,6 +530,17 @@ public sealed class ClassService(
         return Result.Ok();
     }
 
+    public async Task<Result<List<ClassAssignmentDto>>> GetAssignmentsAsync(int userId, string role, int id, CancellationToken ct)
+    {
+        var detailResult = await GetByIdAsync(userId, role, id, ct);
+        if (!detailResult.IsSuccess)
+        {
+            return Result<List<ClassAssignmentDto>>.Fail(detailResult.ErrorCode!, detailResult.ErrorMessage!, detailResult.FieldErrors!);
+        }
+
+        return Result<List<ClassAssignmentDto>>.Ok(detailResult.Value!.Assignments);
+    }
+
     // ── Lộ trình học (Curriculum) ────────────────────────────
 
     public async Task<Result<ClassDetailDto>> UpdateCurriculumAsync(int userId, string role, int id, ClassCurriculumUpsertRequest request, CancellationToken ct)
@@ -525,7 +565,7 @@ public sealed class ClassService(
                     "Tiêu đề lộ trình tối đa 200 ký tự", new() { ["title"] = ["Tiêu đề lộ trình tối đa 200 ký tự"] });
             }
 
-            classRoom.CurriculumTitle = title;
+            classRoom.CurriculumTitle = string.IsNullOrEmpty(title) ? null : title;
         }
 
         if (request.Description is not null)
@@ -537,7 +577,7 @@ public sealed class ClassService(
                     "Mô tả lộ trình tối đa 500 ký tự", new() { ["description"] = ["Mô tả lộ trình tối đa 500 ký tự"] });
             }
 
-            classRoom.CurriculumDescription = description;
+            classRoom.CurriculumDescription = string.IsNullOrEmpty(description) ? null : description;
         }
 
         if (request.Published is { } published)
@@ -547,7 +587,8 @@ public sealed class ClassService(
 
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Class {ClassId} curriculum updated by user {UserId}", id, userId);
+        logger.LogInformation("Class {ClassId} curriculum updated by user {UserId} (Title: {Title}, Published: {Published})",
+            id, userId, classRoom.CurriculumTitle, classRoom.CurriculumPublished);
         return await GetByIdAsync(userId, role, id, ct);
     }
 
@@ -657,10 +698,11 @@ public sealed class ClassService(
             : new List<UserProgress>();
         var lessonProgressByLesson = lessonProgress.ToDictionary(p => p.LessonId);
 
-        var exerciseDone = exerciseIds.Count > 0
+        var assignmentIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.Id).ToList();
+        var exerciseDone = assignmentIds.Count > 0
             ? await db.ExerciseSubmissions.AsNoTracking()
-                .Where(s => s.UserId == userId && exerciseIds.Contains(s.ExerciseId) && s.Score > 0)
-                .Select(s => s.ExerciseId)
+                .Where(s => s.UserId == userId && s.ClassAssignmentId != null && assignmentIds.Contains(s.ClassAssignmentId.Value) && s.Score > 0)
+                .Select(s => s.ClassAssignmentId!.Value)
                 .Distinct()
                 .ToListAsync(ct)
             : new List<int>();
@@ -674,7 +716,7 @@ public sealed class ClassService(
             {
                 completedAssignments.Add(assignment.Id);
             }
-            else if (assignment.ExerciseId is { } exerciseId && exerciseDoneSet.Contains(exerciseId))
+            else if (assignment.ExerciseId is { } exerciseId && exerciseDoneSet.Contains(assignment.Id))
             {
                 completedAssignments.Add(assignment.Id);
             }
@@ -768,8 +810,7 @@ public sealed class ClassService(
 
         var assignmentIds = assignments.Select(a => a.Id).ToList();
 
-        // findings-biz #15 + perf #8: chỉ đếm submissions của member HIỆN TẠI (member đã kick không tính)
-        // và chỉ projection cột cần (không kéo AnswersJson/ResultJson)
+        // findings-biz #15 + perf #8: chỉ đếm submissions/tiến độ của member HIỆN TẠI (member đã kick không tính)
         var submissions = assignmentIds.Count > 0 && memberIds.Count > 0
             ? await db.ExerciseSubmissions.AsNoTracking()
                 .Where(s => s.ClassAssignmentId != null
@@ -793,25 +834,67 @@ public sealed class ClassService(
                 .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
             : new Dictionary<int, string>();
 
+        // Query tiến độ bài học của các thành viên trong lớp (UserProgress)
+        var lessonProgresses = lessonIds.Count > 0 && memberIds.Count > 0
+            ? await db.UserProgress.AsNoTracking()
+                .Where(p => memberIds.Contains(p.UserId) && lessonIds.Contains(p.LessonId) && p.CompletedAt != null)
+                .Select(p => new { p.UserId, p.LessonId, CompletedAt = p.CompletedAt!.Value, BestScore = p.BestScore ?? 100 })
+                .ToListAsync(ct)
+            : [];
+
         var reportAssignments = new List<ClassReportAssignmentDto>();
+        var completedAssignmentsByUser = memberIds.ToDictionary(id => id, _ => 0);
+
         foreach (var assignment in assignments)
         {
-            // findings-biz #15 (c): count distinct (User, Assignment) — nộp trùng cùng user không đếm 2 lần;
-            // lấy bài nộp SỚM NHẤT của từng user để xếp OnTime/Late
-            var firstByUser = submissions
-                .Where(s => s.ClassAssignmentId == assignment.Id)
-                .GroupBy(s => s.UserId)
-                .Select(g => g.OrderBy(s => s.SubmittedAt).First())
-                .ToList();
-            var onTime = firstByUser.Count(s => s.SubmittedAt <= (assignment.DueAt ?? DateTime.MaxValue));
-            var late = firstByUser.Count - onTime;
-            var notSubmitted = totalMembers - firstByUser.Count;
-            var avg = firstByUser.Count > 0 ? firstByUser.Average(s => (double)s.Score) : 0;
+            int onTime = 0;
+            int late = 0;
+            int notSubmitted = 0;
+            double avg = 0;
 
-            var title = assignment.LessonId is { } lessonId
-                ? lessonTitles.GetValueOrDefault(lessonId)
-                : assignment.ExerciseId is { } exerciseId
-                    ? exerciseTitles.GetValueOrDefault(exerciseId)
+            if (assignment.LessonId is { } lessonId)
+            {
+                var lessonCompletedList = lessonProgresses.Where(p => p.LessonId == lessonId).ToList();
+                onTime = lessonCompletedList.Count(p => p.CompletedAt <= (assignment.DueAt ?? DateTime.MaxValue));
+                late = lessonCompletedList.Count - onTime;
+                notSubmitted = totalMembers - lessonCompletedList.Count;
+                avg = lessonCompletedList.Count > 0 ? lessonCompletedList.Average(p => (double)p.BestScore) : 0;
+
+                foreach (var p in lessonCompletedList)
+                {
+                    if (completedAssignmentsByUser.ContainsKey(p.UserId))
+                    {
+                        completedAssignmentsByUser[p.UserId]++;
+                    }
+                }
+            }
+            else if (assignment.ExerciseId is { })
+            {
+                // findings-biz #15 (c): count distinct (User, Assignment) — nộp trùng cùng user không đếm 2 lần;
+                // lấy bài nộp SỚM NHẤT của từng user để xếp OnTime/Late
+                var firstByUser = submissions
+                    .Where(s => s.ClassAssignmentId == assignment.Id)
+                    .GroupBy(s => s.UserId)
+                    .Select(g => g.OrderBy(s => s.SubmittedAt).First())
+                    .ToList();
+                onTime = firstByUser.Count(s => s.SubmittedAt <= (assignment.DueAt ?? DateTime.MaxValue));
+                late = firstByUser.Count - onTime;
+                notSubmitted = totalMembers - firstByUser.Count;
+                avg = firstByUser.Count > 0 ? firstByUser.Average(s => (double)s.Score) : 0;
+
+                foreach (var s in firstByUser)
+                {
+                    if (completedAssignmentsByUser.ContainsKey(s.UserId))
+                    {
+                        completedAssignmentsByUser[s.UserId]++;
+                    }
+                }
+            }
+
+            var title = assignment.LessonId is { } lid
+                ? lessonTitles.GetValueOrDefault(lid)
+                : assignment.ExerciseId is { } eid
+                    ? exerciseTitles.GetValueOrDefault(eid)
                     : null;
 
             reportAssignments.Add(new ClassReportAssignmentDto
@@ -826,13 +909,12 @@ public sealed class ClassService(
             });
         }
 
-        // Học viên chậm tiến độ: thiếu ≥ 2 bài gán (FR-8.4) — submissions đã lọc theo memberIds hiện tại
-        var submittedByUser = submissions.GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.Count());
+        // Học viên chậm tiến độ: thiếu ≥ 2 bài gán (FR-8.4)
         var lagging = memberIds
             .Select(memberId => new
             {
                 MemberId = memberId,
-                Missing = assignments.Count - submittedByUser.GetValueOrDefault(memberId)
+                Missing = assignments.Count - completedAssignmentsByUser.GetValueOrDefault(memberId)
             })
             .Where(x => x.Missing >= 2)
             .OrderByDescending(x => x.Missing)
@@ -868,21 +950,33 @@ public sealed class ClassService(
 
         var data = report.Value!;
         var sb = new StringBuilder();
-        sb.AppendLine("ClassId,ClassName,TotalMembers");
-        sb.AppendLine($"{data.ClassId},{Csv(data.ClassName)},{data.TotalMembers}");
-        sb.AppendLine("AssignmentId,Title,DueAt,OnTime,Late,NotSubmitted,AvgScore");
+        // C8: Header tổng quát
+        sb.AppendLine($"Báo cáo lớp,{Csv(data.ClassName)},Tổng học viên,{data.TotalMembers}");
+        sb.AppendLine();
+        // C8: Bảng 1 — thống kê bài tập (cột đơn giản, không có AssignmentId kỳ lạ)
+        sb.AppendLine("Bảng 1: Thống kê bài tập");
+        sb.AppendLine("STT,Tên bài tập / Bài học,Hạn nộp,Nộp đúng hạn,Nộp muộn,Chưa nộp,Điểm TB");
+        var idx = 1;
         foreach (var assignment in data.Assignments)
         {
-            sb.AppendLine($"{assignment.AssignmentId},{Csv(assignment.Title)},{assignment.DueAt:O},{assignment.OnTime},{assignment.Late},{assignment.NotSubmitted},{assignment.AvgScore.ToString(CultureInfo.InvariantCulture)}");
+            var dueStr = assignment.DueAt.HasValue
+                ? assignment.DueAt.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                : "Không giới hạn";
+            sb.AppendLine($"{idx++},{Csv(assignment.Title)},{Csv(dueStr)},{assignment.OnTime},{assignment.Late},{assignment.NotSubmitted},{assignment.AvgScore.ToString("F1", CultureInfo.InvariantCulture)}");
         }
-
-        sb.AppendLine("LaggingLearnerId,DisplayName,MissingCount");
+        sb.AppendLine();
+        // C8: Bảng 2 — học viên chậm tiến độ
+        sb.AppendLine("Bảng 2: Học viên chậm tiến độ (thiếu ≥ 2 bài)");
+        sb.AppendLine("STT,Tên học viên,Số bài còn thiếu");
+        var idx2 = 1;
         foreach (var learner in data.LaggingLearners)
         {
-            sb.AppendLine($"{learner.UserId},{Csv(learner.DisplayName)},{learner.MissingCount}");
+            sb.AppendLine($"{idx2++},{Csv(learner.DisplayName)},{learner.MissingCount}");
         }
 
-        var content = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        var preamble = Encoding.UTF8.GetPreamble();
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var content = preamble.Concat(bytes).ToArray();
         return Result<CsvFileDto>.Ok(new CsvFileDto
         {
             FileName = $"report_class_{data.ClassId}_{clock.UtcNow:yyyyMMdd}.csv",
@@ -994,16 +1088,37 @@ public sealed class ClassService(
                     });
                 }
             }
+            else if (node.FinalTestId is { } testId)
+            {
+                var alreadyExists = existingAssignments.Any(a => a.ExerciseId == testId);
+                if (!alreadyExists)
+                {
+                    maxSort++;
+                    db.ClassAssignments.Add(new ClassAssignment
+                    {
+                        ClassId = id,
+                        ExerciseId = testId,
+                        SortOrder = maxSort,
+                        CreatedAt = now,
+                        AllowLateSubmission = true
+                    });
+                }
+            }
         }
 
         await db.SaveChangesAsync(ct);
         return await GetByIdAsync(userId, role, id, ct);
     }
 
-    private static string Csv(string value) =>
-        value.Contains(',') || value.Contains('"')
-            ? $"\"{value.Replace("\"", "\"\"")}\""
-            : value;
+    private static string Csv(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "\"\"";
+        }
+
+        return $"\"{value.Replace("\"", "\"\"")}\"";
+    }
 
     /// <summary>Projection gọn cho report (perf #8 — không kéo AnswersJson/ResultJson).</summary>
     private sealed class SubmissionCountRow

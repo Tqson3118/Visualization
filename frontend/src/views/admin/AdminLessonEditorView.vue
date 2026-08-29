@@ -42,6 +42,7 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Input from '@/components/ui/Input.vue';
+import TipTapEditor from '@/components/ui/TipTapEditor.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -81,6 +82,7 @@ async function handleAiFormat(): Promise<void> {
 
 // View Mode: 'split' | 'editor' | 'preview'
 const viewMode = ref<'split' | 'editor' | 'preview'>('split');
+const editorType = ref<'wysiwyg' | 'markdown'>('wysiwyg');
 
 // Dữ liệu Topics & Simulations
 const topics = ref<Topic[]>([]);
@@ -95,6 +97,7 @@ const form = reactive({
   topicId: 1,
   sortOrder: 1,
   status: 'active' as LessonStatusValue,
+  isClassOnly: false,
   markdown: '',
   selectedSimulations: [] as string[],
 });
@@ -134,6 +137,7 @@ onMounted(async () => {
         form.topicId = lesson.topicId;
         form.sortOrder = lesson.sortOrder;
         form.status = lesson.status;
+        form.isClassOnly = lesson.isClassOnly || false;
         form.selectedSimulations = (lesson.simulations || []).map((s) => s.simulationKey);
 
         // Trích xuất markdown nếu có hoặc hiển thị nội dung
@@ -407,20 +411,34 @@ async function handleSave(): Promise<void> {
   try {
     const htmlContent = parseMarkdownToHtml(form.markdown);
 
+    // Quyền Teacher: nếu chọn nội bộ lớp -> active ngay; nếu chọn công khai toàn hệ thống và đang active -> chuyển pendingreview
+    let saveStatus = form.status;
+    if (auth.role === 'TEACHER') {
+      if (form.isClassOnly) {
+        saveStatus = 'active';
+      } else if (form.status === 'active') {
+        saveStatus = 'pendingreview';
+      }
+    }
+
     const payload: lessonsApi.LessonUpsertRequest = {
       topicId: Number(form.topicId),
       title: form.title.trim(),
       description: form.description.trim() || undefined,
       contentHtml: htmlContent,
-      status: form.status,
-      isClassOnly: false,
+      status: saveStatus,
+      isClassOnly: form.isClassOnly,
       sortOrder: Number(form.sortOrder) || 1,
       simulationKeys: [...form.selectedSimulations],
     };
 
     if (isEdit.value && lessonId.value) {
       await lessonsApi.updateLesson(lessonId.value, payload);
-      ui.showToast('Đã cập nhật bài học thành công!', 'success');
+      if (saveStatus === 'pendingreview') {
+        ui.showToast('Đã lưu bài giảng! Yêu cầu xuất bản công khai đang chờ Quản trị viên duyệt.', 'info');
+      } else {
+        ui.showToast('Đã cập nhật bài học thành công!', 'success');
+      }
     } else {
       const created = await lessonsApi.createLesson(payload);
       if (route.query.courseId && created?.id) {
@@ -433,7 +451,13 @@ async function handleSave(): Promise<void> {
           // Bỏ qua nếu đã gắn
         }
       }
-      ui.showToast('Đã tạo bài học mới và gắn vào lộ trình thành công!', 'success');
+      if (saveStatus === 'pendingreview') {
+        ui.showToast('Đã tạo bài học mới! Bài học công khai đang chờ Quản trị viên phê duyệt.', 'info');
+      } else if (form.isClassOnly) {
+        ui.showToast('Đã tạo bài giảng lớp học và kích hoạt ngay cho sinh viên!', 'success');
+      } else {
+        ui.showToast('Đã tạo bài học mới và gắn vào lộ trình thành công!', 'success');
+      }
     }
 
     // Xóa nháp sau khi lưu thành công
@@ -581,39 +605,32 @@ function goBack(): void {
           />
         </div>
 
-        <!-- Markdown Formatting Toolbar -->
-        <div class="studio-toolbar">
-          <div class="studio-toolbar__group">
-            <button type="button" class="studio-tool-btn" title="Tiêu đề H1" @click="insertFormatting('# ', '', 'Tiêu đề 1')">H1</button>
-            <button type="button" class="studio-tool-btn" title="Tiêu đề H2" @click="insertFormatting('## ', '', 'Tiêu đề 2')">H2</button>
-            <button type="button" class="studio-tool-btn" title="Tiêu đề H3" @click="insertFormatting('### ', '', 'Tiêu đề 3')">H3</button>
-          </div>
-
-          <div class="studio-toolbar__group">
-            <button type="button" class="studio-tool-btn" title="In đậm" @click="insertFormatting('**', '**', 'văn bản đậm')"><b>B</b></button>
-            <button type="button" class="studio-tool-btn" title="In nghiêng" @click="insertFormatting('*', '*', 'văn bản nghiêng')"><i>I</i></button>
-            <button type="button" class="studio-tool-btn" title="Inline code" @click="insertFormatting('`', '`', 'code')">&lt;/&gt;</button>
-          </div>
-
-          <div class="studio-toolbar__group">
-            <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code C++" @click="insertFormatting('```cpp\n// Viết mã C++ ở đây\nvoid example() {\n    \n}\n', '```')">C++</button>
-            <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code Python" @click="insertFormatting('```python\n# Viết mã Python ở đây\ndef example():\n    pass\n', '```')">Python</button>
-            <button type="button" class="studio-tool-btn" title="Bảng biểu Markdown" @click="insertFormatting('\n| Cột 1 | Cột 2 | Cột 3 |\n| :--- | :--- | :--- |\n| Giá trị A | Giá trị B | Giá trị C |\n', '')">
-              <Table :size="13" /> Bảng
+        <!-- Mode Switcher: WYSIWYG Word-like TipTap vs Raw Markdown -->
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="editorType = 'wysiwyg'"
+              :class="editorType === 'wysiwyg' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-surface text-vdsa-secondary hover:text-white'"
+              class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
+            >
+              <PenTool :size="14" /> Soạn thảo trực quan kiểu Word (TipTap)
+            </button>
+            <button
+              type="button"
+              @click="editorType = 'markdown'"
+              :class="editorType === 'markdown' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-surface text-vdsa-secondary hover:text-white'"
+              class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
+            >
+              <FileCode :size="14" /> Soạn thảo Markdown (Split View)
             </button>
           </div>
 
-          <div class="studio-toolbar__group">
-            <button type="button" class="studio-tool-btn studio-tool-btn--note" title="Hộp Ghi chú (Note)" @click="insertFormatting('> [!NOTE]\n> ', '', 'Nội dung ghi chú quan trọng...')">📌 Note</button>
-            <button type="button" class="studio-tool-btn studio-tool-btn--tip" title="Hộp Mẹo hay (Tip)" @click="insertFormatting('> [!TIP]\n> ', '', 'Mẹo hay giúp giải nhanh...')">💡 Tip</button>
-            <button type="button" class="studio-tool-btn studio-tool-btn--warn" title="Hộp Chú ý (Warning)" @click="insertFormatting('> [!WARNING]\n> ', '', 'Lưu ý các trường hợp biên...')">⚠️ Warn</button>
-          </div>
-
-          <div class="studio-toolbar__group ml-auto">
+          <div v-if="editorType === 'wysiwyg'" class="text-xs text-vdsa-muted flex items-center gap-2">
             <button
               type="button"
               :disabled="aiFormatting || aiRemaining <= 0"
-              class="studio-tool-btn bg-purple-600/30 text-purple-300 border-purple-500/50 hover:bg-purple-600/50 flex items-center gap-1.5 font-bold"
+              class="studio-tool-btn bg-purple-600/30 text-purple-300 border-purple-500/50 hover:bg-purple-600/50 flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-xl"
               :title="aiRemaining <= 0 ? 'Đã hết lượt dùng AI miễn phí (5/5)' : 'Tự động chuẩn hóa & làm đẹp bài giảng bằng DeepSeek AI'"
               @click="handleAiFormat"
             >
@@ -622,6 +639,54 @@ function goBack(): void {
             </button>
           </div>
         </div>
+
+        <!-- Mode 1: TipTap WYSIWYG Word Editor -->
+        <div v-if="editorType === 'wysiwyg'" class="mb-4">
+          <TipTapEditor v-model="form.markdown" placeholder="Bắt đầu soạn thảo lý thuyết bài giảng trực quan kiểu Word..." />
+        </div>
+
+        <!-- Mode 2: Markdown Formatting Toolbar & Panes -->
+        <div v-else class="space-y-4">
+          <div class="studio-toolbar">
+            <div class="studio-toolbar__group">
+              <button type="button" class="studio-tool-btn" title="Tiêu đề H1" @click="insertFormatting('# ', '', 'Tiêu đề 1')">H1</button>
+              <button type="button" class="studio-tool-btn" title="Tiêu đề H2" @click="insertFormatting('## ', '', 'Tiêu đề 2')">H2</button>
+              <button type="button" class="studio-tool-btn" title="Tiêu đề H3" @click="insertFormatting('### ', '', 'Tiêu đề 3')">H3</button>
+            </div>
+
+            <div class="studio-toolbar__group">
+              <button type="button" class="studio-tool-btn" title="In đậm" @click="insertFormatting('**', '**', 'văn bản đậm')"><b>B</b></button>
+              <button type="button" class="studio-tool-btn" title="In nghiêng" @click="insertFormatting('*', '*', 'văn bản nghiêng')"><i>I</i></button>
+              <button type="button" class="studio-tool-btn" title="Inline code" @click="insertFormatting('`', '`', 'code')">&lt;/&gt;</button>
+            </div>
+
+            <div class="studio-toolbar__group">
+              <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code C++" @click="insertFormatting('```cpp\n// Viết mã C++ ở đây\nvoid example() {\n    \n}\n', '```')">C++</button>
+              <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code Python" @click="insertFormatting('```python\n# Viết mã Python ở đây\ndef example():\n    pass\n', '```')">Python</button>
+              <button type="button" class="studio-tool-btn" title="Bảng biểu Markdown" @click="insertFormatting('\n| Cột 1 | Cột 2 | Cột 3 |\n| :--- | :--- | :--- |\n| Giá trị A | Giá trị B | Giá trị C |\n', '')">
+                <Table :size="13" /> Bảng
+              </button>
+            </div>
+
+            <div class="studio-toolbar__group">
+              <button type="button" class="studio-tool-btn studio-tool-btn--note" title="Hộp Ghi chú (Note)" @click="insertFormatting('> [!NOTE]\n> ', '', 'Nội dung ghi chú quan trọng...')">📌 Note</button>
+              <button type="button" class="studio-tool-btn studio-tool-btn--tip" title="Hộp Mẹo hay (Tip)" @click="insertFormatting('> [!TIP]\n> ', '', 'Mẹo hay giúp giải nhanh...')">💡 Tip</button>
+              <button type="button" class="studio-tool-btn studio-tool-btn--warn" title="Hộp Chú ý (Warning)" @click="insertFormatting('> [!WARNING]\n> ', '', 'Lưu ý các trường hợp biên...')">⚠️ Warn</button>
+            </div>
+
+            <div class="studio-toolbar__group ml-auto">
+              <button
+                type="button"
+                :disabled="aiFormatting || aiRemaining <= 0"
+                class="studio-tool-btn bg-purple-600/30 text-purple-300 border-purple-500/50 hover:bg-purple-600/50 flex items-center gap-1.5 font-bold"
+                :title="aiRemaining <= 0 ? 'Đã hết lượt dùng AI miễn phí (5/5)' : 'Tự động chuẩn hóa & làm đẹp bài giảng bằng DeepSeek AI'"
+                @click="handleAiFormat"
+              >
+                <Sparkles :size="13" class="text-purple-400" :class="{ 'animate-spin': aiFormatting }" />
+                {{ aiFormatting ? 'AI đang format...' : `✨ Format AI (${aiRemaining}/5)` }}
+              </button>
+            </div>
+          </div>
 
         <!-- Khung soạn thảo & Preview (Tùy theo viewMode) -->
         <div class="studio-editor-panes" :class="`studio-editor-panes--${viewMode}`">
@@ -653,6 +718,7 @@ function goBack(): void {
             <div class="studio-preview-content prose-vdsa" v-html="renderedPreviewHtml" />
           </div>
         </div>
+      </div>
       </main>
 
       <!-- CỘT PHẢI (28%): CÀI ĐẶT BÀI HỌC & GẮN MÔ PHỎNG TƯƠNG TÁC -->
@@ -692,10 +758,30 @@ function goBack(): void {
               <div>
                 <label class="studio-label">Trạng thái</label>
                 <select v-model="form.status" class="studio-select">
-                  <option value="active">Công khai (Active)</option>
+                  <option value="active">Kích hoạt (Active)</option>
                   <option value="draft">Bản nháp (Draft)</option>
                   <option value="hidden">Tạm ẩn (Hidden)</option>
                 </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="studio-label">Phạm vi phát hành</label>
+              <div class="space-y-2 mt-1">
+                <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-vdsa-border bg-white/5 cursor-pointer hover:border-vdsa-accent/50 transition-colors" :class="{ 'border-vdsa-accent bg-vdsa-accent/10': !form.isClassOnly }">
+                  <input type="radio" :value="false" v-model="form.isClassOnly" class="mt-0.5" />
+                  <div>
+                    <span class="text-xs font-bold text-white block">Công khai toàn hệ thống</span>
+                    <span class="text-[11px] text-vdsa-muted block">Gửi Quản trị viên duyệt trước khi phát hành cho mọi học viên.</span>
+                  </div>
+                </label>
+                <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-vdsa-border bg-white/5 cursor-pointer hover:border-emerald-500/50 transition-colors" :class="{ 'border-emerald-500 bg-emerald-500/10': form.isClassOnly }">
+                  <input type="radio" :value="true" v-model="form.isClassOnly" class="mt-0.5" />
+                  <div>
+                    <span class="text-xs font-bold text-emerald-400 block">Nội bộ lớp học của tôi</span>
+                    <span class="text-[11px] text-vdsa-muted block">Kích hoạt ngay — dùng để gán trực tiếp cho học viên trong lớp.</span>
+                  </div>
+                </label>
               </div>
             </div>
           </div>

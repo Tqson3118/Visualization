@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -10,6 +10,7 @@ import {
   Flame,
   Frame,
   Image as ImageIcon,
+  KeyRound,
   Lock,
   Medal,
   Package,
@@ -24,6 +25,8 @@ import {
   ShieldCheck,
   Calendar,
   Sparkles,
+  Upload,
+  Crown,
 } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
@@ -43,6 +46,7 @@ import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
 import Input from '@/components/ui/Input.vue';
+import Modal from '@/components/ui/Modal.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { messages } from '@/i18n/vi';
 
@@ -72,31 +76,68 @@ const passwordForm = ref({ current: '', next: '' });
 const passwordError = ref('');
 const passwordBusy = ref(false);
 
-// Avatar upload
-const avatarFile = ref<File | null>(null);
-const avatarPreview = ref<string | null>(null);
+// Avatar management
+const avatarUrlInput = ref('');
 const avatarError = ref('');
 const avatarUploading = ref(false);
+const avatarFileInput = ref<HTMLInputElement | null>(null);
+const avatarLocalFile = ref<File | null>(null);
+const avatarLocalPreview = ref<string | null>(null);
 
-function onAvatarSelected(event: Event): void {
+const PRESET_AVATARS = [
+  { key: 'cyber', name: 'Cyber Hacker', url: '/assets/avatars/cyber-hacker.svg' },
+  { key: 'gold', name: 'Gold Knight', url: '/assets/avatars/gold-knight.svg' },
+  { key: 'neon', name: 'Neon Ninja', url: '/assets/avatars/neon-ninja.svg' },
+  { key: 'wizard', name: 'Wizard', url: '/assets/avatars/wizard.svg' },
+  { key: 'bot', name: 'AI Bot', url: '/assets/avatars/ai-bot.svg' },
+];
+
+const isPremiumUser = computed(() => {
+  return gamification.isPremium || auth.user?.role === 'ADMIN' || auth.user?.role === 'TEACHER';
+});
+
+function triggerDeviceUpload(): void {
+  if (!isPremiumUser.value) {
+    ui.showToast('Tính năng tải ảnh từ thiết bị chỉ dành cho tài khoản Premium.', 'warning');
+    router.push('/premium');
+    return;
+  }
+  avatarFileInput.value?.click();
+}
+
+function onAvatarFileChange(event: Event): void {
+  if (!isPremiumUser.value) {
+    avatarError.value = 'Tính năng tải ảnh từ thiết bị chỉ dành cho tài khoản Premium.';
+    return;
+  }
   const input = event.target as HTMLInputElement;
   if (!input.files || input.files.length === 0) return;
   const file = input.files[0];
-  if (file.size > 2 * 1024 * 1024) {
-    avatarError.value = 'Ảnh không được vượt quá 2MB.';
+  if (file.size > 3 * 1024 * 1024) {
+    avatarError.value = 'Kích thước ảnh không được vượt quá 3MB.';
     return;
   }
   avatarError.value = '';
-  avatarFile.value = file;
+  avatarLocalFile.value = file;
   const reader = new FileReader();
   reader.onload = (e) => {
-    avatarPreview.value = e.target?.result as string;
+    avatarLocalPreview.value = e.target?.result as string;
   };
   reader.readAsDataURL(file);
 }
 
-async function uploadAvatar(): Promise<void> {
-  if (!avatarFile.value) return;
+function cancelLocalAvatar(): void {
+  avatarLocalFile.value = null;
+  avatarLocalPreview.value = null;
+  if (avatarFileInput.value) avatarFileInput.value.value = '';
+}
+
+async function uploadLocalAvatar(): Promise<void> {
+  if (!avatarLocalFile.value) return;
+  if (!isPremiumUser.value) {
+    avatarError.value = 'Tính năng tải ảnh từ thiết bị chỉ dành cho tài khoản Premium.';
+    return;
+  }
   avatarUploading.value = true;
   avatarError.value = '';
   try {
@@ -104,28 +145,57 @@ async function uploadAvatar(): Promise<void> {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
-      reader.readAsDataURL(avatarFile.value!);
+      reader.readAsDataURL(avatarLocalFile.value!);
     });
-    await authApi.updateProfile({ avatarUrl: base64 });
+
+    const res = await fetch('/api/upload-avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: base64,
+        name: avatarLocalFile.value.name,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data?.url) {
+      throw new Error(data?.error || 'Không thể tải ảnh lên máy chủ lưu trữ.');
+    }
+
+    await authApi.updateProfile({ avatarUrl: data.url });
     await auth.fetchMe();
-    ui.showToast('Cập nhật ảnh đại diện thành công!', 'success');
-    avatarFile.value = null;
-    avatarPreview.value = null;
+    ui.showToast('Tải lên và cập nhật ảnh đại diện từ thiết bị thành công!', 'success');
+    cancelLocalAvatar();
   } catch (err) {
-    avatarError.value = err instanceof Error ? err.message : 'Không thể upload ảnh.';
+    avatarError.value = err instanceof Error ? err.message : 'Tải ảnh thất bại.';
   } finally {
     avatarUploading.value = false;
   }
 }
 
-async function removeAvatar(): Promise<void> {
+async function updateAvatarUrl(url: string | null): Promise<void> {
+  if (url) {
+    const trimmed = url.trim();
+    if (trimmed.length > 500) {
+      avatarError.value = 'Đường dẫn ảnh không được vượt quá 500 ký tự.';
+      return;
+    }
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('/')) {
+      avatarError.value = 'Đường dẫn ảnh phải bắt đầu bằng https://, http:// hoặc /assets/...';
+      return;
+    }
+  }
+
   avatarUploading.value = true;
+  avatarError.value = '';
   try {
-    await authApi.updateProfile({ avatarUrl: null });
+    await authApi.updateProfile({ avatarUrl: url ? url.trim() : null });
     await auth.fetchMe();
-    ui.showToast('Đã xóa ảnh đại diện.', 'success');
+    ui.showToast(url ? 'Cập nhật ảnh đại diện thành công!' : 'Đã xóa ảnh đại diện về mặc định.', 'success');
+    avatarUrlInput.value = '';
+    cancelLocalAvatar();
   } catch (err) {
-    avatarError.value = err instanceof Error ? err.message : 'Không thể xóa ảnh.';
+    avatarError.value = err instanceof Error ? err.message : 'Không thể cập nhật ảnh.';
   } finally {
     avatarUploading.value = false;
   }
@@ -224,6 +294,191 @@ async function onChangePassword(): Promise<void> {
     passwordError.value = err instanceof Error ? err.message : messages.profile.passwordTooShort;
   } finally {
     passwordBusy.value = false;
+  }
+}
+
+// ── 2FA State & Actions (B1) ──
+const isDevMode = import.meta.env.DEV;
+const twoFactorModalOpen = ref(false);
+const twoFactorDisableModalOpen = ref(false);
+const twoFactorBusy = ref(false);
+const twoFactorError = ref('');
+const twoFactorSending = ref(false);
+
+const twoFaDigits = reactive<string[]>(['', '', '', '', '', '']);
+const twoFaCode = computed(() => twoFaDigits.join(''));
+const twoFaExpiresSeconds = ref(300);
+const twoFaResendCooldownSeconds = ref(0);
+
+let twoFaTimerInterval: number | null = null;
+let twoFaCooldownInterval: number | null = null;
+
+const twoFaTimeFormatted = computed(() => {
+  const m = Math.floor(twoFaExpiresSeconds.value / 60);
+  const s = twoFaExpiresSeconds.value % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+});
+
+function startTwoFaTimer(seconds = 300): void {
+  if (twoFaTimerInterval) clearInterval(twoFaTimerInterval);
+  twoFaExpiresSeconds.value = seconds;
+  twoFaTimerInterval = window.setInterval(() => {
+    if (twoFaExpiresSeconds.value > 0) {
+      twoFaExpiresSeconds.value--;
+    } else {
+      if (twoFaTimerInterval) clearInterval(twoFaTimerInterval);
+    }
+  }, 1000);
+}
+
+function startTwoFaCooldown(seconds = 60): void {
+  if (twoFaCooldownInterval) clearInterval(twoFaCooldownInterval);
+  twoFaResendCooldownSeconds.value = seconds;
+  twoFaCooldownInterval = window.setInterval(() => {
+    if (twoFaResendCooldownSeconds.value > 0) {
+      twoFaResendCooldownSeconds.value--;
+    } else {
+      if (twoFaCooldownInterval) clearInterval(twoFaCooldownInterval);
+    }
+  }, 1000);
+}
+
+onBeforeUnmount(() => {
+  if (twoFaTimerInterval) clearInterval(twoFaTimerInterval);
+  if (twoFaCooldownInterval) clearInterval(twoFaCooldownInterval);
+});
+
+function onTwoFaDigitInput(index: number, event: Event): void {
+  const target = event.target as HTMLInputElement;
+  const val = target.value.replace(/\D/g, '');
+
+  if (!val) {
+    twoFaDigits[index] = '';
+    return;
+  }
+
+  if (val.length > 1) {
+    const chars = val.slice(0, 6).split('');
+    chars.forEach((c, idx) => {
+      if (index + idx < 6) {
+        twoFaDigits[index + idx] = c;
+      }
+    });
+    const nextIdx = Math.min(index + chars.length, 5);
+    focusTwoFaDigit(nextIdx);
+    return;
+  }
+
+  twoFaDigits[index] = val;
+  if (index < 5) {
+    focusTwoFaDigit(index + 1);
+  }
+}
+
+function onTwoFaDigitKeyDown(index: number, event: KeyboardEvent): void {
+  if (event.key === 'Backspace') {
+    if (!twoFaDigits[index] && index > 0) {
+      twoFaDigits[index - 1] = '';
+      focusTwoFaDigit(index - 1);
+    } else {
+      twoFaDigits[index] = '';
+    }
+  } else if (event.key === 'ArrowLeft' && index > 0) {
+    focusTwoFaDigit(index - 1);
+  } else if (event.key === 'ArrowRight' && index < 5) {
+    focusTwoFaDigit(index + 1);
+  }
+}
+
+function onTwoFaDigitPaste(event: ClipboardEvent): void {
+  event.preventDefault();
+  const pasted = event.clipboardData?.getData('text') ?? '';
+  const digitsOnly = pasted.replace(/\D/g, '').slice(0, 6);
+  if (digitsOnly) {
+    digitsOnly.split('').forEach((char, idx) => {
+      if (idx < 6) twoFaDigits[idx] = char;
+    });
+    const nextIdx = Math.min(digitsOnly.length, 5);
+    focusTwoFaDigit(nextIdx);
+  }
+}
+
+function focusTwoFaDigit(index: number): void {
+  const el = document.getElementById(`twofa-digit-${index}`) as HTMLInputElement | null;
+  el?.focus();
+  el?.select();
+}
+
+async function openEnable2FaModal(): Promise<void> {
+  twoFaDigits.splice(0, 6, '', '', '', '', '', '');
+  twoFactorError.value = '';
+  twoFactorBusy.value = true;
+  try {
+    const res = await authApi.send2FaCode();
+    startTwoFaTimer(res.expiresInSeconds || 300);
+    startTwoFaCooldown(60);
+    twoFactorModalOpen.value = true;
+    setTimeout(() => focusTwoFaDigit(0), 150);
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể gửi mã OTP xác thực.', 'error');
+  } finally {
+    twoFactorBusy.value = false;
+  }
+}
+
+async function handleResend2FaOtp(): Promise<void> {
+  if (twoFaResendCooldownSeconds.value > 0 || twoFactorSending.value) return;
+  twoFactorSending.value = true;
+  twoFactorError.value = '';
+  try {
+    const res = await authApi.send2FaCode();
+    startTwoFaTimer(res.expiresInSeconds || 300);
+    startTwoFaCooldown(60);
+    twoFaDigits.splice(0, 6, '', '', '', '', '', '');
+    setTimeout(() => focusTwoFaDigit(0), 100);
+    ui.showToast(res.message || 'Đã gửi lại mã OTP đến email.', 'success');
+  } catch (err) {
+    twoFactorError.value = err instanceof Error ? err.message : 'Không thể gửi lại mã OTP.';
+  } finally {
+    twoFactorSending.value = false;
+  }
+}
+
+async function handleVerify2Fa(): Promise<void> {
+  const code = twoFaCode.value.trim();
+  if (code.length !== 6) {
+    twoFactorError.value = 'Vui lòng nhập đủ 6 chữ số OTP.';
+    return;
+  }
+  twoFactorBusy.value = true;
+  twoFactorError.value = '';
+  try {
+    await authApi.verify2FaCode(code);
+    await auth.fetchMe();
+    twoFactorModalOpen.value = false;
+    ui.showToast('Đã bật xác thực hai lớp (2FA) thành công!', 'success');
+  } catch (err) {
+    twoFactorError.value = err instanceof Error ? err.message : 'Mã OTP không chính xác hoặc đã hết hạn.';
+  } finally {
+    twoFactorBusy.value = false;
+  }
+}
+
+function openDisable2FaModal(): void {
+  twoFactorDisableModalOpen.value = true;
+}
+
+async function handleConfirmDisable2Fa(): Promise<void> {
+  twoFactorBusy.value = true;
+  try {
+    await authApi.toggle2Fa(false);
+    await auth.fetchMe();
+    twoFactorDisableModalOpen.value = false;
+    ui.showToast('Đã tắt xác thực hai lớp (2FA).', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể tắt 2FA.', 'error');
+  } finally {
+    twoFactorBusy.value = false;
   }
 }
 
@@ -474,7 +729,7 @@ function csvExport(): void {
         { key: 'achievements', label: 'Thành tích' },
         { key: 'settings', label: 'Cài đặt' },
       ]"
-      :model-value="tab"
+      v-model="tab"
       @change="changeTab"
     />
 
@@ -732,45 +987,167 @@ function csvExport(): void {
 
         <!-- 2. Ảnh đại diện -->
         <section>
-          <h2 class="profile__panel-title mb-3">Ảnh đại diện</h2>
-          <div class="profile__avatar-upload">
-            <div class="profile__avatar-preview">
-              <img
-                v-if="auth.user?.avatarUrl || avatarPreview"
-                :src="(avatarPreview ?? auth.user?.avatarUrl) || ''"
-                alt="Avatar"
-                class="profile__avatar-preview-img"
-              />
-              <span v-else class="profile__avatar-preview-placeholder">📷</span>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 class="profile__panel-title">Ảnh đại diện</h2>
+              <p class="text-xs text-vdsa-muted mt-0.5">Tải ảnh từ thiết bị, chọn Avatar mẫu có sẵn hoặc nhập liên kết ảnh trực tiếp.</p>
             </div>
-            <div class="profile__avatar-actions">
-              <input
-                type="file"
-                accept="image/*"
-                class="profile__avatar-input"
-                @change="onAvatarSelected"
-              />
+            <Button
+              v-if="auth.user?.avatarUrl"
+              variant="secondary"
+              size="sm"
+              :loading="avatarUploading"
+              @click="updateAvatarUrl(null)"
+            >
+              Xóa ảnh (Về mặc định)
+            </Button>
+          </div>
+
+          <!-- Hidden Device File Input -->
+          <input
+            ref="avatarFileInput"
+            type="file"
+            accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
+            class="hidden"
+            @change="onAvatarFileChange"
+          />
+
+          <!-- Device File Selected Preview Banner -->
+          <div
+            v-if="avatarLocalFile && avatarLocalPreview"
+            class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-vdsa-accent/10 border border-vdsa-accent/40 mb-4 overflow-hidden"
+          >
+            <div class="flex items-center gap-3 w-full sm:w-auto min-w-0 flex-1">
+              <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-vdsa-accent shrink-0 shadow-md">
+                <img :src="avatarLocalPreview" alt="Preview" class="w-full h-full object-cover" />
+              </div>
+              <div class="min-w-0 flex-1 overflow-hidden">
+                <p class="text-xs font-bold text-white truncate block max-w-full" :title="avatarLocalFile.name">
+                  {{ avatarLocalFile.name }}
+                </p>
+                <p class="text-[11px] text-vdsa-muted shrink-0">
+                  {{ (avatarLocalFile.size / 1024).toFixed(1) }} KB · Sẵn sàng tải lên
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
               <Button
-                v-if="auth.user?.avatarUrl"
-                variant="secondary"
-                size="sm"
-                :loading="avatarUploading"
-                @click="removeAvatar"
-              >
-                Xóa ảnh
-              </Button>
-              <Button
-                v-if="avatarFile"
                 variant="primary"
                 size="sm"
                 :loading="avatarUploading"
-                @click="uploadAvatar"
+                class="gap-1.5 shrink-0"
+                @click="uploadLocalAvatar"
               >
-                Cập nhật
+                <Upload :size="14" /> Tải lên & Lưu ngay
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                :disabled="avatarUploading"
+                class="shrink-0"
+                @click="cancelLocalAvatar"
+              >
+                Hủy
               </Button>
             </div>
-            <p v-if="avatarError" class="profile__avatar-error" role="alert">{{ avatarError }}</p>
           </div>
+
+          <!-- Main Avatar Settings Box -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-vdsa-surface border border-vdsa-border mb-5">
+            <div class="profile__avatar-preview shrink-0">
+              <img
+                v-if="auth.user?.avatarUrl"
+                :src="auth.user.avatarUrl"
+                alt="Avatar"
+                class="profile__avatar-preview-img"
+                @error="avatarError = 'Không thể tải ảnh từ URL này. Vui lòng kiểm tra lại liên kết.'"
+              />
+              <span v-else class="profile__avatar-preview-placeholder font-bold text-white text-lg">
+                {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+              </span>
+            </div>
+
+            <div class="flex-1 w-full space-y-3">
+              <!-- Upload from device button (Only for Premium / VIP) -->
+              <div v-if="isPremiumUser" class="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  :loading="avatarUploading"
+                  class="gap-1.5"
+                  @click="triggerDeviceUpload"
+                >
+                  <Upload :size="14" /> Tải ảnh từ thiết bị
+                </Button>
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  <Crown :size="11" /> VIP
+                </span>
+                <span class="text-[11px] text-vdsa-muted">Hỗ trợ JPG, PNG, WEBP (tối đa 3MB)</span>
+              </div>
+              <div v-else class="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                <router-link
+                  to="/premium"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 transition-colors"
+                >
+                  <Crown :size="13" class="text-amber-400" />
+                  <span>Tải ảnh từ thiết bị</span>
+                  <span class="text-[10px] uppercase tracking-wider bg-amber-500 text-black px-1.5 py-0.2 rounded font-black">PRO</span>
+                </router-link>
+                <span class="text-[11px] text-vdsa-muted">Chỉ dành cho tài khoản Premium. Hãy nâng cấp để tải ảnh tùy biến!</span>
+              </div>
+
+              <!-- Direct URL input -->
+              <div>
+                <label class="block text-[11px] font-bold text-vdsa-secondary uppercase mb-1">Hoặc dán URL ảnh trực tiếp</label>
+                <div class="flex gap-2">
+                  <input
+                    v-model="avatarUrlInput"
+                    type="url"
+                    placeholder="https://example.com/my-avatar.png hoặc /assets/avatars/..."
+                    class="flex-1 px-3 py-1.5 bg-vdsa-bg-secondary border border-vdsa-border rounded-xl text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-vdsa-accent"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    :loading="avatarUploading"
+                    :disabled="!avatarUrlInput.trim()"
+                    @click="updateAvatarUrl(avatarUrlInput.trim())"
+                  >
+                    Lưu URL
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preset Avatars Gallery -->
+          <div>
+            <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-2">Hoặc chọn nhanh Avatar mẫu có sẵn</label>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <button
+                v-for="p in PRESET_AVATARS"
+                :key="p.key"
+                type="button"
+                class="p-3 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer group text-left"
+                :class="auth.user?.avatarUrl === p.url
+                  ? 'bg-vdsa-accent/20 border-vdsa-accent shadow-lg shadow-vdsa-accent/20 ring-1 ring-vdsa-accent'
+                  : 'bg-vdsa-surface border-vdsa-border hover:border-vdsa-accent/60 hover:bg-vdsa-hover'"
+                @click="updateAvatarUrl(p.url)"
+              >
+                <img :src="p.url" :alt="p.name" class="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
+                <span class="text-[11px] font-bold text-white text-center truncate w-full">{{ p.name }}</span>
+                <span v-if="auth.user?.avatarUrl === p.url" class="text-[10px] text-vdsa-green font-semibold flex items-center gap-0.5">
+                  <Check :size="10" /> Đang dùng
+                </span>
+                <span v-else class="text-[10px] text-vdsa-muted group-hover:text-white transition-colors">
+                  Chọn avatar
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <p v-if="avatarError" class="profile__avatar-error mt-3 font-medium" role="alert">{{ avatarError }}</p>
         </section>
 
         <hr class="profile__divider" />
@@ -785,8 +1162,151 @@ function csvExport(): void {
             <Button type="submit" size="sm" :loading="passwordBusy">{{ messages.profile.savePassword }}</Button>
           </form>
         </section>
+
+        <hr class="profile__divider" />
+
+        <!-- 4. Xác thực hai yếu tố (2FA - B1) -->
+        <section>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="profile__panel-title flex items-center gap-2">
+                <ShieldCheck :size="18" class="text-vdsa-purple" />
+                Xác thực hai lớp (2FA) qua Email
+              </h2>
+              <p class="text-xs text-vdsa-muted mt-1">
+                Tăng cường bảo mật bằng mã OTP 6 chữ số gửi về hộp thư email khi đăng nhập.
+              </p>
+            </div>
+            <div class="flex items-center gap-3">
+              <Badge :variant="auth.user?.twoFactorEnabled ? 'success' : 'muted'">
+                {{ auth.user?.twoFactorEnabled ? 'Đang bật' : 'Đang tắt' }}
+              </Badge>
+              <Button
+                :variant="auth.user?.twoFactorEnabled ? 'danger' : 'primary'"
+                size="sm"
+                :loading="twoFactorBusy"
+                @click="auth.user?.twoFactorEnabled ? openDisable2FaModal() : openEnable2FaModal()"
+              >
+                {{ auth.user?.twoFactorEnabled ? 'Tắt 2FA' : 'Bật 2FA' }}
+              </Button>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
+
+    <!-- Modal 1: Kích hoạt xác thực 2FA -->
+    <Modal
+      :open="twoFactorModalOpen"
+      title="Bật xác thực hai lớp (2FA)"
+      class="max-w-md"
+      @close="twoFactorModalOpen = false"
+    >
+      <div class="space-y-4">
+        <p class="text-xs text-vdsa-secondary leading-relaxed">
+          Mã xác thực gồm 6 chữ số đã được gửi tới email <strong class="text-white">{{ auth.user?.email }}</strong>. Vui lòng nhập mã để hoàn tất kích hoạt.
+        </p>
+
+        <!-- Dev Mode hint -->
+        <div v-if="isDevMode" class="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-300 flex items-center gap-2">
+          <KeyRound :size="14" class="text-indigo-400 shrink-0" />
+          <span><strong>Dev mode:</strong> mã OTP mặc định <code class="bg-indigo-950/80 px-1 py-0.5 rounded text-white font-mono font-bold">123456</code></span>
+        </div>
+
+        <!-- 6 ô nhập mã OTP -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-vdsa-secondary uppercase text-center">Nhập mã OTP 6 chữ số</label>
+          <div class="profile__twofa-otp-boxes" @paste="onTwoFaDigitPaste">
+            <input
+              v-for="(_, index) in twoFaDigits"
+              :id="`twofa-digit-${index}`"
+              :key="index"
+              v-model="twoFaDigits[index]"
+              type="text"
+              inputmode="numeric"
+              maxlength="1"
+              autocomplete="one-time-code"
+              class="profile__twofa-otp-input"
+              :class="{ 'profile__twofa-otp-input--error': twoFactorError }"
+              @input="onTwoFaDigitInput(index, $event)"
+              @keydown="onTwoFaDigitKeyDown(index, $event)"
+            />
+          </div>
+        </div>
+
+        <!-- Countdown & Gửi lại mã -->
+        <div class="flex items-center justify-between text-xs px-1">
+          <div class="flex items-center gap-1.5 text-vdsa-muted">
+            <Clock :size="14" :class="twoFaExpiresSeconds < 60 ? 'text-rose-400' : 'text-vdsa-muted'" />
+            <span>Hiệu lực: <strong :class="twoFaExpiresSeconds < 60 ? 'text-rose-400' : 'text-white'" class="font-mono">{{ twoFaTimeFormatted }}</strong></span>
+          </div>
+
+          <button
+            type="button"
+            class="text-vdsa-accent hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            :disabled="twoFaResendCooldownSeconds > 0 || twoFactorSending"
+            @click="handleResend2FaOtp"
+          >
+            <RefreshCw v-if="twoFactorSending" :size="12" class="animate-spin" />
+            <span v-if="twoFaResendCooldownSeconds > 0">Gửi lại mã ({{ twoFaResendCooldownSeconds }}s)</span>
+            <span v-else>Gửi lại mã OTP</span>
+          </button>
+        </div>
+
+        <p v-if="twoFactorError" class="text-xs text-rose-500 text-center font-medium" role="alert">
+          {{ twoFactorError }}
+        </p>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-vdsa-border">
+          <Button variant="ghost" size="sm" :disabled="twoFactorBusy" @click="twoFactorModalOpen = false">
+            Hủy
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            :loading="twoFactorBusy"
+            :disabled="twoFaCode.length !== 6"
+            @click="handleVerify2Fa"
+          >
+            Xác nhận & Bật 2FA
+          </Button>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Modal 2: Tắt xác thực 2FA (Confirm Modal) -->
+    <Modal
+      :open="twoFactorDisableModalOpen"
+      title="Tắt xác thực hai lớp (2FA)?"
+      class="max-w-md"
+      @close="twoFactorDisableModalOpen = false"
+    >
+      <div class="space-y-4">
+        <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30">
+          <p class="text-sm font-medium text-white leading-relaxed">
+            Bạn có chắc chắn muốn tắt xác thực hai lớp (2FA)?
+            <br /><br />
+            <span class="text-xs text-rose-300">
+              Khi tắt, tài khoản của bạn sẽ chỉ được bảo vệ bằng mật khẩu và có nguy cơ rủi ro bảo mật cao hơn.
+            </span>
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-vdsa-border">
+          <Button variant="ghost" size="sm" :disabled="twoFactorBusy" @click="twoFactorDisableModalOpen = false">
+            Hủy
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            :loading="twoFactorBusy"
+            @click="handleConfirmDisable2Fa"
+          >
+            Tắt xác thực 2FA
+          </Button>
+        </div>
+      </div>
+    </Modal>
   </main>
 </template>
 
@@ -1401,5 +1921,39 @@ function csvExport(): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+/* 2FA OTP 6-Box Styling */
+.profile__twofa-otp-boxes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block: 4px;
+}
+
+.profile__twofa-otp-input {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  background: var(--color-surface, #161b22);
+  border: 1.5px solid var(--color-border, #30363d);
+  border-radius: 10px;
+  color: #ffffff;
+  transition: all 150ms ease;
+}
+
+.profile__twofa-otp-input:focus {
+  outline: none;
+  border-color: var(--color-accent, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  background: var(--color-card, #0d1117);
+}
+
+.profile__twofa-otp-input--error {
+  border-color: var(--color-destructive, #ef4444);
 }
 </style>

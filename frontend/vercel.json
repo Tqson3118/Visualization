@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/upload-avatar",
+      "destination": "/api/upload-avatar"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "http://visualdsa.runasp.net/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+

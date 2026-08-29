@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Algorithm, AlgorithmMetadata } from '../types/algorithm.types';
 import { ALGORITHM_CATALOG } from '../services/algorithmCatalog';
 import { LOCAL_METADATA } from './algorithmLocalMetadata';
+import { normalizeVi } from '@/utils/searchNormalize';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5055';
 
@@ -17,9 +18,9 @@ export const useAlgorithmStore = defineStore('algorithm', () => {
 
   const filteredAlgorithms = computed<Algorithm[]>(() => {
     if (!searchQuery.value.trim()) return algorithms.value;
-    const q = searchQuery.value.toLowerCase();
+    const q = normalizeVi(searchQuery.value);
     return algorithms.value.filter(
-      (a) => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q),
+      (a) => normalizeVi(a.name).includes(q) || normalizeVi(a.category).includes(q),
     );
   });
 

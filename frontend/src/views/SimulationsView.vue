@@ -8,7 +8,7 @@
 // chip Big-O mono màu theo tốc độ (n log n → success, n² → warning, n³+ → danger); hover card
 // = scale nhẹ 1.01 + shadow token (tôn trọng prefers-reduced-motion).
 // GIỮ NGUYÊN logic lọc/phân trang + aria-label (selector/e2e hook) + tab key + link "Đọc thêm".
-import { computed, defineAsyncComponent, ref } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { Motion } from 'motion-v';
@@ -43,6 +43,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { messages } from '@/i18n/vi';
+import { normalizeVi } from '@/utils/searchNormalize';
 
 // Tab content nặng → lazy-load theo tab (trục 10: route-level splitting)
 const CheatSheetTable = defineAsyncComponent(() => import('@/components/lesson/CheatSheetTable.vue'));
@@ -59,6 +60,7 @@ const TAB_ITEMS: TabItem[] = [
 
 function onTabChange(key: string): void {
   tab.value = key as ExploreTab;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── Lọc danh mục (giữ nguyên logic cũ) ──
@@ -69,13 +71,30 @@ const tagFilter = ref('');
 const page = ref(1);
 const PAGE_SIZE = 12;
 
+watch(page, () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
 const structures = computed(() => ['', ...new Set(CATALOG.map((item) => item.dataStructure))]);
 const tags = computed(() => ['', ...new Set(CATALOG.flatMap((item) => item.tags))]);
 
 const filtered = computed(() => {
   let list = CATALOG;
-  const q = search.value.trim().toLowerCase();
-  if (q) list = list.filter((i) => i.key.toLowerCase().includes(q) || i.title.toLowerCase().includes(q));
+  const q = normalizeVi(search.value);
+  if (q) {
+    list = list.filter((i) => {
+      const normKey = normalizeVi(i.key);
+      const normTitle = normalizeVi(i.title);
+      const normDataStructure = normalizeVi(i.dataStructure);
+      const normTags = (i.tags || []).map((t) => normalizeVi(t)).join(' ');
+      return (
+        normKey.includes(q) ||
+        normTitle.includes(q) ||
+        normDataStructure.includes(q) ||
+        normTags.includes(q)
+      );
+    });
+  }
   if (structureFilter.value) list = list.filter((i) => i.dataStructure === structureFilter.value);
   if (levelFilter.value) list = list.filter((i) => i.level === levelFilter.value);
   if (tagFilter.value) list = list.filter((i) => i.tags.includes(tagFilter.value));
@@ -83,7 +102,14 @@ const filtered = computed(() => {
 });
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)));
-const paged = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+const paged = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return filtered.value.slice(start, start + PAGE_SIZE);
+});
+
+watch([search, structureFilter, levelFilter, tagFilter], () => {
+  page.value = 1;
+});
 
 // Số liệu — nguồn CATALOG (stat phụ level-1, §6: tối đa 1 hero/màn — strip block là hero motif)
 const stats = computed(() => ({
@@ -172,8 +198,8 @@ function groupKeyFor(item: CatalogMeta): CatalogGroupKey {
   return GROUP_DEFS.find((g) => item.key.startsWith(g.prefix))?.key ?? 'structure';
 }
 
-/** Nhóm theo trang hiện tại — nhóm rỗng sau filter/search bị loại (ẩn heading). */
-const grouped = computed<CatalogGroup[]>(() => {
+/** Nhóm danh sách trang hiện tại — nhóm rỗng sau filter/search bị loại (ẩn heading). */
+const allGrouped = computed<CatalogGroup[]>(() => {
   const buckets = new Map<CatalogGroupKey, CatalogMeta[]>();
   for (const item of paged.value) {
     const key = groupKeyFor(item);
@@ -188,6 +214,8 @@ const grouped = computed<CatalogGroup[]>(() => {
     items: buckets.get(g.key) ?? [],
   }));
 });
+
+const grouped = computed<CatalogGroup[]>(() => allGrouped.value);
 
 // ── Chip Big-O màu theo tốc độ (màu khớp giá trị average đang hiển thị) ──
 type ComplexityTone = 'success' | 'warning' | 'danger';
@@ -298,13 +326,11 @@ function referenceUrl(key: string): string | undefined {
             type="search"
             :placeholder="messages.explore.searchPlaceholder"
             :aria-label="messages.explore.searchAria"
-            @input="page = 1"
           />
           <select
             v-model="structureFilter"
             class="input simulations__select"
             :aria-label="messages.explore.structureAria"
-            @change="page = 1"
           >
             <option value="">{{ messages.explore.structureAll }}</option>
             <option v-for="s in structures.slice(1)" :key="s" :value="s">{{ s }}</option>
@@ -313,7 +339,6 @@ function referenceUrl(key: string): string | undefined {
             v-model="levelFilter"
             class="input simulations__select"
             :aria-label="messages.explore.levelAria"
-            @change="page = 1"
           >
             <option value="">{{ messages.explore.levelAll }}</option>
             <option value="basic">{{ messages.explore.levelBasic }}</option>
@@ -323,7 +348,6 @@ function referenceUrl(key: string): string | undefined {
             v-model="tagFilter"
             class="input simulations__select"
             :aria-label="messages.explore.tagAria"
-            @change="page = 1"
           >
             <option value="">{{ messages.explore.tagAll }}</option>
             <option v-for="t in tags.slice(1)" :key="t" :value="t">{{ t }}</option>
@@ -823,7 +847,7 @@ function referenceUrl(key: string): string | undefined {
   padding: 0;
 }
 
-.simulations__complexity dt { font-weight: 500; color: var(--color-foreground); }
+.simulations__complexity dt { font-weight: 500; color: var(--color-foreground); white-space: nowrap; }
 .simulations__complexity dd { font-family: var(--font-mono); }
 
 /* Chip Big-O màu theo tốc độ (complexityTone) + space mono giữ nguyên thông tin cũ */

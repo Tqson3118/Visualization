@@ -17,3 +17,16 @@ public sealed record Send2FaResponse(string Message, int ExpiresInSeconds);
 
 /// <summary>Response POST /auth/2fa/verify + PUT /auth/2fa.</summary>
 public sealed record Toggle2FaResponse(bool Enabled, string Message);
+
+/// <summary>Body POST /auth/login/2fa — xác thực OTP 2FA hoàn tất đăng nhập.</summary>
+public sealed record Login2FaRequest
+{
+    public string TwoFactorToken { get; init; } = string.Empty;
+    public string Code { get; init; } = string.Empty;
+}
+
+/// <summary>Body POST /auth/login/2fa/resend — gửi lại mã OTP 2FA đăng nhập.</summary>
+public sealed record ResendLogin2FaRequest
+{
+    public string TwoFactorToken { get; init; } = string.Empty;
+}

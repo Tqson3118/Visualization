@@ -8,7 +8,7 @@ namespace DsaVisual.Application.Services;
 /// </summary>
 public interface IExerciseService
 {
-    Task<Result<PagedResponse<ExerciseSummaryDto>>> GetListAsync(int? lessonId, int? nodeId, int? stage, int page, int pageSize, CancellationToken ct);
+    Task<Result<PagedResponse<ExerciseSummaryDto>>> GetListAsync(int? lessonId, int? nodeId, int? stage, int? topicId, int? courseId, int? roadmapId, int page, int pageSize, CancellationToken ct);
     Task<Result<ExerciseDto>> GetByIdAsync(int userId, int id, CancellationToken ct);
     Task<Result<ExerciseDto>> CreateAsync(int userId, ExerciseUpsertRequest request, CancellationToken ct);
     Task<Result<ExerciseDto>> UpdateAsync(int userId, string role, int id, ExerciseUpsertRequest request, CancellationToken ct);

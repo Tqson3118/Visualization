@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using DsaVisual.Application.Common;
+using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -173,4 +174,32 @@ public abstract class IntegrationTestBase
 
     /// <summary>HttpClient không token — dùng chung (không có Authorization header).</summary>
     protected HttpClient CreateClientWithoutToken() => Factory.CreateClient();
+
+    // ── B0: OTP đăng ký (HTTP flow) ──────────────────────────
+
+    /// <summary>
+    /// Xin otpToken cho đăng ký qua 2 bước HTTP (send + verify). Mã dùng DevOtpCode của test host
+    /// ("000000" — cấu hình trong ApiFactory). Email phải chưa đăng ký + hợp lệ.
+    /// </summary>
+    protected async Task<string> GetRegisterOtpTokenAsync(string email, string code = "000000")
+    {
+        var send = await Client.PostAsJsonAsync("/api/v1/auth/register/otp", new { email });
+        send.EnsureSuccessStatusCode();
+
+        var verify = await Client.PostAsJsonAsync("/api/v1/auth/register/otp/verify", new { email, code });
+        verify.EnsureSuccessStatusCode();
+        var body = await ReadJsonAsync<VerifyRegisterOtpResponse>(verify);
+        return body.OtpToken;
+    }
+
+    /// <summary>
+    /// Đăng ký thật qua HTTP kèm OTP (B0): tự xin otpToken rồi POST /auth/register. Trả response.
+    /// </summary>
+    protected async Task<HttpResponseMessage> RegisterWithOtpAsync(RegisterRequest request, string code = "000000")
+    {
+        request.OtpToken = await GetRegisterOtpTokenAsync(request.Email, code);
+        return await Client.PostAsJsonAsync("/api/v1/auth/register", request);
+    }
+
+    private sealed record VerifyRegisterOtpResponse(string OtpToken, int ExpiresInSeconds, string Message);
 }

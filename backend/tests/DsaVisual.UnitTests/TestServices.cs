@@ -43,7 +43,9 @@ internal static class TestServices
             ["DSA:Jwt:AccessTokenMinutes"] = "60",
             ["DSA:Jwt:RefreshTokenDays"] = "7",
             ["DSA:Auth:MaxLoginAttempts"] = "5",
-            ["DSA:Auth:LockoutMinutes"] = "15"
+            ["DSA:Auth:LockoutMinutes"] = "15",
+            // B0: mã OTP đăng ký cố định cho unit test (seam DevOtpCode — production không cấu hình)
+            ["DSA:Auth:DevOtpCode"] = "123456"
         })
         .Build();
 
@@ -85,6 +87,30 @@ internal static class TestServices
     }
 
     /// <summary>
+    /// B0 helper: chạy đủ 2 bước OTP đăng ký (send + verify) cho email chưa đăng ký
+    /// và trả về otpToken đính kèm RegisterRequest. Mã dùng DevOtpCode "123456" từ CreateConfig
+    /// (hoặc mã do otpGenerator sinh — truyền code tương ứng khi service dựng với generator).
+    /// </summary>
+    public static async Task<string> IssueRegisterOtpTokenAsync(AuthService service, string email, string code = "123456")
+    {
+        var send = await service.SendRegisterOtpAsync(
+            new DsaVisual.Application.Dtos.SendRegisterOtpRequest { Email = email }, CancellationToken.None);
+        if (!send.IsSuccess)
+        {
+            throw new InvalidOperationException($"SendRegisterOtp failed: {send.ErrorCode} — {send.ErrorMessage}");
+        }
+
+        var verify = await service.VerifyRegisterOtpAsync(
+            new DsaVisual.Application.Dtos.VerifyRegisterOtpRequest { Email = email, Code = code }, CancellationToken.None);
+        if (!verify.IsSuccess)
+        {
+            throw new InvalidOperationException($"VerifyRegisterOtp failed: {verify.ErrorCode} — {verify.ErrorMessage}");
+        }
+
+        return verify.Value!.OtpToken;
+    }
+
+    /// <summary>
     /// Ghi nhận refresh token thô sinh ra (test seam — finding security#5 cấm log token nên test
     /// không lấy token từ log nữa; bọc ITokenService thật, chỉ record CreateRefreshToken).
     /// </summary>
@@ -94,6 +120,12 @@ internal static class TestServices
 
         public (string Token, DateTime ExpiresAt) CreateAccessToken(int userId, string role) =>
             inner.CreateAccessToken(userId, role);
+
+        public (string Token, DateTime ExpiresAt) CreateTwoFactorToken(int userId) =>
+            inner.CreateTwoFactorToken(userId);
+
+        public int? ValidateTwoFactorToken(string token) =>
+            inner.ValidateTwoFactorToken(token);
 
         public string CreateRefreshToken()
         {

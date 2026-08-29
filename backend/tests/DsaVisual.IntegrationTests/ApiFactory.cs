@@ -33,6 +33,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:Default"] = _connectionString,
                 ["DSA:Jwt:Secret"] = IntegrationTestBase.TestJwtSecret,
                 ["DSA:Cors:AllowedOrigins:0"] = "http://localhost:5173",
+                // B0: mã OTP đăng ký cố định cho integration test (AuthService DevOtpCode)
+                ["DSA:Auth:DevOtpCode"] = "000000",
                 ["Serilog:MinimumLevel:Default"] = "Warning",
                 ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Warning",
                 ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore"] = "Warning"

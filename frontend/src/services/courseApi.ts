@@ -21,6 +21,8 @@ export interface CourseAuthorDto {
 
 export interface CourseLessonDto {
   id: string;
+  nodeId?: number;
+  lessonId?: number;
   title: string;
   moduleTitle?: string;
   moduleDescription?: string;
@@ -44,6 +46,14 @@ export interface CourseDetailDto {
   coverImageUrl?: string;
   coverImage?: string;
   isPublished: boolean;
+  status?: 'draft' | 'pending_review' | 'active' | 'rejected' | string;
+  rejectionReason?: string | null;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  submittedAt?: string | null;
+  authorName?: string | null;
+  createdBy?: number;
+  authorId?: number | null;
   progressPercent: number;
   xpReward: number;
   learningObjectives: string[];
@@ -92,6 +102,14 @@ export interface CourseListDto {
   coverImageUrl?: string;
   coverImage?: string;
   isPublished: boolean;
+  status?: 'draft' | 'pending_review' | 'active' | 'rejected' | string;
+  rejectionReason?: string | null;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  submittedAt?: string | null;
+  authorName?: string | null;
+  createdBy?: number;
+  authorId?: number | null;
   xpReward: number;
   totalLessons: number;
   completedLessons: number;
@@ -121,6 +139,7 @@ export interface CourseNodePayload {
 
 export const courseApi = {
   getCourses: () => getData<CourseListDto[]>({ method: 'GET', url: '/concepts/courses' }),
+  getPendingCourses: () => getData<CourseListDto[]>({ method: 'GET', url: '/concepts/courses/pending' }),
   getCourseById: (id: string | number) => getData<CourseDetailDto>({ method: 'GET', url: `/concepts/courses/${encodeURIComponent(String(id))}` }),
   createCourse: (payload: CourseUpsertPayload) =>
     getData<CourseDetailDto>({ method: 'POST', url: '/concepts/courses', data: payload }),
@@ -134,6 +153,12 @@ export const courseApi = {
     client.delete(`/concepts/courses/${encodeURIComponent(String(courseId))}/nodes/${nodeId}`),
   reorderCourseNodes: (courseId: string | number, nodeIds: number[]) =>
     client.put(`/concepts/courses/${encodeURIComponent(String(courseId))}/reorder`, { nodeIds }),
+
+  submitCourseForReview: (courseId: string | number) =>
+    getData<{ message: string }>({ method: 'POST', url: `/concepts/courses/${encodeURIComponent(String(courseId))}/submit-review` }),
+
+  reviewCourse: (courseId: string | number, payload: { approve: boolean; reason?: string }) =>
+    getData<{ message: string }>({ method: 'POST', url: `/concepts/courses/${encodeURIComponent(String(courseId))}/review`, data: payload }),
 
   submitCourseFeedback: (payload: CourseFeedbackPayload) =>
     getData<CourseFeedbackDto>({ method: 'POST', url: '/courses/feedback', data: payload }),

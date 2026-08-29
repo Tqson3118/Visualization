@@ -13,13 +13,13 @@
     </div>
 
 
-    <div class="flex items-center gap-1.5 flex-wrap">
-      <span class="text-[10px] text-vdsa-muted font-bold uppercase tracking-wider mr-2">Danh mục</span>
+    <div class="flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 no-scrollbar">
+      <span class="text-[10px] text-vdsa-muted font-bold uppercase tracking-wider mr-2 shrink-0">Danh mục</span>
       <button
         v-for="cat in categories"
         :key="cat"
         @click="$emit('update:category', cat)"
-        class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+        class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap"
         :class="selectedCategory === cat
           ? 'bg-vdsa-accent text-white shadow-lg shadow-vdsa-accent/30 border border-vdsa-accent/50'
           : 'bg-vdsa-bg-secondary text-vdsa-muted hover:text-white border border-vdsa-border-subtle hover:border-vdsa-border hover:bg-vdsa-surface'"
@@ -29,13 +29,13 @@
     </div>
 
 
-    <div class="flex items-center gap-1.5 flex-wrap">
-      <span class="text-[10px] text-vdsa-muted font-bold uppercase tracking-wider mr-2">Độ khó</span>
+    <div class="flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 no-scrollbar">
+      <span class="text-[10px] text-vdsa-muted font-bold uppercase tracking-wider mr-2 shrink-0">Độ khó</span>
       <button
         v-for="diff in difficulties"
         :key="diff"
         @click="$emit('update:difficulty', diff)"
-        class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+        class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap"
         :class="selectedDifficulty === diff
           ? 'bg-vdsa-accent text-white shadow-lg shadow-vdsa-accent/30 border border-vdsa-accent/50'
           : 'bg-vdsa-bg-secondary text-vdsa-muted hover:text-white border border-vdsa-border-subtle hover:border-vdsa-border hover:bg-vdsa-surface'"
@@ -63,3 +63,13 @@ defineEmits<{
   (e: 'update:searchQuery', value: string): void;
 }>();
 </script>
+
+<style scoped>
+.no-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+</style>

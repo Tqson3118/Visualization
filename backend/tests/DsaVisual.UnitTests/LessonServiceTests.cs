@@ -222,19 +222,19 @@ public class LessonServiceTests
     };
 
     [Fact]
-    public async Task Create_TeacherPublic_BecomesPendingReview()
+    public async Task Create_TeacherPublic_BecomesDraft()
     {
-        var (service, db) = await SetupAsync(nameof(Create_TeacherPublic_BecomesPendingReview));
+        var (service, db) = await SetupAsync(nameof(Create_TeacherPublic_BecomesDraft));
 
-        // Teacher đăng public (Active) → KHÔNG active trực tiếp, phải chờ Admin duyệt
+        // Teacher đăng public → lưu Draft, bài sẽ tự động Active khi toàn bộ Lộ trình được duyệt
         var result = await service.CreateAsync(
             1, "TEACHER", BuildUpsertRequest(1, LessonStatus.Active), CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
-        Assert.Equal("pendingreview", result.Value!.Status);
+        Assert.Equal("draft", result.Value!.Status);
         Assert.Null(result.Value.PublishedAt);
         var saved = await db.Lessons.AsNoTracking().SingleAsync(l => l.Id == result.Value.Id);
-        Assert.Equal(LessonStatus.PendingReview, saved.Status);
+        Assert.Equal(LessonStatus.Draft, saved.Status);
         Assert.Null(saved.PublishedAt);
     }
 
@@ -374,9 +374,9 @@ public class LessonServiceTests
     public async Task GetById_AsTeacher_OtherTeacherLesson_ReturnsForbidden()
     {
         var (service, db) = await SetupAsync(nameof(GetById_AsTeacher_OtherTeacherLesson_ReturnsForbidden));
-        // Lesson 1 có CreatedBy = 1
-        // Teacher 2 gọi GetByIdAsync trên Lesson 1 → 403 FORBIDDEN
-        var result = await service.GetByIdAsync(2, "TEACHER", 1, true, CancellationToken.None);
+        // Lesson 2 có CreatedBy = 1, Status = Draft (bài riêng tư của GV khác)
+        // Teacher 2 gọi GetByIdAsync trên Lesson 2 → 403 FORBIDDEN
+        var result = await service.GetByIdAsync(2, "TEACHER", 2, true, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);

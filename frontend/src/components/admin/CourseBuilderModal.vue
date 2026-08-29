@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus, Trash2, ArrowUp, ArrowDown, ExternalLink, BookOpen, Layers, Sparkles, Trophy } from 'lucide-vue-next';
+import { Plus, Trash2, ArrowUp, ArrowDown, ExternalLink, BookOpen, Layers, Sparkles, Trophy, CheckCircle2 } from 'lucide-vue-next';
 import { courseApi, type CourseDetailDto, type CourseUpsertPayload } from '@/services/courseApi';
 import { useUiStore } from '@/stores/ui';
 import Modal from '@/components/ui/Modal.vue';
@@ -29,7 +29,7 @@ const emit = defineEmits<{
 const ui = useUiStore();
 const router = useRouter();
 
-const activeTab = ref<'info' | 'objectives' | 'curriculum'>('info');
+const activeTab = ref<'info' | 'objectives' | 'curriculum' | 'publish'>('info');
 const loading = ref(false);
 const saving = ref(false);
 
@@ -54,6 +54,7 @@ interface CourseNodeItem {
 }
 
 const curriculumNodes = ref<CourseNodeItem[]>([]);
+const initialNodeIds = ref<number[]>([]);
 const newObjectiveText = ref('');
 const newOutcomeTitle = ref('');
 const newOutcomeDesc = ref('');
@@ -95,6 +96,7 @@ function resetForm(): void {
     { title: 'Chấm điểm tự động', description: 'Làm trắc nghiệm và nộp code testcase tức thì' },
   ];
   curriculumNodes.value = [];
+  initialNodeIds.value = [];
 }
 
 async function loadCourseDetail(id: string | number): Promise<void> {
@@ -125,12 +127,19 @@ async function loadCourseDetail(id: string | number): Promise<void> {
       : [];
 
     // Curriculum Lessons / Nodes
-    curriculumNodes.value = (data.lessons ?? []).map((l, index) => ({
-      id: Number(l.id) || undefined,
-      title: l.title,
-      lessonId: Number(l.id) || undefined,
-      sortOrder: l.orderIndex || index + 1,
-    }));
+    curriculumNodes.value = (data.lessons ?? []).map((l, index) => {
+      const nodeId = typeof l.nodeId === 'number' ? l.nodeId : (Number(l.id) || undefined);
+      const lessonId = typeof l.lessonId === 'number' ? l.lessonId : (Number(l.id) || undefined);
+      return {
+        id: nodeId,
+        title: l.title,
+        lessonId: lessonId,
+        sortOrder: l.orderIndex || index + 1,
+      };
+    });
+    initialNodeIds.value = curriculumNodes.value
+      .map((n) => n.id)
+      .filter((nodeId): nodeId is number => typeof nodeId === 'number');
   } catch (err) {
     ui.showToast('Không tải được thông tin lộ trình.', 'error');
   } finally {
@@ -264,17 +273,62 @@ async function handleSave(): Promise<void> {
     // Save Curriculum Nodes if newly created / updated
     const targetCourseId = savedCourse.id || props.courseId;
     if (targetCourseId) {
-      // Sync added nodes
-      for (const node of curriculumNodes.value) {
-        if (!node.id && node.lessonId) {
+      if (props.courseId) {
+        // 1. Xóa các node đã bị loại khỏi lộ trình
+        const currentIds = curriculumNodes.value
+          .map((n) => n.id)
+          .filter((id): id is number => typeof id === 'number');
+        const removedIds = initialNodeIds.value.filter((id) => !currentIds.includes(id));
+        for (const nodeId of removedIds) {
           try {
-            await courseApi.addCourseNode(targetCourseId, {
-              title: node.title,
-              lessonId: node.lessonId,
-              sortOrder: node.sortOrder,
-            });
-          } catch {
-            // continue
+            await courseApi.deleteCourseNode(targetCourseId, nodeId);
+          } catch (err) {
+            console.error('Lỗi khi xóa node:', nodeId, err);
+          }
+        }
+
+        // 2. Thêm các node mới chưa có id
+        for (const node of curriculumNodes.value) {
+          if (!node.id && node.lessonId) {
+            try {
+              const res = (await courseApi.addCourseNode(targetCourseId, {
+                title: node.title,
+                lessonId: node.lessonId,
+                sortOrder: node.sortOrder,
+              })) as { id?: number };
+              if (res && typeof res.id === 'number') {
+                node.id = res.id;
+              }
+            } catch (err) {
+              console.error('Lỗi khi thêm node mới:', node, err);
+            }
+          }
+        }
+
+        // 3. Reorder toàn bộ thứ tự node
+        const finalNodeIds = curriculumNodes.value
+          .map((n) => n.id)
+          .filter((id): id is number => typeof id === 'number');
+        if (finalNodeIds.length > 0) {
+          try {
+            await courseApi.reorderCourseNodes(targetCourseId, finalNodeIds);
+          } catch (err) {
+            console.error('Lỗi khi reorder nodes:', err);
+          }
+        }
+      } else {
+        // Tạo mới lộ trình: thêm tất cả các node
+        for (const node of curriculumNodes.value) {
+          if (node.lessonId) {
+            try {
+              await courseApi.addCourseNode(targetCourseId, {
+                title: node.title,
+                lessonId: node.lessonId,
+                sortOrder: node.sortOrder,
+              });
+            } catch (err) {
+              console.error('Lỗi khi thêm node:', node, err);
+            }
           }
         }
       }
@@ -301,7 +355,7 @@ function previewOnWeb(): void {
   <Modal
     :open="open"
     :title="courseId ? 'Chỉnh sửa Lộ trình học' : 'Tạo Lộ trình học mới (Course Builder)'"
-    class="max-w-4xl"
+    width="900px"
     @close="emit('close')"
   >
     <div v-if="loading" class="py-12 text-center text-vdsa-muted">
@@ -311,10 +365,10 @@ function previewOnWeb(): void {
 
     <div v-else class="space-y-6">
       <!-- Sub-Tabs Navigation -->
-      <div class="flex border-b border-vdsa-border gap-2 pb-2">
+      <div class="flex border-b border-vdsa-border gap-2 pb-2 overflow-x-auto no-scrollbar">
         <button
           type="button"
-          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
           :class="activeTab === 'info' ? 'bg-vdsa-accent text-white shadow-md' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover'"
           @click="activeTab = 'info'"
         >
@@ -322,7 +376,7 @@ function previewOnWeb(): void {
         </button>
         <button
           type="button"
-          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
           :class="activeTab === 'objectives' ? 'bg-vdsa-accent text-white shadow-md' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover'"
           @click="activeTab = 'objectives'"
         >
@@ -330,11 +384,19 @@ function previewOnWeb(): void {
         </button>
         <button
           type="button"
-          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
           :class="activeTab === 'curriculum' ? 'bg-vdsa-accent text-white shadow-md' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover'"
           @click="activeTab = 'curriculum'"
         >
           <BookOpen :size="16" /> 3. Cấu trúc bài học ({{ curriculumNodes.length }})
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
+          :class="activeTab === 'publish' ? 'bg-vdsa-accent text-white shadow-md' : 'text-vdsa-muted hover:text-white hover:bg-vdsa-hover'"
+          @click="activeTab = 'publish'"
+        >
+          <CheckCircle2 :size="16" /> 4. Xem trước & Duyệt
         </button>
       </div>
 
@@ -439,6 +501,57 @@ function previewOnWeb(): void {
           </div>
         </div>
 
+        <!-- Kết quả đạt được (Key Outcomes) -->
+        <div class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <CheckCircle2 :size="16" class="text-vdsa-green" /> Kết quả đạt được sau lộ trình (Key Outcomes)
+            </h4>
+            <Badge variant="secondary">{{ form.keyOutcomes.length }} kết quả</Badge>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div
+              v-for="(oc, i) in form.keyOutcomes"
+              :key="i"
+              class="p-3 rounded-lg bg-vdsa-bg-secondary border border-vdsa-border relative group"
+            >
+              <button
+                type="button"
+                class="absolute top-2 right-2 text-vdsa-muted hover:text-vdsa-red transition-colors p-1"
+                title="Xóa"
+                @click="removeOutcome(i)"
+              >
+                <Trash2 :size="14" />
+              </button>
+              <h5 class="text-xs font-bold text-white pr-6">{{ oc.title }}</h5>
+              <p class="text-xs text-vdsa-muted mt-1">{{ oc.desc }}</p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border space-y-2 mt-2">
+            <span class="block text-[11px] font-bold text-vdsa-secondary uppercase">Thêm kết quả đạt được mới</span>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input
+                v-model="newOutcomeTitle"
+                type="text"
+                placeholder="Tiêu đề (VD: Thành thạo giải thuật)"
+                class="sm:w-1/3 bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
+              />
+              <input
+                v-model="newOutcomeDesc"
+                type="text"
+                placeholder="Mô tả chi tiết năng lực đạt được..."
+                class="flex-1 bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
+                @keydown.enter.prevent="addOutcome"
+              />
+              <Button size="sm" type="button" class="shrink-0 whitespace-nowrap justify-center" @click="addOutcome">
+                <Plus :size="14" /> Thêm
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <!-- Điểm nổi bật (Highlights) -->
         <div class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border space-y-3">
           <div class="flex items-center justify-between">
@@ -469,29 +582,23 @@ function previewOnWeb(): void {
 
           <div class="p-3 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border space-y-2 mt-2">
             <span class="block text-[11px] font-bold text-vdsa-secondary uppercase">Thêm điểm nổi bật mới</span>
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-              <div class="sm:col-span-5">
-                <input
-                  v-model="newHighlightTitle"
-                  type="text"
-                  placeholder="Tiêu đề (VD: Mô phỏng từng bước)"
-                  class="w-full bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
-                />
-              </div>
-              <div class="sm:col-span-5">
-                <input
-                  v-model="newHighlightDesc"
-                  type="text"
-                  placeholder="Mô tả chi tiết..."
-                  class="w-full bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
-                  @keydown.enter.prevent="addHighlight"
-                />
-              </div>
-              <div class="sm:col-span-2 flex">
-                <Button size="sm" type="button" class="w-full shrink-0 whitespace-nowrap justify-center" @click="addHighlight">
-                  <Plus :size="14" /> Thêm
-                </Button>
-              </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input
+                v-model="newHighlightTitle"
+                type="text"
+                placeholder="Tiêu đề (VD: Mô phỏng từng bước)"
+                class="sm:w-1/3 bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
+              />
+              <input
+                v-model="newHighlightDesc"
+                type="text"
+                placeholder="Mô tả chi tiết..."
+                class="flex-1 bg-vdsa-bg border border-vdsa-border rounded-lg px-3 py-2 text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-accent"
+                @keydown.enter.prevent="addHighlight"
+              />
+              <Button size="sm" type="button" class="shrink-0 whitespace-nowrap justify-center" @click="addHighlight">
+                <Plus :size="14" /> Thêm
+              </Button>
             </div>
           </div>
         </div>
@@ -521,7 +628,7 @@ function previewOnWeb(): void {
         </div>
 
         <!-- Curriculum Table -->
-        <div class="border border-vdsa-border rounded-xl overflow-hidden bg-vdsa-surface">
+        <div class="border border-vdsa-border rounded-xl overflow-hidden overflow-x-auto bg-vdsa-surface">
           <div v-if="curriculumNodes.length === 0" class="p-8 text-center text-vdsa-muted text-sm">
             Chưa có bài học nào trong lộ trình này. Hãy chọn bài học ở trên để thêm vào!
           </div>
@@ -584,6 +691,93 @@ function previewOnWeb(): void {
         </div>
       </div>
 
+      <!-- TAB 4: XEM TRƯỚC & XUẤT BẢN (REVIEW & PUBLISH) -->
+      <div v-if="activeTab === 'publish'" class="space-y-4">
+        <!-- Summary Card -->
+        <div class="p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border/80 space-y-3">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono uppercase tracking-wider text-vdsa-purple-light font-bold">
+                {{ form.category }} · {{ form.difficulty }}
+              </span>
+              <h3 class="text-lg font-black text-white mt-1">
+                {{ form.title || 'Chưa đặt tên lộ trình' }}
+              </h3>
+              <p class="text-xs text-vdsa-muted mt-1 leading-relaxed line-clamp-2">
+                {{ form.description || 'Chưa có mô tả tổng quan' }}
+              </p>
+            </div>
+            <Badge :variant="form.isActive ? 'success' : 'secondary'" size="md">
+              {{ form.isActive ? 'Đã xuất bản (Active)' : 'Bản nháp (Draft)' }}
+            </Badge>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 pt-2 border-t border-vdsa-border/60 text-center">
+            <div class="p-2 rounded-xl bg-vdsa-bg">
+              <span class="text-[11px] text-vdsa-muted block">Tổng bài học</span>
+              <strong class="text-sm text-white font-bold">{{ curriculumNodes.length }}</strong>
+            </div>
+            <div class="p-2 rounded-xl bg-vdsa-bg">
+              <span class="text-[11px] text-vdsa-muted block">Mục tiêu</span>
+              <strong class="text-sm text-white font-bold">{{ form.learningObjectives.length }}</strong>
+            </div>
+            <div class="p-2 rounded-xl bg-vdsa-bg">
+              <span class="text-[11px] text-vdsa-muted block">Kết quả đầu ra</span>
+              <strong class="text-sm text-white font-bold">{{ form.keyOutcomes.length }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Curriculum Sequence Check -->
+        <div class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border/60 space-y-2">
+          <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <BookOpen :size="14" class="text-vdsa-accent" />
+            Trình tự bài học trong lộ trình
+          </h4>
+          <div v-if="curriculumNodes.length === 0" class="text-xs text-vdsa-muted italic py-2">
+            Chưa có bài học nào được thêm vào lộ trình. Hãy quay lại bước 3 để thêm bài học.
+          </div>
+          <ol v-else class="list-decimal list-inside space-y-1 text-xs text-vdsa-secondary max-h-36 overflow-y-auto custom-scrollbar pr-2">
+            <li v-for="(node, idx) in curriculumNodes" :key="idx" class="py-1 border-b border-vdsa-border/30 last:border-0">
+              <span class="font-medium text-white">{{ node.title }}</span>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Review & Publishing Notice (PM Decision #7) -->
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-vdsa-accent/10 via-vdsa-purple/5 to-transparent border border-vdsa-accent/20 space-y-2.5">
+          <div class="flex items-center gap-2 text-white font-bold text-xs">
+            <Sparkles :size="15" class="text-vdsa-accent" />
+            Quy trình kiểm duyệt lộ trình (PM Decision #7)
+          </div>
+          <p class="text-xs text-vdsa-muted leading-relaxed">
+            Hệ thống quản lý phê duyệt theo <strong>Lộ trình học hoàn chỉnh</strong>. Toàn bộ các bài giảng cấu thành trong lộ trình sẽ tự động mở khóa cho học viên khi lộ trình được chuyển sang trạng thái <strong>Công khai (Published)</strong>.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-4 pt-1">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold">
+              <input
+                type="radio"
+                :value="false"
+                v-model="form.isActive"
+                class="text-accent accent-purple-600 cursor-pointer"
+              />
+              <span :class="!form.isActive ? 'text-white' : 'text-vdsa-muted'">Lưu bản nháp (Chờ hoàn thiện)</span>
+            </label>
+
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold">
+              <input
+                type="radio"
+                :value="true"
+                v-model="form.isActive"
+                class="text-accent accent-purple-600 cursor-pointer"
+              />
+              <span :class="form.isActive ? 'text-vdsa-green font-bold' : 'text-vdsa-muted'">Duyệt & Xuất bản ngay (Công khai)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- Action Buttons -->
       <div class="flex items-center justify-between pt-4 border-t border-vdsa-border">
         <div>
@@ -597,11 +791,32 @@ function previewOnWeb(): void {
           </button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <Button variant="ghost" size="md" type="button" @click="emit('close')">Hủy</Button>
+        <div class="flex items-center gap-2.5">
+          <Button
+            v-if="activeTab !== 'info'"
+            variant="secondary"
+            size="md"
+            type="button"
+            @click="activeTab = activeTab === 'publish' ? 'curriculum' : activeTab === 'curriculum' ? 'objectives' : 'info'"
+          >
+            Quay lại
+          </Button>
+
+          <Button
+            v-if="activeTab !== 'publish'"
+            variant="secondary"
+            size="md"
+            type="button"
+            @click="activeTab = activeTab === 'info' ? 'objectives' : activeTab === 'objectives' ? 'curriculum' : 'publish'"
+          >
+            Tiếp theo
+          </Button>
+
+          <Button variant="ghost" size="md" type="button" @click="emit('close')">Đóng</Button>
+
           <Button variant="primary" size="md" type="button" :disabled="saving" @click="handleSave">
             <span v-if="saving" class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-            {{ courseId ? 'Lưu thay đổi' : 'Tạo Lộ trình' }}
+            {{ courseId ? (form.isActive ? 'Lưu & Xuất bản' : 'Lưu bản nháp') : (form.isActive ? 'Tạo & Xuất bản' : 'Lưu bản nháp') }}
           </Button>
         </div>
       </div>

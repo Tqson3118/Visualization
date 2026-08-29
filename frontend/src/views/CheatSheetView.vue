@@ -201,4 +201,22 @@ const BIG_O_STRIP = [
   .cheatsheet-view__hero { align-items: flex-start; }
   .cheatsheet-view__strip { align-items: flex-start; }
 }
+
+@media print {
+  :global(header.app-header),
+  :global(footer.app-footer),
+  :global(.cosmic-field),
+  .cheatsheet-view__chrome,
+  .no-print,
+  .print-hide {
+    display: none !important;
+  }
+  :global(body),
+  .cheatsheet-view {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
 </style>

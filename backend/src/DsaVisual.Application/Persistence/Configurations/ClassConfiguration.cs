@@ -17,7 +17,8 @@ public sealed class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(c => c.Description).HasMaxLength(500);
         builder.Property(c => c.CurriculumTitle).HasMaxLength(200);
         builder.Property(c => c.CurriculumDescription).HasMaxLength(500);
-        builder.Property(c => c.CurriculumPublished).HasDefaultValue(true);
+        // C6: lớp mới mặc định CurriculumPublished=false (Nháp) — GV phải bấm Xuất bản mới sang published
+        builder.Property(c => c.CurriculumPublished).HasDefaultValue(false);
         builder.Property(c => c.Status).HasConversion<int>().HasDefaultValue(ClassStatus.Open);
         builder.Property(c => c.CreatedAt).HasColumnType("datetime2");
         builder.Property(c => c.DeletedAt).HasColumnType("datetime2");

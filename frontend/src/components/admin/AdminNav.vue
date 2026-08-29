@@ -7,7 +7,7 @@ import { RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 defineProps<{
-  active: 'users' | 'stats' | 'settings' | 'content' | 'classes' | 'ladder' | 'feedback';
+  active?: 'users' | 'stats' | 'settings' | 'content' | 'classes' | 'ladder' | 'feedback' | 'teacher';
 }>();
 
 const LINKS = [
@@ -22,11 +22,15 @@ const auth = useAuthStore();
 const visibleLinks = computed(() => {
   if (auth.role === 'TEACHER') {
     return [
+      { key: 'teacher', label: 'Tổng quan Teacher Studio', to: 'teacher-studio' },
       { key: 'content', label: 'Studio Lộ trình & Bài tập', to: 'curriculum-studio' },
       { key: 'classes', label: 'Quản lý lớp học', to: 'classes' },
     ];
   }
-  return LINKS;
+  return [
+    { key: 'teacher', label: 'Tổng quan Studio', to: 'teacher-studio' },
+    ...LINKS,
+  ];
 });
 </script>
 

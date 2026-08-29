@@ -24,12 +24,23 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ProgressBar from '@/components/ui/ProgressBar.vue';
+import { formatDateTime } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();
 const codeStore = useCodeRunnerStore();
 const simStore = useSimulationStore();
 const ui = useUiStore();
+
+interface LocalRunRecord {
+  id: string;
+  status: 'passed' | 'failed';
+  time: string;
+  stats?: string;
+  error?: string;
+}
+const localRuns = ref<LocalRunRecord[]>([]);
 
 // Trace playback (useCodeTracePlayback) — refs lồng trong object thường KHÔNG tự unwrap ở
 // template (chỉ top-level binding unwrap), nên destructure refs ra top-level để template
@@ -52,12 +63,15 @@ const playbackStatus = computed(() => (playback.isPlaying.value ? 'running' : 'i
 /** Speed multiplier cho ControlBar — ngược với ms: mult = 1000 / durationPerStep (250ms = 4x). */
 const playbackSpeed = computed(() => Math.round(1000 / playback.durationPerStep.value));
 
-/** Biến frame trace hiện tại — tối đa 10 mục cho vars panel. */
-const playbackVarsList = computed<{ key: string; value: unknown }[]>(() =>
-  Object.entries(playback.currentVars.value)
-    .slice(0, 10)
-    .map(([key, value]) => ({ key, value })),
-);
+const showAllVars = ref(false);
+const totalVarsCount = computed(() => Object.keys(playback.currentVars.value).length);
+
+/** Biến frame trace hiện tại — hỗ trợ mở rộng khi có nhiều biến. */
+const playbackVarsList = computed<{ key: string; value: unknown }[]>(() => {
+  const entries = Object.entries(playback.currentVars.value);
+  const list = showAllVars.value ? entries : entries.slice(0, 15);
+  return list.map(([key, value]) => ({ key, value }));
+});
 
 function formatVarValue(value: unknown): string {
   if (value === null) return 'null';
@@ -86,7 +100,15 @@ function onEditorScroll(event: Event): void {
   if (gutterRef.value) gutterRef.value.scrollTop = el.scrollTop;
 }
 
+function handleGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key === 'F2') {
+    event.preventDefault();
+    void toggleHistory();
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalKeydown);
   try {
     await codeStore.loadTemplate(key.value);
     // Nạp steps mẫu từ generator thật để hiển thị canvas 2 chiều
@@ -99,22 +121,24 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown);
   playback.dispose();
   simStore.stopPlayback();
 });
 
 async function onRun(): Promise<void> {
   const result = await codeStore.run();
-  if (codeStore.runState === 'passed' && result && Array.isArray(result.trace) && result.trace.length > 0) {
-    traceRef.value = result.trace;
-    playback.init(result.trace);
-    playback.play();
-  } else {
-    // Trace rỗng/error/timeout → giữ hành vi cũ: generator preview + stats + 2 nút step
-    traceRef.value = null;
-  }
   if (codeStore.runState === 'passed') {
+    if (result && Array.isArray(result.trace) && result.trace.length > 0) {
+      traceRef.value = result.trace;
+      playback.init(result.trace);
+      playback.play();
+    } else {
+      traceRef.value = null;
+    }
     ui.showToast('Chạy thành công!', 'success');
+  } else {
+    traceRef.value = null;
   }
 }
 
@@ -151,8 +175,7 @@ function onPlaybackSpeed(multiplier: number): void {
 async function toggleHistory(): Promise<void> {
   historyOpen.value = !historyOpen.value;
   if (historyOpen.value) {
-    // Không có exerciseId → lấy danh sách nộp chung (nếu có exercise gắn với key)
-    await codeStore.fetchHistory(0).catch(() => undefined);
+    await codeStore.fetchHistory().catch(() => undefined);
   }
 }
 </script>
@@ -174,9 +197,10 @@ async function toggleHistory(): Promise<void> {
             Nộp bài: output đúng là đạt. Dùng hàm có sẵn (VD sort()) → vẫn đạt nhưng KHÔNG xem được mô phỏng bước.
           </p>
         </div>
-        <Button variant="ghost" size="sm" @click="toggleHistory">
+        <Button variant="ghost" size="sm" title="Phím tắt: F2" @click="toggleHistory">
           <History :size="16" aria-hidden="true" />
           {{ historyOpen ? 'Ẩn lịch sử' : 'Lịch sử nộp' }}
+          <kbd class="ml-1.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted border border-border rounded">F2</kbd>
         </Button>
       </div>
     </header>
@@ -252,8 +276,17 @@ async function toggleHistory(): Promise<void> {
             </Badge>
           </header>
 
+          <!-- Thanh progress màu xám khi đang chạy code (F1) -->
+          <div v-if="codeStore.isRunning" class="code-runner__progress-bar" role="progressbar" aria-label="Đang chạy code...">
+            <div class="code-runner__progress-bar-indicator"></div>
+          </div>
+
           <div class="code-runner__status-box">
-            <div v-if="codeStore.runError" class="code-runner__status code-runner__status--error" role="alert">
+            <div v-if="codeStore.isRunning" class="code-runner__status code-runner__status--running" role="status">
+              <div class="inline-block w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin"></div>
+              <span>Đang thực thi code trong sandbox...</span>
+            </div>
+            <div v-else-if="codeStore.runError" class="code-runner__status code-runner__status--error" role="alert">
               {{ codeStore.runError }}
             </div>
             <div
@@ -300,6 +333,15 @@ async function toggleHistory(): Promise<void> {
                 <span class="code-runner__vars-eq" aria-hidden="true">=</span>
                 <span class="code-runner__vars-value">{{ formatVarValue(entry.value) }}</span>
               </div>
+              <div v-if="totalVarsCount > 15" class="pt-1">
+                <button
+                  type="button"
+                  class="text-[11px] text-primary hover:underline cursor-pointer bg-transparent border-0"
+                  @click="showAllVars = !showAllVars"
+                >
+                  {{ showAllVars ? 'Thu gọn' : `Xem thêm (${totalVarsCount - 15} biến)` }}
+                </button>
+              </div>
             </div>
             <div class="code-runner__sim-controls">
               <template v-if="traceMode">
@@ -345,16 +387,35 @@ async function toggleHistory(): Promise<void> {
         </section>
       </div>
 
-      <!-- Lịch sử nộp -->
+      <!-- Lịch sử nộp & chạy (F2) -->
       <section v-if="historyOpen" class="code-runner__history">
-        <h2 class="code-runner__history-title">Lịch sử nộp</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="code-runner__history-title">Lịch sử chạy code ({{ codeStore.submissions.length }})</h2>
+          <Button variant="ghost" size="sm" @click="codeStore.fetchHistory()">
+            Làm mới
+          </Button>
+        </div>
         <p v-if="codeStore.submissions.length === 0" class="code-runner__history-empty">
-          Chưa có bài nộp — nộp từ Bậc 3 (Ladder) sẽ hiển thị ở đây.
+          Chưa có lượt chạy code nào — bấm <strong>Chạy</strong> để thực thi và lưu lịch sử.
         </p>
         <ul v-else class="code-runner__history-list">
-          <li v-for="sub in codeStore.submissions" :key="sub.id">
-            <Badge :variant="sub.status === 'passed' ? 'success' : 'danger'">{{ sub.status }}</Badge>
-            <span class="code-runner__history-date">{{ sub.createdAt }}</span>
+          <li
+            v-for="sub in codeStore.submissions"
+            :key="sub.id"
+            class="code-runner__history-card p-3 rounded-xl border border-vdsa-border bg-vdsa-surface flex flex-col gap-1.5"
+          >
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-2">
+                <Badge :variant="sub.status === 'passed' || sub.status === 'Success' ? 'success' : 'danger'">
+                  {{ sub.status === 'passed' || sub.status === 'Success' ? 'Thành công' : 'Lỗi' }}
+                </Badge>
+                <span class="text-xs font-mono text-vdsa-secondary">JavaScript</span>
+                <span v-if="sub.durationMs !== undefined" class="text-xs font-mono text-vdsa-muted">{{ sub.durationMs }}ms</span>
+              </div>
+              <span class="code-runner__history-date text-xs text-vdsa-muted font-mono">{{ formatDateTime(sub.createdAt) }}</span>
+            </div>
+            <p v-if="sub.error" class="text-xs text-rose-400 font-mono mt-0.5">{{ sub.error }}</p>
+            <p v-else-if="sub.output" class="text-xs text-vdsa-secondary font-mono line-clamp-1 mt-0.5">Kết quả: {{ sub.output }}</p>
           </li>
         </ul>
       </section>
@@ -524,6 +585,32 @@ async function toggleHistory(): Promise<void> {
 .code-runner__actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 /* ── Output panel ── */
+.code-runner__progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: var(--space-xs);
+}
+
+.code-runner__progress-bar-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  animation: code-runner-progress 1.2s infinite ease-in-out;
+}
+
+@keyframes code-runner-progress {
+  0% { left: -40%; width: 30%; }
+  50% { left: 30%; width: 60%; }
+  100% { left: 100%; width: 30%; }
+}
+
 .code-runner__status-box {
   min-height: 48px;
   display: flex;
@@ -538,6 +625,12 @@ async function toggleHistory(): Promise<void> {
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   width: 100%;
+}
+
+.code-runner__status--running {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-muted) 70%, transparent);
+  border: 1px solid var(--color-border);
 }
 
 .code-runner__status--ok {

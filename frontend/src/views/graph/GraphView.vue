@@ -3,15 +3,15 @@
 
     <header class="graph-header flex items-center justify-between px-5 py-3 border-b border-border-subtle bg-bg-secondary/60 backdrop-blur-md">
       <div class="flex items-center gap-3">
-        <h1 class="text-lg font-extrabold text-text-primary tracking-tight">Graph Playground</h1>
-        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">Interactive</span>
+        <h1 class="text-lg font-extrabold text-text-primary tracking-tight">{{ messages.graph.title }}</h1>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20">{{ messages.graph.interactive }}</span>
       </div>
 
       <div class="flex items-center gap-2">
-        <span class="text-[10px] text-text-muted font-mono">Nodes: {{ store.nodeCount }}</span>
-        <span class="text-[10px] text-text-muted font-mono">Edges: {{ store.edgeCount }}</span>
+        <span class="text-[10px] text-text-muted font-mono">{{ messages.graph.nodes }}: {{ store.nodeCount }}</span>
+        <span class="text-[10px] text-text-muted font-mono">{{ messages.graph.edges }}: {{ store.edgeCount }}</span>
         <div class="w-px h-4 bg-border-default mx-1"></div>
-        <span class="text-[10px] text-text-muted font-mono">Zoom: {{ store.zoomLevel }}%</span>
+        <span class="text-[10px] text-text-muted font-mono">{{ messages.graph.zoom }}: {{ store.zoomLevel }}%</span>
       </div>
     </header>
 
@@ -21,60 +21,60 @@
         <div class="p-4 space-y-4">
 
           <div>
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Graph Type</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">{{ messages.graph.graphType }}</h3>
             <div class="flex gap-1">
               <button
                 @click="store.setGraphType('undirected')"
                 :class="['flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer', store.graphType === 'undirected' ? 'bg-accent-emerald/15 text-accent-emerald border border-accent-emerald/30' : 'bg-bg-hover text-text-muted border border-border-subtle hover:text-text-primary']"
               >
-                Undirected
+                {{ messages.graph.undirected }}
               </button>
               <button
                 @click="store.setGraphType('directed')"
                 :class="['flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer', store.graphType === 'directed' ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30' : 'bg-bg-hover text-text-muted border border-border-subtle hover:text-text-primary']"
               >
-                Directed
+                {{ messages.graph.directed }}
               </button>
             </div>
           </div>
 
           <div>
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Layout</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">{{ messages.graph.layout }}</h3>
             <button
               @click="triggerAutoLayout"
               class="w-full px-3 py-2 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-              Auto Layout
+              {{ messages.graph.autoLayout }}
             </button>
           </div>
 
           <div>
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Templates</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">{{ messages.graph.templates }}</h3>
             <div class="space-y-1.5">
               <button
                 @click="loadTemplate('triangle')"
                 class="w-full px-3 py-1.5 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-medium transition-all cursor-pointer text-left"
               >
-                Triangle
+                {{ messages.graph.triangle }}
               </button>
               <button
                 @click="loadTemplate('square')"
                 class="w-full px-3 py-1.5 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-medium transition-all cursor-pointer text-left"
               >
-                Square
+                {{ messages.graph.square }}
               </button>
               <button
                 @click="loadTemplate('star')"
                 class="w-full px-3 py-1.5 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-medium transition-all cursor-pointer text-left"
               >
-                Star
+                {{ messages.graph.star }}
               </button>
               <button
                 @click="loadTemplate('tree')"
                 class="w-full px-3 py-1.5 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-medium transition-all cursor-pointer text-left"
               >
-                Binary Tree
+                {{ messages.graph.binaryTree }}
               </button>
             </div>
           </div>
@@ -103,7 +103,7 @@
           </div>
 
           <div class="border-t border-border-subtle pt-4">
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Tools</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">{{ messages.graph.tools }}</h3>
             <div class="space-y-1">
               <button
                 v-for="tool in tools"
@@ -119,35 +119,35 @@
           </div>
 
           <div class="border-t border-border-subtle pt-4">
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Actions</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">{{ messages.graph.actions }}</h3>
             <div class="space-y-1.5">
               <button
                 @click="store.togglePhysics()"
                 :class="['w-full px-3 py-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-2', store.isPhysicsEnabled ? 'bg-accent-emerald/15 text-accent-emerald border border-accent-emerald/30' : 'bg-bg-hover text-text-muted border border-border-subtle hover:text-text-primary']"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                Physics: {{ store.isPhysicsEnabled ? 'ON' : 'OFF' }}
+                {{ store.isPhysicsEnabled ? messages.graph.physicsOn : messages.graph.physicsOff }}
               </button>
               <button
                 @click="handleExport"
                 class="w-full px-3 py-2 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-2"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Export JSON
+                {{ messages.graph.exportJson }}
               </button>
               <button
                 @click="handleImport"
                 class="w-full px-3 py-2 rounded-lg bg-bg-hover border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-2"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Import JSON
+                {{ messages.graph.importJson }}
               </button>
               <button
                 @click="store.clearAll()"
                 class="w-full px-3 py-2 rounded-lg bg-bg-hover border border-border-subtle text-accent-red hover:text-accent-red hover:border-accent-red/20 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-2"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                Clear All
+                {{ messages.graph.clearAll }}
               </button>
             </div>
           </div>
@@ -162,22 +162,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePlaygroundStore } from '../../features/interactive-playground/store/usePlaygroundStore';
 import { parseEmojiToSvg } from '../../utils/emojiParser';
 import InteractivePlayground from '../../features/interactive-playground/components/InteractivePlayground.vue';
 import { GraphParser } from '../../features/interactive-playground/services/GraphParser';
+import BaseIcon from '@/components/ui/BaseIcon.vue';
+import { messages } from '@/i18n/vi';
 
 const store = usePlaygroundStore();
 const canvasContainerRef = ref<HTMLElement | null>(null);
 
-const tools = [
-  { mode: 'SELECT', label: 'Select', icon: '🖱', shortcut: 'V' },
-  { mode: 'ADD_NODE', label: 'Add Node', icon: '＋', shortcut: 'N' },
-  { mode: 'ADD_EDGE', label: 'Add Edge', icon: '↔', shortcut: 'E' },
-  { mode: 'WEIGHT', label: 'Weight', icon: '✎', shortcut: 'W' },
-  { mode: 'DELETE', label: 'Delete', icon: '🗑', shortcut: 'Del' },
-] as const;
+const tools = computed(() => [
+  { mode: 'SELECT', label: messages.graph.select, icon: '🖱', shortcut: 'V' },
+  { mode: 'ADD_NODE', label: messages.graph.addNode, icon: '＋', shortcut: 'N' },
+  { mode: 'ADD_EDGE', label: messages.graph.addEdge, icon: '↔', shortcut: 'E' },
+  { mode: 'WEIGHT', label: messages.graph.weight, icon: '✎', shortcut: 'W' },
+  { mode: 'DELETE', label: messages.graph.delete, icon: '🗑', shortcut: 'Del' },
+] as const);
 
 const algorithmOptions = ['BFS', 'DFS', 'DIJKSTRA'] as const;
 

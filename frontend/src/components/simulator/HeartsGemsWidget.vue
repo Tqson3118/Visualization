@@ -81,11 +81,11 @@ watch(nextHeartIn, (value, prev) => {
         {{ heartsLabel }}
       </button>
     </Tooltip>
-    <span class="hearts-gems__chip" title="Gems" aria-label="Gems">
+    <span class="hearts-gems__chip" title="Đá quý" aria-label="Đá quý">
       <BaseIcon name="sparkles" :size="14" />
       {{ gamification.gems }}
     </span>
-    <span v-if="gamification.streakDays > 0" class="hearts-gems__chip" title="Streak" aria-label="Streak">
+    <span v-if="gamification.streakDays > 0" class="hearts-gems__chip" title="Chuỗi ngày" aria-label="Chuỗi ngày">
       🔥 {{ gamification.streakDays }}
     </span>
 
@@ -95,7 +95,7 @@ watch(nextHeartIn, (value, prev) => {
           <p class="hearts-gems__pop-title">Tim của bạn</p>
           <p v-if="nextHeartIn" class="hearts-gems__pop-desc">
             Tim tiếp theo sau <strong>{{ nextHeartIn }}</strong> ({{ regenMinutes }} phút/tim — bản
-            {{ gamification.isPremium ? 'Premium' : 'Free' }})
+            {{ gamification.isPremium ? 'Cao cấp' : 'Miễn phí' }})
           </p>
           <RouterLink v-if="!gamification.isPremium" class="hearts-gems__pop-link" to="/premium">
             Nâng cấp Premium — hồi tim chỉ 10 phút
@@ -127,6 +127,8 @@ watch(nextHeartIn, (value, prev) => {
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--color-foreground);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .hearts-gems__chip--empty { border-color: var(--color-destructive); color: var(--color-destructive); }

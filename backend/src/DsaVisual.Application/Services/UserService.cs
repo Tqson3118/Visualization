@@ -131,6 +131,24 @@ public sealed class UserService(
             return Result<AdminUserDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính mới có quyền tạo tài khoản Admin khác");
         }
 
+        // A3: Mã giảng viên bắt buộc cho Giảng viên + duy nhất
+        var staffCode = request.StaffCode?.Trim();
+        if (role == UserRole.Teacher && string.IsNullOrEmpty(staffCode))
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Vui lòng nhập mã giảng viên", new()
+            {
+                ["staffCode"] = ["Mã giảng viên là bắt buộc đối với Giảng viên"]
+            });
+        }
+        if (!string.IsNullOrEmpty(staffCode) &&
+            await db.Users.AsNoTracking().AnyAsync(u => u.StaffCode == staffCode && u.DeletedAt == null, ct))
+        {
+            return Result<AdminUserDto>.Fail(ErrorCodes.CONFLICT, "Mã giảng viên đã được sử dụng", new()
+            {
+                ["staffCode"] = ["Mã giảng viên đã được sử dụng"]
+            });
+        }
+
         var user = new User
         {
             Email = normalizedEmail,
@@ -138,8 +156,8 @@ public sealed class UserService(
             PasswordHash = PasswordHasher.Hash(request.Password),
             Role = role,
             IsActive = true,
-            Department = request.Department?.Trim(),
-            StaffCode = request.StaffCode?.Trim(),
+            Department = string.IsNullOrEmpty(request.Department?.Trim()) ? null : request.Department.Trim(),
+            StaffCode = string.IsNullOrEmpty(staffCode) ? null : staffCode,
             CreatedAt = clock.UtcNow,
             UpdatedAt = clock.UtcNow,
         };
@@ -171,7 +189,21 @@ public sealed class UserService(
         }
 
         if (request.Department is not null) user.Department = request.Department.Trim();
-        if (request.StaffCode is not null) user.StaffCode = request.StaffCode.Trim();
+        // A3: Mã giảng viên duy nhất — nếu đổi sang mã user khác đang giữ → 409 CONFLICT
+        if (request.StaffCode is not null)
+        {
+            var newStaffCode = request.StaffCode.Trim();
+            var staffCodeTaken = !string.IsNullOrEmpty(newStaffCode)
+                && await db.Users.AsNoTracking().AnyAsync(u => u.StaffCode == newStaffCode && u.Id != user.Id && u.DeletedAt == null, ct);
+            if (staffCodeTaken)
+            {
+                return Result<AdminUserDto>.Fail(ErrorCodes.CONFLICT, "Mã giảng viên đã được sử dụng", new()
+                {
+                    ["staffCode"] = ["Mã giảng viên đã được sử dụng"]
+                });
+            }
+            user.StaffCode = string.IsNullOrEmpty(newStaffCode) ? null : newStaffCode;
+        }
         if (request.AcademicDegree is not null) user.AcademicDegree = request.AcademicDegree.Trim();
         if (request.ProfileLink is not null) user.ProfileLink = request.ProfileLink.Trim();
         if (request.TeacherBio is not null) user.TeacherBio = request.TeacherBio.Trim();

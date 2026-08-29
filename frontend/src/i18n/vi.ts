@@ -537,6 +537,36 @@ export const messages = {
     toastPracticeDone: (correct: number, wrong: number) => `Kết thúc: ${correct} đúng / ${wrong} sai`,
   },
 
+  graph: {
+    title: 'Mô phỏng Đồ thị',
+    interactive: 'Tương tác',
+    graphType: 'LOẠI ĐỒ THỊ',
+    undirected: 'Vô hướng',
+    directed: 'Có hướng',
+    layout: 'BỐ CỤC',
+    autoLayout: 'Bố cục tự động',
+    templates: 'MẪU ĐỒ THỊ',
+    triangle: 'Tam giác',
+    square: 'Hình vuông',
+    star: 'Hình sao',
+    binaryTree: 'Cây nhị phân',
+    tools: 'CÔNG CỤ',
+    select: 'Chọn',
+    addNode: 'Thêm đỉnh',
+    addEdge: 'Thêm cạnh',
+    weight: 'Trọng số',
+    delete: 'Xóa',
+    actions: 'THAO TÁC',
+    physicsOn: 'Vật lý: BẬT',
+    physicsOff: 'Vật lý: TẮT',
+    exportJson: 'Xuất JSON',
+    importJson: 'Nhập JSON',
+    clearAll: 'Xóa tất cả',
+    nodes: 'Đỉnh',
+    edges: 'Cạnh',
+    zoom: 'Thu phóng',
+  },
+
   // ── Tự thực hành (ManualPracticePanel) — FR-3.12 ──
   practice: {
     ariaLabel: 'Tự thực hành',
@@ -971,8 +1001,8 @@ export const messages = {
     detailStatusOpen: 'Đang mở',
     detailSubmittedCount: (submitted: number, total: number) =>
       `${String(submitted).padStart(2, '0')} / ${String(total).padStart(2, '0')} BÀI NỘP`,
-    // Task 2 (ui-redesign): bảng học viên — cột bài chưa nộp + phân trang
-    detailColMissing: 'Bài chưa nộp',
+    // Task 2 (ui-redesign): bảng học viên — cột bài chưa hoàn thành + phân trang
+    detailColMissing: 'Chưa hoàn thành',
     detailMissingOk: 'Đủ tiến độ',
     detailPagePrev: 'Trang trước',
     detailPageNext: 'Trang sau',

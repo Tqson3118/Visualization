@@ -29,6 +29,7 @@ import {
   UserPlus,
   Users,
   Download,
+  X,
 } from 'lucide-vue-next';
 import type { Component } from 'vue';
 
@@ -62,7 +63,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 
 const classId = computed(() => Number(route.params.id));
-const tab = ref<'members' | 'assignments' | 'curriculum' | 'settings'>('members');
+const tab = ref<'members' | 'curriculum' | 'settings'>('members');
 const loading = ref(true);
 
 const confirmRemove = ref<number | null>(null);
@@ -80,12 +81,7 @@ const assignLoading = ref(false);
 const lessonOptions = ref<SelectOption[]>([]);
 const exerciseOptions = ref<SelectOption[]>([]);
 
-const editAssign = ref<ClassAssignmentDto | null>(null);
-const editDue = ref('');
-const editLate = ref(true);
-const editSaving = ref(false);
-
-const confirmAssignDelete = ref<number | null>(null);
+// B4: editAssign/confirmAssignDelete removed — assignments tab bị bỏ
 
 // ── Learning Path / Curriculum (per-class) ──
 const curriculumTitle = ref('');
@@ -129,12 +125,8 @@ async function handleImportCourse(): Promise<void> {
   }
 }
 
-// ── Task 2: thống kê nộp bài thật từ GET /classes/{id}/report (chỉ manager, không
-// chặn màn nếu báo cáo lỗi) — dùng cho thanh tiến độ + badge hạn nộp của bài gán
-// và cột "Bài chưa nộp" của bảng học viên. API KHÔNG có progress/avgScore từng
-// thành viên → cột tiến độ hiển thị số bài thiếu (LaggingLearnerDto — dữ liệu thật).
-const assignmentStats = ref<Record<number, { onTime: number; late: number; notSubmitted: number }>>({});
-const reportTotalMembers = ref(0);
+// B4: assignmentStats/deadlineBadge/submissionPct removed — assignments tab bị bỏ
+// Chỉ giữ laggingMap cho cột "Bài chưa nộp" trong bảng thành viên.
 const laggingMap = ref<Record<number, number>>({});
 const reportLoaded = ref(false);
 
@@ -168,62 +160,18 @@ watch(
 async function loadReport(): Promise<void> {
   try {
     const report = await classesApi.fetchClassReport(classId.value);
-    reportTotalMembers.value = report.totalMembers;
-    const stats: Record<number, { onTime: number; late: number; notSubmitted: number }> = {};
-    for (const a of report.assignments) {
-      stats[a.assignmentId] = { onTime: a.onTime, late: a.late, notSubmitted: a.notSubmitted };
-    }
-    assignmentStats.value = stats;
+    // B4: Chỉ giữ laggingMap cho cột "Bài chưa nộp" trong bảng thành viên.
     const lagging: Record<number, number> = {};
     for (const l of report.laggingLearners) lagging[l.userId] = l.missingCount;
     laggingMap.value = lagging;
     reportLoaded.value = true;
   } catch {
-    // Báo cáo là quyền giảng viên — lỗi không chặn chi tiết lớp (giữ hành vi cũ).
-  }
-}
-
-/** % nộp bài của 1 bài gán (submitted/totalMembers — dữ liệu thật từ report). */
-function submissionPct(assign: ClassAssignmentDto): number {
-  const stats = assignmentStats.value[assign.id];
-  if (!stats || reportTotalMembers.value === 0) return 0;
-  return Math.round(((stats.onTime + stats.late) / reportTotalMembers.value) * 100);
-}
-
-/** Badge hạn nộp semantic (Task 2): Đang mở (muted) / Còn thiếu (destructive) /
-    Nộp trễ (warning) / Đúng hạn (success) — từ dueAt + thống kê report thật. */
-function deadlineBadge(
-  assign: ClassAssignmentDto,
-): { label: string; tone: 'success' | 'warning' | 'destructive' | 'muted' } | null {
-  const stats = assignmentStats.value[assign.id];
-  const due = assign.dueAt ? new Date(assign.dueAt).getTime() : null;
-  const isOpen = due === null || due > Date.now();
-  if (isOpen) return { label: messages.classes.detailStatusOpen, tone: 'muted' };
-  if (!stats) return null;
-  if (stats.notSubmitted > 0) return { label: messages.classes.detailStatusMissing(stats.notSubmitted), tone: 'destructive' };
-  if (stats.late > 0) return { label: messages.classes.detailStatusLate(stats.late), tone: 'warning' };
-  return { label: messages.classes.detailStatusOnTime, tone: 'success' };
-}
-
-/** FIX R1: icon lucide nhỏ cho badge hạn nộp theo tone (visual + semantic, không đổi logic). */
-function deadlineIcon(tone: 'success' | 'warning' | 'destructive' | 'muted'): Component {
-  switch (tone) {
-    case 'success':
-      return CheckCircle2;
-    case 'warning':
-      return Timer;
-    case 'destructive':
-      return AlertTriangle;
-    default:
-      return Clock;
+    // Báo cáo là quyền giảng viên — lỗi không chặn chi tiết lớp.
   }
 }
 
 /** Số bài thiếu của 1 học viên (0 = không trong danh sách chậm tiến độ của report). */
 const missingOf = (userId: number): number => laggingMap.value[userId] ?? 0;
-
-/** Thống kê nộp bài của 1 bài gán (null khi report chưa tải / không có quyền). */
-const assignStatsOf = (assign: ClassAssignmentDto) => assignmentStats.value[assign.id] ?? null;
 
 const assignOptions = computed<SelectOption[]>(() => (assignType.value === 'lesson' ? lessonOptions.value : exerciseOptions.value));
 
@@ -247,10 +195,10 @@ const isManager = computed(() => {
 /** Vai trò thành viên: backend ClassMemberDto không trả role → so với OwnerId của lớp. */
 const isMemberTeacher = (member: { userId: number }): boolean => member.userId === classStore.currentClass?.ownerId;
 
-const detailTabs = computed<Array<{ key: 'members' | 'assignments' | 'curriculum' | 'settings'; label: string }>>(() => {
-  const tabs: Array<{ key: 'members' | 'assignments' | 'curriculum' | 'settings'; label: string }> = [
+// B4: Bỏ tab 'assignments' — lớp học chỉ học theo lộ trình GV tạo sẵn.
+const detailTabs = computed<Array<{ key: 'members' | 'curriculum' | 'settings'; label: string }>>(() => {
+  const tabs: Array<{ key: 'members' | 'curriculum' | 'settings'; label: string }> = [
     { key: 'members', label: messages.classes.detailTabMembers },
-    { key: 'assignments', label: messages.classes.detailTabAssignments },
     { key: 'curriculum', label: messages.classes.curriculumTab },
   ];
   if (isManager.value) tabs.push({ key: 'settings', label: messages.classes.detailTabSettings });
@@ -295,6 +243,7 @@ async function removeMember(userId: number): Promise<void> {
     await classStore.removeMember(classId.value, userId);
     ui.showToast(messages.classes.detailRemoved, 'success');
     confirmRemove.value = null;
+    if (isManager.value) void loadReport();
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.classes.detailRemoveFailed, 'error');
   }
@@ -306,12 +255,11 @@ async function addMember(): Promise<void> {
     return;
   }
   try {
-    const { addClassMember } = await import('@/api/classes');
-    await addClassMember(classId.value, addEmail.value.trim());
+    await classStore.addMember(classId.value, addEmail.value.trim());
     ui.showToast(messages.classes.detailAddSuccess, 'success');
     addEmail.value = '';
     addMemberOpen.value = false;
-    await classStore.reloadMembers(classId.value);
+    if (isManager.value) void loadReport();
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.classes.detailAddFailed, 'error');
   }
@@ -358,6 +306,7 @@ async function createAssignment(): Promise<void> {
     assignDue.value = '';
     assignLate.value = true;
     await classStore.reloadAssignments(classId.value);
+    if (isManager.value) void loadReport();
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.classes.detailAssignFailed, 'error');
   } finally {
@@ -372,55 +321,7 @@ function toLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function openEdit(assign: ClassAssignmentDto): void {
-  editAssign.value = assign;
-  editDue.value = assign.dueAt ? toLocalInput(assign.dueAt) : '';
-  editLate.value = assign.allowLateSubmission;
-}
-
-async function saveEdit(): Promise<void> {
-  if (!editAssign.value) return;
-  editSaving.value = true;
-  try {
-    await classStore.updateAssignment(classId.value, editAssign.value.id, {
-      dueAt: editDue.value ? new Date(editDue.value).toISOString() : null,
-      allowLateSubmission: editLate.value,
-    });
-    ui.showToast(messages.classes.detailEditSaved, 'success');
-    editAssign.value = null;
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.detailEditFailed, 'error');
-  } finally {
-    editSaving.value = false;
-  }
-}
-
-async function removeAssignment(assignId: number): Promise<void> {
-  try {
-    await classStore.removeAssignment(classId.value, assignId);
-    ui.showToast(messages.classes.detailDeleteAssignSuccess, 'success');
-    confirmAssignDelete.value = null;
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.detailDeleteAssignFailed, 'error');
-  }
-}
-
-/** Mở nội dung bài gán: bài tập → /exercise/:id?classAssignmentId=..., bài học → route lesson. */
-function openAssignment(assign: ClassAssignmentDto): void {
-  if (assign.exerciseId !== null) {
-    void router.push({
-      name: 'exercise',
-      params: { id: String(assign.exerciseId) },
-      query: { classAssignmentId: String(assign.id) },
-    });
-  } else if (assign.lessonId !== null) {
-    void router.push({ name: 'lesson', params: { lessonId: String(assign.lessonId) } });
-  }
-}
-
-function isNavigable(assign: ClassAssignmentDto): boolean {
-  return assign.exerciseId !== null || assign.lessonId !== null;
-}
+// B4: openEdit/saveEdit/removeAssignment/openAssignment/isNavigable removed — assignments tab bị bỏ.
 
 async function confirmDeleteClass(): Promise<void> {
   try {
@@ -451,10 +352,15 @@ function copyInvite(): void {
     });
 }
 
+function cleanTitle(title?: string): string {
+  if (!title) return '';
+  return title.replace(/Mini-Quizz/gi, 'Mini-Quiz');
+}
+
 function assignmentTitle(assign: ClassAssignmentDto): string {
-  if (assign.title) return assign.title;
-  if (assign.lessonId !== null) return messages.classes.detailLesson(assign.lessonId);
-  if (assign.exerciseId !== null) return messages.classes.detailExercise(assign.exerciseId);
+  if (assign.title) return cleanTitle(assign.title);
+  if (assign.lessonId !== null) return cleanTitle(messages.classes.detailLesson(assign.lessonId));
+  if (assign.exerciseId !== null) return cleanTitle(messages.classes.detailExercise(assign.exerciseId));
   return messages.classes.detailGenericContent;
 }
 
@@ -480,7 +386,11 @@ async function saveCurriculumMeta(): Promise<void> {
 async function saveDraft(): Promise<void> {
   curriculumBusy.value = true;
   try {
-    await classStore.updateCurriculumMeta(classId.value, { published: false });
+    await classStore.updateCurriculumMeta(classId.value, {
+      title: curriculumTitle.value.trim() || null,
+      description: curriculumDesc.value.trim() || null,
+      published: false,
+    });
     ui.showToast(messages.classes.curriculumDraftToast, 'success');
     void classStore.fetchCurriculum(classId.value).catch(() => undefined);
   } catch (err) {
@@ -494,7 +404,11 @@ async function saveDraft(): Promise<void> {
 async function publishCurriculum(): Promise<void> {
   curriculumBusy.value = true;
   try {
-    await classStore.updateCurriculumMeta(classId.value, { published: true });
+    await classStore.updateCurriculumMeta(classId.value, {
+      title: curriculumTitle.value.trim() || null,
+      description: curriculumDesc.value.trim() || null,
+      published: true,
+    });
     ui.showToast(messages.classes.curriculumPublishedToast, 'success');
     void classStore.fetchCurriculum(classId.value).catch(() => undefined);
   } catch (err) {
@@ -616,7 +530,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
       </PageHero>
 
       <!-- Tabs shadcn: Thành viên / Lộ trình đã gán / Cài đặt -->
-      <Tabs :tabs="detailTabs" :model-value="tab" @change="tab = $event as typeof tab" />
+      <Tabs :tabs="detailTabs" v-model="tab" @change="tab = $event as typeof tab" />
 
       <!-- Tab Thành viên -->
       <section v-if="tab === 'members'" class="class-detail__panel">
@@ -715,87 +629,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
         </Card>
       </section>
 
-      <!-- Tab Bài tập -->
-      <section v-else-if="tab === 'assignments'" class="class-detail__panel">
-        <div v-if="isManager" class="class-detail__toolbar">
-          <Button size="md" @click="openAssign">
-            <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.detailAssignBtn }}
-          </Button>
-        </div>
-        <EmptyState
-          v-if="classStore.assignments.length === 0"
-          icon="book"
-          :title="messages.classes.detailEmptyAssign"
-          :description="messages.classes.detailEmptyAssignDesc"
-        />
-        <div v-else class="class-detail__assignments">
-          <Card
-            v-for="(assign, i) in classStore.assignments"
-            :key="assign.id"
-            class="class-detail__assign"
-            :class="{ 'class-detail__assign--link': isNavigable(assign) }"
-            :role="isNavigable(assign) ? 'button' : undefined"
-            :tabindex="isNavigable(assign) ? 0 : undefined"
-            :aria-label="isNavigable(assign) ? assignmentTitle(assign) : undefined"
-            @click="isNavigable(assign) && openAssignment(assign)"
-            @keydown.enter="isNavigable(assign) && openAssignment(assign)"
-            @keydown.space.prevent="isNavigable(assign) && openAssignment(assign)"
-          >
-            <span class="class-detail__assign-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
-            <span class="class-detail__assign-icon" aria-hidden="true">
-              <Puzzle v-if="assign.exerciseId !== null" :size="18" />
-              <BookOpen v-else :size="18" />
-            </span>
-            <div class="class-detail__assign-main">
-              <div class="class-detail__assign-info">
-                <p class="class-detail__assign-title">{{ assignmentTitle(assign) }}</p>
-                <p class="class-detail__assign-due">
-                  <CalendarClock :size="13" aria-hidden="true" />
-                  {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
-                </p>
-              </div>
-              <!-- Task 2: tiến độ nộp bài (dữ liệu thật từ report) + badge hạn nộp semantic -->
-              <div v-if="assignStatsOf(assign)" class="class-detail__assign-progress">
-                <div class="class-detail__assign-progress-row">
-                  <span class="class-detail__assign-progress-count">
-                    {{
-                      messages.classes.detailSubmittedCount(
-                        assignStatsOf(assign)!.onTime + assignStatsOf(assign)!.late,
-                        reportTotalMembers,
-                      )
-                    }}
-                  </span>
-                  <span
-                    v-if="deadlineBadge(assign) !== null"
-                    class="class-detail__deadline"
-                    :class="`class-detail__deadline--${deadlineBadge(assign)!.tone}`"
-                  >
-                    <component :is="deadlineIcon(deadlineBadge(assign)!.tone)" :size="12" aria-hidden="true" />
-                    {{ deadlineBadge(assign)!.label }}
-                  </span>
-                </div>
-                <ProgressBar :value="submissionPct(assign)" variant="success" size="sm" />
-              </div>
-            </div>
-            <div class="class-detail__assign-actions">
-              <Badge v-if="assign.allowLateSubmission" variant="muted">
-                {{ messages.classes.detailLateBadge }}
-              </Badge>
-              <Button v-if="isNavigable(assign)" size="sm" variant="secondary" @click.stop="openAssignment(assign)">
-                {{ messages.classes.detailDoBtn }} <ArrowRight :size="14" aria-hidden="true" />
-              </Button>
-              <template v-if="isManager">
-                <Button size="sm" variant="ghost" @click.stop="openEdit(assign)">
-                  <Pencil :size="14" aria-hidden="true" /> {{ messages.classes.detailEditDueBtn }}
-                </Button>
-                <Button size="sm" variant="danger" @click.stop="confirmAssignDelete = assign.id">
-                  <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.detailDeleteAssignBtn }}
-                </Button>
-              </template>
-            </div>
-          </Card>
-        </div>
-      </section>
+      <!-- B4: Tab Bài tập đã bị bỏ — lớp học chỉ dùng Tab Lộ trình -->
 
       <!-- Tab Lộ trình học (curriculum — feature port: teacher tạo path, student xem status) -->
       <section v-else-if="tab === 'curriculum'" class="class-detail__panel">
@@ -955,7 +789,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
                   <BookOpen v-else :size="18" />
                 </span>
                 <div class="class-detail__curriculum-row-main">
-                  <p class="class-detail__curriculum-row-title">{{ item.title }}</p>
+                  <p class="class-detail__curriculum-row-title">{{ cleanTitle(item.title) }}</p>
                   <Badge
                     :variant="
                       item.status === 'completed'
@@ -1044,13 +878,24 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
           :placeholder="messages.classes.detailAssignItemPlaceholder"
           :disabled="assignLoading"
         />
-        <p class="class-detail__modal-note">{{ messages.classes.detailAssignNote }}</p>
-        <Input
-          id="assign-due"
-          v-model="assignDue"
-          type="datetime-local"
-          :label="messages.classes.detailAssignDueLabel"
-        />
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label for="assign-due" class="text-sm font-medium text-foreground">{{ messages.classes.detailAssignDueLabel }}</label>
+            <button
+              v-if="assignDue"
+              type="button"
+              class="text-xs text-red-400 hover:text-red-300 hover:underline cursor-pointer flex items-center gap-1"
+              @click="assignDue = ''"
+            >
+              <X :size="12" /> Xóa hạn nộp
+            </button>
+          </div>
+          <Input
+            id="assign-due"
+            v-model="assignDue"
+            type="datetime-local"
+          />
+        </div>
         <label class="class-detail__late">
           <input v-model="assignLate" type="checkbox" />
           {{ messages.classes.detailAssignLateLabel }}
@@ -1062,36 +907,7 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
       </form>
     </Modal>
 
-    <!-- Modal sửa hạn nộp bài gán -->
-    <Modal :open="editAssign !== null" :title="messages.classes.detailEditDueTitle" @close="editAssign = null">
-      <form class="class-detail__assign-form" novalidate @submit.prevent="saveEdit">
-        <Input
-          id="edit-due"
-          v-model="editDue"
-          type="datetime-local"
-          :label="messages.classes.detailAssignDueLabel"
-        />
-        <label class="class-detail__late">
-          <input v-model="editLate" type="checkbox" />
-          {{ messages.classes.detailAssignLateLabel }}
-        </label>
-        <div class="class-detail__modal-actions">
-          <Button variant="ghost" @click="editAssign = null">{{ messages.classes.cancel }}</Button>
-          <Button type="submit" :loading="editSaving">{{ messages.classes.detailEditDueSubmit }}</Button>
-        </div>
-      </form>
-    </Modal>
-
-    <!-- Modal xác nhận xóa bài gán -->
-    <Modal :open="confirmAssignDelete !== null" :title="messages.classes.detailDeleteAssignTitle" @close="confirmAssignDelete = null">
-      <p class="class-detail__modal-text">{{ messages.classes.detailDeleteAssignConfirm }}</p>
-      <template #footer>
-        <Button variant="ghost" @click="confirmAssignDelete = null">{{ messages.classes.cancel }}</Button>
-        <Button variant="danger" @click="removeAssignment(confirmAssignDelete ?? 0)">
-          <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.detailDeleteAssignBtn }}
-        </Button>
-      </template>
-    </Modal>
+    <!-- B4: Modal sửa hạn nộp và modal xác nhận xóa bài gán đã bị bỏ -->
 
     <!-- Modal xác nhận xóa item khỏi lộ trình -->
     <Modal

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { courseApi } from '@/services/courseApi';
+import { normalizeVi } from '@/utils/searchNormalize';
 import type { Course, CourseProgress } from '../types/course.types';
 
 export const useCourseStore = defineStore('course', () => {
@@ -24,11 +25,11 @@ export const useCourseStore = defineStore('course', () => {
       result = result.filter(c => c.difficulty === selectedDifficulty.value);
     }
     if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim();
+      const q = normalizeVi(searchQuery.value);
       result = result.filter(c =>
-        c.title.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q)
+        normalizeVi(c.title).includes(q) ||
+        normalizeVi(c.description).includes(q) ||
+        normalizeVi(c.category).includes(q)
       );
     }
     return result;

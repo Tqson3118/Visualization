@@ -28,6 +28,7 @@ const mockUser: UserSummary = {
   createdAt: '2026-08-01T08:00:00Z',
   xp: 100,
   level: 2,
+  twoFactorEnabled: false,
 };
 
 const mockLoginResponse: LoginResponse = {

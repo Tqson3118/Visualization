@@ -585,4 +585,81 @@ function printReport(): void {
 
   .class-report__assign-title { max-width: 100%; white-space: normal; }
 }
+
+@media print {
+  .class-report__breadcrumb,
+  .class-report__actions {
+    display: none !important;
+  }
+
+  .class-report {
+    padding: 0 !important;
+    gap: 16px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .class-report__hero,
+  .class-report__kpi,
+  .class-report__summary,
+  .class-report__table,
+  .class-report__lagging,
+  .class-report__hero-stat {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .class-report__title,
+  .class-report__kpi-value,
+  .class-report__hero-stat-value,
+  .class-report__assign-title,
+  .class-report__lagging-title,
+  .class-report__lagging-name {
+    color: #000000 !important;
+  }
+
+  .class-report__sub,
+  .class-report__kpi-label,
+  .class-report__hero-stat-index,
+  .class-report__summary-text,
+  .class-report__summary-mono,
+  .class-report__assign-due,
+  .class-report__lagging-index {
+    color: #4b5563 !important;
+  }
+
+  .class-report__table table {
+    min-width: 100% !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .class-report__table th {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    border-bottom: 2px solid #9ca3af !important;
+  }
+
+  .class-report__table td {
+    border-bottom: 1px solid #e5e7eb !important;
+    color: #111827 !important;
+  }
+
+  .class-report__lagging-list {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+  }
+
+  .class-report__lagging-row {
+    border-bottom: 1px solid #f3f4f6 !important;
+  }
+
+  .class-report__lagging-row:hover {
+    background: transparent !important;
+  }
+}
 </style>

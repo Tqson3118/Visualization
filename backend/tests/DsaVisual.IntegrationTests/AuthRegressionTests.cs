@@ -101,6 +101,8 @@ public sealed class AuthRegressionTests : IntegrationTestBase, IClassFixture<Api
                 Password = "MatKhau@123"
             };
 
+            // B0: 2 request dùng CHUNG 1 otpToken — người thắng tiêu token, người thua vấp EMAIL_EXISTS
+            request.OtpToken = await GetRegisterOtpTokenAsync(email);
             var responses = await Task.WhenAll(
                 Client.PostAsJsonAsync($"{BaseUrl}/register", request),
                 Client.PostAsJsonAsync($"{BaseUrl}/register", request));
@@ -135,7 +137,7 @@ public sealed class AuthRegressionTests : IntegrationTestBase, IClassFixture<Api
         for (var i = 0; i < 3; i++)
         {
             var email = UniqueEmail("race-ref");
-            var register = await Client.PostAsJsonAsync($"{BaseUrl}/register", new RegisterRequest
+            var register = await RegisterWithOtpAsync(new RegisterRequest
             {
                 DisplayName = "Nguyễn Minh",
                 Email = email,

@@ -32,8 +32,8 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             IsTeacher = false
         };
 
-        // Act
-        var response = await Client.PostAsJsonAsync($"{BaseUrl}/register", request);
+        // Act — B0: xin otpToken (send + verify) rồi register
+        var response = await RegisterWithOtpAsync(request);
 
         // Assert — 201 + contract
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -64,7 +64,7 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             Email = email,
             Password = "MatKhau@123"
         };
-        var first = await Client.PostAsJsonAsync($"{BaseUrl}/register", request);
+        var first = await RegisterWithOtpAsync(request);
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
         // Act — register lại cùng email (hoa thường khác nhau → vẫn trùng do chuẩn hóa lowercase)
@@ -142,7 +142,7 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             Email = email,
             Password = "MatKhau@123"
         };
-        var created = await Client.PostAsJsonAsync($"{BaseUrl}/register", register);
+        var created = await RegisterWithOtpAsync(register);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
         // Act
@@ -176,7 +176,7 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             Email = email,
             Password = "MatKhau@123"
         };
-        var created = await Client.PostAsJsonAsync($"{BaseUrl}/register", register);
+        var created = await RegisterWithOtpAsync(register);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
         // Act
@@ -205,7 +205,7 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             Email = email,
             Password = "MatKhau@123"
         };
-        var created = await Client.PostAsJsonAsync($"{BaseUrl}/register", register);
+        var created = await RegisterWithOtpAsync(register);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
         // Act
@@ -241,7 +241,7 @@ public sealed class AuthIntegrationTests : IntegrationTestBase, IClassFixture<Ap
             Email = email,
             Password = "MatKhau@123"
         };
-        var created = await Client.PostAsJsonAsync($"{BaseUrl}/register", register);
+        var created = await RegisterWithOtpAsync(register);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
         // Act — login thật qua HTTP lấy access token do TokenService phát hành

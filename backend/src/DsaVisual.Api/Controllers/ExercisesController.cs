@@ -23,9 +23,10 @@ public class ExercisesController(
     [HttpGet]
     public async Task<ActionResult<PagedResponse<ExerciseSummaryDto>>> GetList(
         [FromQuery] int? lessonId, [FromQuery] int? nodeId, [FromQuery] int? stage,
+        [FromQuery] int? topicId, [FromQuery] int? courseId, [FromQuery] int? roadmapId,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
     {
-        var result = await _service.GetListAsync(lessonId, nodeId, stage, page, pageSize, ct);
+        var result = await _service.GetListAsync(lessonId, nodeId, stage, topicId, courseId, roadmapId, page, pageSize, ct);
         if (result.IsSuccess)
         {
             Response.Headers["X-Total-Count"] = result.Value!.Total.ToString();
@@ -68,7 +69,7 @@ public class ExercisesController(
     }
 
     [HttpPost("{id:int}/submit")]
-    [Authorize(Roles = "STUDENT,TEACHER")]
+    [Authorize(Roles = "STUDENT,TEACHER,ADMIN")]
     public async Task<ActionResult<SubmitResultDto>> Submit([FromRoute] int id, [FromBody] SubmitRequest request, CancellationToken ct)
     {
         var result = await _service.SubmitAsync(CurrentUserId(), id, request, ct);
@@ -76,7 +77,7 @@ public class ExercisesController(
     }
 
     [HttpPost("{id:int}/practice")]
-    [Authorize(Roles = "STUDENT,TEACHER")]
+    [Authorize(Roles = "STUDENT,TEACHER,ADMIN")]
     public async Task<ActionResult<ExerciseDto>> Practice([FromRoute] int id, CancellationToken ct)
     {
         var result = await _service.PracticeAsync(CurrentUserId(), id, ct);
@@ -132,7 +133,7 @@ public class ExercisesController(
     }
 
     [HttpPost("{id:int}/code-submit")]
-    [Authorize(Roles = "STUDENT,TEACHER")]
+    [Authorize(Roles = "STUDENT,TEACHER,ADMIN")]
     public async Task<ActionResult<CodeSubmitResultDto>> SubmitCode([FromRoute] int id, [FromBody] CodeSubmitRequest request, CancellationToken ct)
     {
         // Finding security#12: giới hạn độ dài Code (chống DB DoS) + số liệu không âm.

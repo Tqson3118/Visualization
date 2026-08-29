@@ -186,19 +186,22 @@
           <button
             @click="prevQuestion"
             :disabled="currentIndex === 0"
-            class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300"
-            :class="currentIndex === 0 ? 'bg-white/5 text-vdsa-disabled cursor-not-allowed' : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer shadow-lg hover:-translate-y-0.5'"
+            class="px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300"
+            :class="currentIndex === 0 ? 'bg-white/5 text-white/30 cursor-not-allowed border border-white/5' : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer border border-white/15 shadow-lg hover:-translate-y-0.5'"
+            title="Câu trước"
           >
-            <BaseIcon name="arrow-left" class="w-5 h-5" />
+            <BaseIcon name="arrow-left" class="w-4 h-4" />
+            <span class="hidden sm:inline">Câu trước</span>
           </button>
 
           <button
+            v-if="currentIndex < questions.length - 1"
             @click="nextQuestion"
-            :disabled="currentIndex === questions.length - 1"
-            class="w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300"
-            :class="currentIndex === questions.length - 1 ? 'bg-white/5 text-vdsa-disabled cursor-not-allowed' : 'bg-accent/20 hover:bg-vdsa-accent/40 text-accent border border-accent/20 cursor-pointer shadow-lg hover:-translate-y-0.5'"
+            class="px-4 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300 bg-accent hover:bg-vdsa-accent-light text-white border border-accent/40 cursor-pointer shadow-lg shadow-vdsa-accent/20 hover:-translate-y-0.5"
+            title="Câu tiếp theo"
           >
-            <BaseIcon name="arrow-right" class="w-5 h-5" />
+            <span>Câu tiếp theo</span>
+            <BaseIcon name="arrow-right" class="w-4 h-4" />
           </button>
         </div>
 
@@ -207,7 +210,7 @@
         <button
           v-if="isSubmitted"
           @click="resetQuiz"
-          class="px-6 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-all duration-300 cursor-pointer shadow-lg hover:-translate-y-0.5"
+          class="px-6 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-all duration-300 cursor-pointer shadow-lg hover:-translate-y-0.5 whitespace-nowrap shrink-0"
         >
           Làm lại
         </button>
@@ -216,7 +219,7 @@
           v-if="!isSubmitted"
           @click="submitQuiz"
           :disabled="answeredCount !== questions.length"
-          class="px-8 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 shadow-lg flex items-center gap-2 group"
+          class="px-8 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 shadow-lg flex items-center gap-2 group whitespace-nowrap shrink-0"
           :class="answeredCount === questions.length ? 'bg-accent hover:bg-vdsa-accent-light text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:-translate-y-1 cursor-pointer' : 'bg-white/5 text-vdsa-disabled opacity-60 cursor-not-allowed'"
         >
           <span>Nộp Bài</span>
@@ -226,7 +229,7 @@
         <button
           v-if="isSubmitted && quizPassed"
           @click="completeStep"
-          class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-vdsa-accent-green to-vdsa-green hover:from-vdsa-green hover:to-vdsa-green text-black text-sm font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center gap-2 hover:-translate-y-1"
+          class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-vdsa-accent-green to-vdsa-green hover:from-vdsa-green hover:to-vdsa-green text-black text-sm font-bold transition-all duration-300 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center gap-2 hover:-translate-y-1 whitespace-nowrap shrink-0"
         >
           Tiếp Tục <BaseIcon name="arrow-right" class="w-4 h-4" />
         </button>

@@ -1,4 +1,4 @@
-﻿using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,6 +28,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.RowVersion).IsRowVersion();        // concurrency token (finding #3)
 
         builder.HasIndex(u => u.Email).IsUnique();
+        // A3: Mã giảng viên duy nhất (chỉ áp dụng cho user chưa xóa mềm + có StaffCode) — filter tránh NULL trùng nhau
+        builder.HasIndex(u => u.StaffCode).IsUnique().HasFilter("[StaffCode] IS NOT NULL AND [DeletedAt] IS NULL");
         builder.HasIndex(u => new { u.Role, u.IsActive });
         builder.HasIndex(u => u.PremiumUntil);
         // perf#5: index leaderboard — ORDER BY Xp DESC (level/week/class tab) không sort toàn bộ Users;
