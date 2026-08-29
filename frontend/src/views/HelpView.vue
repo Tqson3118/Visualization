@@ -371,7 +371,7 @@ function toggle(idx: number): void {
 
 .faq-enter-from, .faq-leave-to { opacity: 0; transform: translateY(-4px); }
 
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .help__grid { grid-template-columns: 1fr; }
   .help__contact { position: static; }
   .help__chrome { padding: var(--space-md); }

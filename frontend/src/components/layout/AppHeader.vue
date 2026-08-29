@@ -3,7 +3,7 @@
 // Tân trang 15/08: trong suốt (transparent) khi ở đầu trang chủ → glass blur + viền mờ
 // khi cuộn hoặc ở trang khác; palette "terminal dark" bê từ VisualizationDSA-main
 // (nền #131614, accent #a855f7/#c084fc, mono kicker).
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 
 import { useAuthStore } from '@/stores/auth';
@@ -21,32 +21,47 @@ const router = useRouter();
 const route = useRoute();
 const menuOpen = ref(false);
 const mobileNavOpen = ref(false);
+const headerRef = ref<HTMLElement | null>(null);
 
 // Phase 1: Sticky header scroll tracking — khi cuộn qua 50px → glass blur + border
 const isScrolled = ref(false);
 function onScroll(): void {
   isScrolled.value = window.scrollY > 50;
 }
+
+function onDocumentClick(e: MouseEvent): void {
+  if (headerRef.value && !headerRef.value.contains(e.target as Node)) {
+    menuOpen.value = false;
+    mobileNavOpen.value = false;
+  }
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    menuOpen.value = false;
+    mobileNavOpen.value = false;
+  },
+);
+
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });
+  document.addEventListener('click', onDocumentClick);
   onScroll(); // khởi tạo ngay
   if (auth.isAuthenticated) {
     void gamification.fetchInventory();
   }
 });
+
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll);
+  document.removeEventListener('click', onDocumentClick);
 });
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
-// Quản trị & Soạn bài: TEACHER → /teacher (teacher-studio), ADMIN → /studio (curriculum-studio)
-const studioTarget = computed(() => {
-  if (auth.role === 'TEACHER') {
-    return { name: 'teacher-studio' };
-  }
-  return { name: 'curriculum-studio' };
-});
+// Quản trị & Soạn bài: TEACHER & ADMIN thống nhất hạ cánh tại /studio
+const studioTarget = computed(() => ({ path: '/studio' }));
 
 const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
 const equippedAvatar = computed(() => equippedItem(gamification.inventory, 'avatar'));
@@ -62,13 +77,14 @@ const userAvatarClass = computed(() => {
 
 async function onLogout(): Promise<void> {
   menuOpen.value = false;
+  mobileNavOpen.value = false;
   await auth.logout();
   await router.replace({ name: 'login' });
 }
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'app-header--scrolled': isScrolled }">
+  <header ref="headerRef" class="app-header" :class="{ 'app-header--scrolled': isScrolled }">
     <div class="container app-header__inner">
       <RouterLink class="app-header__brand" :to="{ name: 'home' }" aria-label="DSA Visual — Trang chủ">
         <img class="app-header__brand-img" :src="brandLogo" alt="DSA Visual" />
@@ -77,13 +93,13 @@ async function onLogout(): Promise<void> {
       <!-- Luôn hiện cho mọi người (kể cả khách chưa đăng nhập) — bấm vào mục cần
            đăng nhập thì router guard tự chuyển sang /login kèm redirect -->
       <nav class="app-header__nav" aria-label="Điều hướng chính">
-        <RouterLink :to="{ name: 'courses' }" class="app-header__link">{{ messages.nav.path }}</RouterLink>
+        <RouterLink :to="{ name: 'path-list' }" class="app-header__link">{{ messages.nav.path }}</RouterLink>
         <RouterLink :to="{ name: 'simulations' }" class="app-header__link">{{ messages.nav.simulations }}</RouterLink>
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
         <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
-          {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
+          Studio
         </RouterLink>
       </nav>
 
@@ -142,7 +158,7 @@ async function onLogout(): Promise<void> {
         </template>
       </div>
 
-      <!-- Hamburger mobile (< 900px) — menu dọc tàng hình kèm nền glass đọc được -->
+      <!-- Hamburger mobile (< 768px) — menu dọc tàng hình kèm nền glass đọc được -->
       <button
         type="button"
         class="app-header__burger"
@@ -157,7 +173,7 @@ async function onLogout(): Promise<void> {
 
       <Transition name="app-menu">
         <nav v-if="mobileNavOpen" class="app-header__mobile-nav" aria-label="Menu di động">
-          <RouterLink :to="{ name: 'courses' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+          <RouterLink :to="{ name: 'path-list' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             {{ messages.nav.path }}
           </RouterLink>
           <RouterLink :to="{ name: 'simulations' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
@@ -173,8 +189,37 @@ async function onLogout(): Promise<void> {
             Cửa hàng
           </RouterLink>
           <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            {{ auth.role === 'TEACHER' ? 'Studio' : 'Quản trị' }}
+            Studio
           </RouterLink>
+
+          <div class="app-header__mobile-divider" />
+
+          <!-- Auth links for mobile -->
+          <template v-if="!auth.isAuthenticated">
+            <RouterLink :to="{ name: 'login' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              {{ messages.nav.login }}
+            </RouterLink>
+            <RouterLink :to="{ name: 'register' }" class="app-header__mobile-link app-header__mobile-link--accent" @click="mobileNavOpen = false">
+              {{ messages.nav.register }}
+            </RouterLink>
+          </template>
+          <template v-else>
+            <RouterLink :to="{ name: 'profile' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              {{ messages.nav.profile }}
+            </RouterLink>
+            <RouterLink :to="{ name: 'leaderboard' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              Bảng xếp hạng
+            </RouterLink>
+            <RouterLink :to="{ name: 'premium' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              Premium
+            </RouterLink>
+            <RouterLink :to="{ name: 'help' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              Trợ giúp
+            </RouterLink>
+            <button type="button" class="app-header__mobile-link app-header__mobile-link--danger text-left" @click="onLogout">
+              {{ messages.nav.logout }}
+            </button>
+          </template>
         </nav>
       </Transition>
     </div>
@@ -215,7 +260,7 @@ html.light .app-header {
   top: 0;
   left: 0;
   right: 0;
-  z-index: var(--z-overlay);
+  z-index: var(--z-header, 40);
   background: var(--hdr-bg);
   border-bottom: 1px solid transparent;
   -webkit-backdrop-filter: none;
@@ -532,16 +577,38 @@ html.light .app-header__mobile-nav {
   transition: background 150ms ease, color 150ms ease;
 }
 
-.app-header__mobile-link:hover {
-  background: rgba(168, 85, 247, 0.12);
-  color: var(--hdr-purple-light);
+.app-header__mobile-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 0;
 }
 
-.app-header__mobile-link.router-link-exact-active {
-  color: var(--hdr-purple-light);
+html.light .app-header__mobile-divider {
+  background: rgba(139, 92, 246, 0.12);
 }
 
-@media (max-width: 900px) {
+.app-header__mobile-link--accent {
+  background: linear-gradient(135deg, var(--hdr-purple), var(--hdr-purple-dark));
+  color: #ffffff !important;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.app-header__mobile-link--danger {
+  color: #ef4444 !important;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.app-header__mobile-link--danger:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #f87171 !important;
+}
+
+@media (max-width: 768px) {
   .app-header__nav { display: none; }
   .app-header__burger { display: inline-flex; }
   /* Mobile: brand trái — action + burger phải */

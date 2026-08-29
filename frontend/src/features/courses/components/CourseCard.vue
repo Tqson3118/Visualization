@@ -21,6 +21,7 @@
           {{ difficultyLabel }}
         </span>
         <span
+          v-if="course.category && course.category !== difficultyLabel"
           class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-surface/80 text-vdsa-secondary whitespace-nowrap shrink-0"
         >
           {{ course.category }}

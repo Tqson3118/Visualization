@@ -29,7 +29,6 @@ const SubscriptionView = () => import('@/views/SubscriptionView.vue');
 const HelpView = () => import('@/views/HelpView.vue');
 const PrivacyView = () => import('@/views/PrivacyView.vue');
 
-const TeacherStudioView = () => import('@/views/TeacherStudioView.vue');
 const AdminUsersView = () => import('@/views/AdminUsersView.vue');
 const AdminStatsView = () => import('@/views/AdminStatsView.vue');
 const AdminSettingsView = () => import('@/views/AdminSettingsView.vue');
@@ -92,17 +91,17 @@ const router = createRouter({
       path: '/learn',
       redirect: '/path',
     },
-    // VDSA — Lộ trình (canonical: /path — D1). Tên nội bộ giữ 'courses'/'course-detail'.
+    // VDSA — Lộ trình (canonical: /path).
     {
       path: '/path',
-      name: 'courses',
+      name: 'path-list',
+      alias: '/courses',
       component: () => import('@/views/courses/CoursesListView.vue'),
-      // D1: /path = entry công khai của flow lộ trình (guest xem danh sách; chi tiết/bài cần login).
       meta: { public: true },
     },
     {
       path: '/path/:id',
-      name: 'course-detail',
+      name: 'path-detail',
       component: () => import('@/views/courses/CourseDetailView.vue'),
       meta: { requiresAuth: true },
     },
@@ -119,7 +118,7 @@ const router = createRouter({
     },
     {
       path: '/courses/:id',
-      redirect: '/path/:id',
+      redirect: (to) => ({ name: 'path-detail', params: { id: to.params.id } }),
     },
     // Alias cũ: /learn/:lessonId & /courses/:courseId/lessons/:lessonId → /lessons/:id
     {
@@ -130,6 +129,19 @@ const router = createRouter({
       path: '/courses/:courseId/lessons/:lessonId',
       redirect: (to) => ({ name: 'lesson-study', params: { id: to.params.lessonId }, query: { courseId: to.params.courseId } }),
     },
+    // Sandbox legacy redirects → /simulations
+    {
+      path: '/sorting-sandbox',
+      redirect: '/simulations',
+    },
+    {
+      path: '/searching-sandbox',
+      redirect: '/simulations',
+    },
+    {
+      path: '/stack-queue-sandbox',
+      redirect: '/simulations',
+    },
     // Legacy deep link roadmap — topicId cũ ≠ pathId mới: không mapping an toàn → /path (D2)
     {
       path: '/path/:pathId/node/:nodeId',
@@ -137,11 +149,11 @@ const router = createRouter({
       redirect: '/path',
     },
     // Alias tên cũ 'path-topic' (LadderView/FinalTestView/NodeHubView vẫn push the name) →
-    // course-detail (D2). Khai báo SAU course-detail để URL /path/:id match component trực tiếp.
+    // path-detail (D2). Khai báo SAU path-detail để URL /path/:id match component trực tiếp.
     {
       path: '/path/:topicId',
       name: 'path-topic',
-      redirect: (to) => ({ name: 'course-detail', params: { id: to.params.topicId } }),
+      redirect: (to) => ({ name: 'path-detail', params: { id: to.params.topicId } }),
     },
     // Màn 30 — Kiểm tra cuối lộ trình (legacy compat — giữ live, D2)
     {
@@ -279,12 +291,16 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminLessonEditorView.vue'),
       meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
-    // Teacher Studio — Dashboard tổng quan dành riêng cho Giảng viên
+    // Teacher Studio — chuyển hướng thống nhất về Studio Overview
     {
       path: '/teacher',
-      name: 'teacher-studio',
-      component: TeacherStudioView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+      redirect: { path: '/studio', query: { tab: 'overview' } },
+    },
+    {
+      path: '/pending-teacher',
+      name: 'pending-teacher',
+      component: () => import('@/views/PendingTeacherView.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/admin/content',
@@ -355,6 +371,13 @@ router.beforeEach((to) => {
   // Route cần đăng nhập → chuyển /login kèm redirect (SDD §3.4)
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } };
+  }
+
+  // TEACHER_PENDING → chuyển hướng trang hướng dẫn chờ duyệt nếu cố vào studio/admin
+  if (auth.role === ('TEACHER_PENDING' as any) && to.name !== 'pending-teacher' && to.name !== 'login' && to.name !== 'home' && to.name !== 'privacy' && to.name !== 'help') {
+    if (to.path.startsWith('/studio') || to.path.startsWith('/teacher') || to.path.startsWith('/admin')) {
+      return { name: 'pending-teacher' };
+    }
   }
 
   // Route giới hạn vai trò (SDD §3.3 — admin/**). Backend ADMIN-only cho /admin/users + /admin/settings (SETUP_TODO §8.5)

@@ -1048,10 +1048,12 @@ async function loadDrawerDetail(id: number): Promise<void> {
 
 .admin-users__table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 750px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -1260,5 +1262,46 @@ td {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── Responsive Mobile & Tablet ── */
+@media (max-width: 768px) {
+  .admin-users {
+    padding-inline: var(--space-sm, 12px);
+    gap: var(--space-md, 16px);
+  }
+
+  .admin-users__hero {
+    padding: var(--space-md, 16px);
+  }
+
+  .admin-users__hero-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__search-box {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .admin-users__select {
+    width: 100%;
+  }
+
+  .admin-users__drawer-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-users__drawer-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

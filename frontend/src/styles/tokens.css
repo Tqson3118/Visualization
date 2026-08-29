@@ -87,12 +87,16 @@
   --radius-full: 9999px;
 
   /* ── Z-INDEX ── */
-  --z-base:    0;
-  --z-raised:  10;
-  --z-overlay: 100;
-  --z-modal:   1000;
-  --z-toast:   2000;
-  --z-tooltip: 3000;
+  --z-base:     0;
+  --z-raised:   10;
+  --z-header:   40;
+  --z-popover:  50;
+  --z-dropdown: 50;
+  --z-overlay:  40;
+  --z-drawer:   60;
+  --z-modal:    100;
+  --z-toast:    2000;
+  --z-tooltip:  3000;
 
   /* ── TRANSITION ── */
   --transition-fast:   all 150ms ease;

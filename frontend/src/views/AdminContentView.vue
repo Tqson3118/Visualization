@@ -53,6 +53,8 @@ import { formatDate } from '@/utils/format';
 import { normalizeVi } from '@/utils/searchNormalize';
 import ProseContent from '@/components/ui/ProseContent.vue';
 import AdminNav from '@/components/admin/AdminNav.vue';
+import StudioShell from '@/components/studio/StudioShell.vue';
+import StudioOverviewTab from './admin/sections/StudioOverviewTab.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -130,15 +132,17 @@ function canManageExercise(ex: ExerciseSummaryDto): boolean {
 }
 
 // ── Tab chính Studio ──
-type StudioTab = 'curriculum' | 'exercises' | 'feedback';
-const activeTab = ref<StudioTab>('curriculum');
+type StudioTab = 'overview' | 'curriculum' | 'exercises' | 'feedback';
+const activeTab = ref<StudioTab>('overview');
 
 // Đồng bộ tab từ URL Query
 watch(
   () => route.query.tab,
   (queryTab) => {
-    if (queryTab === 'exercises' || queryTab === 'feedback' || queryTab === 'curriculum') {
+    if (queryTab === 'exercises' || queryTab === 'feedback' || queryTab === 'curriculum' || queryTab === 'overview') {
       activeTab.value = queryTab as StudioTab;
+    } else {
+      activeTab.value = 'overview';
     }
   },
   { immediate: true },
@@ -1065,92 +1069,24 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 </script>
 
 <template>
-  <section class="studio-view container">
-    <!-- ═══ HEADER STUDIO BANNER ═══ -->
-    <header class="studio-hero">
-      <div class="studio-hero__info">
-        <p class="studio-hero__kicker">
-          <Sparkles :size="14" class="inline mr-1 text-primary-400" />
-          {{ isAdmin ? 'ADMIN CONSOLE & STUDIO' : 'TEACHER STUDIO' }}
-        </p>
-        <h1 class="studio-hero__title">Studio Giảng viên & Nội dung</h1>
-        <p class="studio-hero__desc">
-          Biên soạn Lộ trình học, tổ chức cây Chương - Bài giảng, tạo Ngân hàng Bài tập & Quiz và tương tác với Học viên.
-        </p>
+  <StudioShell :active-tab="activeTab" @update:active-tab="switchTab">
+    <!-- TAB 0: TỔNG QUAN STUDIO -->
+    <StudioOverviewTab v-if="activeTab === 'overview'" @switch-tab="switchTab" />
+
+    <!-- TAB 1, 2, 3: CÁC KHU VỰC CHI TIẾT (LỘ TRÌNH, BÀI TẬP, PHẢN HỒI) -->
+    <div v-else class="space-y-6">
+      <div v-if="loading" class="studio-loading" aria-busy="true">
+        <Skeleton v-for="i in 4" :key="i" height="70px" />
       </div>
 
-      <div class="studio-hero__stats">
-        <div class="stat-pill">
-          <span class="stat-pill__num">{{ courses.length }}</span>
-          <span class="stat-pill__label">Lộ trình</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-pill__num">{{ totalLessonsCount }}</span>
-          <span class="stat-pill__label">Bài học</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-pill__num">{{ exercises.length }}</span>
-          <span class="stat-pill__label">Bài tập</span>
-        </div>
+      <div v-else-if="loadError" class="studio-error" role="alert">
+        <p>Không thể tải dữ liệu Studio (máy chủ backend chưa phản hồi).</p>
+        <Button size="sm" variant="secondary" @click="load">
+          <RefreshCw :size="14" /> Thử lại
+        </Button>
       </div>
-    </header>
 
-    <!-- Thanh điều hướng Admin / Teacher -->
-    <AdminNav active="content" />
-
-    <!-- ═══ THANH CHUYỂN 3 TAB CHÍNH CỦA STUDIO ═══ -->
-    <nav class="studio-main-tabs" aria-label="Các khu vực của Studio">
-      <button
-        type="button"
-        class="studio-main-tab whitespace-nowrap shrink-0"
-        :class="{ 'studio-main-tab--active': activeTab === 'curriculum' }"
-        @click="switchTab('curriculum')"
-      >
-        <Layers :size="16" />
-        <span class="whitespace-nowrap">1. Lộ trình & Cây bài giảng</span>
-        <Badge v-if="isAdmin && pendingCourseCount > 0" variant="warning" class="text-xs whitespace-nowrap">
-          {{ pendingCourseCount }} lộ trình chờ duyệt
-        </Badge>
-        <Badge v-else variant="secondary" class="text-xs whitespace-nowrap">
-          {{ loading ? '...' : displayLessons.length }}
-        </Badge>
-      </button>
-
-      <button
-        type="button"
-        class="studio-main-tab whitespace-nowrap shrink-0"
-        :class="{ 'studio-main-tab--active': activeTab === 'exercises' }"
-        @click="switchTab('exercises')"
-      >
-        <HelpCircle :size="16" />
-        <span class="whitespace-nowrap">2. Ngân hàng Bài tập & Quiz</span>
-        <Badge variant="secondary" class="text-xs whitespace-nowrap">{{ loading ? '...' : exercises.length }}</Badge>
-      </button>
-
-      <button
-        type="button"
-        class="studio-main-tab whitespace-nowrap shrink-0"
-        :class="{ 'studio-main-tab--active': activeTab === 'feedback' }"
-        @click="switchTab('feedback')"
-      >
-        <MessageSquare :size="16" />
-        <span class="whitespace-nowrap">3. Ý kiến & Đánh giá Học viên</span>
-        <Badge variant="secondary" class="text-xs whitespace-nowrap">{{ loading ? '...' : feedbackItems.length }}</Badge>
-      </button>
-    </nav>
-
-    <div v-if="loading" class="studio-loading" aria-busy="true">
-      <Skeleton v-for="i in 4" :key="i" height="70px" />
-    </div>
-
-    <div v-else-if="loadError" class="studio-error" role="alert">
-      <p>Không thể tải dữ liệu Studio (máy chủ backend chưa phản hồi).</p>
-      <Button size="sm" variant="secondary" @click="load">
-        <RefreshCw :size="14" /> Thử lại
-      </Button>
-    </div>
-
-    <div v-else class="studio-workspace">
+      <div v-else class="studio-workspace">
       <!-- ══════════════════════════════════════════════════════════════════
            TAB 1: LỘ TRÌNH & CÂY BÀI GIẢNG (CURRICULUM STUDIO)
            ══════════════════════════════════════════════════════════════════ -->
@@ -1923,7 +1859,8 @@ const pad = (n: number): string => String(n).padStart(2, '0');
         </div>
       </template>
     </Modal>
-  </section>
+    </div>
+  </StudioShell>
 </template>
 
 <style scoped>
