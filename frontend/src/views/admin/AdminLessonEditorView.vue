@@ -128,7 +128,7 @@ onMounted(async () => {
       try {
         const lesson = await lessonsApi.fetchLesson(lessonId.value);
         if (auth.role !== 'ADMIN' && lesson.createdBy && lesson.createdBy !== auth.user?.id) {
-          ui.showToast('Bạn không có quyền chỉnh sửa bài học của giảng viên khác.', 'error');
+          ui.showToast('Bạn không có quyền chỉnh sửa bài học này.', 'error');
           void router.replace('/studio');
           return;
         }
@@ -143,7 +143,11 @@ onMounted(async () => {
         // Trích xuất markdown nếu có hoặc hiển thị nội dung
         form.markdown = lesson.contentHtml || '';
       } catch (err: any) {
-        ui.showToast('Không thể tải thông tin bài học hoặc bạn không có quyền truy cập.', 'error');
+        if (err?.response?.status === 403 || err?.status === 403 || err?.message?.includes('403') || err?.message?.includes('quyền')) {
+          ui.showToast('Bạn không có quyền chỉnh sửa bài học này.', 'error');
+        } else {
+          ui.showToast('Không thể tải thông tin bài học hoặc bạn không có quyền truy cập.', 'error');
+        }
         void router.replace('/studio');
         return;
       }
