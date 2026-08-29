@@ -26,12 +26,13 @@ describe('lib/vietqr', () => {
     expect(getLength('ạ')).toBe('03');
   });
 
-  it('buildVietQrPayload tạo payload EMVCo hợp lệ (static, NAPAS VietQR MB Bank)', () => {
+  it('buildVietQrPayload tạo payload EMVCo hợp lệ (dynamic, NAPAS VietQR MB Bank)', () => {
     const payload = buildVietQrPayload(MB_BENEFICIARY, 49000, 'DSV1002T3');
 
-    expect(payload.startsWith('000201010211')).toBe(true); // format + static
+    expect(payload.startsWith('000201010212')).toBe(true); // format + dynamic
     // Tag 38: NAPAS GUID (A000000727) + BIN (970422) + STK (83863112088386) + QRIBFTTA
     expect(payload).toContain('38580010A000000727012800069704220114838631120883860208QRIBFTTA');
+    expect(payload).toContain('52040000'); // Tag 52 MCC
     expect(payload).toContain('5303704'); // VND
     expect(payload).toContain('540549000'); // 49000 — KHÔNG dấu phẩy
     expect(payload).toContain('5802VN');
@@ -40,6 +41,7 @@ describe('lib/vietqr', () => {
     // tag 62: 08=nội dung CK DSV1002T3
     expect(payload).toContain('62130809DSV1002T3');
   });
+
 
   it('CRC cuối khớp CRC tính lại trên toàn bộ payload (kèm 6304)', () => {
     const payload = buildVietQrPayload(MB_BENEFICIARY, 129000, 'DSV1002T3');
