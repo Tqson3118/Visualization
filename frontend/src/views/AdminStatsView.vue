@@ -29,6 +29,11 @@ import Button from '@/components/ui/Button.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { formatNumber } from '@/utils/format';
 
+import { use } from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+
+use([PieChart]);
+
 const ui = useUiStore();
 const stats = ref<AdminStatsDto | null>(null);
 const loading = ref(true);

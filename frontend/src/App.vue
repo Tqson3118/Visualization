@@ -61,7 +61,7 @@ function onPageEnter(): void {
            mode out-in tránh nhảy layout, tôn trọng prefers-reduced-motion
            (global.css đã cắt transition khi reduce). -->
       <RouterView v-slot="{ Component, route }">
-        <Transition name="page" mode="out-in" @after-enter="onPageEnter">
+        <Transition name="page" @after-enter="onPageEnter">
           <!-- G1: key theo route.path — đổi query params (tabs/filters/page) KHÔNG remount lại cả trang;
                lesson-study cố định theo tên route để chuyển bài không nháy. -->
           <component :is="Component" :key="route.name === 'lesson-study' ? 'lesson-study' : route.path" />

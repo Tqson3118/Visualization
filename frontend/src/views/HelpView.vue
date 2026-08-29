@@ -173,9 +173,11 @@ function toggle(idx: number): void {
   flex-direction: column;
   gap: var(--space-lg);
   max-width: 900px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* â”€â”€ Hero â€” surface band level-2 (Â§6): card-raised + border-subtle, KHÔNG shadow â”€â”€ */
+/* ── Hero — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
 .help__chrome {
   display: flex;
   flex-direction: column;
@@ -184,6 +186,9 @@ function toggle(idx: number): void {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-lg) var(--space-xl);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .help__breadcrumb {
@@ -240,18 +245,39 @@ function toggle(idx: number): void {
   grid-template-columns: 3fr 2fr;
   gap: var(--space-lg);
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.help__faq { display: flex; flex-direction: column; gap: var(--space-sm); }
+.help__faq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
 .help__item {
   padding: var(--space-sm) var(--space-md);
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .help__item:hover { border-color: var(--color-border-strong); }
+
+.help__question {
+  white-space: normal !important;
+  text-align: left;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
 .help__q-index {
   font-family: var(--font-mono);
@@ -261,7 +287,14 @@ function toggle(idx: number): void {
   flex-shrink: 0;
 }
 
-.help__question-text { line-height: 1.45; font-weight: 600; }
+.help__question-text {
+  line-height: 1.45;
+  font-weight: 600;
+  white-space: normal !important;
+  word-break: break-word;
+  min-width: 0;
+  flex: 1;
+}
 
 .help__chevron {
   flex-shrink: 0;
@@ -289,6 +322,10 @@ function toggle(idx: number): void {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .help__contact-head {
@@ -372,8 +409,8 @@ function toggle(idx: number): void {
 .faq-enter-from, .faq-leave-to { opacity: 0; transform: translateY(-4px); }
 
 @media (max-width: 768px) {
-  .help__grid { grid-template-columns: 1fr; }
-  .help__contact { position: static; }
+  .help__grid { grid-template-columns: 1fr; width: 100%; }
+  .help__contact { position: static; width: 100%; padding: var(--space-md); }
   .help__chrome { padding: var(--space-md); }
 }
 </style>
