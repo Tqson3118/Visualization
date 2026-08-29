@@ -112,8 +112,9 @@ export function buildVietQrPayload(
 
   const head = [
     tlv('00', '01'), // payload format
-    tlv('01', '11'), // static
+    tlv('01', '12'), // point of initiation (12: Dynamic QR with amount)
     tlv('38', merchantAccountInfo), // NAPAS VietQR info
+    tlv('52', '0000'), // Tag 52: Merchant Category Code (0000 - Bắt buộc theo chuẩn EMVCo/NAPAS)
     tlv('53', '704'), // VND
     tlv('54', String(amount)), // VD 49000 — không dấu phẩy
     tlv('58', 'VN'), // country
@@ -125,3 +126,18 @@ export function buildVietQrPayload(
   const crcBlock = `${head}6304`;
   return `${crcBlock}${getCrc16(crcBlock)}`;
 }
+
+/**
+ * Sinh URL ảnh QR VietQR trực tiếp từ dịch vụ VietQR CDN (chuẩn NAPAS/MB Bank).
+ * Mọi app ngân hàng tại VN (MB, VCB, Techcombank, TPBank...) đều quét tức thì.
+ */
+export function getVietQrImageUrl(
+  beneficiary: VietQrBeneficiary,
+  amount: number,
+  content: string,
+): string {
+  const accountName = encodeURIComponent(beneficiary.name);
+  const addInfo = encodeURIComponent(content);
+  return `https://img.vietqr.io/image/${beneficiary.bankBin}-${beneficiary.bankNumber}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
+}
+

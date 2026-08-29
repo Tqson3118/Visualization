@@ -13,7 +13,6 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Crown, Info, QrCode, 
 
 import * as gamificationApi from '@/api/gamification';
 import { fireConfetti } from '@/composables/useConfetti';
-import { buildVietQrPayload } from '@/lib/vietqr';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
@@ -22,6 +21,9 @@ import Badge from '@/components/ui/Badge.vue';
 import Modal from '@/components/ui/Modal.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
 import { messages } from '@/i18n/vi';
+
+import { buildVietQrPayload, getVietQrImageUrl } from '@/lib/vietqr';
+
 
 // ── TK nhận tiền (pm-decision-log-gp.md) ──
 const MB_BENEFICIARY = {
@@ -77,6 +79,12 @@ const qrPayload = computed(() => {
   if (!checkoutPlan.value || !transferContent.value) return '';
   return buildVietQrPayload(MB_BENEFICIARY, checkoutPlan.value.amount, transferContent.value);
 });
+
+const vietQrImageUrl = computed(() => {
+  if (!checkoutPlan.value || !transferContent.value) return '';
+  return getVietQrImageUrl(MB_BENEFICIARY, checkoutPlan.value.amount, transferContent.value);
+});
+
 
 const countdownText = computed(() => {
   const s = Math.max(0, countdown.value);
@@ -171,6 +179,16 @@ async function renderQr(): Promise<void> {
   }
 }
 
+async function copyText(text: string, successMsg: string): Promise<void> {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ui.showToast(successMsg, 'success');
+  } catch {
+    ui.showToast('Không thể sao chép vào bộ nhớ tạm', 'error');
+  }
+}
+
 async function copyContent(): Promise<void> {
   const content = transferContent.value;
   if (!content) return;
@@ -195,6 +213,7 @@ watch(checkoutPlan, (val) => {
 });
 
 async function confirmPaid(): Promise<void> {
+
   if (!checkoutPlan.value || !confirmEnabled.value) return;
   paying.value = true;
   try {
@@ -331,8 +350,15 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
         <!-- Bước 2: QR chuyển khoản MB Bank + đếm ngược 60s (GP-T7) -->
         <template v-else>
           <div class="premium__qr">
-            <div class="premium__qr-frame bg-white">
+            <div class="premium__qr-frame bg-white flex flex-col items-center justify-center p-2 rounded-xl border border-slate-200">
+              <img
+                v-if="vietQrImageUrl"
+                :src="vietQrImageUrl"
+                :alt="messages.premium.qrAria"
+                class="w-full max-w-[260px] h-auto rounded-lg shadow-sm"
+              />
               <canvas
+                v-else
                 ref="qrCanvas"
                 class="premium__qr-canvas"
                 role="img"
@@ -348,23 +374,32 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
           <div class="premium__qr-info">
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.bankLabel }}</span>
-              <span class="premium__qr-value">MB Bank</span>
+              <span class="premium__qr-value">MB Bank (Ngân hàng Quân Đội)</span>
             </div>
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.ownerLabel }}</span>
-              <span class="premium__qr-value">{{ MB_BENEFICIARY.name }}</span>
+              <span class="premium__qr-value font-medium">{{ MB_BENEFICIARY.name }}</span>
             </div>
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.accountLabel }}</span>
-              <span class="premium__qr-value premium__qr-value--mono">{{ ACCOUNT_DISPLAY }}</span>
+              <div class="flex items-center gap-2">
+                <span class="premium__qr-value premium__qr-value--mono">{{ ACCOUNT_DISPLAY }}</span>
+                <button type="button" class="text-xs text-primary-400 hover:text-primary-300 underline shrink-0" @click="copyText(MB_BENEFICIARY.bankNumber, 'Đã sao chép số tài khoản')">Sao chép</button>
+              </div>
             </div>
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.amountLabel }}</span>
-              <span class="premium__qr-value premium__qr-value--mono">{{ checkoutPlan.price }}</span>
+              <div class="flex items-center gap-2">
+                <span class="premium__qr-value premium__qr-value--mono font-semibold">{{ checkoutPlan.price }}</span>
+                <button type="button" class="text-xs text-primary-400 hover:text-primary-300 underline shrink-0" @click="copyText(String(checkoutPlan.amount), 'Đã sao chép số tiền')">Sao chép</button>
+              </div>
             </div>
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.contentLabel }}</span>
-              <span class="premium__qr-value premium__qr-value--mono">{{ transferContent }}</span>
+              <div class="flex items-center gap-2">
+                <span class="premium__qr-value premium__qr-value--mono text-amber-400 font-bold tracking-wider">{{ transferContent }}</span>
+                <button type="button" class="text-xs text-primary-400 hover:text-primary-300 underline shrink-0" @click="copyContent">Sao chép</button>
+              </div>
             </div>
           </div>
 
@@ -373,6 +408,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
               <Copy :size="14" aria-hidden="true" /> {{ messages.premium.copyContent }}
             </Button>
           </div>
+
 
           <p class="premium__checkout-note">
             <Info :size="16" class="premium__note-icon" aria-hidden="true" />

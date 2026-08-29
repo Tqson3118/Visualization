@@ -736,35 +736,54 @@ async function deleteLesson(lesson: LessonRow): Promise<void> {
   }
 }
 
-function openLessonPreview(lesson: LessonSummary | LessonRow): void {
-  previewTitle.value = lesson.title;
+async function openLessonPreview(lesson: LessonSummary | LessonRow): Promise<void> {
+  const title = lesson.title || 'Xem trước bài học';
+  previewTitle.value = cleanTitle(title);
   previewContent.value = 'Đang tải nội dung...';
   previewOpen.value = true;
 
+  // 1. Nếu đang chọn Lộ trình, tìm trong lessons của currentCourseDetail
   if (selectedCourseId.value !== 'all' && currentCourseDetail.value?.lessons) {
     const cl = currentCourseDetail.value.lessons.find(
       (l) =>
         String(l.id) === String(lesson.id) ||
         String(l.nodeId) === String(lesson.id) ||
+        (l.lessonId && String(l.lessonId) === String(lesson.id)) ||
         l.title === lesson.title ||
-        cleanTitle(l.title) === lesson.title,
+        cleanTitle(l.title) === cleanTitle(lesson.title),
     );
-    if (cl && cl.contentMd) {
+    if (cl && cl.contentMd && cl.contentMd.trim()) {
       previewContent.value = cl.contentMd;
       return;
     }
   }
 
-  lessonsApi
-    .fetchLesson(lesson.id)
-    .then((detail) => {
-      previewContent.value = detail.contentHtml ?? '<p>Chưa có nội dung bài học.</p>';
-    })
-    .catch(() => {
-      ui.showToast('Không tải được nội dung bài học.', 'error');
-      previewOpen.value = false;
-    });
+  // 2. Tìm trong danh sách lessons đã load
+  const local = lessons.value.find(
+    (l) =>
+      l.id === lesson.id ||
+      l.title === lesson.title ||
+      cleanTitle(l.title) === cleanTitle(lesson.title),
+  );
+  if (local && (local as any).contentHtml && (local as any).contentHtml.trim()) {
+    previewContent.value = (local as any).contentHtml;
+    return;
+  }
+
+  // 3. Tải từ API /lessons/{id}
+  try {
+    const targetId = (lesson as any).lessonId || lesson.id;
+    const detail = await lessonsApi.fetchLesson(targetId);
+    if (detail?.contentHtml && detail.contentHtml.trim()) {
+      previewContent.value = detail.contentHtml;
+    } else {
+      previewContent.value = '<div class="p-6 text-center text-slate-400"><p class="text-base font-medium">Bài học này chưa có nội dung văn bản lý thuyết.</p><p class="text-xs text-slate-500 mt-1">Nội dung có thể bao gồm mô phỏng trực quan hoặc bài tập tương tác trong lộ trình.</p></div>';
+    }
+  } catch {
+    previewContent.value = '<div class="p-6 text-center text-slate-400"><p class="text-base font-medium">Chưa có nội dung lý thuyết chi tiết cho bài học này.</p></div>';
+  }
 }
+
 
 // ── Thao tác Exercise / Quiz ──
 function openCreateQuizForLesson(lessonId?: number): void {
@@ -1813,16 +1832,22 @@ const pad = (n: number): string => String(n).padStart(2, '0');
     />
 
     <!-- ═══ MODAL XEM TRƯỚC BÀI HỌC (PREVIEW) ═══ -->
-    <Modal :open="previewOpen" :title="previewTitle" width="800px" @close="previewOpen = false">
-
-      <div class="max-h-[65vh] overflow-y-auto pr-1">
-        <ProseContent :content="previewContent" />
+    <Modal :open="previewOpen" :title="previewTitle ? `Xem trước: ${previewTitle}` : 'Xem trước bài học'" width="800px" @close="previewOpen = false">
+      <div class="max-h-[65vh] overflow-y-auto pr-2 py-2">
+        <div v-if="previewContent === 'Đang tải nội dung...'" class="space-y-3 p-4">
+          <Skeleton height="32px" width="60%" />
+          <Skeleton height="16px" width="100%" />
+          <Skeleton height="16px" width="90%" />
+          <Skeleton height="16px" width="75%" />
+        </div>
+        <ProseContent v-else :content="previewContent" />
       </div>
 
       <template #footer>
         <Button variant="secondary" @click="previewOpen = false">Đóng</Button>
       </template>
     </Modal>
+
 
     <!-- ═══ MODAL TỪ CHỐI LỘ TRÌNH (ADMIN REJECT COURSE) ═══ -->
     <Modal
