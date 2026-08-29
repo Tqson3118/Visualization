@@ -90,6 +90,22 @@ export function parseMarkdownToHtml(markdown: string): string {
     return `<div class="my-4 p-4 rounded-xl bg-rose-500/10 border-l-4 border-rose-500 text-sm text-rose-200 not-prose"><strong class="text-rose-400 block mb-1">🛑 Cảnh báo:</strong>${text.trim().replace(/^>\s*/gm, '')}</div>`;
   });
 
+  // Step 2.5: Simulation Anchors [Mô phỏng: <key>] or [Simulation: <key>]
+  html = html.replace(/\[(?:Mô phỏng|Simulation):\s*([a-zA-Z0-9._-]+)\]/gi, (_, simKey) => {
+    return `<div class="my-4 p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/40 flex items-center justify-between not-prose shadow-lg">
+  <div class="flex items-center gap-3">
+    <span class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-sm">⚡</span>
+    <div>
+      <span class="text-xs font-bold text-white block">Mô phỏng thuật toán trực quan: <code class="font-mono text-purple-300">${simKey}</code></span>
+      <span class="text-[11px] text-slate-400">Trực quan hóa hoạt ảnh từng bước</span>
+    </div>
+  </div>
+  <a href="/simulator/${simKey}" target="_blank" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors no-underline shadow">
+    Mở mô phỏng ↗
+  </a>
+</div>`;
+  });
+
   // Step 3: Tables (| a | b |)
   html = html.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (tableMatch) => {
     const lines = tableMatch.trim().split('\n').map((l) => l.trim()).filter(Boolean);
