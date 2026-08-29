@@ -261,7 +261,7 @@ public static partial class SeedDemoActivity
         }
 
         var rng = new Random(PlanSeed);
-        var lessonsByTitle = lessons.ToDictionary(l => l.Title, StringComparer.Ordinal);
+        var lessonsByTitle = lessons.GroupBy(l => l.Title).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var byLesson = exercises.GroupBy(e => e.LessonId).ToDictionary(g => g.Key, g => g.ToList());
 
         // H-FINAL1: exercise lesson có NodeId != null (Quiz/Lab/Code gắn node "Học: X"); phân biệt
@@ -304,7 +304,7 @@ public static partial class SeedDemoActivity
     {
         var result = new List<PlannedSubmission>();
         void Add(Exercise exercise, int score, int minDaysAgo, int maxDaysAgo) =>
-            result.Add(new PlannedSubmission(exercise, score, at(rng, minDaysAgo, maxDaysAgo)));
+            result.Add(new PlannedSubmission(exercise, Math.Clamp(score, 0, Math.Max(0, exercise.MaxScore)), at(rng, minDaysAgo, maxDaysAgo)));
 
         switch (idx)
         {
@@ -354,7 +354,7 @@ public static partial class SeedDemoActivity
                 Add(quiz("Bubble Sort"), 4, 9, 12);
                 Add(lab("Bubble Sort"), 7, 6, 9);
                 Add(quiz("Binary Search"), 2, 4, 7);
-                Add(quiz("Stack"), 5, 2, 5);
+                Add(quiz("Stack"), 1, 2, 5);
                 Add(code("Bubble Sort"), 40, 1, 3);
                 break;
 

@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace DsaVisual.Application.Persistence.Entities;
 
 /// <summary>Vai trò người dùng (SDD §7.3.1: 0=Student, 1=Teacher, 2=TeacherPending, 3=Admin).</summary>
@@ -10,6 +13,7 @@ public enum UserRole
 }
 
 /// <summary>Trạng thái bài học (SDD §7.3.2: 0=draft, 1=active, 2=hidden) — v2.15 mở rộng PendingReview.</summary>
+[JsonConverter(typeof(LessonStatusJsonConverter))]
 public enum LessonStatus
 {
     Draft = 0,          // Bản nháp (chỉ người tạo thấy)
@@ -19,12 +23,71 @@ public enum LessonStatus
 }
 
 /// <summary>Trạng thái lộ trình học (0=Draft, 1=PendingReview, 2=Active, 3=Rejected).</summary>
+[JsonConverter(typeof(LearningPathStatusJsonConverter))]
 public enum LearningPathStatus
 {
     Draft = 0,          // GV đang soạn
     PendingReview = 1,  // GV đã gửi duyệt, chờ Admin
     Active = 2,         // Admin đã duyệt, SV thấy được
     Rejected = 3        // Admin từ chối, GV sửa lại
+}
+
+public sealed class LessonStatusJsonConverter : JsonConverter<LessonStatus>
+{
+    public override LessonStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var intVal))
+        {
+            return Enum.IsDefined(typeof(LessonStatus), intVal) ? (LessonStatus)intVal : LessonStatus.Draft;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrWhiteSpace(str)) return LessonStatus.Draft;
+            if (str.Equals("active", StringComparison.OrdinalIgnoreCase) || str.Equals("published", StringComparison.OrdinalIgnoreCase)) return LessonStatus.Active;
+            if (str.Equals("pending_review", StringComparison.OrdinalIgnoreCase) || str.Equals("pendingreview", StringComparison.OrdinalIgnoreCase)) return LessonStatus.PendingReview;
+            if (str.Equals("hidden", StringComparison.OrdinalIgnoreCase)) return LessonStatus.Hidden;
+            if (str.Equals("draft", StringComparison.OrdinalIgnoreCase)) return LessonStatus.Draft;
+            if (Enum.TryParse<LessonStatus>(str, true, out var parsed)) return parsed;
+        }
+
+        return LessonStatus.Draft;
+    }
+
+    public override void Write(Utf8JsonWriter writer, LessonStatus value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString().ToLowerInvariant());
+    }
+}
+
+public sealed class LearningPathStatusJsonConverter : JsonConverter<LearningPathStatus>
+{
+    public override LearningPathStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var intVal))
+        {
+            return Enum.IsDefined(typeof(LearningPathStatus), intVal) ? (LearningPathStatus)intVal : LearningPathStatus.Draft;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrWhiteSpace(str)) return LearningPathStatus.Draft;
+            if (str.Equals("active", StringComparison.OrdinalIgnoreCase) || str.Equals("published", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Active;
+            if (str.Equals("pending_review", StringComparison.OrdinalIgnoreCase) || str.Equals("pendingreview", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.PendingReview;
+            if (str.Equals("rejected", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Rejected;
+            if (str.Equals("draft", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Draft;
+            if (Enum.TryParse<LearningPathStatus>(str, true, out var parsed)) return parsed;
+        }
+
+        return LearningPathStatus.Draft;
+    }
+
+    public override void Write(Utf8JsonWriter writer, LearningPathStatus value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString().ToLowerInvariant());
+    }
 }
 
 /// <summary>Loại bài tập (SDD §7.3.9: 0=MCQ, 1=SIMULATION_PREDICT, 2=SIMULATION_LAB, 3=CODE).</summary>

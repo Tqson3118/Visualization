@@ -385,10 +385,12 @@ using (var startupScope = app.Services.CreateScope())
         {
             await startupDb.Database.MigrateAsync();
             Log.Information("Database migrations verified and applied on startup.");
+            await SeedRunner.FixMismatchedQuestionsAsync(startupDb);
+            Log.Information("DSA quiz questions verified and reconciled.");
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to apply database migrations on startup.");
+            Log.Error(ex, "Failed to apply database migrations or question reconciliation on startup.");
         }
     }
 }
