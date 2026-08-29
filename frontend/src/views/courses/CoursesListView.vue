@@ -76,7 +76,7 @@
       <router-link
         v-for="course in paginatedCourses"
         :key="course.id"
-        :to="{ name: 'course-detail', params: { id: course.id } }"
+        :to="{ name: 'path-detail', params: { id: course.id } }"
         class="course-card-link block"
         :aria-label="`Xem chi tiết lộ trình ${course.title}`"
         role="listitem"

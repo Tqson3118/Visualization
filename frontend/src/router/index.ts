@@ -118,6 +118,7 @@ const router = createRouter({
     },
     {
       path: '/courses/:id',
+      name: 'course-detail',
       redirect: (to) => ({ name: 'path-detail', params: { id: to.params.id } }),
     },
     // Alias cũ: /learn/:lessonId & /courses/:courseId/lessons/:lessonId → /lessons/:id
@@ -167,7 +168,7 @@ const router = createRouter({
       path: '/simulations',
       name: 'simulations',
       component: SimulationsView,
-      meta: { requiresAuth: true },
+      meta: { public: true },
     },
     // Màn 05 — Mô phỏng (đã đăng nhập hoặc key demo công khai — guard trong view)
     {

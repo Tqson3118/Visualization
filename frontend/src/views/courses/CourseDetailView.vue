@@ -10,7 +10,7 @@
       <div class="text-5xl mb-4"><BaseIcon name="warning" class="w-14 h-14 text-vdsa-red mx-auto" /></div>
       <h3 class="text-xl font-bold text-vdsa-secondary">{{ error }}</h3>
       <p class="text-vdsa-muted mt-2">Vui lòng thử lại sau hoặc liên hệ hỗ trợ.</p>
-      <router-link :to="{ name: 'courses' }" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
+      <router-link :to="{ name: 'path-list' }" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
     </div>
 
     <div v-else-if="course">
@@ -18,7 +18,7 @@
       <div class="container mx-auto max-w-5xl px-4 pt-10 pb-12">
         <!-- Breadcrumb: Khóa học / <tên khóa> -->
         <nav class="flex items-center gap-2 text-sm text-vdsa-muted mb-6 justify-center" aria-label="Breadcrumb">
-          <router-link :to="{ name: 'courses' }" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
+          <router-link :to="{ name: 'path-list' }" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
           <BaseIcon name="chevron-right" class="w-3.5 h-3.5 text-vdsa-disabled" />
           <span class="text-vdsa-secondary font-medium truncate">{{ course.title }}</span>
         </nav>
@@ -345,7 +345,7 @@
               <router-link
                 v-for="rc in relatedCourses"
                 :key="rc.id"
-                :to="{ name: 'course-detail', params: { id: rc.id } }"
+                :to="{ name: 'path-detail', params: { id: rc.id } }"
                 class="p-5 rounded-2xl border border-vdsa-border bg-vdsa-surface hover:bg-vdsa-hover hover:border-vdsa-accent/40 transition-all group"
               >
                 <h3 class="text-white font-bold leading-snug group-hover:text-vdsa-accent-light transition-colors">{{ rc.title }}</h3>

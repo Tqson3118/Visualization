@@ -3,32 +3,39 @@
 // View-quality 14/08 (Nhóm D): token shadcn (--card/--border/--primary), link
 // min-height 36px + gap ≥8px (trục 5), font-weight 500 (label chuẩn §3).
 import { computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, type RouteLocationRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 defineProps<{
   active?: 'users' | 'stats' | 'settings' | 'content' | 'classes' | 'ladder' | 'feedback' | 'teacher';
 }>();
 
-const LINKS = [
-  { key: 'content', label: 'Studio Lộ trình & Bài giảng', to: 'curriculum-studio', adminOnly: false },
-  { key: 'classes', label: 'Quản lý lớp học', to: 'classes', adminOnly: false },
-  { key: 'users', label: 'Quản lý Người dùng', to: 'admin-users', adminOnly: true },
-  { key: 'stats', label: 'Thống kê Hệ thống', to: 'admin-stats', adminOnly: true },
-  { key: 'settings', label: 'Cấu hình & Báo cáo', to: 'admin-settings', adminOnly: true },
+interface NavItem {
+  key: string;
+  label: string;
+  to: RouteLocationRaw;
+  adminOnly?: boolean;
+}
+
+const LINKS: readonly NavItem[] = [
+  { key: 'content', label: 'Studio Lộ trình & Bài giảng', to: { path: '/studio', query: { tab: 'curriculum' } }, adminOnly: false },
+  { key: 'classes', label: 'Quản lý lớp học', to: { name: 'classes' }, adminOnly: false },
+  { key: 'users', label: 'Quản lý Người dùng', to: { name: 'admin-users' }, adminOnly: true },
+  { key: 'stats', label: 'Thống kê Hệ thống', to: { name: 'admin-stats' }, adminOnly: true },
+  { key: 'settings', label: 'Cấu hình & Báo cáo', to: { name: 'admin-settings' }, adminOnly: true },
 ] as const;
 
 const auth = useAuthStore();
-const visibleLinks = computed(() => {
+const visibleLinks = computed<NavItem[]>(() => {
   if (auth.role === 'TEACHER') {
     return [
-      { key: 'teacher', label: 'Tổng quan Teacher Studio', to: 'teacher-studio' },
-      { key: 'content', label: 'Studio Lộ trình & Bài tập', to: 'curriculum-studio' },
-      { key: 'classes', label: 'Quản lý lớp học', to: 'classes' },
+      { key: 'teacher', label: 'Tổng quan Teacher Studio', to: { path: '/studio', query: { tab: 'overview' } } },
+      { key: 'content', label: 'Studio Lộ trình & Bài tập', to: { path: '/studio', query: { tab: 'curriculum' } } },
+      { key: 'classes', label: 'Quản lý lớp học', to: { name: 'classes' } },
     ];
   }
   return [
-    { key: 'teacher', label: 'Tổng quan Studio', to: 'teacher-studio' },
+    { key: 'teacher', label: 'Tổng quan Studio', to: { path: '/studio', query: { tab: 'overview' } } },
     ...LINKS,
   ];
 });
@@ -39,7 +46,7 @@ const visibleLinks = computed(() => {
     <RouterLink
       v-for="link in visibleLinks"
       :key="link.key"
-      :to="{ name: link.to }"
+      :to="link.to"
       class="admin-nav__link"
       :class="{ 'admin-nav__link--active': active === link.key }"
     >

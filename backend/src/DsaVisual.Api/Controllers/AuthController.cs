@@ -27,6 +27,7 @@ public class AuthController(
     private readonly IAuthService _service = service;
 
     private const string RefreshCookieName = "refresh_token";
+    private const string SessionCookieName = "dsa.session";
 
     /// <summary>
     /// Options cookie refresh — Secure CHỈ khi HTTPS (F5-Minor: dev chạy HTTP không bị chặn cookie).
@@ -37,6 +38,18 @@ public class AuthController(
         SameSite = SameSiteMode.Strict,
         Secure = Request.IsHttps,
         Path = "/api/v1/auth",
+        Expires = expires
+    };
+
+    /// <summary>
+    /// Cookie đánh dấu phiên (F3) — KHÔNG HttpOnly để frontend đọc được, tránh gọi refresh cho Guest.
+    /// </summary>
+    private CookieOptions BuildSessionCookieOptions(DateTimeOffset? expires = null) => new()
+    {
+        HttpOnly = false,
+        SameSite = SameSiteMode.Strict,
+        Secure = Request.IsHttps,
+        Path = "/",
         Expires = expires
     };
 
@@ -119,6 +132,7 @@ public class AuthController(
         if (result.IsSuccess)
         {
             Response.Cookies.Delete(RefreshCookieName, BuildRefreshCookieOptions());
+            Response.Cookies.Delete(SessionCookieName, BuildSessionCookieOptions());
         }
 
         return MapResultExtensions.MapResult(this, result);
@@ -239,6 +253,7 @@ public class AuthController(
         {
             var expires = DateTimeOffset.UtcNow.AddDays(7);
             Response.Cookies.Append(RefreshCookieName, refreshToken, BuildRefreshCookieOptions(expires));
+            Response.Cookies.Append(SessionCookieName, "1", BuildSessionCookieOptions(expires));
         }
 
         return result.IsSuccess

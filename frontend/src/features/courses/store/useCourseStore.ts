@@ -58,9 +58,14 @@ export const useCourseStore = defineStore('course', () => {
       }));
       courses.value = mapped.filter(c => c.isPublished) as Course[];
     } catch (err) {
-      console.warn('Không tải được khóa học từ máy chủ:', err);
-      error.value = 'Không kết nối được máy chủ.';
-      courses.value = [];
+      console.warn('Không tải được khóa học từ máy chủ, nạp dữ liệu cục bộ:', err);
+      error.value = 'Không kết nối được máy chủ (Đang dùng dữ liệu cục bộ).';
+      try {
+        const { SEED_COURSES } = await import('@/data/courses');
+        courses.value = (SEED_COURSES || []).filter(c => c.isPublished !== false) as unknown as Course[];
+      } catch {
+        courses.value = [];
+      }
     } finally {
       isLoading.value = false;
       _loadEnrollments();

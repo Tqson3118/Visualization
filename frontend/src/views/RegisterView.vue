@@ -354,7 +354,7 @@ async function handleVerifyAndRegister(): Promise<void> {
       registeredTeacher.value = true;
       currentStep.value = 3;
     } else {
-      await router.replace({ name: 'courses' });
+      await router.replace({ name: 'path-list' });
     }
   } catch (err) {
     if (err instanceof ApiError) {
