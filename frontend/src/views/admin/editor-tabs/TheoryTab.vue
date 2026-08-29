@@ -5,6 +5,7 @@ import {
   Eye,
   FileCode,
   PenTool,
+  Settings,
   Sparkles,
   Table,
   Upload,
@@ -33,6 +34,7 @@ const ui = useUiStore();
 const editorType = ref<'wysiwyg' | 'markdown'>('wysiwyg');
 const viewMode = ref<'split' | 'editor' | 'preview'>('split');
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const tiptapRef = ref<InstanceType<typeof TipTapEditor> | null>(null);
 
 const aiFormatting = ref(false);
 const aiRemaining = ref(getAiUsageRemaining(auth.user?.email || 'default'));
@@ -65,14 +67,23 @@ function insertFormatting(prefix: string, suffix: string = '', defaultPlaceholde
 }
 
 function insertSimulationAnchor(simKey: string): void {
-  const anchor = `\n\n[Mô phỏng: ${simKey}]\n\n`;
+  const anchorText = `[Mô phỏng: ${simKey}]`;
+  if (editorType.value === 'wysiwyg' && tiptapRef.value?.editor) {
+    tiptapRef.value.editor.chain().focus().insertContent(`<p>${anchorText}</p>`).run();
+    return;
+  }
   const el = textareaRef.value;
   if (!el) {
-    updateContent(`${props.modelValue}${anchor}`);
+    if (props.modelValue && (props.modelValue.includes('<p>') || props.modelValue.includes('</div>') || props.modelValue.includes('<h2>'))) {
+      updateContent(`${props.modelValue}<p>${anchorText}</p>`);
+    } else {
+      updateContent(`${props.modelValue}\n\n${anchorText}\n\n`);
+    }
     return;
   }
   const start = el.selectionStart;
   const text = props.modelValue;
+  const anchor = `\n\n${anchorText}\n\n`;
   updateContent(text.substring(0, start) + anchor + text.substring(start));
   setTimeout(() => {
     el.focus();
@@ -86,7 +97,7 @@ function applyTemplate(tpl: LessonTemplate): void {
       return;
     }
   }
-  updateContent(tpl.content);
+  updateContent(parseMarkdownToHtml(tpl.content));
   emit('templateApplied', { title: tpl.name, description: tpl.description });
   ui.showToast(`Đã áp dụng mẫu: "${tpl.name}"`, 'success');
 }
@@ -103,11 +114,11 @@ function triggerFileInput(): void {
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content) {
-        updateContent(content);
         const h1Match = content.match(/^#\s+(.+)$/m);
         const title = h1Match && h1Match[1] ? h1Match[1].trim() : undefined;
         const pMatch = content.match(/^(?!#|>|```|\||-|\d+\.)([A-ZÀ-Ỹa-zà-ỹ0-9\s,.\-—–()]{20,200})$/m);
         const description = pMatch && pMatch[1] ? pMatch[1].trim() : undefined;
+        updateContent(parseMarkdownToHtml(content));
         emit('templateApplied', { title, description });
         ui.showToast(`Đã nhập thành công file "${file.name}"!`, 'success');
       }
@@ -125,7 +136,7 @@ async function handleAiFormat(): Promise<void> {
   aiFormatting.value = true;
   try {
     const formatted = await formatLessonWithAi(props.modelValue, auth.user?.email || 'default');
-    updateContent(formatted);
+    updateContent(parseMarkdownToHtml(formatted));
     aiRemaining.value = getAiUsageRemaining(auth.user?.email || 'default');
     ui.showToast('Đã định dạng bài giảng thành công bằng AI (DeepSeek)!', 'success');
   } catch (err: any) {
@@ -138,42 +149,40 @@ async function handleAiFormat(): Promise<void> {
 defineExpose({
   insertFormatting,
   insertSimulationAnchor,
+  applyTemplate,
+  triggerFileInput,
+  handleAiFormat,
+  editorType,
 });
 </script>
 
 <template>
   <div class="theory-tab flex flex-col h-full overflow-hidden">
     <!-- Top Action Bar for Theory -->
-    <div class="flex items-center justify-between px-4 py-2.5 bg-vdsa-surface border-b border-vdsa-border flex-wrap gap-2 shrink-0">
-      <!-- Mode Switcher -->
-      <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-vdsa-surface border-b border-vdsa-border flex-wrap gap-2 shrink-0 overflow-x-auto">
+      <!-- Left: Advanced Mode Toggle -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
         <button
           type="button"
-          @click="editorType = 'wysiwyg'"
-          :class="editorType === 'wysiwyg' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white'"
-          class="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border cursor-pointer"
+          @click="editorType = editorType === 'wysiwyg' ? 'markdown' : 'wysiwyg'"
+          :class="editorType === 'markdown' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-bg-secondary text-vdsa-muted hover:text-white'"
+          class="px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 border border-vdsa-border cursor-pointer shrink-0 whitespace-nowrap"
+          title="Chuyển đổi chế độ Markdown nâng cao"
         >
-          <PenTool :size="13" /> Trực quan (TipTap)
-        </button>
-        <button
-          type="button"
-          @click="editorType = 'markdown'"
-          :class="editorType === 'markdown' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white'"
-          class="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border cursor-pointer"
-        >
-          <FileCode :size="13" /> Markdown (Split View)
+          <Settings :size="13" /> Chế độ nâng cao
         </button>
       </div>
 
-      <div class="flex items-center gap-2">
+      <!-- Right Action Tools -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
         <!-- Import Markdown -->
-        <Button variant="secondary" size="sm" class="gap-1.5 text-xs" @click="triggerFileInput">
+        <Button variant="secondary" size="sm" class="gap-1.5 text-xs shrink-0 whitespace-nowrap" @click="triggerFileInput">
           <Upload :size="13" /> Nhập file .md
         </Button>
 
         <!-- Templates Dropdown -->
-        <div class="relative group">
-          <Button variant="secondary" size="sm" class="gap-1.5 text-xs">
+        <div class="relative group shrink-0">
+          <Button variant="secondary" size="sm" class="gap-1.5 text-xs shrink-0 whitespace-nowrap">
             <Sparkles :size="13" /> Mẫu bài giảng ▾
           </Button>
           <div class="hidden group-hover:block absolute right-0 top-full mt-1 w-64 bg-vdsa-surface border border-vdsa-border rounded-xl shadow-2xl p-1.5 z-50">
@@ -190,11 +199,11 @@ defineExpose({
           </div>
         </div>
 
-        <!-- View Mode Switcher for Markdown -->
-        <div v-if="editorType === 'markdown'" class="inline-flex bg-vdsa-bg-secondary border border-vdsa-border rounded-lg p-0.5">
+        <!-- View Mode Switcher for Markdown (only visible in markdown mode) -->
+        <div v-if="editorType === 'markdown'" class="inline-flex bg-vdsa-bg-secondary border border-vdsa-border rounded-lg p-0.5 shrink-0">
           <button
             type="button"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
             :class="viewMode === 'split' ? 'bg-vdsa-surface text-white' : 'text-vdsa-muted hover:text-white'"
             @click="viewMode = 'split'"
             title="Song song"
@@ -203,7 +212,7 @@ defineExpose({
           </button>
           <button
             type="button"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
             :class="viewMode === 'editor' ? 'bg-vdsa-surface text-white' : 'text-vdsa-muted hover:text-white'"
             @click="viewMode = 'editor'"
             title="Chỉ soạn thảo"
@@ -212,7 +221,7 @@ defineExpose({
           </button>
           <button
             type="button"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+            class="px-2.5 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
             :class="viewMode === 'preview' ? 'bg-vdsa-surface text-white' : 'text-vdsa-muted hover:text-white'"
             @click="viewMode = 'preview'"
             title="Chỉ xem trước"
@@ -225,7 +234,7 @@ defineExpose({
         <button
           type="button"
           :disabled="aiFormatting || aiRemaining <= 0"
-          class="bg-purple-600/30 text-purple-300 border border-purple-500/50 hover:bg-purple-600/50 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+          class="bg-purple-600/30 text-purple-300 border border-purple-500/50 hover:bg-purple-600/50 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shrink-0 whitespace-nowrap"
           :title="aiRemaining <= 0 ? 'Đã hết lượt dùng AI miễn phí' : 'Chuẩn hóa bằng DeepSeek AI'"
           @click="handleAiFormat"
         >
@@ -235,28 +244,28 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Mode 1: TipTap WYSIWYG -->
+    <!-- Mode 1: TipTap WYSIWYG (Default) -->
     <div v-if="editorType === 'wysiwyg'" class="flex-1 overflow-y-auto p-4 bg-vdsa-bg">
-      <TipTapEditor :model-value="modelValue" @update:model-value="updateContent" placeholder="Bắt đầu soạn thảo lý thuyết bài giảng trực quan..." />
+      <TipTapEditor ref="tiptapRef" :model-value="modelValue" @update:model-value="updateContent" placeholder="Bắt đầu soạn thảo lý thuyết bài giảng trực quan..." />
     </div>
 
-    <!-- Mode 2: Markdown Split / Panes -->
+    <!-- Mode 2: Markdown Split / Panes (Advanced) -->
     <div v-else class="flex-1 flex flex-col overflow-hidden">
       <!-- Toolbar -->
       <div class="flex items-center gap-2 px-4 py-2 bg-vdsa-surface/90 border-b border-vdsa-border overflow-x-auto shrink-0 flex-wrap">
-        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border">
+        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border shrink-0">
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('# ', '', 'Tiêu đề 1')">H1</button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('## ', '', 'Tiêu đề 2')">H2</button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('### ', '', 'Tiêu đề 3')">H3</button>
         </div>
 
-        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border">
+        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border shrink-0">
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('**', '**', 'văn bản đậm')"><b>B</b></button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('*', '*', 'văn bản nghiêng')"><i>I</i></button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('`', '`', 'code')">&lt;/&gt;</button>
         </div>
 
-        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border">
+        <div class="flex items-center gap-1 pr-2 border-r border-vdsa-border shrink-0">
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-sky-400 hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('```cpp\n// Viết mã C++\nvoid solution() {\n    \n}\n', '```')">C++</button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-emerald-400 hover:text-white text-xs font-bold cursor-pointer" @click="insertFormatting('```python\n# Viết mã Python\ndef solution():\n    pass\n', '```')">Python</button>
           <button type="button" class="px-2 py-1 rounded bg-vdsa-bg-secondary text-vdsa-secondary hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer" @click="insertFormatting('\n| Cột 1 | Cột 2 | Cột 3 |\n| :--- | :--- | :--- |\n| A | B | C |\n', '')">
@@ -264,7 +273,7 @@ defineExpose({
           </button>
         </div>
 
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 shrink-0">
           <button type="button" class="px-2 py-1 rounded bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 text-xs font-semibold cursor-pointer" @click="insertFormatting('> [!NOTE]\n> ', '', 'Ghi chú...')">📌 Note</button>
           <button type="button" class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-semibold cursor-pointer" @click="insertFormatting('> [!TIP]\n> ', '', 'Mẹo hay...')">💡 Tip</button>
           <button type="button" class="px-2 py-1 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-xs font-semibold cursor-pointer" @click="insertFormatting('> [!WARNING]\n> ', '', 'Chú ý...')">⚠️ Warn</button>

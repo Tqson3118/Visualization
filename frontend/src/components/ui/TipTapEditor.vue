@@ -164,7 +164,7 @@
           class="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-vdsa-border/60 hover:bg-vdsa-hover transition-colors"
         >
           <FileText :size="13" />
-          <span>{{ showRawCode ? 'Xem Trực quan' : 'Mã HTML/Markdown' }}</span>
+          <span>{{ showRawCode ? 'Xem Trực quan' : 'Xem mã' }}</span>
         </button>
       </div>
     </div>
@@ -234,6 +234,7 @@ const emit = defineEmits<{
 }>();
 
 const showRawCode = ref(false);
+let isInternalUpdate = false;
 
 const editor = useEditor({
   content: props.modelValue,
@@ -258,8 +259,12 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor }) => {
+    isInternalUpdate = true;
     const html = editor.getHTML();
     emit('update:modelValue', html);
+    queueMicrotask(() => {
+      isInternalUpdate = false;
+    });
   },
 });
 
@@ -267,6 +272,7 @@ const editor = useEditor({
 watch(
   () => props.modelValue,
   (newVal) => {
+    if (isInternalUpdate) return;
     if (!editor.value) return;
     const isSame = editor.value.getHTML() === newVal;
     if (!isSame) {
@@ -291,10 +297,14 @@ function addImage(): void {
 
 function onRawInput(event: Event): void {
   const value = (event.target as HTMLTextAreaElement).value;
+  isInternalUpdate = true;
   emit('update:modelValue', value);
   if (editor.value) {
     editor.value.commands.setContent(value, { emitUpdate: false });
   }
+  queueMicrotask(() => {
+    isInternalUpdate = false;
+  });
 }
 
 const charCount = computed(() => {
@@ -306,6 +316,12 @@ const wordCount = computed(() => {
   if (!editor.value) return 0;
   const text = editor.value.getText().trim();
   return text ? text.split(/\s+/).length : 0;
+});
+
+defineExpose({
+  editor,
+  getText: () => editor.value?.getText() || '',
+  getHTML: () => editor.value?.getHTML() || '',
 });
 
 onBeforeUnmount(() => {

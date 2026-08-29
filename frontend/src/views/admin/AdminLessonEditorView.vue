@@ -119,7 +119,7 @@ onMounted(async () => {
       }
     } else {
       if (!form.markdown) {
-        form.markdown = LESSON_TEMPLATES[0].content;
+        form.markdown = parseMarkdownToHtml(LESSON_TEMPLATES[0].content);
         form.title = 'Bài học mới: Giải thuật & Cấu trúc dữ liệu';
         form.description = 'Nắm vững nguyên lý hoạt động, phân tích độ phức tạp và thực hành trực quan.';
       }
