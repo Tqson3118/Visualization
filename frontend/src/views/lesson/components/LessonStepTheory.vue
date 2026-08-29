@@ -103,7 +103,7 @@ import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import { parseMarkdownToHtml } from '@/utils/markdownParser';
 import SharedVisualizerShell from '../../../features/visual-shell/components/SharedVisualizerShell.vue';
 import { buildFramesFromCatalogKey } from '../../../features/visual-shell/buildFrames';
-import type { SortFrame } from '../../../features/algorithm-sandbox/types/sorting.types';
+import type { SortFrame } from '../../../features/visual-shell/types/sorting.types';
 import { CATALOG } from '@/engines/catalog';
 
 const props = defineProps<{

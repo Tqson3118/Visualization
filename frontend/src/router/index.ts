@@ -14,8 +14,6 @@ const FinalTestView = () => import('@/views/FinalTestView.vue');
 
 const SimulationsView = () => import('@/views/SimulationsView.vue');
 const SimulatorView = () => import('@/views/SimulatorView.vue');
-// Sandbox từ VisualizationDSA3 (bê nguyên giao diện + thuật toán — 1 trang 3 tab)
-const SortingSandboxView = () => import('@/views/sorting/SortingView.vue');
 const LessonView = () => import('@/views/LessonView.vue');
 const ExerciseView = () => import('@/views/ExerciseView.vue');
 const LadderView = () => import('@/views/LadderView.vue');
@@ -165,24 +163,6 @@ const router = createRouter({
       path: '/simulator/:key',
       name: 'simulator',
       component: SimulatorView,
-    },
-    // Sandbox từ VisualizationDSA3 — 4 route DÙNG CHUNG 1 trang (SortingView có 4 tab:
-    // Sorting Sandbox · Searching Sandbox · Graph Playground · Stack & Queue). Mỗi route
-    // mở đúng tab tương ứng (App.vue key theo fullPath → remount khi đổi route).
-    {
-      path: '/sorting-sandbox',
-      name: 'sorting-sandbox',
-      component: SortingSandboxView,
-    },
-    {
-      path: '/searching-sandbox',
-      name: 'searching-sandbox',
-      component: SortingSandboxView,
-    },
-    {
-      path: '/stack-queue-sandbox',
-      name: 'stack-queue-sandbox',
-      component: SortingSandboxView,
     },
     // Màn 14 — Practice Ladder
     {

@@ -9,7 +9,7 @@ import {
   parseElementValue,
   deriveVisualStatus,
 } from '../adapters/legacyStepAdapter';
-import type { SortFrame } from '../../algorithm-sandbox/types/sorting.types';
+import type { SortFrame } from '../types/sorting.types';
 
 function arrayStep(opts: {
   index: number;

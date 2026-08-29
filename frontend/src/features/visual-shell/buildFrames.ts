@@ -3,10 +3,10 @@
 import { getSimulation } from '@/engines/registry';
 import '@/engines/catalog'; // side-effect: đăng ký 44 generator (GP-T4 cần sort.bubble)
 import { defaultInput } from '@/engines/generators/helpers';
-import { catalogKeyToSortAlgorithm } from '../algorithm-sandbox/helpers/catalogKeyMap';
+import { catalogKeyToSortAlgorithm } from './helpers/catalogKeyMap';
 import { legacyStepsToSortFrames } from './adapters/legacyStepAdapter';
 import type { Step } from '@/engines/core/types';
-import type { SortFrame } from '../algorithm-sandbox/types/sorting.types';
+import type { SortFrame } from './types/sorting.types';
 
 /**
  * Sinh frames hoặc Step[] từ 1 key catalog bất kỳ bằng engine generator THẬT.

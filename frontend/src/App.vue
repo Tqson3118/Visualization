@@ -13,9 +13,8 @@ import { useUiStore } from '@/stores/ui';
 const ui = useUiStore();
 const route = useRoute();
 
-// Sandbox bê từ VisualizationDSA3 (Sorting/Searching/Graph) dùng h-full w-full
-// (full viewport như trải nghiệm bên nguồn) → main cần chiều cao cố định + ẩn footer.
-const SANDBOX_ROUTES = ['sorting-sandbox', 'searching-sandbox', 'graph-playground', 'stack-queue-sandbox'];
+// Simulator dùng full-height (full viewport) → main cần chiều cao cố định + ẩn footer.
+const SANDBOX_ROUTES = ['simulator'];
 const isSandboxRoute = computed(() => route.name !== undefined && SANDBOX_ROUTES.includes(String(route.name)));
 
 // G-F2a: smooth scroll toàn cục (singleton — App đời là tạo 1 lần duy nhất).

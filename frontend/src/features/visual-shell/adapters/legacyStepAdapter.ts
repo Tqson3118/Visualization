@@ -4,8 +4,8 @@
 //   Step[] → SharedVisualFrame[] (contract hợp nhất cho mọi renderer)
 // Mapping: Step.structure.elements → arrayState/indices (element.status → trạng thái).
 import type { ElementStatus, Step } from '@/engines/core/types';
-import type { SortAlgorithm, SortFrame } from '../../algorithm-sandbox/types/sorting.types';
-import { enrichFramesWithIds } from '../../algorithm-sandbox/helpers/sortingIdEnricher';
+import type { SortAlgorithm, SortFrame } from '../types/sorting.types';
+import { enrichFramesWithIds } from '../helpers/sortingIdEnricher';
 import type { SharedVisualFrame, SharedVisualStatus } from '../types/sharedVisualFrame';
 
 /** Parse giá trị số từ label của element ('7', có thể là 'd[2]=9' mang giá trị cuối). */
