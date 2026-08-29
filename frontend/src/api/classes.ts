@@ -64,8 +64,8 @@ export async function fetchClassMembers(id: number): Promise<ClassMemberDto[]> {
   return getData<ClassMemberDto[]>({ method: 'GET', url: CLASS_ENDPOINTS.members(id) });
 }
 
-export async function addClassMember(id: number, email: string): Promise<ClassMemberDto> {
-  return getData<ClassMemberDto>({ method: 'POST', url: CLASS_ENDPOINTS.members(id), data: { email } });
+export async function addClassMember(id: number, email: string): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'POST', url: CLASS_ENDPOINTS.members(id), data: { email } });
 }
 
 export async function removeClassMember(id: number, userId: number): Promise<void> {

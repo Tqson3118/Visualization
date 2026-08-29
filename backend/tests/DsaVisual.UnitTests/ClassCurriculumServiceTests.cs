@@ -121,14 +121,16 @@ public sealed class ClassCurriculumServiceTests
     {
         var (service, db, teacher, student) = await SetupAsync(nameof(GetCurriculum_StudentStatuses_FromRealProgress));
         await AddAssignmentAsync(service, teacher, 1, 1, null);   // lesson A
-        await AddAssignmentAsync(service, teacher, 1, null, 1);   // quiz 1
+        var quizAssignmentId = await AddAssignmentAsync(service, teacher, 1, null, 1);   // quiz 1
         await AddAssignmentAsync(service, teacher, 1, 2, null);   // lesson B
         db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = student, JoinedAt = _clock.UtcNow });
 
         // Progress THẬT: lesson A completed, quiz 1 passed, lesson B only viewed
+        var cls1 = await db.Classes.FindAsync(1);
+        cls1!.CurriculumPublished = true;
         db.UserProgress.Add(new UserProgress { UserId = student, LessonId = 1, Viewed = true, BestScore = 90, CompletedAt = _clock.UtcNow, UpdatedAt = _clock.UtcNow });
         db.UserProgress.Add(new UserProgress { UserId = student, LessonId = 2, Viewed = true, BestScore = null, UpdatedAt = _clock.UtcNow });
-        db.ExerciseSubmissions.Add(new ExerciseSubmission { UserId = student, ExerciseId = 1, Score = 9, SubmittedAt = _clock.UtcNow });
+        db.ExerciseSubmissions.Add(new ExerciseSubmission { UserId = student, ExerciseId = 1, ClassAssignmentId = quizAssignmentId, Score = 9, SubmittedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
         var view = await service.GetCurriculumAsync(student, RoleNames.Student, 1, CancellationToken.None);
@@ -149,6 +151,8 @@ public sealed class ClassCurriculumServiceTests
         var (service, db, teacher, student) = await SetupAsync(nameof(GetCurriculum_NotStarted_WhenNoProgress));
         await AddAssignmentAsync(service, teacher, 1, 1, null);
         await AddAssignmentAsync(service, teacher, 1, null, 1);
+        var cls2 = await db.Classes.FindAsync(1);
+        cls2!.CurriculumPublished = true;
         db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = student, JoinedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 

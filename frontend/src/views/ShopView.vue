@@ -57,7 +57,9 @@ onMounted(async () => {
   }
 });
 
-const canAfford = computed(() => (price: number) => gamification.gems >= price);
+function canAfford(price: number): boolean {
+  return gamification.gems >= price;
+}
 
 // Trạng thái sở hữu & trang bị trong kho đồ
 function getInventoryItem(item: ShopItemDto): InventoryItemDto | undefined {
@@ -110,9 +112,39 @@ async function toggleEquipFromShop(item: ShopItemDto): Promise<void> {
   }
 }
 
+const CATEGORY_TABS: Array<{ id: 'all' | 'support' | 'avatar' | 'frame' | 'boost'; label: string }> = [
+  { id: 'all', label: 'Tất cả' },
+  { id: 'support', label: 'Hỗ trợ' },
+  { id: 'avatar', label: 'Avatar' },
+  { id: 'frame', label: 'Khung viền' },
+  { id: 'boost', label: 'Tăng tốc' },
+];
+
+function isItemInCategory(item: ShopItemDto, cat: string): boolean {
+  if (cat === 'all') return true;
+  if (cat === 'support') return item.slot === 'hint' || item.slot === 'freeze' || item.slot === 'support';
+  if (cat === 'avatar') return item.slot === 'avatar';
+  if (cat === 'frame') return item.slot === 'frame';
+  if (cat === 'boost') return item.slot === 'boost' || item.slot === 'xp_boost';
+  return item.slot === cat;
+}
+
+const filteredItems = computed(() => {
+  if (activeCategory.value === 'all') return items.value;
+  return items.value.filter((i) => isItemInCategory(i, activeCategory.value));
+});
+
+function isMaxStacked(item: ShopItemDto): boolean {
+  if (isCosmeticItem(item)) {
+    return isItemOwned(item);
+  }
+  const max = item.maxStack ?? 99;
+  return ownedQuantity(item) >= max;
+}
+
 // Ô trám cho lưới 3 cột (3×3) khi tổng item không chia hết cho 3.
 const fillCount = computed(() => {
-  const len = items.value.length;
+  const len = filteredItems.value.length;
   if (len === 0) return 0;
   return (3 - (len % 3)) % 3;
 });
@@ -337,13 +369,28 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
           <!-- Khu phải: trưng bày vật phẩm theo lưới 3×3 -->
           <section class="shop__showcase" aria-label="Trưng bày vật phẩm">
             <header class="shop__showcase-head">
-              <span class="shop__showcase-kicker">{{ messages.shop.showcaseKicker }}</span>
-              <span class="shop__showcase-count">{{ items.length }} ITEMS</span>
+              <div class="shop__cat-list">
+                <button
+                  v-for="cat in CATEGORY_TABS"
+                  :key="cat.id"
+                  type="button"
+                  class="shop__cat-tab"
+                  :class="{ 'shop__cat-tab--active': activeCategory === cat.id }"
+                  @click="activeCategory = cat.id"
+                >
+                  {{ cat.label }}
+                </button>
+              </div>
+              <span class="shop__showcase-count">{{ filteredItems.length }} ITEMS</span>
             </header>
 
-            <div class="shop__grid">
+            <div v-if="filteredItems.length === 0" class="shop__empty-cat card">
+              <p class="text-sm text-muted-foreground">Không có vật phẩm nào trong danh mục này.</p>
+            </div>
+
+            <div v-else class="shop__grid">
               <article
-                v-for="item in items"
+                v-for="item in filteredItems"
                 :key="item.id"
                 class="shop__card card"
                 :class="{
@@ -392,11 +439,11 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
                       <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
                     </span>
                     <Button
-                      :disabled="!canAfford(item.priceGems) || buyingId !== null"
+                      :disabled="!canAfford(item.priceGems) || buyingId !== null || isMaxStacked(item)"
                       :loading="buyingId === item.id"
                       @click="buy(item)"
                     >
-                      {{ messages.shop.buy }}
+                      {{ isMaxStacked(item) ? 'Đã đạt tối đa' : messages.shop.buy }}
                     </Button>
                   </template>
                 </footer>
@@ -767,6 +814,43 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.shop__cat-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.shop__cat-tab {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.shop__cat-tab:hover {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, #8b5cf6 40%, var(--color-border));
+}
+
+.shop__cat-tab--active {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #ffffff;
+}
+
+.shop__empty-cat {
+  padding: var(--space-xl);
+  text-align: center;
 }
 
 .shop__showcase-kicker {

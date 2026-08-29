@@ -32,9 +32,11 @@ public sealed class ExerciseService(
     // ── Danh sách / chi tiết ──────────────────────────────────
 
     public async Task<Result<PagedResponse<ExerciseSummaryDto>>> GetListAsync(
-        int? lessonId, int? nodeId, int? stage, int page, int pageSize, CancellationToken ct)
+        int? lessonId, int? nodeId, int? stage, int? topicId, int? courseId, int? roadmapId,
+        int page, int pageSize, CancellationToken ct)
     {
-        var (safePage, safeSize) = Pagination.Normalize(page, pageSize);
+        var safePage = page < 1 ? 1 : page;
+        var safeSize = pageSize < 1 ? 20 : (pageSize > 1000 ? 1000 : pageSize);
 
         var query = db.Exercises.AsNoTracking().Where(e => e.DeletedAt == null);
         if (lessonId is > 0)
@@ -52,6 +54,49 @@ public sealed class ExerciseService(
             query = query.Where(e => e.Stage == stage);
         }
 
+        if (topicId is > 0)
+        {
+            var topicLessonIds = db.Lessons
+                .Where(l => l.TopicId == topicId && l.DeletedAt == null)
+                .Select(l => l.Id);
+            query = query.Where(e => topicLessonIds.Contains(e.LessonId));
+        }
+
+        var targetCourseId = courseId is > 0 ? courseId : (roadmapId is > 0 ? roadmapId : null);
+        if (targetCourseId is > 0)
+        {
+            var courseNodeIds = db.LearningPathNodes
+                .Where(n => n.PathId == targetCourseId.Value)
+                .Select(n => n.Id);
+
+            var courseLessonIds = db.LearningPathNodes
+                .Where(n => n.PathId == targetCourseId.Value && n.LessonId != null)
+                .Select(n => n.LessonId!.Value);
+
+            var pathTopicId = await db.LearningPaths
+                .Where(p => p.Id == targetCourseId.Value)
+                .Select(p => p.TopicId)
+                .FirstOrDefaultAsync(ct);
+
+            if (pathTopicId is > 0)
+            {
+                var pathTopicLessonIds = db.Lessons
+                    .Where(l => l.TopicId == pathTopicId.Value && l.DeletedAt == null)
+                    .Select(l => l.Id);
+
+                query = query.Where(e =>
+                    (e.NodeId != null && courseNodeIds.Contains(e.NodeId.Value)) ||
+                    courseLessonIds.Contains(e.LessonId) ||
+                    pathTopicLessonIds.Contains(e.LessonId));
+            }
+            else
+            {
+                query = query.Where(e =>
+                    (e.NodeId != null && courseNodeIds.Contains(e.NodeId.Value)) ||
+                    courseLessonIds.Contains(e.LessonId));
+            }
+        }
+
         var total = await query.CountAsync(ct);
         var items = await query
             .OrderBy(e => e.Id)
@@ -67,7 +112,8 @@ public sealed class ExerciseService(
                 Type = e.Type.ToString(),
                 DurationMinutes = e.DurationMinutes,
                 MaxScore = e.MaxScore,
-                Status = e.Status.ToString()
+                Status = e.Status.ToString(),
+                CreatedBy = e.CreatedBy
             })
             .ToListAsync(ct);
 
@@ -413,7 +459,7 @@ public sealed class ExerciseService(
                 {
                     Score = idempotent.Score,
                     MaxScore = maxScore,
-                    Passed = idempotent.Score == maxScore,
+                    Passed = maxScore > 0 && (double)idempotent.Score / maxScore >= 0.7,
                     Results = DeserializeResults(idempotent.ResultJson, results),
                     SubmissionId = idempotent.Id,
                     SubmittedAt = idempotent.SubmittedAt
@@ -488,7 +534,7 @@ public sealed class ExerciseService(
         }
 
         // Finding #6 (FR-10.3): tăng Progress quest CÙNG transaction với hành động học (raw SQL trong ambient tx)
-        var passed = score == maxScore;
+        var passed = maxScore > 0 && (double)score / maxScore >= 0.7;
         if (exercise.Type == ExerciseType.Mcq)
         {
             await QuestProgressWriter.IncrementAsync(db, userId, "pass_quiz", ct);
@@ -512,7 +558,7 @@ public sealed class ExerciseService(
         {
             Score = stored.Score,
             MaxScore = maxScore,
-            Passed = stored.Score == maxScore,
+            Passed = maxScore > 0 && (double)stored.Score / maxScore >= 0.7,
             Results = DeserializeResults(stored.ResultJson, results),
             SubmissionId = stored.Id,
             SubmittedAt = stored.SubmittedAt
@@ -563,10 +609,9 @@ public sealed class ExerciseService(
 
         var existingQuestions = await db.Questions.AsNoTracking()
             .Where(q => lessonExerciseIds.Contains(q.ExerciseId))
-            .Select(q => q.Content.Trim().ToLower())
+            .Select(q => q.Content.Trim())
             .ToListAsync(ct);
-        var existingSet = new HashSet<string>(existingQuestions, StringComparer.OrdinalIgnoreCase);
-        var seenInCsv = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenInCsv = new List<string>();
 
         // Bỏ header nếu có
         var start = lines.Length > 0 && (lines[0].Contains("content", StringComparison.OrdinalIgnoreCase) || lines[0].Contains("question", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
@@ -641,16 +686,18 @@ public sealed class ExerciseService(
                     continue;
                 }
 
-                // Kiểm tra trùng lặp câu hỏi
-                var normalized = content.Trim().ToLowerInvariant();
-                if (existingSet.Contains(normalized) || seenInCsv.Contains(normalized))
+                // Kiểm tra trùng lặp câu hỏi (>= 90% tương đồng text)
+                var isDuplicate = existingQuestions.Any(q => CalculateStringSimilarity(q, content) >= 0.9)
+                    || seenInCsv.Any(q => CalculateStringSimilarity(q, content) >= 0.9);
+
+                if (isDuplicate)
                 {
-                    result.Errors.Add($"Dòng {lineNumber}: Bỏ qua do trùng lặp nội dung câu hỏi '{content}'.");
+                    result.Errors.Add($"Dòng {lineNumber}: Bỏ qua do trùng lặp (≥ 90% tương đồng) nội dung câu hỏi '{content}'.");
                     result.Skipped++;
                     continue;
                 }
 
-                seenInCsv.Add(normalized);
+                seenInCsv.Add(content);
                 questions.Add(new Question
                 {
                     Type = type,
@@ -1249,7 +1296,7 @@ public sealed class ExerciseService(
     {
         var maxScore = exercise.Questions.Sum(q => q.Points);
         var mergedScore = Math.Max(winner.Score, score);   // điểm thực cuối sau merge (max — upsert cũng max)
-        var mergedPassed = mergedScore == maxScore;
+        var mergedPassed = maxScore > 0 && (double)mergedScore / maxScore >= 0.7;
 
         // Quest pass_node: nodeJustPassed đọc TRƯỚC khi merge (sau merge Status đã = 2 nên không phát hiện được
         // "vừa pass"). Chỉ tăng khi request này mang điểm CAO HƠN winner (mergedScore > winner.Score ⟹ winner
@@ -1295,7 +1342,7 @@ public sealed class ExerciseService(
         {
             Score = finalScore,
             MaxScore = maxScore,
-            Passed = finalScore == maxScore,
+            Passed = maxScore > 0 && (double)finalScore / maxScore >= 0.7,
             Results = bestResults,
             SubmissionId = final.Id,
             SubmittedAt = final.SubmittedAt
@@ -1477,7 +1524,7 @@ public sealed class ExerciseService(
 
         var stars = maxScore > 0 ? (int)Math.Ceiling(score * 3.0 / maxScore) : 0;
         stars = Math.Clamp(stars, 0, 3);
-        var passed = score >= maxScore;
+        var passed = maxScore > 0 && (double)score / maxScore >= 0.7;
 
         if (progress is null)
         {
@@ -1706,5 +1753,50 @@ public sealed class ExerciseService(
 
         result.Add(current.ToString());
         return result;
+    }
+
+    private static double CalculateStringSimilarity(string s1, string s2)
+    {
+        if (string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase)) return 1.0;
+        if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2)) return 0.0;
+
+        var str1 = s1.Trim().ToLowerInvariant();
+        var str2 = s2.Trim().ToLowerInvariant();
+        if (str1 == str2) return 1.0;
+
+        var len1 = str1.Length;
+        var len2 = str2.Length;
+        var maxLen = Math.Max(len1, len2);
+        if (maxLen == 0) return 1.0;
+
+        if (Math.Abs(len1 - len2) > maxLen * 0.15)
+        {
+            return 0.0;
+        }
+
+        var distance = LevenshteinDistance(str1, str2);
+        return 1.0 - ((double)distance / maxLen);
+    }
+
+    private static int LevenshteinDistance(string s, string t)
+    {
+        var n = s.Length;
+        var m = t.Length;
+        var d = new int[n + 1, m + 1];
+
+        for (var i = 0; i <= n; d[i, 0] = i++) { }
+        for (var j = 0; j <= m; d[0, j] = j++) { }
+
+        for (var i = 1; i <= n; i++)
+        {
+            for (var j = 1; j <= m; j++)
+            {
+                var cost = s[i - 1] == t[j - 1] ? 0 : 1;
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
+            }
+        }
+        return d[n, m];
     }
 }

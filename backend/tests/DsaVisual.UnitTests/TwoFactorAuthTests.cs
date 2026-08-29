@@ -34,14 +34,22 @@ public class TwoFactorAuthTests
     private static string HashOtp(string code) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
 
-    private static async Task<int> RegisterUserAsync(AuthService service, string dbName)
+    private async Task<int> RegisterUserAsync(AuthService service, string dbName)
     {
+        // B0: đăng ký cần otpToken — xin qua send + verify (mã từ recorder _otp.Last)
+        await service.SendRegisterOtpAsync(
+            new SendRegisterOtpRequest { Email = "minh@university.edu.vn" }, CancellationToken.None);
+        var verify = await service.VerifyRegisterOtpAsync(
+            new VerifyRegisterOtpRequest { Email = "minh@university.edu.vn", Code = _otp.Last }, CancellationToken.None);
+        Assert.True(verify.IsSuccess, verify.ErrorMessage);
+
         var result = await service.RegisterAsync(new RegisterRequest
         {
             DisplayName = "Nguyễn Minh",
             Email = "minh@university.edu.vn",
             Password = "MatKhau@123",
-            IsTeacher = false
+            IsTeacher = false,
+            OtpToken = verify.Value!.OtpToken
         }, null, CancellationToken.None);
         Assert.True(result.IsSuccess);
         return result.Value!.User.Id;
@@ -261,5 +269,149 @@ public class TwoFactorAuthTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.TWO_FA_ALREADY_ENABLED, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Login_WhenTwoFactorEnabled_RequiresTwoFactorAndSendsOtp()
+    {
+        var (service, _, db) = await CreateAsync(nameof(Login_WhenTwoFactorEnabled_RequiresTwoFactorAndSendsOtp));
+        var userId = await RegisterUserAsync(service, nameof(Login_WhenTwoFactorEnabled_RequiresTwoFactorAndSendsOtp));
+
+        // Enable 2FA
+        await service.Send2FaCodeAsync(userId, CancellationToken.None);
+        var enableCode = ExtractOtpCode();
+        await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = enableCode }, CancellationToken.None);
+        Assert.True(db.Users.Single(u => u.Id == userId).TwoFactorEnabled);
+
+        // Login
+        var loginResult = await service.LoginAsync(new LoginRequest
+        {
+            Email = "minh@university.edu.vn",
+            Password = "MatKhau@123"
+        }, "127.0.0.1", CancellationToken.None);
+
+        Assert.True(loginResult.IsSuccess);
+        Assert.True(loginResult.Value!.RequiresTwoFactor);
+        Assert.False(string.IsNullOrEmpty(loginResult.Value.TwoFactorToken));
+        Assert.Equal(string.Empty, loginResult.Value.AccessToken); // Token not issued yet
+
+        var loginOtp = ExtractOtpCode();
+        Assert.NotNull(loginOtp);
+        Assert.Equal(6, loginOtp.Length);
+
+        // Verify 2FA login with correct code
+        var verifyResult = await service.VerifyLogin2FaAsync(new Login2FaRequest
+        {
+            TwoFactorToken = loginResult.Value.TwoFactorToken!,
+            Code = loginOtp
+        }, "127.0.0.1", CancellationToken.None);
+
+        Assert.True(verifyResult.IsSuccess);
+        Assert.False(string.IsNullOrEmpty(verifyResult.Value!.AccessToken));
+        Assert.Equal(userId, verifyResult.Value.User.Id);
+    }
+
+    [Fact]
+    public async Task VerifyLogin2Fa_WrongCode_Fails()
+    {
+        var (service, _, _) = await CreateAsync(nameof(VerifyLogin2Fa_WrongCode_Fails));
+        var userId = await RegisterUserAsync(service, nameof(VerifyLogin2Fa_WrongCode_Fails));
+
+        await service.Send2FaCodeAsync(userId, CancellationToken.None);
+        var enableCode = ExtractOtpCode();
+        await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = enableCode }, CancellationToken.None);
+
+        var loginResult = await service.LoginAsync(new LoginRequest
+        {
+            Email = "minh@university.edu.vn",
+            Password = "MatKhau@123"
+        }, "127.0.0.1", CancellationToken.None);
+
+        var verifyResult = await service.VerifyLogin2FaAsync(new Login2FaRequest
+        {
+            TwoFactorToken = loginResult.Value!.TwoFactorToken!,
+            Code = "999999"
+        }, "127.0.0.1", CancellationToken.None);
+
+        Assert.False(verifyResult.IsSuccess);
+        Assert.Equal(ErrorCodes.OTP_INVALID, verifyResult.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ResendLogin2Fa_GeneratesNewOtp()
+    {
+        var (service, _, _) = await CreateAsync(nameof(ResendLogin2Fa_GeneratesNewOtp));
+        var userId = await RegisterUserAsync(service, nameof(ResendLogin2Fa_GeneratesNewOtp));
+
+        await service.Send2FaCodeAsync(userId, CancellationToken.None);
+        var enableCode = ExtractOtpCode();
+        await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = enableCode }, CancellationToken.None);
+
+        var loginResult = await service.LoginAsync(new LoginRequest
+        {
+            Email = "minh@university.edu.vn",
+            Password = "MatKhau@123"
+        }, "127.0.0.1", CancellationToken.None);
+
+        var firstOtp = ExtractOtpCode();
+
+        var resend = await service.ResendLogin2FaAsync(new ResendLogin2FaRequest
+        {
+            TwoFactorToken = loginResult.Value!.TwoFactorToken!
+        }, CancellationToken.None);
+
+        Assert.True(resend.IsSuccess);
+        var secondOtp = ExtractOtpCode();
+        Assert.NotEqual(firstOtp, secondOtp);
+
+        // Old code is invalid
+        var oldVerify = await service.VerifyLogin2FaAsync(new Login2FaRequest
+        {
+            TwoFactorToken = loginResult.Value!.TwoFactorToken!,
+            Code = firstOtp
+        }, "127.0.0.1", CancellationToken.None);
+        Assert.False(oldVerify.IsSuccess);
+
+        // New code works
+        var newVerify = await service.VerifyLogin2FaAsync(new Login2FaRequest
+        {
+            TwoFactorToken = loginResult.Value!.TwoFactorToken!,
+            Code = secondOtp
+        }, "127.0.0.1", CancellationToken.None);
+        Assert.True(newVerify.IsSuccess);
+    }
+
+    [Fact]
+    public async Task ResendLogin2Fa_RateLimited_After5Attempts()
+    {
+        var (service, _, _) = await CreateAsync(nameof(ResendLogin2Fa_RateLimited_After5Attempts));
+        var userId = await RegisterUserAsync(service, nameof(ResendLogin2Fa_RateLimited_After5Attempts));
+
+        await service.Send2FaCodeAsync(userId, CancellationToken.None);
+        var enableCode = ExtractOtpCode();
+        await service.Verify2FaCodeAsync(userId, new Verify2FaRequest { Code = enableCode }, CancellationToken.None);
+
+        var loginResult = await service.LoginAsync(new LoginRequest
+        {
+            Email = "minh@university.edu.vn",
+            Password = "MatKhau@123"
+        }, "127.0.0.1", CancellationToken.None);
+
+        for (int i = 0; i < 5; i++)
+        {
+            var res = await service.ResendLogin2FaAsync(new ResendLogin2FaRequest
+            {
+                TwoFactorToken = loginResult.Value!.TwoFactorToken!
+            }, CancellationToken.None);
+            Assert.True(res.IsSuccess);
+        }
+
+        // 6th attempt is locked
+        var sixth = await service.ResendLogin2FaAsync(new ResendLogin2FaRequest
+        {
+            TwoFactorToken = loginResult.Value!.TwoFactorToken!
+        }, CancellationToken.None);
+        Assert.False(sixth.IsSuccess);
+        Assert.Equal(ErrorCodes.ACCOUNT_LOCKED, sixth.ErrorCode);
     }
 }

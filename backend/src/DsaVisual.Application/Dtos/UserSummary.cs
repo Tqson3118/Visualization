@@ -12,4 +12,5 @@ public sealed class UserSummary
     public DateTime CreatedAt { get; set; }
     public int Xp { get; set; }                         // gamification — hiển thị ở /courses (khớp VDSA-main)
     public int Level { get; set; }                      // 1 + floor(sqrt(xp/100)) — khớp GamificationService.ComputeLevel
+    public bool TwoFactorEnabled { get; set; }          // B1: trạng thái 2FA cho toggle ở ProfileView
 }

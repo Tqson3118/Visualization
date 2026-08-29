@@ -7,6 +7,8 @@
 import { computed } from 'vue';
 import { sanitizeHtml } from '@/utils/sanitize';
 
+import { parseMarkdownToHtml } from '@/utils/markdownParser';
+
 const props = withDefaults(
   defineProps<{
     /** HTML thô từ backend/biên soạn — được lọc an toàn qua DOMPurify. */
@@ -14,14 +16,15 @@ const props = withDefaults(
     /** Alias của contentHtml — auto-detect (có <tag> thường & không có tag nguy hiểm → HTML). */
     content?: string;
     /** Ép kiểu render; bỏ trống → auto-detect. */
-    format?: 'html' | 'text';
+    format?: 'html' | 'text' | 'markdown';
   }>(),
   { contentHtml: '', content: '', format: undefined },
 );
 
 const HAS_HTML_TAG = /<[a-z][^>]*>/i;
 /** Tag nguy hiểm — auto-detect gặp → coi là text (escape), chống XSS khi nguồn là plain text chứa mã độc. */
-const DANGEROUS_TAG = /<(script|style|iframe|object|embed|form|link|meta)\b/i;
+const DANGEROUS_TAG = /<(script|iframe|object|embed|form|link|meta)\b/i;
+const IS_MARKDOWN = /(?:^|\n)(?:#{1,6}\s+|>\s*\[!|\*{1,3}[^\*]+|\d+\.\s+|-\s+|```)/m;
 
 /** Escape HTML entities — bắt buộc trước khi wrap plain text (chống XSS). */
 function escapeHtml(value: string): string {
@@ -48,12 +51,17 @@ const source = computed<string>(() => props.contentHtml || props.content || '');
 const rendered = computed<string>(() => {
   const raw = source.value;
   if (!raw) return '';
-  // format='html' (caller chỉ định) → sanitize an toàn bằng DOMPurify.
-  // Auto-detect: có tag HTML thường và KHÔNG có tag nguy hiểm → sanitize an toàn bằng DOMPurify.
-  const renderRaw =
-    props.format === 'html' ||
-    (props.format == null && HAS_HTML_TAG.test(raw) && !DANGEROUS_TAG.test(raw));
-  return renderRaw ? sanitizeHtml(raw) : textToParagraphs(escapeHtml(raw));
+  if (props.format === 'text') {
+    return textToParagraphs(escapeHtml(raw));
+  }
+  if (props.format === 'html' && !IS_MARKDOWN.test(raw)) {
+    return sanitizeHtml(raw);
+  }
+  // Nếu có Markdown (#, ##, **, list, code blocks) hoặc có HTML tags hợp lệ -> parseMarkdownToHtml
+  if (IS_MARKDOWN.test(raw) || (HAS_HTML_TAG.test(raw) && !DANGEROUS_TAG.test(raw))) {
+    return parseMarkdownToHtml(raw);
+  }
+  return textToParagraphs(escapeHtml(raw));
 });
 </script>
 

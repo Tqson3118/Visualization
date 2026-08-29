@@ -4,7 +4,7 @@
 // gradient sunset + blob + shadow → surface band level-2 + kicker mono + strip block-token
 // tối (trọng số 3 bậc — quyết định xuyên-nhóm #1/#4); H1 48px/600/-0.03em; badge muted;
 // ←/→ ký tự → lucide ArrowLeft/ArrowRight; Motion enter 280ms cubic-bezier(0.16,1,0.3,1).
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight, ListOrdered } from 'lucide-vue-next';
 import { Motion } from 'motion-v';
@@ -69,16 +69,46 @@ async function loadLadderExercises(): Promise<void> {
   }
 }
 
-onMounted(async () => {
+const courseOrPathId = computed(() => {
+  const q = route.query.courseId || route.query.pathId || route.query.topicId;
+  if (q) return String(q);
+  return topicId.value > 0 ? String(topicId.value) : '';
+});
+
+async function resolveTopicId(): Promise<void> {
+  const queryTopic = route.query.courseId || route.query.pathId || route.query.topicId || route.params.topicId;
+  if (queryTopic) {
+    topicId.value = Number(queryTopic);
+    return;
+  }
   try {
-    await lessonStore.fetchTopics();
-    const first = lessonStore.topics[0];
-    if (first) topicId.value = first.id;
+    if (lessonStore.topics.length === 0) {
+      await lessonStore.fetchTopics();
+    }
+    const nodeNum = Number(nodeId.value);
+    const matchedTopic = lessonStore.topics.find((t: any) =>
+      Array.isArray(t.nodes) ? t.nodes.some((n: any) => n.id === nodeNum) : false,
+    );
+    if (matchedTopic) {
+      topicId.value = matchedTopic.id;
+    } else if (lessonStore.topics.length > 0) {
+      topicId.value = lessonStore.topics[0].id;
+    }
   } catch {
     topicId.value = 1;
   }
-  await loadLadderExercises();
-});
+}
+
+watch(
+  () => [route.params.nodeId, route.query.topicId, route.query.pathId, route.query.courseId],
+  async () => {
+    quizExercise.value = null;
+    quizLoading.value = true;
+    await resolveTopicId();
+    await loadLadderExercises();
+  },
+  { immediate: true },
+);
 
 function onPassed(stage: number): void {
   // stage 1,2,3 — LadderShell tự lưu; chuyển Lab khi pass Quiz nếu cần
@@ -97,12 +127,13 @@ function onPassed(stage: number): void {
       :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
       <nav class="ladder__breadcrumb" aria-label="Breadcrumb">
-        <RouterLink :to="{ name: 'path-topic', params: { topicId: String(topicId) } }">
+        <RouterLink :to="courseOrPathId ? { name: 'course-detail', params: { id: courseOrPathId } } : { name: 'courses' }">
           {{ messages.practiceLadder.breadcrumbPath }}
         </RouterLink>
         <span aria-hidden="true">/</span>
         <span aria-current="page">{{ nodeTitle }}</span>
       </nav>
+
 
       <p class="ladder__kicker">{{ messages.practiceLadder.kicker(Number(nodeId) || 0) }}</p>
 

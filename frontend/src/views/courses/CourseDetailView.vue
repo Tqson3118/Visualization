@@ -10,7 +10,7 @@
       <div class="text-5xl mb-4"><BaseIcon name="warning" class="w-14 h-14 text-vdsa-red mx-auto" /></div>
       <h3 class="text-xl font-bold text-vdsa-secondary">{{ error }}</h3>
       <p class="text-vdsa-muted mt-2">Vui lòng thử lại sau hoặc liên hệ hỗ trợ.</p>
-      <router-link to="/path" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
+      <router-link :to="{ name: 'courses' }" class="mt-6 inline-block px-6 py-2 bg-vdsa-surface border border-vdsa-border rounded-xl text-vdsa-secondary hover:text-white transition">Quay lại</router-link>
     </div>
 
     <div v-else-if="course">
@@ -18,7 +18,7 @@
       <div class="container mx-auto max-w-5xl px-4 pt-10 pb-12">
         <!-- Breadcrumb: Khóa học / <tên khóa> -->
         <nav class="flex items-center gap-2 text-sm text-vdsa-muted mb-6 justify-center" aria-label="Breadcrumb">
-          <router-link to="/path" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
+          <router-link :to="{ name: 'courses' }" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
           <BaseIcon name="chevron-right" class="w-3.5 h-3.5 text-vdsa-disabled" />
           <span class="text-vdsa-secondary font-medium truncate">{{ course.title }}</span>
         </nav>
@@ -34,10 +34,10 @@
 
           <!-- Stats: lessons/quiz/lab/XP thật -->
           <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-6 text-sm text-vdsa-muted font-medium">
-            <span class="flex items-center gap-1.5"><BaseIcon name="book-open" class="w-4 h-4 text-vdsa-purple-light" /> {{ course.lessons.length }} Bài học</span>
-            <span v-if="quizCount > 0" class="flex items-center gap-1.5"><BaseIcon name="quiz" class="w-4 h-4 text-vdsa-purple-light" /> {{ quizCount }} Quiz</span>
-            <span v-if="labCount > 0" class="flex items-center gap-1.5"><BaseIcon name="code-ide" class="w-4 h-4 text-vdsa-purple-light" /> {{ labCount }} Bài tập</span>
-            <span class="flex items-center gap-1.5"><BaseIcon name="zap" class="w-4 h-4 text-vdsa-purple-light" /> {{ xpTotal }} XP</span>
+            <span class="flex items-center gap-1.5 whitespace-nowrap shrink-0"><BaseIcon name="book-open" class="w-4 h-4 text-vdsa-purple-light" /> {{ course.lessons.length }} Bài học</span>
+            <span v-if="quizCount > 0" class="flex items-center gap-1.5 whitespace-nowrap shrink-0"><BaseIcon name="quiz" class="w-4 h-4 text-vdsa-purple-light" /> {{ quizCount }} Quiz</span>
+            <span v-if="labCount > 0" class="flex items-center gap-1.5 whitespace-nowrap shrink-0"><BaseIcon name="code-ide" class="w-4 h-4 text-vdsa-purple-light" /> {{ labCount }} Bài tập</span>
+            <span class="flex items-center gap-1.5 whitespace-nowrap shrink-0"><BaseIcon name="zap" class="w-4 h-4 text-vdsa-purple-light" /> {{ xpTotal }} XP</span>
           </div>
 
           <!-- Actions: Start Learning / Course Content cạnh nhau, căn giữa -->
@@ -45,19 +45,19 @@
             <button
               v-if="course?.lessons?.length && !courseStore.isEnrolled(course.id)"
               @click="showRegisterModal = true"
-              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer"
+              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0"
             >
-              Tham gia lộ trình <BaseIcon name="plus" class="w-4 h-4" />
+              Tham gia lộ trình (1 🤍) <BaseIcon name="plus" class="w-4 h-4" />
             </button>
 
             <button
               v-if="course?.lessons?.length && courseStore.isEnrolled(course.id)"
               @click="startLesson(course.lessons[0])"
-              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer"
+              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0"
             >
               Bắt đầu học <BaseIcon name="play" class="w-4 h-4" />
             </button>
-            <button @click="scrollToLessons" class="px-8 py-3.5 bg-vdsa-surface hover:bg-vdsa-accent/10 hover:text-vdsa-accent-light hover:border-vdsa-accent/50 text-white font-bold rounded-xl border border-vdsa-border transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer">
+            <button @click="scrollToLessons" class="px-8 py-3.5 bg-vdsa-surface hover:bg-vdsa-accent/10 hover:text-vdsa-accent-light hover:border-vdsa-accent/50 text-white font-bold rounded-xl border border-vdsa-border transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0">
               Nội dung lộ trình <BaseIcon name="chevron-down" class="w-4 h-4" />
             </button>
           </div>
@@ -199,16 +199,16 @@
                       <span v-else class="text-vdsa-muted">{{ idx + 1 }}</span>
                     </span>
                     <span class="flex-1 min-w-0">
-                      <span class="block text-sm font-semibold text-white leading-snug">{{ lesson.title }}</span>
-                      <span class="block text-xs text-vdsa-muted mt-0.5 flex items-center gap-2">
-                        <span v-if="lesson.locked" class="font-semibold uppercase text-[9px] tracking-wider text-vdsa-disabled flex items-center gap-1">
+                      <span class="block text-sm font-semibold text-white leading-snug">{{ cleanTitle(lesson.title) }}</span>
+                      <span class="block text-xs text-vdsa-muted mt-0.5 flex items-center gap-2 flex-wrap">
+                        <span v-if="lesson.locked" class="font-semibold uppercase text-[9px] tracking-wider text-vdsa-disabled flex items-center gap-1 whitespace-nowrap shrink-0">
                           <BaseIcon name="lock" class="w-3 h-3" /> Bị khóa
                         </span>
                         <template v-else>
-                          <span class="flex items-center gap-1 font-semibold text-vdsa-yellow"><BaseIcon name="zap" class="w-3 h-3" /> +{{ lesson.xpReward }} XP</span>
-                          <span v-if="lesson.sandboxType === 'codelab'" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-yellow/10 text-vdsa-yellow px-2 py-0.5 rounded border border-vdsa-border">Bài tập</span>
-                          <span v-else-if="lesson.sandboxType === 'quiz' || lesson.quizId" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-purple/10 text-vdsa-purple-light px-2 py-0.5 rounded border border-vdsa-border">Quiz</span>
-                          <span v-else class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-accent/10 text-vdsa-accent px-2 py-0.5 rounded border border-vdsa-border">Lý thuyết</span>
+                          <span class="flex items-center gap-1 font-semibold text-vdsa-yellow whitespace-nowrap shrink-0"><BaseIcon name="zap" class="w-3 h-3" /> +{{ lesson.xpReward }} XP</span>
+                          <span v-if="lesson.sandboxType === 'codelab'" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-yellow/10 text-vdsa-yellow px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Bài tập</span>
+                          <span v-else-if="lesson.sandboxType === 'quiz' || lesson.quizId" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-purple/10 text-vdsa-purple-light px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Quiz</span>
+                          <span v-else class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-accent/10 text-vdsa-accent px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Lý thuyết</span>
                         </template>
                       </span>
                     </span>
@@ -372,6 +372,7 @@
         </div>
         <p class="text-vdsa-secondary mb-6 leading-relaxed">
           Bạn có chắc muốn tham gia lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
+          <br /><span class="text-xs text-rose-400 font-medium inline-block mt-2">Chi phí đăng ký: 1 🤍 (Tim)</span>
         </p>
         <div class="flex gap-3 justify-end">
           <button
@@ -401,14 +402,19 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { useAuthStore } from '@/stores/auth';
+import { useGamificationStore } from '@/stores/gamification';
+import { useUiStore } from '@/stores/ui';
 import { courseApi, type CourseDetailDto, type CourseFeedbackDto, type CourseLessonDto } from '@/services/courseApi';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
 
 const courseStore = useCourseStore();
 const auth = useAuthStore();
+const gamification = useGamificationStore();
+const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
 const showRegisterModal = ref(false);
+const targetLessonToStart = ref<CourseLessonDto | null>(null);
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -503,11 +509,31 @@ const xpTotal = computed(() => course.value?.xpReward ?? 0);
 
 const relatedCourses = ref<Array<{ id: string; title: string; description: string; xpReward: number }>>([]);
 
+const OUTCOME_MILESTONES = [
+  'Làm chủ Cấu trúc dữ liệu',
+  'Chinh phục Bài toán phỏng vấn',
+  'Thực hành & Chấm điểm tự động',
+  'Tối ưu độ phức tạp thuật toán',
+  'Tự tin phỏng vấn Tech',
+];
+
+function cleanTitle(rawTitle: string): string {
+  if (!rawTitle) return '';
+  return rawTitle.replace(/Mini-Quizz/gi, 'Mini-Quiz');
+}
+
 const courseObjectives = computed(() => course.value?.learningObjectives ?? []);
-const courseOutcomes = computed(() => (course.value?.keyOutcomes ?? []).map(text => ({
-  title: 'Kết quả sau lộ trình',
-  desc: text,
-})));
+const courseOutcomes = computed(() => (course.value?.keyOutcomes ?? []).map((text, idx) => {
+  const sep = text.includes(':') ? ':' : (text.includes(' — ') ? ' — ' : (text.includes(' - ') ? ' - ' : ''));
+  if (sep) {
+    const [t, ...rest] = text.split(sep);
+    return { title: t.trim(), desc: rest.join(sep).trim() };
+  }
+  return {
+    title: OUTCOME_MILESTONES[idx % OUTCOME_MILESTONES.length] || `Kỹ năng đạt được #${idx + 1}`,
+    desc: text,
+  };
+}));
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function initial(name: string) { return (name || '?').trim().charAt(0).toUpperCase(); }
@@ -554,21 +580,63 @@ async function loadCourseDetail() {
   }
 }
 
-function confirmRegistration() {
-  showRegisterModal.value = false;
-  if (course.value) {
-    courseStore.enrollCourse(course.value.id);
+async function confirmRegistration() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return;
+  }
+  try {
+    await gamification.spendHeart();
+    showRegisterModal.value = false;
+    if (course.value) {
+      courseStore.enrollCourse(course.value.id);
+      ui.showToast('Đăng ký lộ trình thành công! (-1 🤍)', 'success');
+      if (targetLessonToStart.value) {
+        const nextTarget = targetLessonToStart.value;
+        targetLessonToStart.value = null;
+        await startLesson(nextTarget);
+      }
+    }
+  } catch (err: any) {
+    if (err?.code === 'HEARTS_EMPTY' || err?.message?.includes('tim')) {
+      ui.showToast('Bạn cần ít nhất 1 tim để đăng ký lộ trình. Hãy chờ hồi hoặc nâng cấp Premium!', 'warning');
+    } else {
+      ui.showToast(err?.message || 'Không thể đăng ký lộ trình', 'error');
+    }
   }
 }
 
-function startLesson(lesson: CourseLessonDto) {
+async function startLesson(lesson: CourseLessonDto) {
   if (lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
-  const hasPremium = false;
-  if (course.value?.isPremium && !hasPremium) {
-    // D3: không có route 'checkout' — dùng /premium (mở modal/trang nâng cấp).
-    router.push({ name: 'premium' });
+
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
+
+  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình
+  if (course.value && !courseStore.isEnrolled(course.value.id)) {
+    targetLessonToStart.value = lesson;
+    showRegisterModal.value = true;
+    return;
+  }
+
+  const courseId = Number(course.value?.id);
+  const nodeId = typeof lesson.nodeId === 'number' ? lesson.nodeId : Number(lesson.id);
+
+  if (courseId && nodeId) {
+    try {
+      await gamification.enterNode(courseId, nodeId);
+    } catch (err: any) {
+      const errorCode = err?.response?.data?.code || err?.code;
+      if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY')) {
+        ui.showToast('Bạn đã hết tim. Hãy chờ hồi hoặc nâng cấp Premium.', 'warning');
+        return;
+      }
+      console.warn('Enter node warning/error:', err);
+    }
+  }
+
   router.push({ name: 'lesson-study', params: { id: lesson.id }, query: { courseId: course.value?.id } });
 }
 

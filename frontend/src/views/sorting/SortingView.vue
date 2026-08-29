@@ -1,7 +1,7 @@
 <template>
   <div class="sorting-view-root flex flex-col h-full w-full p-1.5 max-w-[1920px] mx-auto overflow-hidden relative font-sans">
-    <div class="top-control-bar flex items-center justify-between px-3 py-1 bg-bg-surface border border-border-default rounded-lg backdrop-blur-xl shrink-0 shadow-md z-20 mb-1">
-      <div class="flex items-center gap-1.5 relative" ref="tabBarRef">
+    <div class="top-control-bar flex items-center justify-between px-3 py-1 bg-bg-surface border border-border-default rounded-lg backdrop-blur-xl shrink-0 shadow-md z-20 mb-1 overflow-x-auto">
+      <div class="flex items-center gap-1.5 relative shrink-0" ref="tabBarRef">
         <div
           class="tab-indicator"
           :class="`tab-indicator--${activeTab}`"
@@ -22,7 +22,7 @@
         </button>
       </div>
 
-      <div class="flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary select-none">
+      <div class="hidden md:flex items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary select-none">
         <span class="flex items-center gap-1.5 text-accent font-bold">
           <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
           VISUALGO-MODE 60FPS
@@ -196,6 +196,14 @@ const activeProps = computed(() => ({}));
 <style scoped>
 .sorting-view-root {
   background-color: var(--color-bg-primary);
+}
+
+.top-control-bar {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.top-control-bar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Sliding tab indicator: khối nền trượt ngang + đổi màu theo tab ── */

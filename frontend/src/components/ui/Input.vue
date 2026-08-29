@@ -43,6 +43,10 @@ const inputId = props.id ?? `ui-input-${autoId}`;
 function onUpdate(value: string | number | null): void {
   emit('update:modelValue', value === null ? '' : String(value));
 }
+
+function onNativeInput(event: Event): void {
+  onUpdate((event.target as HTMLInputElement).value);
+}
 </script>
 
 <template>
@@ -83,6 +87,7 @@ function onUpdate(value: string | number | null): void {
         )"
         :aria-invalid="!!error"
         @update:model-value="onUpdate"
+        @input="onNativeInput"
         @blur="emit('blur')"
       />
     </div>

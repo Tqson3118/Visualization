@@ -56,8 +56,8 @@ describe('ProseContent', () => {
     expect(out).toContain('&lt;p&gt;');
   });
 
-  it('markdown thô (# tiêu đề) → xử lý như text (wrap + escape, không parse)', () => {
-    const out = html('# Tiêu đề\n\nĐoạn văn.');
+  it('markdown thô (# tiêu đề) + format="text" → xử lý như text (wrap + escape, không parse)', () => {
+    const out = html('# Tiêu đề\n\nĐoạn văn.', 'text');
     expect(out).toBe('<p># Tiêu đề</p><p>Đoạn văn.</p>');
   });
 

@@ -50,12 +50,20 @@ public class AuthServiceRegressionTests
 
     private async Task<int> RegisterUserAsync(AuthService service)
     {
+        // B0: đăng ký cần otpToken — xin qua send + verify (mã từ recorder _otp.Last)
+        await service.SendRegisterOtpAsync(
+            new SendRegisterOtpRequest { Email = Email }, CancellationToken.None);
+        var verify = await service.VerifyRegisterOtpAsync(
+            new VerifyRegisterOtpRequest { Email = Email, Code = _otp.Last }, CancellationToken.None);
+        Assert.True(verify.IsSuccess, verify.ErrorMessage);
+
         var result = await service.RegisterAsync(new RegisterRequest
         {
             DisplayName = "Nguyễn Minh",
             Email = Email,
             Password = "MatKhau@123",
-            IsTeacher = false
+            IsTeacher = false,
+            OtpToken = verify.Value!.OtpToken
         }, null, CancellationToken.None);
         Assert.True(result.IsSuccess, result.ErrorMessage);
         return result.Value!.User.Id;

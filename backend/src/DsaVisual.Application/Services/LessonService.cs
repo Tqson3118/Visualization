@@ -119,16 +119,32 @@ public sealed class LessonService(
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
-        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && lesson.CreatedBy != userId)
+        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && lesson.CreatedBy != userId && lesson.CreatedBy != 0 && (lesson.Status != LessonStatus.Active || lesson.IsClassOnly))
         {
-            // Giảng viên chỉ xem được bài học do chính mình tạo
-            return Result<LessonDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài học của giảng viên khác");
+            // Giảng viên xem được bài học của mình, bài học hệ thống (CreatedBy == 0) hoặc bài công khai (Active)
+            return Result<LessonDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài học riêng tư của giảng viên khác");
         }
 
         if (!IsTeacherOrAdmin(role) && lesson.Status != LessonStatus.Active)
         {
             // Student không được xem bản nháp/ẩn
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+        }
+
+        if (lesson.IsClassOnly && !IsTeacherOrAdmin(role))
+        {
+            // Kiểm tra user có thuộc lớp nào được gán bài này không
+            var isMember = await (
+                from a in db.ClassAssignments.AsNoTracking()
+                join m in db.ClassMembers.AsNoTracking() on a.ClassId equals m.ClassId
+                where a.LessonId == lesson.Id && m.UserId == userId
+                select m.Id
+            ).AnyAsync(ct);
+
+            if (!isMember)
+            {
+                return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
+            }
         }
 
         return Result<LessonDto>.Ok(ToDto(lesson, includeContent: includeContent || IsTeacherOrAdmin(role)));
@@ -523,13 +539,13 @@ public sealed class LessonService(
     // ── Private ─────────────────────────────────────────────
 
     /// <summary>
-    /// Trạng thái khi TẠO MỚI — Admin và Teacher có quyền xuất bản Active hoặc lưu Draft trực tiếp.
+    /// Trạng thái khi TẠO MỚI — Admin xuất bản trực tiếp; Teacher tạo bài public lưu Draft (duyệt theo Lộ trình); isClassOnly Active ngay.
     /// </summary>
     private static LessonStatus ResolveCreateStatus(string role, LessonStatus requested, bool isClassOnly)
     {
         if (IsAdmin(role))
         {
-            return requested;
+            return requested is LessonStatus.Active ? LessonStatus.Active : requested;
         }
 
         if (isClassOnly)
@@ -537,13 +553,12 @@ public sealed class LessonService(
             return requested == LessonStatus.Draft ? LessonStatus.Draft : LessonStatus.Active;
         }
 
-        return requested is LessonStatus.Active or LessonStatus.PendingReview
-            ? LessonStatus.PendingReview
-            : LessonStatus.Draft;
+        // Teacher tạo bài public → Draft (sẽ Active khi toàn bộ Lộ trình được duyệt)
+        return LessonStatus.Draft;
     }
 
     /// <summary>
-    /// Trạng thái khi SỬA — Admin duyệt trực tiếp; Teacher chuyển sang Public → PendingReview.
+    /// Trạng thái khi SỬA — Admin sửa trực tiếp; Teacher sửa bài public giữ nguyên Draft/Active theo lộ trình.
     /// </summary>
     private static LessonStatus ResolveUpdateStatus(string role, Lesson lesson, LessonStatus requested, bool isClassOnly)
     {
@@ -557,14 +572,12 @@ public sealed class LessonService(
             return requested == LessonStatus.Draft ? LessonStatus.Draft : LessonStatus.Active;
         }
 
-        if (lesson.Status == LessonStatus.Active && requested == LessonStatus.Active)
+        if (lesson.Status == LessonStatus.Active)
         {
-            return LessonStatus.Active;
+            return requested == LessonStatus.Draft ? LessonStatus.Draft : LessonStatus.Active;
         }
 
-        return requested is LessonStatus.Active or LessonStatus.PendingReview
-            ? LessonStatus.PendingReview
-            : LessonStatus.Draft;
+        return LessonStatus.Draft;
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,6 +15,10 @@ public sealed class LearningPathConfiguration : IEntityTypeConfiguration<Learnin
         builder.Property(p => p.Description).HasMaxLength(500);
         builder.Property(p => p.SortOrder).HasDefaultValue(0);
         builder.Property(p => p.IsActive).HasDefaultValue(true);
+        builder.Property(p => p.Status).HasDefaultValue(LearningPathStatus.Active);
+        builder.Property(p => p.RejectionReason).HasMaxLength(500);
+        builder.Property(p => p.ReviewedAt).HasColumnType("datetime2");
+        builder.Property(p => p.SubmittedAt).HasColumnType("datetime2");
 
         // UNIQUE Title — chốt khoá seed LearningPaths (SDD §7.3.25, audit bề mặt #2).
         builder.HasIndex(p => p.Title).IsUnique();
@@ -32,6 +36,11 @@ public sealed class LearningPathConfiguration : IEntityTypeConfiguration<Learnin
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(p => p.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.ReviewedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(p => p.HighlightsJson).HasMaxLength(8000);

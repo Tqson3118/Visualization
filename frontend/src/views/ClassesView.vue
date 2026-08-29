@@ -55,7 +55,17 @@ const stripLabel = computed(() => {
   return messages.classes.stripLabel(total, members);
 });
 
+// Phân trang danh sách lớp
+const PAGE_SIZE = 6;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(classStore.classes.length / PAGE_SIZE)));
+const pagedClasses = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return classStore.classes.slice(start, start + PAGE_SIZE);
+});
+
 /** Empty state học viên: nêu rõ mã mời 6 ký tự (ghép từ i18n sẵn có — goal 3.6 #1). */
+
 const emptyStudentDesc = computed(
   () => `${messages.classes.emptyStudentDesc} ${messages.classes.joinCodeHint}`,
 );
@@ -80,6 +90,11 @@ onMounted(async () => {
 function onInviteInput(value: string): void {
   inviteCode.value = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 }
+
+watch(inviteCode, (val) => {
+  const norm = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (norm !== val) inviteCode.value = norm;
+});
 
 function goDetail(id: number): void {
   void router.push({ name: 'class-detail', params: { id: String(id) } });
@@ -177,61 +192,75 @@ async function createClass(): Promise<void> {
       @action="isTeacher ? (createOpen = true) : (joinOpen = true)"
     />
 
-    <div v-else class="classes__grid">
-      <Card
-        v-for="cls in classStore.classes"
-        :key="cls.id"
-        class="classes__card"
-        :class="{ 'classes__card--manager': isManagerOf(cls) }"
-        role="button"
-        tabindex="0"
-        :aria-label="cls.name"
-        @click="goDetail(cls.id)"
-        @keydown.enter="goDetail(cls.id)"
-        @keydown.space.prevent="goDetail(cls.id)"
-      >
-        <div class="classes__card-head">
-          <span
-            class="classes__card-icon"
-            :class="{ 'classes__card-icon--manager': isManagerOf(cls) }"
-            aria-hidden="true"
-          >
-            <GraduationCap v-if="isManagerOf(cls)" :size="18" />
-            <UserRound v-else :size="18" />
-          </span>
-          <div class="classes__card-meta">
-            <h3 class="classes__card-name">{{ cls.name }}</h3>
-            <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
-          </div>
-          <Badge :variant="isManagerOf(cls) ? 'primary' : 'muted'">
-            {{ isManagerOf(cls) ? messages.classes.roleManager : messages.classes.roleMember }}
-          </Badge>
-        </div>
-        <footer class="classes__card-foot">
-          <span class="classes__card-stat">
-            <Users :size="13" aria-hidden="true" />
-            {{ messages.classes.members(cls.memberCount) }}
-          </span>
-          <div class="flex items-center gap-2">
-            <!-- Nút xem Báo cáo & Thống kê dành cho Giáo viên -->
-            <Button
-              v-if="isManagerOf(cls)"
-              size="sm"
-              variant="ghost"
-              class="text-xs h-7 gap-1"
-              @click.stop="router.push({ name: 'class-report', params: { id: String(cls.id) } })"
+    <div v-else class="classes__content-wrap">
+      <div class="classes__grid">
+        <Card
+          v-for="cls in pagedClasses"
+          :key="cls.id"
+          class="classes__card"
+          :class="{ 'classes__card--manager': isManagerOf(cls) }"
+          role="button"
+          tabindex="0"
+          :aria-label="cls.name"
+          @click="goDetail(cls.id)"
+          @keydown.enter="goDetail(cls.id)"
+          @keydown.space.prevent="goDetail(cls.id)"
+        >
+          <div class="classes__card-head">
+            <span
+              class="classes__card-icon"
+              :class="{ 'classes__card-icon--manager': isManagerOf(cls) }"
+              aria-hidden="true"
             >
-              <BarChart3 :size="13" /> Thống kê lớp
-            </Button>
-            <!-- Mã mời = block-token tối (dữ liệu tuần tự — quyết định #4/#5) -->
-            <span v-if="isManagerOf(cls)" class="classes__invite-chip" :title="messages.classes.inviteLabel">
-              <KeyRound :size="12" aria-hidden="true" />
-              <code>{{ cls.inviteCode }}</code>
+              <GraduationCap v-if="isManagerOf(cls)" :size="18" />
+              <UserRound v-else :size="18" />
             </span>
+            <div class="classes__card-meta">
+              <h3 class="classes__card-name">{{ cls.name }}</h3>
+              <p class="classes__card-desc">{{ cls.description || messages.classes.noDescription }}</p>
+            </div>
+            <Badge :variant="isManagerOf(cls) ? 'primary' : 'muted'">
+              {{ isManagerOf(cls) ? messages.classes.roleManager : messages.classes.roleMember }}
+            </Badge>
           </div>
-        </footer>
-      </Card>
+          <footer class="classes__card-foot">
+            <span class="classes__card-stat">
+              <Users :size="13" aria-hidden="true" />
+              {{ messages.classes.members(cls.memberCount) }}
+            </span>
+            <div class="flex items-center gap-2">
+              <!-- Nút xem Báo cáo & Thống kê dành cho Giáo viên -->
+              <Button
+                v-if="isManagerOf(cls)"
+                size="sm"
+                variant="ghost"
+                class="text-xs h-7 gap-1"
+                @click.stop="router.push({ name: 'class-report', params: { id: String(cls.id) } })"
+              >
+                <BarChart3 :size="13" /> Thống kê lớp
+              </Button>
+              <!-- Mã mời = block-token tối (dữ liệu tuần tự — quyết định #4/#5) -->
+              <span v-if="isManagerOf(cls)" class="classes__invite-chip" :title="messages.classes.inviteLabel">
+                <KeyRound :size="12" aria-hidden="true" />
+                <code>{{ cls.inviteCode }}</code>
+              </span>
+            </div>
+          </footer>
+        </Card>
+      </div>
+
+      <!-- Phân trang danh sách lớp -->
+      <div v-if="totalPages > 1" class="flex items-center justify-center gap-3 pt-6" aria-label="Phân trang danh sách lớp">
+        <Button variant="ghost" size="sm" :disabled="page <= 1" @click="page -= 1">
+          Trang trước
+        </Button>
+        <span class="text-xs text-muted-foreground font-mono">Trang {{ page }}/{{ totalPages }}</span>
+        <Button variant="ghost" size="sm" :disabled="page >= totalPages" @click="page += 1">
+          Trang sau
+        </Button>
+      </div>
     </div>
+
 
     <!-- Modal nhập mã -->
     <Modal :open="joinOpen" :title="messages.classes.joinTitle" @close="joinOpen = false">
@@ -239,7 +268,7 @@ async function createClass(): Promise<void> {
         <div class="classes__join-field">
           <Input
             :id="joinInputId"
-            :model-value="inviteCode"
+            v-model="inviteCode"
             :label="messages.classes.joinCodeLabel"
             :placeholder="messages.classes.joinCodePlaceholder"
             :hint="messages.classes.joinCodeHint"

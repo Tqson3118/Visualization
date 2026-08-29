@@ -17,6 +17,7 @@ import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
 import { sanitizeHtml } from '@/utils/sanitize';
+import { parseMarkdownToHtml } from '@/utils/markdownParser';
 
 const route = useRoute();
 const router = useRouter();
@@ -78,6 +79,10 @@ async function onMarkViewed(): Promise<void> {
     marking.value = false;
   }
 }
+function cleanTitle(title?: string): string {
+  if (!title) return '';
+  return title.replace(/Mini-Quizz/gi, 'Mini-Quiz');
+}
 </script>
 
 <template>
@@ -85,7 +90,7 @@ async function onMarkViewed(): Promise<void> {
     <nav class="lesson-view__breadcrumb" aria-label="Breadcrumb">
       <RouterLink :to="{ name: 'courses' }">Lộ trình</RouterLink>
       <span aria-hidden="true">/</span>
-      <span>{{ lesson?.title ?? 'Bài học' }}</span>
+      <span>{{ cleanTitle(lesson?.title) || 'Bài học' }}</span>
     </nav>
 
     <EmptyState
@@ -104,7 +109,7 @@ async function onMarkViewed(): Promise<void> {
           <Badge variant="primary">Bài học</Badge>
           <Badge v-if="viewed" variant="success">Đã học</Badge>
         </div>
-        <h1 class="lesson-view__hero-title">{{ lesson?.title ?? 'Bài học' }}</h1>
+        <h1 class="lesson-view__hero-title">{{ cleanTitle(lesson?.title) || 'Bài học' }}</h1>
         <p class="lesson-view__hero-desc">{{ lesson?.description }}</p>
         <div class="lesson-view__hero-actions">
           <Button :loading="marking" :disabled="viewed" @click="onMarkViewed">
@@ -154,7 +159,7 @@ async function onMarkViewed(): Promise<void> {
           </Card>
           <article
             class="lesson-view__theory"
-            v-html="sanitizeHtml(lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>')"
+            v-html="parseMarkdownToHtml(lesson?.contentHtml || '<p>Bài học đang được biên soạn.</p>')"
           />
         </section>
 

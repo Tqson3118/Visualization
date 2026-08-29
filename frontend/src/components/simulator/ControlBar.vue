@@ -151,6 +151,9 @@ function onSliderChange(event: Event): void {
 
 <style scoped>
 .control-bar {
+  /* Simulator Play/Step buttons — giữ Emerald "go" color,
+     không dùng Purple brand (UX convention: xanh lá = play/go) */
+  --color-primary: #10b981;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);

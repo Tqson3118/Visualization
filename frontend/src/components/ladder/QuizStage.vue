@@ -119,7 +119,12 @@ const scorePct = computed(() => {
   return Math.round((result.value.score / result.value.maxScore) * 100);
 });
 
-const passed = computed(() => scorePct.value >= 60);
+const passThreshold = computed(() => {
+  const ex = props.exercise as (ExerciseDto & { passThreshold?: number; passingScore?: number }) | null;
+  return ex?.passThreshold ?? ex?.passingScore ?? 70;
+});
+
+const passed = computed(() => scorePct.value >= passThreshold.value);
 
 // G-F2b: khi kết quả hiện ra và ĐẠT → confetti 'success' (mỗi lần submit lại cũng bắn lại)
 watch([result, passed], ([res, isPassed]) => {
@@ -129,18 +134,19 @@ watch([result, passed], ([res, isPassed]) => {
 /** G-F2b: toast kết quả ngay khi nộp xong (score + pass/fail). */
 function showResultToast(): void {
   const pct = scorePct.value;
-  if (pct >= 60) {
-    ui.showToast(`🎉 Đạt yêu cầu — ${pct}%`, 'success');
+  if (pct >= passThreshold.value) {
+    ui.showToast(`🎉 Đạt yêu cầu (≥ ${passThreshold.value}%) — ${pct}%`, 'success');
   } else {
-    ui.showToast(`Kết quả: ${pct}% — chưa đạt, thử lại nhé`, 'warning');
+    ui.showToast(`Kết quả: ${pct}% (yêu cầu ≥ ${passThreshold.value}%) — chưa đạt, thử lại nhé`, 'warning');
   }
 }
 
 function scoreColor(): string {
-  if (scorePct.value >= 80) return 'var(--color-success)';
+  if (scorePct.value >= passThreshold.value) return 'var(--color-success)';
   if (scorePct.value >= 40) return 'var(--color-warning)';
   return 'var(--color-destructive)';
 }
+
 
 function retry(): void {
   result.value = null;
@@ -178,11 +184,12 @@ async function loadHistory(): Promise<void> {
   }
 }
 
-/** Kết quả theo tỷ lệ điểm (đạt ≥ 60% maxScore — cùng ngưỡng với pass). */
+/** Kết quả theo tỷ lệ điểm (đạt ≥ passThreshold — cùng ngưỡng với pass). */
 function historyPassed(item: SubmissionSummaryDto): boolean {
   const max = props.exercise?.maxScore ?? 0;
-  return max > 0 && item.score / max >= 0.6;
+  return max > 0 && (item.score / max) >= (passThreshold.value / 100);
 }
+
 </script>
 
 <template>
@@ -278,8 +285,8 @@ function historyPassed(item: SubmissionSummaryDto): boolean {
               Câu trước
             </Button>
             <Button
-              v-if="currentQuestion < questions.length - 1"
               variant="secondary"
+              :disabled="currentQuestion >= questions.length - 1"
               @click="currentQuestion += 1"
             >
               Câu tiếp

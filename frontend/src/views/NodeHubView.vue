@@ -60,7 +60,7 @@ const simKey = computed(() => {
   };
   const keys = keysByTopic[Number(topicId.value)] ?? [];
   const key = keys[nodeId.value - 1];
-  return key && getCatalogMeta(key) ? key : 'sort.bubble';
+  return key && getCatalogMeta(key) ? key : '';
 });
 
 /** Metadata catalog của node — key algorithm = simKey (map topic×node, dữ liệu thật) */
@@ -188,7 +188,7 @@ function openExercise(id: number): void {
       </nav>
 
       <p class="node-hub__kicker">
-        NODE {{ String(nodeId).padStart(2, '0') }} · <span class="font-mono">{{ simKey.toUpperCase() }}</span>
+        NODE {{ String(nodeId).padStart(2, '0') }}<template v-if="simKey"> · <span class="font-mono">{{ simKey.toUpperCase() }}</span></template>
       </p>
 
       <div class="node-hub__hero">
@@ -211,7 +211,7 @@ function openExercise(id: number): void {
       </div>
 
       <div class="node-hub__hero-actions">
-        <Button @click="openSimulation(simKey)">
+        <Button v-if="simKey" @click="openSimulation(simKey)">
           <Play :size="16" aria-hidden="true" />
           {{ messages.nodeHub.openSimulation }}
         </Button>

@@ -9,6 +9,10 @@ namespace DsaVisual.Application.Services;
 public interface IAuthService
 {
     Task<Result<RefreshResponse>> RegisterAsync(RegisterRequest request, string? ipAddress, CancellationToken ct);
+
+    // ── OTP xác thực email khi đăng ký (B0) ──
+    Task<Result<SendRegisterOtpResponse>> SendRegisterOtpAsync(SendRegisterOtpRequest request, CancellationToken ct);
+    Task<Result<VerifyRegisterOtpResponse>> VerifyRegisterOtpAsync(VerifyRegisterOtpRequest request, CancellationToken ct);
     Task<Result<RefreshResponse>> LoginAsync(LoginRequest request, string? ipAddress, CancellationToken ct);
     Task<Result<RefreshResponse>> RefreshAsync(string? refreshToken, string? ipAddress, CancellationToken ct);
     Task<Result> LogoutAsync(int userId, CancellationToken ct);
@@ -22,6 +26,8 @@ public interface IAuthService
     Task<Result<Toggle2FaResponse>> Toggle2FaAsync(int userId, Toggle2FaRequest request, CancellationToken ct);
     Task<Result<Send2FaResponse>> Send2FaCodeAsync(int userId, CancellationToken ct);
     Task<Result<Toggle2FaResponse>> Verify2FaCodeAsync(int userId, Verify2FaRequest request, CancellationToken ct);
+    Task<Result<RefreshResponse>> VerifyLogin2FaAsync(Login2FaRequest request, string? ipAddress, CancellationToken ct);
+    Task<Result<Send2FaResponse>> ResendLogin2FaAsync(ResendLogin2FaRequest request, CancellationToken ct);
 }
 
 /// <summary>

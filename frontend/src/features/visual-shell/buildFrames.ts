@@ -9,18 +9,27 @@ import type { Step } from '@/engines/core/types';
 import type { SortFrame } from '../algorithm-sandbox/types/sorting.types';
 
 /**
- * Sinh SortFrame[] từ 1 key catalog sort.* (VD 'sort.bubble') bằng engine generator THẬT.
- * Trả null nếu:
- *  - key không thuộc 6 thuật toán có renderer sandbox (radix/counting/bucket — backlog D6),
- *  - hoặc generator chưa đăng ký.
+ * Sinh frames hoặc Step[] từ 1 key catalog bất kỳ bằng engine generator THẬT.
  */
-export function buildSortFramesFromCatalogKey(key: string): SortFrame[] | null {
-  const algorithm = catalogKeyToSortAlgorithm(key);
-  if (!algorithm) return null;
+export function buildFramesFromCatalogKey(key: string, input?: any): SortFrame[] | Step[] | null {
   const generator = getSimulation(key);
   if (!generator) return null;
-  const steps = generator.generate(defaultInput(generator));
-  return legacyStepsToSortFrames(steps, algorithm, { algorithmKey: key });
+  const inVal = input ?? defaultInput(generator);
+  const steps = generator.generate(inVal);
+  const algorithm = catalogKeyToSortAlgorithm(key);
+  if (algorithm) {
+    return legacyStepsToSortFrames(steps, algorithm, { algorithmKey: key });
+  }
+  return steps as any;
+}
+
+/**
+ * Sinh SortFrame[] từ 1 key catalog sort.* (VD 'sort.bubble') bằng engine generator THẬT.
+ * Trả null nếu generator chưa đăng ký.
+ */
+export function buildSortFramesFromCatalogKey(key: string, input?: any): SortFrame[] | null {
+  const frames = buildFramesFromCatalogKey(key, input);
+  return Array.isArray(frames) ? (frames as SortFrame[]) : null;
 }
 
 /**

@@ -34,12 +34,12 @@
   --color-text-disabled:  rgba(255, 255, 255, 0.2);
   --color-text-inverse:   #09090e;
 
-  --color-accent-primary:       #8b5cf6;
-  --color-accent-primary-light: #a78bfa;
+  --color-accent-primary:       #a855f7;
+  --color-accent-primary-light: #c084fc;
   --color-accent-primary-dark:  #7c3aed;
   --color-accent-primary-text:  #a78bfa;
-  --color-accent-primary-glow:  rgba(139, 92, 246, 0.2);
-  --color-accent-primary-dim:   rgba(139, 92, 246, 0.1);
+  --color-accent-primary-glow:  rgba(168, 85, 247, 0.2);
+  --color-accent-primary-dim:   rgba(168, 85, 247, 0.1);
 
   --color-accent-green:       #10b981;
   --color-accent-green-light: #34d399;

@@ -31,6 +31,7 @@ import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Badge from '@/components/ui/Badge.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
+import TipTapEditor from '@/components/ui/TipTapEditor.vue';
 
 export interface LessonFormPayload {
   title: string;
@@ -59,6 +60,7 @@ const emit = defineEmits<{
 const ui = useUiStore();
 const auth = useAuthStore();
 
+const editorMode = ref<'wysiwyg' | 'markdown'>('wysiwyg');
 const viewMode = ref<'split' | 'write' | 'preview'>('split');
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -373,12 +375,30 @@ function handleSubmit(): void {
         </div>
       </div>
 
-      <!-- ═══ MARKDOWN STUDIO (LIVE SPLIT VIEW) ═══ -->
+      <!-- ═══ EDITOR STUDIO (WYSIWYG TIPTAP / MARKDOWN) ═══ -->
       <div class="space-y-2 pt-2">
-        <!-- Studio Header & View Switcher -->
+        <!-- Editor Mode Switcher: WYSIWYG vs Markdown -->
         <div class="flex items-center justify-between flex-wrap gap-2 border-b border-vdsa-border pb-2">
-          <div class="flex items-center gap-1 flex-wrap">
-            <span class="text-xs font-bold text-vdsa-secondary uppercase mr-2">Định dạng:</span>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              @click="editorMode = 'wysiwyg'"
+              :class="editorMode === 'wysiwyg' ? 'bg-vdsa-accent text-white shadow' : 'bg-vdsa-surface text-vdsa-muted hover:text-white'"
+              class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
+            >
+              <Edit3 :size="13" /> Trực quan kiểu Word (TipTap)
+            </button>
+            <button
+              type="button"
+              @click="editorMode = 'markdown'"
+              :class="editorMode === 'markdown' ? 'bg-vdsa-accent text-white shadow' : 'bg-vdsa-surface text-vdsa-muted hover:text-white'"
+              class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
+            >
+              <Code :size="13" /> Mã nguồn Markdown
+            </button>
+          </div>
+
+          <div v-show="editorMode === 'markdown'" class="flex items-center gap-1 flex-wrap">
             <button
               v-for="act in TOOLBAR_ACTIONS"
               :key="act.label"
@@ -391,7 +411,7 @@ function handleSubmit(): void {
             </button>
           </div>
 
-          <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs">
+          <div v-show="editorMode === 'markdown'" class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs">
             <button
               type="button"
               class="px-2.5 py-1 rounded font-semibold transition-colors flex items-center gap-1"
@@ -419,8 +439,14 @@ function handleSubmit(): void {
           </div>
         </div>
 
-        <!-- Studio Panes -->
+        <!-- Mode 1: TipTap WYSIWYG Editor -->
+        <div v-if="editorMode === 'wysiwyg'" class="w-full">
+          <TipTapEditor v-model="form.markdownContent" placeholder="Bắt đầu soạn thảo lý thuyết bài giảng trực quan kiểu Word..." />
+        </div>
+
+        <!-- Mode 2: Markdown Studio Panes -->
         <div
+          v-else
           class="grid gap-3"
           :class="{
             'grid-cols-1 md:grid-cols-2': viewMode === 'split',

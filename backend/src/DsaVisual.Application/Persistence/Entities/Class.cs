@@ -16,8 +16,8 @@ public sealed class Class
     public string? CurriculumTitle { get; set; }
     /// <summary>Mô tả lộ trình học (optional).</summary>
     public string? CurriculumDescription { get; set; }
-    /// <summary>false = draft (học viên KHÔNG thấy items); true = published (mặc định — giữ hành vi cũ).</summary>
-    public bool CurriculumPublished { get; set; } = true;
+    /// <summary>false = draft "Nháp" (mặc định — lớp mới CHƯA xuất bản lộ trình); true = published (GV bấm Xuất bản).</summary>
+    public bool CurriculumPublished { get; set; } = false;
     public DateTime CreatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 }

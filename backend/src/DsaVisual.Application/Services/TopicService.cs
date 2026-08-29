@@ -250,6 +250,7 @@ public sealed class TopicService(
         ParentId = topic.ParentId,
         Name = topic.Name,
         Description = topic.Description,
-        SortOrder = topic.SortOrder
+        SortOrder = topic.SortOrder,
+        CreatedBy = topic.CreatedBy
     };
 }

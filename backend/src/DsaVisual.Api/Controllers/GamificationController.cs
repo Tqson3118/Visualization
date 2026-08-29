@@ -38,6 +38,13 @@ public class GamificationController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpPost("me/spend-heart")]
+    public async Task<ActionResult<HeartsStatusDto>> SpendHeart(CancellationToken ct)
+    {
+        var result = await _service.SpendHeartAsync(CurrentUserId(), ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     // ── Gamification summary (level + XP — feature port) ──
     [HttpGet("me/gamification")]
     public async Task<ActionResult<GamificationSummaryDto>> GetGamificationSummary(CancellationToken ct)

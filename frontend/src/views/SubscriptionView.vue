@@ -56,6 +56,12 @@ const daysLeft = computed<number | null>(() => {
   return Math.max(0, Math.ceil(ms / 86_400_000));
 });
 
+const isPremiumActive = computed<boolean>(() => {
+  if (!status.value) return false;
+  return status.value.isPremium === true || status.value.status === 'active';
+});
+
+
 async function cancelRenewal(): Promise<void> {
   cancelling.value = true;
   try {
@@ -98,7 +104,7 @@ async function cancelRenewal(): Promise<void> {
     />
 
     <EmptyState
-      v-else-if="!status?.isPremium && status?.status !== 'active'"
+      v-else-if="!isPremiumActive || !status"
       icon="sparkles"
       :title="messages.subscription.emptyTitle"
       :description="messages.subscription.emptyDesc"
@@ -122,6 +128,7 @@ async function cancelRenewal(): Promise<void> {
               {{ status.expiresAt ? formatDate(status.expiresAt) : messages.subscription.expiresNone }}
             </dd>
           </div>
+
           <div class="subscription__status-row">
             <dt class="subscription__status-label">
               <RefreshCw :size="14" aria-hidden="true" /> {{ messages.subscription.renewLabel }}

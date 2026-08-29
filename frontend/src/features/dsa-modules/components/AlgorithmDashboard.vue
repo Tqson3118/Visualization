@@ -101,6 +101,7 @@ import { useAlgorithmStore } from '../store/useAlgorithmStore';
 import type { Algorithm } from '../types/algorithm.types';
 import { ALGORITHM_CATALOG } from '../services/algorithmCatalog';
 import { LOCAL_METADATA } from '../store/algorithmLocalMetadata';
+import { normalizeVi } from '@/utils/searchNormalize';
 
 const props = defineProps<{
   allowedCategories?: string[];
@@ -126,13 +127,9 @@ function retryFetch(): void {
 }
 
 const featuredAlgorithms = computed<Algorithm[]>(() => {
-  const ids = ['binary-search', 'monotonic-stack', 'dijkstra'];
-  let list = algoStore.algorithms.length ? algoStore.algorithms : ALGORITHM_CATALOG;
-  const allowed = props.allowedCategories;
-  if (allowed && allowed.length > 0) {
-    list = list.filter((a) => allowed.includes(a.category));
-  }
-  return list.filter((a) => ids.includes(a.id));
+  return algoStore.algorithms.filter((a) => {
+    return ['bubble-sort', 'binary-search', 'bfs', 'lru-cache'].includes(a.id);
+  });
 });
 
 const filteredAlgorithms = computed<Algorithm[]>(() => {
@@ -145,22 +142,25 @@ const filteredAlgorithms = computed<Algorithm[]>(() => {
     list = list.filter((a) => a.difficulty === selectedDifficulty.value);
   }
   if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase().trim();
+    const raw = searchQuery.value.trim().toLowerCase();
+    const q = normalizeVi(searchQuery.value);
     list = list.filter((a) => {
-      const nameMatch = a.name.toLowerCase().includes(q);
-      const catMatch = a.category.toLowerCase().includes(q);
-      const idMatch = a.id.toLowerCase().includes(q);
+      const nameMatch = normalizeVi(a.name).includes(q) || a.name.toLowerCase().includes(raw);
+      const catMatch = normalizeVi(a.category).includes(q) || a.category.toLowerCase().includes(raw);
+      const idMatch = a.id.toLowerCase().includes(raw);
       let conceptMatch = false;
-      if (q === 'graph' || q === 'đồ thị') {
+      if (q === 'graph' || q === 'do thi' || raw === 'đồ thị') {
         conceptMatch = ['bfs', 'dfs', 'dijkstra'].includes(a.id);
-      } else if (q === 'tree' || q === 'cây') {
+      } else if (q === 'tree' || q === 'cay' || raw === 'cây') {
         conceptMatch = ['bst', 'bfs', 'dfs', 'dijkstra'].includes(a.id);
-      } else if (q === 'lifo' || q === 'ngăn xếp') {
+      } else if (q === 'lifo' || q === 'ngan xep' || raw === 'ngăn xếp') {
         conceptMatch = ['stack', 'monotonic-stack'].includes(a.id);
-      } else if (q === 'fifo' || q === 'hàng đợi') {
-        conceptMatch = ['queue'].includes(a.id);
-      } else if (q === 'mảng' || q === 'array') {
-        conceptMatch = ['linear-search', 'binary-search', 'sliding-window'].includes(a.id);
+      } else if (q === 'fifo' || q === 'hang doi' || raw === 'hàng đợi') {
+        conceptMatch = ['queue', 'priority-queue'].includes(a.id);
+      } else if (q === 'sort' || q === 'sap xep' || raw === 'sắp xếp') {
+        conceptMatch = a.category.toLowerCase().includes('sort') || normalizeVi(a.category).includes('sap xep');
+      } else if (q === 'search' || q === 'tim kiem' || raw === 'tìm kiếm') {
+        conceptMatch = a.category.toLowerCase().includes('search') || normalizeVi(a.category).includes('tim kiem');
       }
       return nameMatch || catMatch || idMatch || conceptMatch;
     });

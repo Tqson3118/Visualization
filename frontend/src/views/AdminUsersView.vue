@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import {
   Check,
+  CheckCircle2,
   ExternalLink,
   GraduationCap,
   KeyRound,
@@ -14,7 +15,7 @@ import {
   Users,
   X,
   Pencil,
-  Trash2,
+  Ban,
   Shield,
   ShieldCheck,
   AlertTriangle,
@@ -103,6 +104,10 @@ async function handleCreateUser(): Promise<void> {
   }
   if (createForm.password.length < 6) {
     ui.showToast('Mật khẩu tối thiểu 6 ký tự.', 'warning');
+    return;
+  }
+  if (createForm.role === 'TEACHER' && !createForm.staffCode.trim()) {
+    ui.showToast('Vui lòng nhập Mã giảng viên', 'warning');
     return;
   }
 
@@ -223,26 +228,43 @@ async function handleResetPassword(): Promise<void> {
   }
 }
 
-// ── Xóa Người Dùng ──
-async function handleDeleteUser(user: AdminUserDto): Promise<void> {
+// ── Modal Trạng Thái Tài Khoản (Vô hiệu hóa / Kích hoạt lại — A4) ──
+const statusModalOpen = ref(false);
+const statusBusy = ref(false);
+const statusTarget = ref<AdminUserDto | null>(null);
+const statusNextActive = ref<boolean>(false);
+
+function openStatusModal(user: AdminUserDto, nextActive: boolean): void {
   if (!canManageUser(user)) {
-    ui.showToast('Không có quyền xóa tài khoản Quản trị viên cùng cấp.', 'warning');
+    ui.showToast('Không thể thay đổi trạng thái tài khoản Quản trị viên cùng cấp.', 'warning');
     return;
   }
+  statusTarget.value = user;
+  statusNextActive.value = nextActive;
+  statusModalOpen.value = true;
+}
 
-  if (!confirm(`Bạn có chắc chắn muốn xóa tài khoản "${user.displayName}" (${user.email})? Tài khoản sẽ bị khóa và ẩn danh hóa.`)) {
-    return;
-  }
-
+async function handleConfirmStatus(): Promise<void> {
+  if (!statusTarget.value) return;
+  statusBusy.value = true;
+  const targetId = statusTarget.value.id;
+  const nextActive = statusNextActive.value;
   try {
-    await adminApi.deleteUser(user.id);
-    ui.showToast('Đã xóa tài khoản người dùng.', 'success');
-    if (drawerUser.value?.id === user.id) {
-      closeDrawer();
+    await adminApi.setUserStatus(targetId, { isActive: nextActive });
+    ui.showToast(
+      nextActive ? 'Đã kích hoạt lại tài khoản thành công!' : 'Đã vô hiệu hóa tài khoản người dùng.',
+      'success',
+    );
+    statusModalOpen.value = false;
+    statusTarget.value = null;
+    await load();
+    if (drawerUser.value?.id === targetId) {
+      await loadDrawerDetail(targetId);
     }
-    void load();
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Xóa thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : 'Thay đổi trạng thái tài khoản thất bại.', 'error');
+  } finally {
+    statusBusy.value = false;
   }
 }
 
@@ -269,7 +291,11 @@ async function load(): Promise<void> {
   loading.value = true;
   loadError.value = false;
   try {
-    const page = await adminApi.fetchUsers({ role: tab.value === 'pending' ? 'TEACHER_PENDING' : undefined, q: search.value || undefined, page: 1 });
+    const page = await adminApi.fetchUsers({
+      role: tab.value === 'pending' ? 'TEACHER_PENDING' : undefined,
+      q: search.value || undefined,
+      page: 1,
+    });
     users.value = page.items;
   } catch {
     loadError.value = true;
@@ -314,23 +340,6 @@ const stripBlocks = computed<boolean[]>(() => {
   return Array.from({ length: size }, (_, i) => i < count);
 });
 
-async function toggleLock(user: AdminUserDto): Promise<void> {
-  if (!canManageUser(user)) {
-    ui.showToast('Không thể khóa/mở khóa tài khoản Quản trị viên cùng cấp.', 'warning');
-    return;
-  }
-
-  try {
-    await adminApi.setUserStatus(user.id, { isActive: !user.isActive });
-    user.isActive = !user.isActive;
-    const row = users.value.find((u) => u.id === user.id);
-    if (row) row.isActive = user.isActive;
-    ui.showToast(user.isActive ? messages.admin.users.toastUnlocked : messages.admin.users.toastLocked, 'success');
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.admin.users.toastActionFailed, 'error');
-  }
-}
-
 function openReview(user: AdminUserDto, action: 'approve' | 'reject'): void {
   reviewTarget.value = user;
   reviewAction.value = action;
@@ -345,13 +354,17 @@ async function submitReview(): Promise<void> {
     return;
   }
   try {
-    await adminApi.approveTeacher(reviewTarget.value.id, {
+    const targetId = reviewTarget.value.id;
+    await adminApi.approveTeacher(targetId, {
       approve: reviewAction.value === 'approve',
       reason: reviewAction.value === 'reject' ? rejectReason.value.trim() : undefined,
     });
     ui.showToast(reviewAction.value === 'approve' ? messages.admin.users.toastApproved : messages.admin.users.toastRejected, 'success');
     reviewTarget.value = null;
-    void load();
+    await load();
+    if (drawerUser.value?.id === targetId) {
+      await loadDrawerDetail(targetId);
+    }
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : messages.admin.users.toastActionFailed, 'error');
   }
@@ -548,16 +561,22 @@ async function loadDrawerDetail(id: number): Promise<void> {
                       <KeyRound :size="14" />
                     </Button>
                     <Button
+                      v-if="user.isActive"
                       size="sm"
-                      :variant="user.isActive ? 'secondary' : 'primary'"
-                      :title="user.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'"
-                      @click="toggleLock(user)"
+                      variant="danger"
+                      title="Vô hiệu hóa tài khoản"
+                      @click="openStatusModal(user, false)"
                     >
-                      <LockOpen v-if="!user.isActive" :size="14" />
-                      <Lock v-else :size="14" />
+                      <Ban :size="14" />
                     </Button>
-                    <Button size="sm" variant="danger" title="Xóa tài khoản" @click="handleDeleteUser(user)">
-                      <Trash2 :size="14" />
+                    <Button
+                      v-else
+                      size="sm"
+                      variant="primary"
+                      title="Kích hoạt lại tài khoản"
+                      @click="openStatusModal(user, true)"
+                    >
+                      <CheckCircle2 :size="14" />
                     </Button>
                   </template>
                 </div>
@@ -589,7 +608,7 @@ async function loadDrawerDetail(id: number): Promise<void> {
 
         <div v-if="createForm.role === 'TEACHER'" class="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-vdsa-surface border border-vdsa-border">
           <Input v-model="createForm.department" label="Khoa / Bộ môn" placeholder="Khoa CNTT" />
-          <Input v-model="createForm.staffCode" label="Mã Giảng viên" placeholder="GV00123" />
+          <Input v-model="createForm.staffCode" label="Mã Giảng viên *" placeholder="GV00123" required />
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-4 border-t border-vdsa-border">
@@ -728,6 +747,51 @@ async function loadDrawerDetail(id: number): Promise<void> {
       </div>
     </Modal>
 
+    <!-- ═══ MODAL 5: VÔ HIỆU HÓA / KÍCH HOẠT LẠI TÀI KHOẢN (A4) ═══ -->
+    <Modal
+      :open="statusModalOpen"
+      :title="statusNextActive ? 'Kích hoạt lại tài khoản' : 'Vô hiệu hóa tài khoản'"
+      @close="statusModalOpen = false"
+    >
+      <div class="space-y-4">
+        <div
+          class="p-4 rounded-xl"
+          :class="statusNextActive ? 'bg-indigo-500/10 border border-indigo-500/30' : 'bg-rose-500/10 border border-rose-500/30'"
+        >
+          <p class="text-sm font-medium text-white">
+            <template v-if="!statusNextActive">
+              Vô hiệu hóa tài khoản <strong>"{{ statusTarget?.displayName }}"</strong> ({{ statusTarget?.email }})?
+              <br /><br />
+              <span class="text-xs text-rose-300">
+                Người dùng sẽ không thể đăng nhập vào hệ thống cho đến khi được quản trị viên kích hoạt lại.
+              </span>
+            </template>
+            <template v-else>
+              Kích hoạt lại tài khoản <strong>"{{ statusTarget?.displayName }}"</strong> ({{ statusTarget?.email }})?
+              <br /><br />
+              <span class="text-xs text-indigo-300">
+                Người dùng sẽ có thể đăng nhập bình thường vào hệ thống.
+              </span>
+            </template>
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-vdsa-border">
+          <Button variant="ghost" type="button" :disabled="statusBusy" @click="statusModalOpen = false">
+            Hủy
+          </Button>
+          <Button
+            :variant="statusNextActive ? 'primary' : 'danger'"
+            type="button"
+            :loading="statusBusy"
+            @click="handleConfirmStatus"
+          >
+            {{ statusNextActive ? 'Kích hoạt lại' : 'Vô hiệu hóa tài khoản' }}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+
     <!-- ═══ DRAWER CHI TIẾT USER (STATS & HOẠT ĐỘNG) ═══ -->
     <Drawer :open="drawerUser !== null" :title="messages.admin.users.drawerTitle" :width="'440px'" @close="closeDrawer">
       <div v-if="drawerLoading" class="admin-users__drawer-loading" aria-busy="true">
@@ -849,13 +913,23 @@ async function loadDrawerDetail(id: number): Promise<void> {
             <Button size="sm" variant="secondary" @click="openResetModal(drawerDetail)">
               <KeyRound :size="14" /> Đổi mật khẩu
             </Button>
-            <Button size="sm" :variant="drawerDetail.isActive ? 'secondary' : 'primary'" @click="toggleLock(drawerDetail)">
-              <LockOpen v-if="!drawerDetail.isActive" :size="14" />
-              <Lock v-else :size="14" />
-              {{ drawerDetail.isActive ? messages.admin.users.lock : messages.admin.users.unlock }}
+            <Button
+              v-if="drawerDetail.isActive"
+              size="sm"
+              variant="danger"
+              class="gap-1.5"
+              @click="openStatusModal(drawerDetail, false)"
+            >
+              <Ban :size="14" /> Vô hiệu hóa tài khoản
             </Button>
-            <Button size="sm" variant="danger" @click="handleDeleteUser(drawerDetail)">
-              <Trash2 :size="14" /> Xóa tài khoản
+            <Button
+              v-else
+              size="sm"
+              variant="primary"
+              class="gap-1.5"
+              @click="openStatusModal(drawerDetail, true)"
+            >
+              <CheckCircle2 :size="14" /> Kích hoạt lại tài khoản
             </Button>
           </div>
         </section>

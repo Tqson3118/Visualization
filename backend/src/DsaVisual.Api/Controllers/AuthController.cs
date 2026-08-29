@@ -40,7 +40,7 @@ public class AuthController(
         Expires = expires
     };
 
-    /// <summary>Đăng ký — Công khai ([AllowAnonymous], API_REFERENCE §4.1).</summary>
+    /// <summary>Đăng ký — Công khai ([AllowAnonymous], API_REFERENCE §4.1). B0: cần OtpToken từ /auth/register/otp/verify.</summary>
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<RefreshResponse>> Register(
@@ -48,6 +48,26 @@ public class AuthController(
     {
         var result = await _service.RegisterAsync(request, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
         return ApplyCookieAndMap(result, statusCode: 201);
+    }
+
+    /// <summary>OTP đăng ký (B0, bước 1/3) — gửi mã OTP 6 số về email CHƯA đăng ký. Công khai.</summary>
+    [HttpPost("register/otp")]
+    [AllowAnonymous]
+    public async Task<ActionResult<SendRegisterOtpResponse>> SendRegisterOtp(
+        [FromBody] SendRegisterOtpRequest request, CancellationToken ct)
+    {
+        var result = await _service.SendRegisterOtpAsync(request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>OTP đăng ký (B0, bước 2/3) — xác nhận mã OTP → nhận otpToken hoàn tất đăng ký. Công khai.</summary>
+    [HttpPost("register/otp/verify")]
+    [AllowAnonymous]
+    public async Task<ActionResult<VerifyRegisterOtpResponse>> VerifyRegisterOtp(
+        [FromBody] VerifyRegisterOtpRequest request, CancellationToken ct)
+    {
+        var result = await _service.VerifyRegisterOtpAsync(request, ct);
+        return MapResultExtensions.MapResult(this, result);
     }
 
     /// <summary>Đăng nhập — Công khai.</summary>
@@ -58,6 +78,26 @@ public class AuthController(
     {
         var result = await _service.LoginAsync(request, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
         return ApplyCookieAndMap(result);
+    }
+
+    /// <summary>Xác thực mã 2FA khi đăng nhập — Công khai.</summary>
+    [HttpPost("login/2fa")]
+    [AllowAnonymous]
+    public async Task<ActionResult<RefreshResponse>> VerifyLogin2Fa(
+        [FromBody] Login2FaRequest request, CancellationToken ct)
+    {
+        var result = await _service.VerifyLogin2FaAsync(request, HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
+        return ApplyCookieAndMap(result);
+    }
+
+    /// <summary>Gửi lại mã OTP 2FA đăng nhập — Công khai.</summary>
+    [HttpPost("login/2fa/resend")]
+    [AllowAnonymous]
+    public async Task<ActionResult<Send2FaResponse>> ResendLogin2Fa(
+        [FromBody] ResendLogin2FaRequest request, CancellationToken ct)
+    {
+        var result = await _service.ResendLogin2FaAsync(request, ct);
+        return MapResultExtensions.MapResult(this, result);
     }
 
     /// <summary>Làm mới token — chỉ cần cookie (rotate-invalidate).</summary>

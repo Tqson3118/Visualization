@@ -15,6 +15,7 @@ public sealed class ExerciseSummaryDto
     public int? DurationMinutes { get; set; }
     public int MaxScore { get; set; }
     public string Status { get; set; } = ExerciseStatus.Draft.ToString();
+    public int CreatedBy { get; set; }
 
     /// <summary>
     /// Số user distinct đã PASS bài này — best score ≥ MaxScore (gộp ExerciseSubmissions

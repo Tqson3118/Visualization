@@ -21,9 +21,7 @@ const ExerciseView = () => import('@/views/ExerciseView.vue');
 const LadderView = () => import('@/views/LadderView.vue');
 const LabView = () => import('@/views/LabView.vue');
 const CodeRunnerView = () => import('@/views/CodeRunnerView.vue');
-const BenchmarkView = () => import('@/views/BenchmarkView.vue');
 const CheatSheetView = () => import('@/views/CheatSheetView.vue');
-const CodeToVisualView = () => import('@/views/CodeToVisualView.vue');
 const LeaderboardView = () => import('@/views/LeaderboardView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const ClassesView = () => import('@/views/ClassesView.vue');
@@ -36,13 +34,11 @@ const SubscriptionView = () => import('@/views/SubscriptionView.vue');
 const HelpView = () => import('@/views/HelpView.vue');
 const PrivacyView = () => import('@/views/PrivacyView.vue');
 
+const TeacherStudioView = () => import('@/views/TeacherStudioView.vue');
 const AdminUsersView = () => import('@/views/AdminUsersView.vue');
 const AdminStatsView = () => import('@/views/AdminStatsView.vue');
 const AdminSettingsView = () => import('@/views/AdminSettingsView.vue');
 const AdminContentView = () => import('@/views/AdminContentView.vue');
-const AdminLadderView = () => import('@/views/AdminLadderView.vue');
-const AdminFeedbackView = () => import('@/views/AdminFeedbackView.vue');
-const TeacherStudioView = () => import('@/views/TeacherStudioView.vue');
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -60,12 +56,10 @@ declare module 'vue-router' {
  */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  // G-F2a: chỉ restore vị trí khi back/forward (savedPosition). Điều hướng
-  // thường → KHÔNG scroll ở đây (App.vue scroll về đầu sau transition qua
-  // Lenis — tránh nhảy giữa animation out-in).
+  // E1: restore vị trí khi back/forward (savedPosition), chuyển trang mới scroll lên đầu.
   scrollBehavior(_to, _from, savedPosition) {
     if (savedPosition) return savedPosition;
-    return false;
+    return { top: 0 };
   },
   routes: [
     // Màn 01 — Trang chủ công khai
@@ -186,11 +180,6 @@ const router = createRouter({
       component: SortingSandboxView,
     },
     {
-      path: '/graph-playground',
-      name: 'graph-playground',
-      component: SortingSandboxView,
-    },
-    {
       path: '/stack-queue-sandbox',
       name: 'stack-queue-sandbox',
       component: SortingSandboxView,
@@ -216,25 +205,11 @@ const router = createRouter({
       component: CodeRunnerView,
       meta: { requiresAuth: true },
     },
-    // Màn 17 — Benchmark Lab (MIỄN PHÍ tim — 20.4)
-    {
-      path: '/benchmark/:k1/:k2',
-      name: 'benchmark',
-      component: BenchmarkView,
-      meta: { requiresAuth: true },
-    },
     // Màn 18 — CheatSheet
     {
       path: '/cheatsheet',
       name: 'cheatsheet',
       component: CheatSheetView,
-      meta: { requiresAuth: true },
-    },
-    // F3 — Code-to-Visual DSL Playground
-    {
-      path: '/playground/code-to-visual',
-      name: 'code-to-visual',
-      component: CodeToVisualView,
       meta: { requiresAuth: true },
     },
     // Màn 06 — Bài tập trắc nghiệm (Bậc 1)
@@ -330,10 +305,12 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminLessonEditorView.vue'),
       meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
-    // Alias / Redirects cũ (tương thích ngược hoàn toàn)
+    // Teacher Studio — Dashboard tổng quan dành riêng cho Giảng viên
     {
       path: '/teacher',
-      redirect: '/studio',
+      name: 'teacher-studio',
+      component: TeacherStudioView,
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
     {
       path: '/admin/content',

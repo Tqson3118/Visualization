@@ -15,6 +15,8 @@ namespace DsaVisual.Application.Services;
 public interface ITokenService
 {
     (string Token, DateTime ExpiresAt) CreateAccessToken(int userId, string role);
+    (string Token, DateTime ExpiresAt) CreateTwoFactorToken(int userId);
+    int? ValidateTwoFactorToken(string token);
     string CreateRefreshToken();
     string HashToken(string token);
 }
@@ -45,6 +47,61 @@ public sealed class TokenService(IConfiguration config) : ITokenService
             signingCredentials: new SigningCredentials(_key, SecurityAlgorithms.HmacSha256));
 
         return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+    }
+
+    public (string Token, DateTime ExpiresAt) CreateTwoFactorToken(int userId)
+    {
+        var now = DateTime.UtcNow;
+        var expiresAt = now.AddMinutes(5);
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim("purpose", "2fa_login"),
+            new Claim(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: config["DSA:Jwt:Issuer"],
+            audience: config["DSA:Jwt:Audience"],
+            claims: claims,
+            notBefore: now,
+            expires: expiresAt,
+            signingCredentials: new SigningCredentials(_key, SecurityAlgorithms.HmacSha256));
+
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+    }
+
+    public int? ValidateTwoFactorToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = _key,
+                ValidateIssuer = !string.IsNullOrEmpty(config["DSA:Jwt:Issuer"]),
+                ValidIssuer = config["DSA:Jwt:Issuer"],
+                ValidateAudience = !string.IsNullOrEmpty(config["DSA:Jwt:Audience"]),
+                ValidAudience = config["DSA:Jwt:Audience"],
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            };
+
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+            var purpose = principal.FindFirst("purpose")?.Value;
+            if (purpose != "2fa_login") return null;
+
+            var sub = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(sub, out var userId) ? userId : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public string CreateRefreshToken() =>

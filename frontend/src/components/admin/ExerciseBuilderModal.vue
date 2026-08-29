@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed } from 'vue';
-import { Plus, Trash2, HelpCircle, Code, FlaskConical, Upload, Check, FileText, Download } from 'lucide-vue-next';
-import { createExercise, updateExercise, importExerciseCsv, type ExerciseSummaryDto, type ExerciseUpsertPayload, type QuestionUpsertDto } from '@/api/exercises';
-import type { LessonSummary } from '@/api/lessons';
+import { ref, reactive, watch } from 'vue';
+import { Plus, Trash2, HelpCircle, Code, Upload, FileText, Download } from 'lucide-vue-next';
+import * as XLSX from 'xlsx';
+import { createExercise, updateExercise, fetchExercise, importExerciseCsv, type ExerciseUpsertPayload, type QuestionUpsertDto } from '@/api/exercises';
 import { useUiStore } from '@/stores/ui';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
-import Badge from '@/components/ui/Badge.vue';
 
 const props = defineProps<{
   open: boolean;
   exerciseId?: number | null;
+  defaultLessonId?: number | null;
   defaultNodeId?: number | null;
   defaultStage?: number | null;
   defaultTab?: 'quiz' | 'code' | 'import-csv' | null;
@@ -28,6 +28,7 @@ const ui = useUiStore();
 const activeTab = ref<'quiz' | 'code' | 'import-csv'>('quiz');
 const saving = ref(false);
 const importing = ref(false);
+const loadingData = ref(false);
 const csvFile = ref<File | null>(null);
 
 function downloadSampleCsv(): void {
@@ -48,6 +49,48 @@ function downloadSampleCsv(): void {
   ui.showToast('Đã tải xuống file mẫu CSV (mau_cau_hoi_quiz_dsa.csv)!', 'success');
 }
 
+function downloadSampleExcel(): void {
+  const sampleData = [
+    ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option', 'explanation'],
+    ['Độ phức tạp thời gian tốt nhất của Bubble Sort là gì?', 'O(N)', 'O(N^2)', 'O(log N)', 'O(1)', 'A', 'Khi mảng đã sắp xếp và có cờ swapped, Bubble Sort dừng sau 1 lượt duyệt O(N).'],
+    ['Thuật toán sắp xếp nào sau đây KHÔNG có tính ổn định (Not Stable)?', 'Selection Sort', 'Merge Sort', 'Bubble Sort', 'Insertion Sort', 'A', 'Selection Sort có thể hoán đổi các phần tử bằng nhau qua khoảng cách xa.'],
+    ['Ngăn xếp (Stack) hoạt động theo nguyên lý nào?', 'LIFO', 'FIFO', 'LILO', 'FILO', 'A', 'Stack hoạt động theo cơ chế Last-In-First-Out.'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sampleData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Quiz_DSA');
+  XLSX.writeFile(wb, 'mau_cau_hoi_quiz_dsa.xlsx');
+  ui.showToast('Đã tải xuống file mẫu Excel (mau_cau_hoi_quiz_dsa.xlsx)!', 'success');
+}
+
+async function prepareFileForUpload(file: File): Promise<File> {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const csvString = XLSX.utils.sheet_to_csv(sheet);
+    const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+    return new File([blob], file.name.replace(/\.[^/.]+$/, '.csv'), { type: 'text/csv' });
+  }
+  return file;
+}
+
+interface QuestionFormItem {
+  content: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  points: number;
+}
+
+interface TestCaseFormItem {
+  input: string;
+  expected: string;
+  isHidden: boolean;
+}
+
 const form = reactive({
   title: '',
   description: '',
@@ -57,13 +100,11 @@ const form = reactive({
   durationMinutes: 15,
   maxScore: 100,
   status: 'Active' as 'Active' | 'Draft',
-  // Code config
   starterCode: 'function solve(input) {\n  // Viết giải thuật của bạn ở đây\n  return input;\n}',
   testCases: [
     { input: '[1, 2, 3]', expected: '[3, 2, 1]', isHidden: false },
     { input: '[4, 5, 6]', expected: '[6, 5, 4]', isHidden: true },
-  ],
-  // Quiz questions
+  ] as TestCaseFormItem[],
   questions: [
     {
       content: 'Độ phức tạp thời gian trung bình của thuật toán QuickSort là bao nhiêu?',
@@ -72,28 +113,210 @@ const form = reactive({
       explanation: 'QuickSort có độ phức tạp trung bình là O(N log N) khi chọn pivot ngẫu nhiên tốt.',
       points: 1,
     },
-  ],
+  ] as QuestionFormItem[],
 });
+
+interface FormSnapshot {
+  title: string;
+  description: string;
+  lessonId: number;
+  nodeId: number | null;
+  stage: number;
+  durationMinutes: number;
+  maxScore: number;
+  status: 'Active' | 'Draft';
+  starterCode: string;
+  testCases: TestCaseFormItem[];
+  questions: QuestionFormItem[];
+  activeTab: 'quiz' | 'code' | 'import-csv';
+}
+
+const snapshot = ref<FormSnapshot | null>(null);
+
+function getDefaultFormData(): FormSnapshot {
+  const defaultLessonId = props.defaultLessonId || (props.lessons.length > 0 ? props.lessons[0].id : 0);
+  const defaultStage = props.defaultStage || 1;
+  const initialTab = props.defaultTab || (defaultStage === 3 ? 'code' : 'quiz');
+
+  return {
+    title: '',
+    description: '',
+    lessonId: defaultLessonId,
+    nodeId: props.defaultNodeId ?? null,
+    stage: defaultStage,
+    durationMinutes: 15,
+    maxScore: 100,
+    status: 'Active',
+    starterCode: 'function solve(input) {\n  // Viết giải thuật của bạn ở đây\n  return input;\n}',
+    testCases: [
+      { input: '[1, 2, 3]', expected: '[3, 2, 1]', isHidden: false },
+      { input: '[4, 5, 6]', expected: '[6, 5, 4]', isHidden: true },
+    ],
+    questions: [
+      {
+        content: 'Độ phức tạp thời gian trung bình của thuật toán QuickSort là bao nhiêu?',
+        options: ['O(N log N)', 'O(N^2)', 'O(N)', 'O(1)'],
+        correctIndex: 0,
+        explanation: 'QuickSort có độ phức tạp trung bình là O(N log N) khi chọn pivot ngẫu nhiên tốt.',
+        points: 1,
+      },
+    ],
+    activeTab: initialTab as 'quiz' | 'code' | 'import-csv',
+  };
+}
+
+async function initModalData(): Promise<void> {
+  csvFile.value = null;
+  if (props.exerciseId) {
+    loadingData.value = true;
+    try {
+      const ex = await fetchExercise(props.exerciseId);
+      const isCode = ex.type === 'CODE' || ex.stage === 3;
+      activeTab.value = props.defaultTab || (isCode ? 'code' : 'quiz');
+      form.title = ex.title || '';
+      form.description = ex.description || '';
+      form.lessonId = ex.lessonId || (props.lessons.length > 0 ? props.lessons[0].id : 0);
+      form.nodeId = ex.nodeId ?? null;
+      form.stage = ex.stage || (isCode ? 3 : 1);
+      form.durationMinutes = ex.durationMinutes || 0;
+      form.maxScore = ex.maxScore || 100;
+      form.status = ex.status?.toLowerCase() === 'draft' ? 'Draft' : 'Active';
+
+      // Parse code config if exists
+      if ((ex as any).configJson) {
+        try {
+          const parsed = JSON.parse((ex as any).configJson);
+          form.starterCode = parsed.starterCode || 'function solve(input) {\n  return input;\n}';
+          if (Array.isArray(parsed.testCases) && parsed.testCases.length > 0) {
+            form.testCases = parsed.testCases.map((tc: any) => ({
+              input: tc.input || '',
+              expected: tc.expected || '',
+              isHidden: Boolean(tc.isHidden),
+            }));
+          } else {
+            form.testCases = [
+              { input: '[1, 2, 3]', expected: '[3, 2, 1]', isHidden: false },
+              { input: '[4, 5, 6]', expected: '[6, 5, 4]', isHidden: true },
+            ];
+          }
+        } catch {
+          // ignore JSON parse error
+        }
+      }
+
+      // Parse questions
+      if (Array.isArray(ex.questions) && ex.questions.length > 0) {
+        form.questions = ex.questions.map((q: any) => {
+          let correctIdx = 0;
+          if (q.answerJson) {
+            try {
+              const arr = JSON.parse(q.answerJson);
+              if (Array.isArray(arr) && arr.length > 0) {
+                correctIdx = Number(arr[0]) || 0;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          const opts = Array.isArray(q.options) && q.options.length > 0
+            ? q.options.map(String)
+            : ['', '', '', ''];
+          while (opts.length < 4) {
+            opts.push('');
+          }
+          return {
+            content: q.content || '',
+            options: opts,
+            correctIndex: correctIdx >= 0 && correctIdx < opts.length ? correctIdx : 0,
+            explanation: q.explanation || '',
+            points: q.points || 1,
+          };
+        });
+      } else {
+        form.questions = [
+          {
+            content: '',
+            options: ['', '', '', ''],
+            correctIndex: 0,
+            explanation: '',
+            points: 1,
+          },
+        ];
+      }
+
+      // Save deep snapshot
+      snapshot.value = {
+        title: form.title,
+        description: form.description,
+        lessonId: form.lessonId,
+        nodeId: form.nodeId,
+        stage: form.stage,
+        durationMinutes: form.durationMinutes,
+        maxScore: form.maxScore,
+        status: form.status,
+        starterCode: form.starterCode,
+        testCases: form.testCases.map((tc) => ({ ...tc })),
+        questions: form.questions.map((q) => ({ ...q, options: [...q.options] })),
+        activeTab: activeTab.value,
+      };
+    } catch {
+      ui.showToast('Không thể tải chi tiết bài tập.', 'error');
+    } finally {
+      loadingData.value = false;
+    }
+  } else {
+    // New exercise
+    const defaults = getDefaultFormData();
+    activeTab.value = defaults.activeTab;
+    form.title = defaults.title;
+    form.description = defaults.description;
+    form.lessonId = defaults.lessonId;
+    form.nodeId = defaults.nodeId;
+    form.stage = defaults.stage;
+    form.durationMinutes = defaults.durationMinutes;
+    form.maxScore = defaults.maxScore;
+    form.status = defaults.status;
+    form.starterCode = defaults.starterCode;
+    form.testCases = defaults.testCases.map((tc) => ({ ...tc }));
+    form.questions = defaults.questions.map((q) => ({ ...q, options: [...q.options] }));
+
+    snapshot.value = {
+      ...defaults,
+      testCases: defaults.testCases.map((tc) => ({ ...tc })),
+      questions: defaults.questions.map((q) => ({ ...q, options: [...q.options] })),
+    };
+  }
+}
 
 watch(
   () => props.open,
-  (isOpen, oldOpen) => {
-    if (!isOpen || isOpen === oldOpen) return;
-    if (props.defaultNodeId) form.nodeId = props.defaultNodeId;
-    if (props.defaultTab) {
-      activeTab.value = props.defaultTab;
-    } else if (props.defaultStage) {
-      form.stage = props.defaultStage;
-      activeTab.value = props.defaultStage === 3 ? 'code' : 'quiz';
-    } else {
-      activeTab.value = 'quiz';
-    }
-    if (props.lessons.length > 0 && !form.lessonId) {
-      form.lessonId = props.lessons[0].id;
+  (isOpen) => {
+    if (isOpen) {
+      void initModalData();
     }
   },
   { immediate: true },
 );
+
+function handleCancel(): void {
+  if (snapshot.value) {
+    const s = snapshot.value;
+    form.title = s.title;
+    form.description = s.description;
+    form.lessonId = s.lessonId;
+    form.nodeId = s.nodeId;
+    form.stage = s.stage;
+    form.durationMinutes = s.durationMinutes;
+    form.maxScore = s.maxScore;
+    form.status = s.status;
+    form.starterCode = s.starterCode;
+    form.testCases = s.testCases.map((tc) => ({ ...tc }));
+    form.questions = s.questions.map((q) => ({ ...q, options: [...q.options] }));
+    activeTab.value = s.activeTab;
+  }
+  csvFile.value = null;
+  emit('close');
+}
 
 // ── Question Operations ──
 function addQuestion(): void {
@@ -232,10 +455,10 @@ async function handleSave(): Promise<void> {
   }
 }
 
-// ── Import CSV ──
+// ── Import CSV / Excel ──
 async function handleImportCsv(): Promise<void> {
   if (!csvFile.value) {
-    ui.showToast('Vui lòng chọn file CSV để tải lên.', 'warning');
+    ui.showToast('Vui lòng chọn file Excel hoặc CSV để tải lên.', 'warning');
     return;
   }
   if (!form.lessonId) {
@@ -245,12 +468,13 @@ async function handleImportCsv(): Promise<void> {
 
   importing.value = true;
   try {
-    const result = await importExerciseCsv(form.lessonId, csvFile.value);
-    ui.showToast(result.message || `Đã nhập thành công ${result.createdCount} câu hỏi từ CSV!`, 'success');
+    const fileToUpload = await prepareFileForUpload(csvFile.value);
+    const result = await importExerciseCsv(form.lessonId, fileToUpload);
+    ui.showToast(result.message || `Đã nhập thành công ${result.createdCount} câu hỏi từ Excel/CSV!`, 'success');
     emit('saved');
     emit('close');
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Nhập CSV thất bại.', 'error');
+    ui.showToast(err instanceof Error ? err.message : 'Nhập Excel/CSV thất bại.', 'error');
   } finally {
     importing.value = false;
   }
@@ -262,9 +486,14 @@ async function handleImportCsv(): Promise<void> {
     :open="open"
     :title="exerciseId ? 'Chỉnh sửa Bài tập' : 'Tạo Bài tập & Quiz mới cho Node'"
     class="max-w-4xl"
-    @close="emit('close')"
+    @close="handleCancel"
   >
-    <div class="space-y-6">
+    <div v-if="loadingData" class="py-12 text-center text-sm text-vdsa-muted">
+      <span class="inline-block w-5 h-5 border-2 border-vdsa-accent border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
+      Đang tải dữ liệu bài tập...
+    </div>
+
+    <div v-else class="space-y-6">
       <!-- Exercise Type Navigation -->
       <div class="flex border-b border-vdsa-border gap-2 pb-2">
         <button
@@ -531,7 +760,7 @@ async function handleImportCsv(): Promise<void> {
           <div class="max-w-md mx-auto border-2 border-dashed border-vdsa-border hover:border-vdsa-accent rounded-xl p-6 transition-colors">
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               class="block w-full text-xs text-vdsa-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-vdsa-accent file:text-white hover:file:bg-vdsa-accent-dark cursor-pointer"
               @change="onFileSelected"
             />
@@ -540,15 +769,24 @@ async function handleImportCsv(): Promise<void> {
             </p>
           </div>
 
-          <div class="flex items-center justify-center gap-3">
+          <div class="flex items-center justify-center gap-3 flex-wrap">
             <Button
               variant="secondary"
               size="md"
               type="button"
-              class="gap-1.5 border-vdsa-border hover:bg-vdsa-hover"
+              class="gap-1.5 border-vdsa-border hover:bg-vdsa-hover text-xs"
+              @click="downloadSampleExcel"
+            >
+              <Download :size="15" /> 📥 Tải mẫu Excel (.xlsx)
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              type="button"
+              class="gap-1.5 border-vdsa-border hover:bg-vdsa-hover text-xs"
               @click="downloadSampleCsv"
             >
-              <Download :size="16" /> 📥 Tải file mẫu CSV
+              <Download :size="15" /> 📥 Tải mẫu CSV
             </Button>
             <Button
               variant="primary"
@@ -557,7 +795,7 @@ async function handleImportCsv(): Promise<void> {
               @click="handleImportCsv"
             >
               <span v-if="importing" class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-              <Upload :size="16" /> Bắt đầu Nhập từ CSV
+              <Upload :size="16" /> Bắt đầu Nhập từ Excel / CSV
             </Button>
           </div>
         </div>
@@ -565,7 +803,7 @@ async function handleImportCsv(): Promise<void> {
 
       <!-- Action Buttons -->
       <div v-if="activeTab !== 'import-csv'" class="flex items-center justify-end gap-3 pt-4 border-t border-vdsa-border">
-        <Button variant="ghost" size="md" type="button" @click="emit('close')">Hủy</Button>
+        <Button variant="ghost" size="md" type="button" @click="handleCancel">Hủy</Button>
         <Button variant="primary" size="md" type="button" :disabled="saving" @click="handleSave">
           <span v-if="saving" class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
           {{ exerciseId ? 'Lưu thay đổi' : 'Tạo Bài tập' }}

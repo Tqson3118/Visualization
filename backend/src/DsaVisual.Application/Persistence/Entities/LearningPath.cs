@@ -11,6 +11,14 @@ public sealed class LearningPath
     public bool IsActive { get; set; } = true;
     public int CreatedBy { get; set; }
     public int? AuthorId { get; set; }                               // tác giả khóa (User role Teacher) — trang chi tiết khóa
+
+    // Duyệt theo Lộ trình (Course-level Review)
+    public LearningPathStatus Status { get; set; } = LearningPathStatus.Draft;
+    public string? RejectionReason { get; set; }                     // Lý do Admin từ chối
+    public int? ReviewedBy { get; set; }                             // Admin đã duyệt/từ chối
+    public DateTime? ReviewedAt { get; set; }                        // Thời điểm duyệt
+    public DateTime? SubmittedAt { get; set; }                       // Thời điểm GV gửi duyệt
+
     public string? HighlightsJson { get; set; }                      // "Why choose" — [{title, description}], tùy biến theo khóa
     public string? TestimonialsJson { get; set; }                    // [{name, role, quote}]
 }

@@ -71,11 +71,30 @@ export const useClassStore = defineStore('classStore', () => {
   }
 
   async function reloadMembers(id: number): Promise<void> {
-    members.value = await classesApi.fetchClassMembers(id);
+    const list = await classesApi.fetchClassMembers(id);
+    members.value = list;
+    if (currentClass.value && currentClass.value.id === id) {
+      currentClass.value.members = list;
+    }
   }
 
   async function reloadAssignments(id: number): Promise<void> {
-    assignments.value = await classesApi.fetchClassAssignments(id);
+    const list = await classesApi.fetchClassAssignments(id);
+    assignments.value = list;
+    if (currentClass.value && currentClass.value.id === id) {
+      currentClass.value.assignments = list;
+    }
+  }
+
+  async function addMember(classId: number, email: string): Promise<void> {
+    const detail = await classesApi.addClassMember(classId, email);
+    currentClass.value = detail;
+    members.value = detail.members ?? [];
+    assignments.value = detail.assignments ?? [];
+    const idx = classes.value.findIndex((c) => c.id === classId);
+    if (idx !== -1) {
+      classes.value[idx].memberCount = members.value.length;
+    }
   }
 
   async function assignContent(payload: {
@@ -92,6 +111,13 @@ export const useClassStore = defineStore('classStore', () => {
       allowLateSubmission: payload.allowLateSubmission,
     });
     assignments.value = [...assignments.value, created];
+    if (currentClass.value && currentClass.value.id === payload.classId) {
+      currentClass.value.assignments = assignments.value;
+    }
+    await Promise.all([
+      reloadAssignments(payload.classId),
+      fetchCurriculum(payload.classId).catch(() => undefined),
+    ]);
   }
 
   async function updateAssignment(
@@ -100,17 +126,30 @@ export const useClassStore = defineStore('classStore', () => {
     payload: { dueAt?: string | null; allowLateSubmission?: boolean },
   ): Promise<void> {
     await classesApi.updateClassAssignment(classId, assignId, payload);
-    await reloadAssignments(classId);
+    await Promise.all([
+      reloadAssignments(classId),
+      fetchCurriculum(classId).catch(() => undefined),
+    ]);
   }
 
   async function removeAssignment(classId: number, assignId: number): Promise<void> {
     await classesApi.deleteClassAssignment(classId, assignId);
-    await reloadAssignments(classId);
+    await Promise.all([
+      reloadAssignments(classId),
+      fetchCurriculum(classId).catch(() => undefined),
+    ]);
   }
 
   async function removeMember(classId: number, userId: number): Promise<void> {
     await classesApi.removeClassMember(classId, userId);
     members.value = members.value.filter((m) => m.userId !== userId);
+    if (currentClass.value && currentClass.value.id === classId) {
+      currentClass.value.members = members.value;
+    }
+    const idx = classes.value.findIndex((c) => c.id === classId);
+    if (idx !== -1) {
+      classes.value[idx].memberCount = members.value.length;
+    }
   }
 
   async function removeClass(classId: number): Promise<void> {
@@ -146,7 +185,7 @@ export const useClassStore = defineStore('classStore', () => {
         ...curriculum.value,
         title: detail.curriculumTitle ?? null,
         description: detail.curriculumDescription ?? null,
-        published: detail.curriculumPublished ?? true,
+        published: detail.curriculumPublished ?? false,
       };
     }
   }
@@ -189,6 +228,7 @@ export const useClassStore = defineStore('classStore', () => {
     assignContent,
     updateAssignment,
     removeAssignment,
+    addMember,
     removeMember,
     removeClass,
     fetchCurriculum,

@@ -22,6 +22,7 @@ export const GAMIFICATION_ENDPOINTS = {
   premiumStatus: '/premium/status',
   premiumUpgrade: '/premium/upgrade',
   premiumMockPay: '/premium/mock-pay',
+  spendHeart: '/me/spend-heart',
 } as const;
 
 // ── DTO (API_REFERENCE §3.12-3.13) ──
@@ -53,6 +54,7 @@ export interface QuestDto {
   rewardGems: number;
   rewardXp: number;
   claimed: boolean;
+  difficulty?: number; // 0=Easy, 1=Medium, 2=Hard
 }
 
 /** DTO thật từ backend GET /me/quests — trả progress + reward:{gems,xp} (KHÔNG có current/rewardGems/rewardXp). */
@@ -73,6 +75,7 @@ export interface ShopItemDto {
   description: string;
   priceGems: number;
   slot: string | null;
+  maxStack?: number;
 }
 
 export interface PremiumStatusDto {
@@ -210,6 +213,7 @@ export async function fetchQuests(): Promise<QuestDto[]> {
     rewardGems: q.reward?.gems ?? 0,
     rewardXp: q.reward?.xp ?? 0,
     claimed: q.claimed,
+    difficulty: q.type ?? 0,
   }));
 }
 
@@ -303,4 +307,8 @@ export async function mockPayPremium(orderId: number): Promise<PremiumStatusDto>
     startedAt: raw?.startedAt ?? null,
     expiresAt: raw?.expiresAt ?? null,
   };
+}
+
+export async function spendHeart(): Promise<HeartsStatusDto> {
+  return getData<HeartsStatusDto>({ method: 'POST', url: GAMIFICATION_ENDPOINTS.spendHeart });
 }

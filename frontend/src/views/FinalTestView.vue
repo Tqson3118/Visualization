@@ -31,7 +31,7 @@ const topicId = computed(() => String(route.params.topicId ?? ''));
 
 const exercise = ref<ExerciseDto | null>(null);
 const loading = ref(true);
-const passThreshold = 70;
+const passThreshold = computed(() => exercise.value?.passThreshold ?? exercise.value?.passingScore ?? 70);
 
 onMounted(async () => {
   try {
@@ -83,10 +83,10 @@ function buildLocalFinalTest(): ExerciseDto {
 
 function onPassed(scorePct: number): void {
   ui.showToast(
-    scorePct >= passThreshold
+    scorePct >= passThreshold.value
       ? messages.finalTest.toastPassed
-      : messages.finalTest.toastFailed(passThreshold, scorePct),
-    scorePct >= passThreshold ? 'success' : 'warning',
+      : messages.finalTest.toastFailed(passThreshold.value, scorePct),
+    scorePct >= passThreshold.value ? 'success' : 'warning',
   );
 }
 </script>

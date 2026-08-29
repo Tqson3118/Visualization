@@ -54,7 +54,7 @@ public class ClassServiceTests
     {
         var (service, db) = await SetupAsync(nameof(JoinByCode_Success_AddsMember));
 
-        var result = await service.JoinByCodeAsync(1, new JoinClassByCodeRequest { InviteCode = "abc123" }, CancellationToken.None);
+        var result = await service.JoinByCodeAsync(1, "STUDENT", new JoinClassByCodeRequest { InviteCode = "abc123" }, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
         Assert.Equal(1, result.Value!.Id);
@@ -68,7 +68,7 @@ public class ClassServiceTests
     {
         var (service, db) = await SetupAsync(nameof(JoinByCode_UnknownCode_ReturnsNotFound));
 
-        var result = await service.JoinByCodeAsync(1, new JoinClassByCodeRequest { InviteCode = "ZZZ999" }, CancellationToken.None);
+        var result = await service.JoinByCodeAsync(1, "STUDENT", new JoinClassByCodeRequest { InviteCode = "ZZZ999" }, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.NOT_FOUND, result.ErrorCode);
@@ -83,7 +83,7 @@ public class ClassServiceTests
         classRoom.Status = ClassStatus.Closed;
         await db.SaveChangesAsync();
 
-        var result = await service.JoinByCodeAsync(1, new JoinClassByCodeRequest { InviteCode = "ABC123" }, CancellationToken.None);
+        var result = await service.JoinByCodeAsync(1, "STUDENT", new JoinClassByCodeRequest { InviteCode = "ABC123" }, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
@@ -97,7 +97,7 @@ public class ClassServiceTests
         db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = 1, JoinedAt = _clock.UtcNow });
         await db.SaveChangesAsync();
 
-        var result = await service.JoinByCodeAsync(1, new JoinClassByCodeRequest { InviteCode = "ABC123" }, CancellationToken.None);
+        var result = await service.JoinByCodeAsync(1, "STUDENT", new JoinClassByCodeRequest { InviteCode = "ABC123" }, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);

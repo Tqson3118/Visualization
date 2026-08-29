@@ -117,8 +117,8 @@ async function claim(quest: QuestDto): Promise<void> {
           }"
         >
           <div class="quests__head">
-            <Badge class="quests__diff" :class="DIFFICULTY[idx % 3]?.cls ?? 'quests__diff--mid'">
-              {{ DIFFICULTY[idx % 3]?.label ?? messages.quests.difficulty[1] }}
+            <Badge class="quests__diff" :class="DIFFICULTY[quest.difficulty ?? 0]?.cls ?? 'quests__diff--mid'">
+              {{ DIFFICULTY[quest.difficulty ?? 0]?.label ?? messages.quests.difficulty[1] }}
             </Badge>
             <span class="quests__reward-value">
               <Gem :size="14" aria-hidden="true" /> {{ messages.quests.reward(quest.rewardGems) }}
@@ -384,13 +384,19 @@ async function claim(quest: QuestDto): Promise<void> {
 
 .quests__desc { font-size: var(--text-xs); line-height: 1.55; color: var(--color-text-muted); }
 
-/* Thanh tiến trình tím (chống đơn điệu với màu mặc định) */
-.quests__progress :deep([data-value]) {
-  background: var(--q-purple);
+/* Thanh tiến trình tím (chỉ áp dụng cho indicator, giữ nền track xám trong suốt) */
+.quests__progress :deep([role="progressbar"]) {
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
-.quests__progress--done :deep([data-value]) {
-  background: linear-gradient(90deg, var(--q-purple), var(--q-purple-light));
+.quests__progress :deep([data-reka-progress-indicator]),
+.quests__progress :deep([role="progressbar"] > div) {
+  background: var(--q-purple) !important;
+}
+
+.quests__progress--done :deep([data-reka-progress-indicator]),
+.quests__progress--done :deep([role="progressbar"] > div) {
+  background: linear-gradient(90deg, var(--q-purple), var(--q-purple-light)) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--q-purple) 40%, transparent);
 }
 

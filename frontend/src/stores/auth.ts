@@ -23,14 +23,33 @@ export const useAuthStore = defineStore('auth', () => {
   );
   const role = computed(() => user.value?.role ?? null);
 
-  async function login(email: string, password: string): Promise<void> {
+  async function login(email: string, password: string): Promise<authApi.LoginResponse> {
     const payload: LoginRequest = { email, password };
     status.value = 'loading';
     try {
       const response = await authApi.login(payload);
+      if (!response.requiresTwoFactor) {
+        accessToken.value = response.accessToken;
+        user.value = response.user;
+        status.value = 'authenticated';
+      } else {
+        status.value = 'idle';
+      }
+      return response;
+    } catch (error) {
+      status.value = 'error';
+      throw error;
+    }
+  }
+
+  async function login2Fa(twoFactorToken: string, code: string): Promise<authApi.LoginResponse> {
+    status.value = 'loading';
+    try {
+      const response = await authApi.login2Fa({ twoFactorToken, code });
       accessToken.value = response.accessToken;
       user.value = response.user;
       status.value = 'authenticated';
+      return response;
     } catch (error) {
       status.value = 'error';
       throw error;
@@ -127,6 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     role,
     login,
+    login2Fa,
     register,
     logout,
     refresh,

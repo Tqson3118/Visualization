@@ -48,6 +48,11 @@ public abstract class ApiControllerBase : ControllerBase
         return role;
     }
 
+    protected string? TryGetCurrentRole()
+    {
+        return User.FindFirst(ClaimTypes.Role)?.Value;
+    }
+
     /// <summary>
     /// Validate FluentValidation ở Controller (finding security#12 — validator cho DTO body thiếu).
     /// Hợp lệ → null (tiếp tục); không hợp lệ → 400 VALIDATION_FAILED envelope §2.1 (khớp định dạng

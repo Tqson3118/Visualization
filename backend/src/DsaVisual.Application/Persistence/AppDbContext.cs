@@ -15,6 +15,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<OtpCode> OtpCodes => Set<OtpCode>();   // 2FA email (GP-T2)
+    public DbSet<RegisterOtpCode> RegisterOtpCodes => Set<RegisterOtpCode>();   // OTP đăng ký (B0)
     public DbSet<Topic> Topics => Set<Topic>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonSimulation> LessonSimulations => Set<LessonSimulation>();

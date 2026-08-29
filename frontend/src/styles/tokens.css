@@ -7,10 +7,11 @@
 
 :root {
   /* ── COLOR PALETTE (MASTER.md) ──
-     GP-T9b: primary tối đi (#007E72) để chữ/icon trên primary ≥ 4.5:1
-     và primary-as-text ≥ 4.5:1 trên nền trắng (link/stepper active). */
-  --color-primary:        #007E72;
-  --color-on-primary:     #FFFFFF;
+     Purple brand (#7c3aed light, #c084fc dark) — WCAG AA ≥ 4.5:1 */
+  --color-primary:        #7c3aed;
+  --color-on-primary:     #ffffff;
+  --color-primary-bright: #a855f7;
+  --color-primary-glow:   rgba(168, 85, 247, 0.25);
   --color-secondary:      #2DD4BF;
   --color-accent:         #D97706;
   --color-background:     #F0FDFA;
@@ -18,7 +19,7 @@
   --color-muted:          #E8F1F4;
   --color-border:         #5EEAD4;
   --color-destructive:    #DC2626;
-  --color-ring:           #007E72;
+  --color-ring:           #7c3aed;
 
   /* Semantic alias (nhóm trạng thái) */
   --color-surface:        #FFFFFF;
@@ -112,8 +113,9 @@
    nhạt hơn cho primary trên nền tối. Thêm từ Phase 1a (G).
    ════════════════════════════════════════════════════════════════ */
 .dark {
-  --color-primary:        #2DD4BF;
-  --color-on-primary:     #042F2E;
+  --color-primary:        #c084fc;
+  --color-on-primary:     #1e1b4b;
+  --color-primary-bright: #a855f7;
   --color-secondary:      #0D9488;
   --color-accent:         #FBBF24;
   /* Tân trang 15/08: nền tối chuyển sang tím-đen (khớp trang chủ vũ trụ #0B0A12)
@@ -123,7 +125,7 @@
   --color-muted:          #202329;
   --color-border:         #33383F;
   --color-destructive:    #F87171;
-  --color-ring:           #2DD4BF;
+  --color-ring:           #c084fc;
 
   --color-surface:        #1C1F25;
   --color-surface-hover:  #242830;

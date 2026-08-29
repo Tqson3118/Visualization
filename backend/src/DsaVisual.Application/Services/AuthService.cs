@@ -34,8 +34,14 @@ public sealed class AuthService(
 
     // ── 2FA email (GP-T2 — FR-1.11) ──
     private const string OtpPurposeEnable2Fa = "enable_2fa";
+    private const string OtpPurposeLogin2Fa = "login_2fa";
     private const int OtpLifetimeMinutes = 5;
     private const int OtpExpiresInSeconds = OtpLifetimeMinutes * 60;
+
+    // ── OTP xác thực email khi đăng ký (B0) ──
+    private const int RegisterOtpTokenLifetimeMinutes = 10;
+    private const int RegisterOtpTokenExpiresInSeconds = RegisterOtpTokenLifetimeMinutes * 60;
+    private const int RegisterOtpMaxFailedAttempts = 5;
 
     /// <summary>Hash giả cho PBKDF2 dummy khi user không tồn tại — chống timing oracle (finding security#15).</summary>
     private static readonly string DummyPasswordHash =
@@ -63,16 +69,13 @@ public sealed class AuthService(
         }
 
         // Domain check nếu setting được bật (SDD §7.5: allowed.email.domains)
-        var allowedDomains = await settings.GetValueAsync(SettingAllowedDomains, ct);
-        if (!string.IsNullOrWhiteSpace(allowedDomains))
+        var domainViolation = await GetDomainViolationAsync(email, ct);
+        if (domainViolation is not null)
         {
-            var domains = allowedDomains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var emailDomain = email[(email.IndexOf('@') + 1)..];
-            if (domains.Length > 0 && !domains.Contains(emailDomain, StringComparer.OrdinalIgnoreCase))
+            return Result<RefreshResponse>.Fail(ErrorCodes.DOMAIN_NOT_ALLOWED, domainViolation, new()
             {
-                return Result<RefreshResponse>.Fail(ErrorCodes.DOMAIN_NOT_ALLOWED,
-                    "Email không thuộc domain được phép đăng ký", new() { ["email"] = ["Email không thuộc domain được phép đăng ký"] });
-            }
+                ["email"] = [domainViolation]
+            });
         }
 
         var minLength = await GetMinPasswordLengthAsync(ct);
@@ -92,11 +95,8 @@ public sealed class AuthService(
         if (request.IsTeacher)
         {
             var teacherErrors = new Dictionary<string, string[]>();
-            if (string.IsNullOrEmpty(department))
-            {
-                teacherErrors["department"] = ["Vui lòng nhập khoa/bộ môn"];
-            }
-            else if (department.Length > 100)
+            // A2: Khoa/Bộ môn là trường TÙY CHỌN — chỉ validate độ dài khi người dùng có nhập
+            if (department?.Length > 100)
             {
                 teacherErrors["department"] = ["Khoa/bộ môn không được vượt quá 100 ký tự"];
             }
@@ -132,11 +132,11 @@ public sealed class AuthService(
                     "Vui lòng điền đầy đủ thông tin giảng viên", teacherErrors);
             }
 
-            // Bio rỗng sau trim → lưu null, không lưu "" (tránh chuỗi rỗng trong DB)
-            if (teacherBio?.Length == 0)
-            {
-                teacherBio = null;
-            }
+            // A2: các trường optional (Khoa, Học vị, Link hồ sơ, Bio) rỗng sau trim → lưu null
+            if (department?.Length == 0) department = null;
+            if (academicDegree?.Length == 0) academicDegree = null;
+            if (profileLink?.Length == 0) profileLink = null;
+            if (teacherBio?.Length == 0) teacherBio = null;
         }
         else
         {
@@ -145,6 +145,39 @@ public sealed class AuthService(
             teacherBio = null;
             academicDegree = null;
             profileLink = null;
+        }
+
+        // A3: Mã giảng viên duy nhất (IsTeacher=true) — đã có user khác dùng StaffCode → 409 CONFLICT
+        if (!string.IsNullOrEmpty(staffCode) &&
+            await db.Users.AsNoTracking().AnyAsync(u => u.StaffCode == staffCode && u.DeletedAt == null, ct))
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.CONFLICT, "Mã giảng viên đã được sử dụng", new()
+            {
+                ["staffCode"] = ["Mã giảng viên đã được sử dụng — vui lòng kiểm tra lại hoặc liên hệ quản trị"]
+            });
+        }
+
+        // B0: bắt buộc OTP xác thực email — otpToken cấp bởi POST /auth/register/otp/verify (1 lần, 10 phút)
+        var otpToken = request.OtpToken?.Trim();
+        if (string.IsNullOrEmpty(otpToken))
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_REQUIRED,
+                "Cần xác thực email trước khi đăng ký: gọi POST /auth/register/otp để nhận mã, rồi POST /auth/register/otp/verify để lấy otpToken",
+                new() { ["otpToken"] = ["Vui lòng xác thực email của bạn"] });
+        }
+
+        var otpTokenHash = HashOtpCode(otpToken);
+        var otpRow = await db.RegisterOtpCodes.AsNoTracking()
+            .Where(o => o.Email == email && o.VerifyTokenHash == otpTokenHash && !o.Used && !o.TokenUsed
+                && o.TokenExpiresAt != null && o.TokenExpiresAt > clock.UtcNow)
+            .OrderByDescending(o => o.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (otpRow is null)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_INVALID,
+                "Mã xác thực email không hợp lệ hoặc đã hết hạn — hãy xác thực lại email",
+                new() { ["otpToken"] = ["Xác thực email không hợp lệ hoặc đã hết hạn"] });
         }
 
         var now = clock.UtcNow;
@@ -182,6 +215,23 @@ public sealed class AuthService(
             {
                 ["email"] = ["Email đã được sử dụng"]
             });
+        }
+        catch (DbUpdateException ex) when (IsUniqueStaffCodeViolation(ex))
+        {
+            // A3: race 2 GV đăng ký cùng StaffCode song song → vấp unique index mới → 409 CONFLICT
+            return Result<RefreshResponse>.Fail(ErrorCodes.CONFLICT, "Mã giảng viên đã được sử dụng", new()
+            {
+                ["staffCode"] = ["Mã giảng viên đã được sử dụng"]
+            });
+        }
+
+        // B0: tiêu otpToken ĐÚNG 1 LẦN (atomic, sau khi user đã insert thành công — token chỉ mất khi đăng ký thật sự xong)
+        if (await TryConsumeRegisterOtpTokenAsync(otpRow.Id, ct) == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_USED,
+                "Mã xác thực email đã được sử dụng cho một tài khoản khác — hãy yêu cầu mã mới",
+                new() { ["otpToken"] = ["Xác thực email đã được sử dụng"] });
         }
 
         logger.LogInformation("User {UserId} registered with role {Role}", user.Id, user.Role);
@@ -233,6 +283,45 @@ public sealed class AuthService(
         if (!user.IsActive)
         {
             return Result<RefreshResponse>.Fail(ErrorCodes.ACCOUNT_DISABLED, "Tài khoản chưa được kích hoạt");
+        }
+
+        if (user.TwoFactorEnabled)
+        {
+            var code = otpGenerator?.Invoke() ?? GenerateOtpCode();
+            var now = clock.UtcNow;
+
+            var active = await db.OtpCodes
+                .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeLogin2Fa && !o.Used)
+                .ToListAsync(ct);
+            foreach (var otp in active)
+            {
+                otp.Used = true;
+            }
+
+            db.OtpCodes.Add(new OtpCode
+            {
+                UserId = user.Id,
+                CodeHash = HashOtpCode(code),
+                Purpose = OtpPurposeLogin2Fa,
+                ExpiresAt = now.AddMinutes(OtpLifetimeMinutes),
+                Used = false,
+                CreatedAt = now
+            });
+            await db.SaveChangesAsync(ct);
+
+            loginAttempts.Reset("otp:" + user.Id);
+            await Send2FaCodeEmailAsync(user, code, ct);
+
+            var (twoFactorToken, _) = tokens.CreateTwoFactorToken(user.Id);
+            logger.LogInformation("2FA OTP sent for user {UserId} at login from {Ip}", user.Id, ipAddress);
+
+            return Result<RefreshResponse>.Ok(new RefreshResponse
+            {
+                RequiresTwoFactor = true,
+                TwoFactorToken = twoFactorToken,
+                ExpiresIn = OtpExpiresInSeconds,
+                Message = "Mã xác thực 2FA đã được gửi đến email của bạn. Vui lòng nhập để hoàn tất đăng nhập."
+            });
         }
 
         logger.LogInformation("User {UserId} logged in from {Ip}", user.Id, ipAddress);
@@ -717,7 +806,403 @@ public sealed class AuthService(
         return Result<Toggle2FaResponse>.Ok(new Toggle2FaResponse(true, "Đã bật xác thực hai lớp"));
     }
 
+    /// <summary>
+    /// Xác thực mã OTP 2FA sau khi đăng nhập thành công bước 1 (mật khẩu) -> Cấp Access/Refresh tokens.
+    /// </summary>
+    public async Task<Result<RefreshResponse>> VerifyLogin2FaAsync(Login2FaRequest request, string? ipAddress, CancellationToken ct)
+    {
+        var code = request.Code?.Trim() ?? string.Empty;
+        if (code.Length != 6 || !code.All(char.IsAsciiDigit))
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Mã xác thực phải là 6 chữ số", new() { ["code"] = ["Mã xác thực phải là 6 chữ số"] });
+        }
+
+        var userId = tokens.ValidateTwoFactorToken(request.TwoFactorToken);
+        if (userId is null)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_INVALID, "Phiên xác thực 2FA không hợp lệ hoặc đã hết hạn");
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId.Value && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (!user.IsActive)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.ACCOUNT_DISABLED, "Tài khoản chưa được kích hoạt");
+        }
+
+        var otpKey = "otp:" + user.Id;
+        if (loginAttempts.IsLocked(otpKey))
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.ACCOUNT_LOCKED,
+                "Tài khoản đã bị khóa tạm thời do nhập mã xác thực sai nhiều lần. Vui lòng thử lại sau 15 phút");
+        }
+
+        var hash = HashOtpCode(code);
+        var otp = await db.OtpCodes.AsNoTracking()
+            .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeLogin2Fa && o.CodeHash == hash)
+            .OrderByDescending(o => o.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (otp is null)
+        {
+            loginAttempts.RecordFailure(otpKey);
+            logger.LogWarning("Failed 2FA login verify (wrong code) for user {UserId}", user.Id);
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_INVALID, "Mã xác thực không đúng");
+        }
+
+        if (otp.Used)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_USED, "Mã xác thực đã được sử dụng");
+        }
+
+        if (otp.ExpiresAt <= clock.UtcNow)
+        {
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_EXPIRED,
+                "Mã xác thực đã hết hạn — vui lòng yêu cầu gửi lại mã mới");
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var consumed = await TryConsumeOtpAsync(otp.Id, clock.UtcNow, ct);
+        if (consumed == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return Result<RefreshResponse>.Fail(ErrorCodes.OTP_USED, "Mã xác thực đã được sử dụng");
+        }
+
+        await tx.CommitAsync(ct);
+
+        loginAttempts.Reset(otpKey);
+        loginAttempts.Reset(user.Id);
+        loginAttempts.Reset("resend:2fa:" + user.Id);
+
+        logger.LogInformation("User {UserId} completed 2FA login from {Ip}", user.Id, ipAddress);
+        return await IssueTokensAsync(user, ipAddress, ct);
+    }
+
+    /// <summary>
+    /// Gửi lại mã OTP 2FA cho phiên đăng nhập (có rate-limit chống flood/spam).
+    /// </summary>
+    public async Task<Result<Send2FaResponse>> ResendLogin2FaAsync(ResendLogin2FaRequest request, CancellationToken ct)
+    {
+        var userId = tokens.ValidateTwoFactorToken(request.TwoFactorToken);
+        if (userId is null)
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.OTP_INVALID, "Phiên xác thực 2FA không hợp lệ hoặc đã hết hạn");
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId.Value && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        if (!user.IsActive)
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.ACCOUNT_DISABLED, "Tài khoản chưa được kích hoạt");
+        }
+
+        var resendKey = "resend:2fa:" + user.Id;
+        if (loginAttempts.IsLocked(resendKey))
+        {
+            return Result<Send2FaResponse>.Fail(ErrorCodes.ACCOUNT_LOCKED,
+                "Bạn đã yêu cầu gửi lại mã quá nhiều lần. Vui lòng thử lại sau 15 phút");
+        }
+
+        var code = otpGenerator?.Invoke() ?? GenerateOtpCode();
+        var now = clock.UtcNow;
+
+        var active = await db.OtpCodes
+            .Where(o => o.UserId == user.Id && o.Purpose == OtpPurposeLogin2Fa && !o.Used)
+            .ToListAsync(ct);
+        foreach (var otp in active)
+        {
+            otp.Used = true;
+        }
+
+        db.OtpCodes.Add(new OtpCode
+        {
+            UserId = user.Id,
+            CodeHash = HashOtpCode(code),
+            Purpose = OtpPurposeLogin2Fa,
+            ExpiresAt = now.AddMinutes(OtpLifetimeMinutes),
+            Used = false,
+            CreatedAt = now
+        });
+        await db.SaveChangesAsync(ct);
+
+        loginAttempts.RecordFailure(resendKey);
+        await Send2FaCodeEmailAsync(user, code, ct);
+
+        return Result<Send2FaResponse>.Ok(new Send2FaResponse(
+            "Mã xác thực mới đã được gửi qua email (hiệu lực 5 phút)", OtpExpiresInSeconds));
+    }
+
+    // ── OTP xác thực email khi đăng ký (B0) ───────────────────
+
+    /// <summary>
+    /// Bước 1/3: gửi mã OTP 6 số (5 phút, dùng 1 lần) về email CHƯA đăng ký.
+    /// Mã mới vô hiệu hóa mã cũ của email đó. SMTP chưa cấu hình → KHÔNG block luồng;
+    /// KHÔNG log mã OTP (finding security#5).
+    /// </summary>
+    public async Task<Result<SendRegisterOtpResponse>> SendRegisterOtpAsync(SendRegisterOtpRequest request, CancellationToken ct)
+    {
+        var email = NormalizeEmail(request.Email);
+        if (!IsValidEmail(email))
+        {
+            return Result<SendRegisterOtpResponse>.Fail(ErrorCodes.INVALID_EMAIL, "Định dạng email sai", new()
+            {
+                ["email"] = ["Email không hợp lệ"]
+            });
+        }
+
+        if (await db.Users.AsNoTracking().AnyAsync(u => u.Email == email && u.DeletedAt == null, ct))
+        {
+            return Result<SendRegisterOtpResponse>.Fail(ErrorCodes.EMAIL_EXISTS, "Email đã được sử dụng", new()
+            {
+                ["email"] = ["Email đã được sử dụng"]
+            });
+        }
+
+        var domainViolation = await GetDomainViolationAsync(email, ct);
+        if (domainViolation is not null)
+        {
+            return Result<SendRegisterOtpResponse>.Fail(ErrorCodes.DOMAIN_NOT_ALLOWED, domainViolation, new()
+            {
+                ["email"] = [domainViolation]
+            });
+        }
+
+        // otpGenerator là seam cho test; DevOtpCode chỉ dành cho môi trường dev/test (không cấu hình ở production)
+        var code = otpGenerator?.Invoke() ?? GetDevOtpCode() ?? GenerateOtpCode();
+        var now = clock.UtcNow;
+
+        // Chỉ mã mới nhất có hiệu lực — vô hiệu hóa mọi mã cũ (kể cả token đã verify) của email này
+        var active = await db.RegisterOtpCodes
+            .Where(o => o.Email == email && !o.Used)
+            .ToListAsync(ct);
+        foreach (var old in active)
+        {
+            old.Used = true;
+        }
+
+        db.RegisterOtpCodes.Add(new RegisterOtpCode
+        {
+            Email = email,
+            CodeHash = HashOtpCode(code),
+            ExpiresAt = now.AddMinutes(OtpLifetimeMinutes),
+            CreatedAt = now
+        });
+        await db.SaveChangesAsync(ct);
+
+        loginAttempts.Reset(RegisterOtpAttemptKey(email));
+        await SendRegisterOtpEmailAsync(email, code, ct);
+        return Result<SendRegisterOtpResponse>.Ok(
+            new SendRegisterOtpResponse("Mã xác thực đã được gửi qua email (hiệu lực 5 phút)", OtpExpiresInSeconds));
+    }
+
+    /// <summary>
+    /// Bước 2/3: xác nhận mã OTP → cấp otpToken (10 phút, dùng 1 lần khi register).
+    /// Sai mã 5 lần liên tiếp → khóa tạm 15 phút (LoginAttemptTracker).
+    /// </summary>
+    public async Task<Result<VerifyRegisterOtpResponse>> VerifyRegisterOtpAsync(VerifyRegisterOtpRequest request, CancellationToken ct)
+    {
+        var email = NormalizeEmail(request.Email);
+        var code = (request.Code ?? string.Empty).Trim();
+        if (code.Length != 6 || !code.All(char.IsAsciiDigit))
+        {
+            return Result<VerifyRegisterOtpResponse>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Mã xác thực phải gồm 6 chữ số", new() { ["code"] = ["Mã xác thực phải gồm 6 chữ số"] });
+        }
+
+        var otpKey = RegisterOtpAttemptKey(email);
+        if (loginAttempts.IsLocked(otpKey))
+        {
+            return Result<VerifyRegisterOtpResponse>.Fail(ErrorCodes.ACCOUNT_LOCKED,
+                "Bạn đã nhập sai mã quá nhiều lần. Vui lòng thử lại sau 15 phút");
+        }
+
+        var otp = await db.RegisterOtpCodes.AsNoTracking()
+            .Where(o => o.Email == email && !o.Used && o.VerifyTokenHash == null)
+            .OrderByDescending(o => o.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (otp is null || otp.ExpiresAt <= clock.UtcNow)
+        {
+            return Result<VerifyRegisterOtpResponse>.Fail(ErrorCodes.OTP_EXPIRED,
+                "Mã xác thực đã hết hạn — hãy yêu cầu gửi lại mã mới");
+        }
+
+        if (otp.CodeHash != HashOtpCode(code))
+        {
+            loginAttempts.RecordFailure(otpKey);
+            logger.LogWarning("Failed register OTP verify for email {Email}", email);
+
+            // Tăng đếm sai trên chính dòng mã — sai quá 5 lần → vô hiệu mã (chống brute force từng mã)
+            var trackedOtp = await db.RegisterOtpCodes.FirstOrDefaultAsync(o => o.Id == otp.Id && !o.Used, ct);
+            if (trackedOtp is not null)
+            {
+                trackedOtp.FailedAttempts++;
+                if (trackedOtp.FailedAttempts >= RegisterOtpMaxFailedAttempts)
+                {
+                    trackedOtp.Used = true;
+                }
+                await db.SaveChangesAsync(ct);
+            }
+
+            return Result<VerifyRegisterOtpResponse>.Fail(ErrorCodes.OTP_INVALID, "Mã xác thực không đúng");
+        }
+
+        // Cấp otpToken — consume mã đồng thời (atomic theo mã, dùng đúng 1 lần)
+        var token = GenerateOtpToken();
+        var tokenHash = HashOtpCode(token);
+        var tokenExpiresAt = clock.UtcNow.AddMinutes(RegisterOtpTokenLifetimeMinutes);
+        var issued = await TryIssueRegisterOtpTokenAsync(otp.Id, tokenHash, tokenExpiresAt, ct);
+        if (issued == 0)
+        {
+            return Result<VerifyRegisterOtpResponse>.Fail(ErrorCodes.OTP_USED, "Mã xác thực đã được sử dụng");
+        }
+
+        loginAttempts.Reset(otpKey);
+        return Result<VerifyRegisterOtpResponse>.Ok(new VerifyRegisterOtpResponse(
+            token, RegisterOtpTokenExpiresInSeconds, "Đã xác thực email"));
+    }
+
     // ── Private helpers ───────────────────────────────────────
+
+    /// <summary>Key LoginAttemptTracker riêng cho OTP đăng ký (không trộn với login/2FA).</summary>
+    private static string RegisterOtpAttemptKey(string email) => "reg-otp:" + email;
+
+    /// <summary>
+    /// Mã OTP cố định cho môi trường dev/test (config <c>DSA:Auth:DevOtpCode</c>) — để chạy luồng
+    /// đăng ký 3 bước khi chưa cấu hình SMTP. Production KHÔNG cấu hình key này → luôn mã random.
+    /// </summary>
+    private string? GetDevOtpCode()
+    {
+        var devCode = config["DSA:Auth:DevOtpCode"];
+        return string.IsNullOrWhiteSpace(devCode) ? null : devCode.Trim();
+    }
+
+    /// <summary>Check domain được phép (SDD §7.5: allowed.email.domains) — trả message lỗi hoặc null nếu qua.</summary>
+    private async Task<string?> GetDomainViolationAsync(string email, CancellationToken ct)
+    {
+        var allowedDomains = await settings.GetValueAsync(SettingAllowedDomains, ct);
+        if (string.IsNullOrWhiteSpace(allowedDomains))
+        {
+            return null;
+        }
+
+        var domains = allowedDomains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var emailDomain = email[(email.IndexOf('@') + 1)..];
+        return domains.Length > 0 && !domains.Contains(emailDomain, StringComparer.OrdinalIgnoreCase)
+            ? "Email không thuộc domain được phép đăng ký"
+            : null;
+    }
+
+    /// <summary>otpToken 43 ký tự base64url (32 byte crypto-random) — client giữ nguyên bản, DB chỉ lưu SHA256 hash.</summary>
+    private static string GenerateOtpToken() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+    /// <summary>
+    /// Verify đúng mã → cấp otpToken bằng UPDATE ĐIỀU KIỆN atomic trên dòng mã
+    /// (2 verify song song cùng mã → 1 thắng, 1 trả OTP_USED). InMemory fallback tracked entity.
+    /// </summary>
+    private async Task<int> TryIssueRegisterOtpTokenAsync(int otpId, string tokenHash, DateTime tokenExpiresAt, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.RegisterOtpCodes
+                .Where(o => o.Id == otpId && !o.Used && o.VerifyTokenHash == null)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(o => o.VerifyTokenHash, tokenHash)
+                    .SetProperty(o => o.TokenExpiresAt, tokenExpiresAt), ct);
+        }
+
+        var tracked = await db.RegisterOtpCodes.FirstOrDefaultAsync(
+            o => o.Id == otpId && !o.Used && o.VerifyTokenHash == null, ct);
+        if (tracked is null)
+        {
+            return 0;
+        }
+
+        tracked.VerifyTokenHash = tokenHash;
+        tracked.TokenExpiresAt = tokenExpiresAt;
+        await db.SaveChangesAsync(ct);
+        return 1;
+    }
+
+    /// <summary>
+    /// RegisterAsync tiêu otpToken bằng UPDATE ĐIỀU KIỆN atomic (token dùng đúng 1 lần —
+    /// 2 register song song cùng token → 1 thắng, 1 trả OTP_USED).
+    /// </summary>
+    private async Task<int> TryConsumeRegisterOtpTokenAsync(int otpId, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.RegisterOtpCodes
+                .Where(o => o.Id == otpId && !o.TokenUsed && o.TokenExpiresAt != null)
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.TokenUsed, true), ct);
+        }
+
+        var tracked = await db.RegisterOtpCodes.FirstOrDefaultAsync(
+            o => o.Id == otpId && !o.TokenUsed && o.TokenExpiresAt != null, ct);
+        if (tracked is null)
+        {
+            return 0;
+        }
+
+        tracked.TokenUsed = true;
+        await db.SaveChangesAsync(ct);
+        return 1;
+    }
+
+    /// <summary>True khi DbUpdateException là unique violation trên index StaffCode (A3 race register cùng mã GV).</summary>
+    private static bool IsUniqueStaffCodeViolation(DbUpdateException ex)
+    {
+        for (var current = (Exception?)ex; current is not null; current = current.InnerException)
+        {
+            if (current is SqlException { Number: 2601 or 2627 }
+                || current.Message.Contains("IX_Users_StaffCode", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Gửi email chứa mã OTP đăng ký — SMTP thiếu → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5).</summary>
+    private async Task SendRegisterOtpEmailAsync(string email, string code, CancellationToken ct)
+    {
+        var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
+
+        if (string.IsNullOrWhiteSpace(emailOpts.SmtpHost))
+        {
+            logger.LogWarning("SMTP chưa cấu hình — không gửi được mã OTP đăng ký cho email {Email}", email);
+            return;
+        }
+
+        try
+        {
+            using var smtp = SmtpClientFactory.Create(emailOpts);
+            await smtp.SendMailAsync(
+                emailOpts.From ?? "no-reply@dsa-visual.local",
+                email,
+                "Mã xác thực đăng ký — DSA Visual",
+                $"Mã xác thực đăng ký tài khoản của bạn là: {code}\n\nMã có hiệu lực {OtpLifetimeMinutes} phút và chỉ dùng được 1 lần.\nNếu bạn không yêu cầu đăng ký, hãy bỏ qua email này.", ct);
+        }
+        catch (Exception ex)
+        {
+            // Email lỗi KHÔNG block luồng đăng ký (SDD §5.6); KHÔNG log mã OTP (finding security#5)
+            logger.LogError(ex, "Gửi email mã OTP đăng ký thất bại cho email {Email}", email);
+        }
+    }
 
     private async Task<Result<RefreshResponse>> IssueTokensAsync(User user, string? ipAddress, CancellationToken ct)
     {
@@ -942,6 +1427,7 @@ public sealed class AuthService(
         AvatarUrl = user.AvatarUrl,
         CreatedAt = user.CreatedAt,
         Xp = user.Xp,
-        Level = 1 + (int)Math.Floor(Math.Sqrt(user.Xp / 100.0))
+        Level = 1 + (int)Math.Floor(Math.Sqrt(user.Xp / 100.0)),
+        TwoFactorEnabled = user.TwoFactorEnabled
     };
 }

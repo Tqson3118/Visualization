@@ -36,6 +36,8 @@ export interface ExerciseDto {
   maxScore: number;
   status: 'draft' | 'active' | 'hidden';
   questions: QuestionDto[];
+  passThreshold?: number;
+  passingScore?: number;
 }
 
 /** Dòng trong GET /exercises (PagedResponse<ExerciseSummaryDto> — không kèm questions; lấy chi tiết qua GET /exercises/{id}) */
@@ -50,6 +52,7 @@ export interface ExerciseSummaryDto {
   durationMinutes: number;
   maxScore: number;
   status: 'draft' | 'active' | 'hidden';
+  createdBy?: number;
   /** Số user đã pass exercise này (field mới — optional để tương thích khi backend chưa deploy) */
   completedByUserCount?: number;
 }
@@ -85,7 +88,16 @@ export interface SubmissionSummaryDto {
 
 // ── CRUD (API_REFERENCE §4.6) ──
 
-export async function fetchExercises(params: { lessonId?: number; nodeId?: number; stage?: number } = {}): Promise<ExerciseSummaryDto[]> {
+export async function fetchExercises(params: {
+  lessonId?: number;
+  nodeId?: number;
+  stage?: number;
+  topicId?: number;
+  courseId?: number;
+  roadmapId?: number;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<ExerciseSummaryDto[]> {
   // BE trả PagedResponse<ExerciseSummaryDto> { items, ... } (API_REFERENCE §3.11) — unwrap items (SETUP_TODO §6.6)
   const paged = await getData<PagedResponse<ExerciseSummaryDto>>({ method: 'GET', url: EXERCISE_ENDPOINTS.list, params });
   return Array.isArray(paged.items) ? paged.items : [];

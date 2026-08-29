@@ -5,6 +5,7 @@ import { Toaster } from 'vue-sonner';
 
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppFooter from '@/components/layout/AppFooter.vue';
+import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 import { startCosmicField } from '@/composables/useCosmicField';
 import { useLenis } from '@/composables/useLenis';
 import { useUiStore } from '@/stores/ui';
@@ -62,16 +63,28 @@ function onPageEnter(): void {
            (global.css đã cắt transition khi reduce). -->
       <RouterView v-slot="{ Component, route }">
         <Transition name="page" mode="out-in" @after-enter="onPageEnter">
-          <!-- lesson-study: key cố định theo route name — chuyển bài (đổi param id)
-               KHÔNG remount/fade cả trang (tránh nháy khi bấm bài 1→2, bài 2→3...);
-               các route khác giữ fullPath như cũ. -->
-          <component :is="Component" :key="route.name === 'lesson-study' ? 'lesson-study' : route.fullPath" />
+          <!-- G1: key theo route.path — đổi query params (tabs/filters/page) KHÔNG remount lại cả trang;
+               lesson-study cố định theo tên route để chuyển bài không nháy. -->
+          <component :is="Component" :key="route.name === 'lesson-study' ? 'lesson-study' : route.path" />
         </Transition>
       </RouterView>
     </main>
 
-    <!-- Footer bê từ VisualizationDSA3 (ẩn trên màn hình học bài, danh sách khóa học và sandbox full-height) -->
-    <AppFooter v-if="!['lesson-study', 'courses'].includes(String(route.name)) && !isSandboxRoute" />
+    <!-- Footer bê từ VisualizationDSA3 (ẩn trên màn hình học bài và sandbox full-height) -->
+    <AppFooter v-if="!['lesson-study'].includes(String(route.name)) && !isSandboxRoute" />
+
+    <!-- Global Confirm Modal -->
+    <ConfirmModal
+      v-if="ui.modalState.kind === 'confirm'"
+      :show="ui.modalState.open"
+      :title="(ui.modalState.payload as any)?.title || 'Xác nhận'"
+      :message="(ui.modalState.payload as any)?.message || 'Bạn có chắc chắn muốn thực hiện hành động này?'"
+      :confirm-text="(ui.modalState.payload as any)?.confirmLabel || 'Xác nhận'"
+      :cancel-text="(ui.modalState.payload as any)?.cancelLabel || 'Hủy'"
+      :variant="(ui.modalState.payload as any)?.variant || 'primary'"
+      @update:show="(open) => { if (!open) ui.closeModal(false); }"
+      @confirm="ui.closeModal(true)"
+    />
 
     <!-- Toast G-F1b: vue-sonner (thay ToastContainer tự xây) — G-F2a giữ mount hoàn chỉnh -->
     <Toaster position="top-right" :theme="ui.theme" rich-colors close-button />
@@ -140,4 +153,48 @@ function onPageEnter(): void {
 }
 
 .app-shell__footer nav { display: flex; gap: var(--space-md); }
+
+/* C9: Print styles toàn cục chuẩn văn bản trắng đen */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  body,
+  .app-shell,
+  .app-shell__main {
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+  .app-header,
+  .app-footer,
+  .cosmic-field,
+  .no-print,
+  button,
+  nav,
+  [role="dialog"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+  .app-shell {
+    padding-top: 0 !important;
+  }
+  table,
+  th,
+  td {
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+  }
+}
 </style>
