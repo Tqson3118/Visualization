@@ -529,32 +529,21 @@ async function handleImportCsv(): Promise<void> {
           <Input v-model="form.title" label="Tiêu đề bài tập" placeholder="Ví dụ: Kiểm tra trắc nghiệm Mảng & Danh sách liên kết" required />
 
           <div>
-            <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Gắn vào Node Ladder</label>
+            <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Bài học liên kết (Bắt buộc theo D0)</label>
             <select
-              v-model="form.nodeId"
+              v-model="form.lessonId"
               class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
+              required
             >
-              <option :value="null">-- Không gán vào Node (Bài tập độc lập) --</option>
-              <option v-for="i in 8" :key="i" :value="i">
-                Node {{ i }} (Bậc {{ ((i % 3) + 1) }})
+              <option :value="0" disabled>-- Chọn bài học đỡ đầu --</option>
+              <option v-for="l in lessons" :key="l.id" :value="l.id">
+                #{{ l.id }} - {{ l.title }}
               </option>
             </select>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Bài học liên kết</label>
-            <select
-              v-model="form.lessonId"
-              class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
-            >
-              <option v-for="l in lessons" :key="l.id" :value="l.id">
-                #{{ l.id }} - {{ l.title }}
-              </option>
-            </select>
-          </div>
-
           <div>
             <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Thời gian làm bài (Phút)</label>
             <input
@@ -574,6 +563,17 @@ async function handleImportCsv(): Promise<void> {
               min="10"
               class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
             />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Trạng thái phát hành</label>
+            <select
+              v-model="form.status"
+              class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
+            >
+              <option value="Active">Kích hoạt (Active)</option>
+              <option value="Draft">Bản nháp (Draft)</option>
+            </select>
           </div>
         </div>
 
