@@ -14,8 +14,9 @@ import { Motion } from 'motion-v';
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, QuestionDto } from '@/api/exercises';
 import { useUiStore } from '@/stores/ui';
+import { useProgressStore } from '@/stores/progress';
 import { messages } from '@/i18n/vi';
-import QuizStage from '@/components/ladder/QuizStage.vue';
+import QuizStage from '@/components/quiz/QuizStage.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
@@ -81,13 +82,20 @@ function buildLocalFinalTest(): ExerciseDto {
   };
 }
 
-function onPassed(scorePct: number): void {
+async function onPassed(scorePct: number): Promise<void> {
+  const isPassed = scorePct >= passThreshold.value;
   ui.showToast(
-    scorePct >= passThreshold.value
+    isPassed
       ? messages.finalTest.toastPassed
       : messages.finalTest.toastFailed(passThreshold.value, scorePct),
-    scorePct >= passThreshold.value ? 'success' : 'warning',
+    isPassed ? 'success' : 'warning',
   );
+  if (isPassed) {
+    try {
+      const progressStore = useProgressStore();
+      await progressStore.fetchOverview();
+    } catch {}
+  }
 }
 </script>
 

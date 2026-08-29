@@ -9,7 +9,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, SubmissionSummaryDto } from '@/api/exercises';
-import QuizStage from '@/components/ladder/QuizStage.vue';
+import QuizStage from '@/components/quiz/QuizStage.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';

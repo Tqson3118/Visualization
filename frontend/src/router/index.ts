@@ -15,8 +15,6 @@ const FinalTestView = () => import('@/views/FinalTestView.vue');
 const SimulationsView = () => import('@/views/SimulationsView.vue');
 const SimulatorView = () => import('@/views/SimulatorView.vue');
 const ExerciseView = () => import('@/views/ExerciseView.vue');
-const LadderView = () => import('@/views/LadderView.vue');
-const LabView = () => import('@/views/LabView.vue');
 const CodeRunnerView = () => import('@/views/CodeRunnerView.vue');
 const CheatSheetView = () => import('@/views/CheatSheetView.vue');
 const LeaderboardView = () => import('@/views/LeaderboardView.vue');
@@ -165,19 +163,14 @@ const router = createRouter({
       name: 'simulator',
       component: SimulatorView,
     },
-    // Màn 14 — Practice Ladder
+    // Alias cũ: /ladder/:nodeId & /ladder/:nodeId/lab → /path (D2)
     {
       path: '/ladder/:nodeId',
-      name: 'ladder',
-      component: LadderView,
-      meta: { requiresAuth: true },
+      redirect: '/path',
     },
-    // Màn 15 — Interactive Lab (Bậc 2)
     {
       path: '/ladder/:nodeId/lab',
-      name: 'lab',
-      component: LabView,
-      meta: { requiresAuth: true },
+      redirect: '/path',
     },
     // Màn 16 — Code Runner
     {
