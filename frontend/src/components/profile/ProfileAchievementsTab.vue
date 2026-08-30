@@ -11,7 +11,7 @@ const achievements = computed(() => gamification.achievements);
 
 <template>
   <div class="profile__achievements-panel">
-    <div class="profile__achievements">
+    <div v-if="achievements.length > 0" class="profile__achievements">
       <div
         v-for="ach in achievements"
         :key="ach.id"
@@ -28,7 +28,7 @@ const achievements = computed(() => gamification.achievements);
       </div>
     </div>
     <EmptyState
-      v-if="achievements.every((a) => !a.earnedAt)"
+      v-else
       icon="party-popper"
       title="Chưa có huy hiệu"
       description="Bắt đầu học để mở huy hiệu đầu tiên nhé!"

@@ -21,6 +21,7 @@ export interface Structure {
   kind: string;          // 'array' | 'linkedlist' | 'stack' | 'queue' | 'tree' | 'heap' | 'hashtable' | 'graph'
   elements: Element[];
   links: Link[];
+  meta?: Record<string, unknown>;
 }
 
 export interface Step {

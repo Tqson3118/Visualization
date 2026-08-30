@@ -116,7 +116,7 @@ export function createRng(seed: number): () => number {
     s ^= s >> 17;
     s ^= s << 5;
     s >>>= 0;
-    return s / 0xffffffff;
+    return s / 0x100000000;
   };
 }
 
@@ -466,7 +466,7 @@ export function graphStructure(
       id: `node:${i}`,
       label: String(i),
       status: statuses.nodes[i] ?? 'default',
-      meta: dist ? { d: dist[i] } : { d: null },
+      meta: dist ? { d: dist[i], directed: g.directed } : { d: null, directed: g.directed },
     };
     elements.push(el);
   }
@@ -499,6 +499,7 @@ export function hashStructure(
   buckets: number[][],
   statuses: Record<string, ElementStatus>,
   bucketStatuses: Record<number, ElementStatus> = {},
+  meta?: Record<string, unknown>,
 ): Structure {
   const elements: Element[] = [];
   for (let b = 0; b < tableSize; b++) {
@@ -507,6 +508,7 @@ export function hashStructure(
       label: `[${b}]`,
       status: bucketStatuses[b] ?? 'default',
       group: `bucket:${b}`,
+      meta: meta ? { ...meta } : undefined,
     });
     buckets[b].forEach((key, pos) => {
       elements.push({
@@ -524,5 +526,5 @@ export function hashStructure(
       links.push({ from: `node:${buckets[b][pos]}`, to: `node:${buckets[b][pos + 1]}`, label: 'next' });
     }
   }
-  return { kind: 'hashtable', elements, links };
+  return { kind: 'hashtable', elements, links, meta };
 }

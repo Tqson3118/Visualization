@@ -371,6 +371,8 @@ export interface MockApiOptions {
   heartsMax?: number;
   /** Vai trò user trong mock (mặc định STUDENT) — spec teacher/admin dùng TEACHER/ADMIN */
   role?: typeof MOCK_USER.role;
+  /** Đã đăng nhập sẵn (POST /auth/refresh trả 200 ngay lúc boot) */
+  authenticated?: boolean;
 }
 
 function json(route: Route, status: number, body: unknown): Promise<void> {
@@ -403,7 +405,19 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
   // luôn trả 200 thì app boot coi như đã authenticated → guard guestOnly/requiresAuth
   // không redirect /login → spec auth/ladder/code-runner fail. Refresh phải trả 401 khi
   // chưa login (giống backend không có refresh-token cookie), 200 chỉ sau khi đã login.
-  let isAuthenticated = false;
+  let isAuthenticated = options.authenticated ?? false;
+
+  if (options.authenticated) {
+    try {
+      await page.context().addCookies([
+        {
+          name: 'dsa.session',
+          value: '1',
+          url: 'http://localhost:5174',
+        },
+      ]);
+    } catch {}
+  }
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -462,16 +476,220 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       await json(route, 200, MOCK_TOPICS);
       return;
     }
+    if (method === 'POST' && path === '/topics') {
+      const body = request.postDataJSON() as Partial<Topic> | null;
+      const newTopic: Topic = {
+        id: 900 + Math.floor(Math.random() * 100),
+        name: body?.name || 'Chương mới',
+        description: body?.description || '',
+        sortOrder: body?.sortOrder || 10,
+        parentId: null,
+        children: [],
+      };
+      await json(route, 201, newTopic);
+      return;
+    }
+    if (method === 'PUT' && /^\/topics\/\d+$/.test(path)) {
+      const body = request.postDataJSON() as Partial<Topic> | null;
+      await json(route, 200, { id: 1, ...body });
+      return;
+    }
+    if (method === 'DELETE' && /^\/topics\/\d+$/.test(path)) {
+      await empty(route, 204);
+      return;
+    }
 
-    // ── Classes (API_REFERENCE §4.11) — G-F3E-NEW-2: Leaderboard tab Lớp lấy classId ──
+    // ── Classes (API_REFERENCE §4.11) — G-F3E-NEW-2 ──
     if (method === 'GET' && path === '/classes') {
-      await json(route, 200, MOCK_CLASSES);
+      await json(route, 200, [
+        {
+          ...MOCK_CLASSES[0],
+          role: mockUser.role === 'TEACHER' || mockUser.role === 'ADMIN' ? 'TEACHER' : 'STUDENT',
+        },
+      ]);
+      return;
+    }
+    if (method === 'GET' && /^\/classes\/\d+$/.test(path)) {
+      await json(route, 200, {
+        ...MOCK_CLASSES[0],
+        role: mockUser.role === 'TEACHER' || mockUser.role === 'ADMIN' ? 'TEACHER' : 'STUDENT',
+        assignments: [
+          {
+            id: 101,
+            classId: 7,
+            lessonId: 1,
+            exerciseId: null,
+            orderIndex: 1,
+            dueAt: '2026-09-01T23:59:59.000Z',
+            allowLateSubmission: true,
+            title: 'Bài 1: Sắp xếp nổi bọt (Bubble Sort)',
+          },
+          {
+            id: 102,
+            classId: 7,
+            lessonId: 2,
+            exerciseId: null,
+            orderIndex: 2,
+            dueAt: '2026-09-05T23:59:59.000Z',
+            allowLateSubmission: true,
+            title: 'Bài 2: Tìm kiếm nhị phân',
+          },
+          {
+            id: 103,
+            classId: 7,
+            lessonId: null,
+            exerciseId: 1,
+            orderIndex: 3,
+            dueAt: '2026-09-10T23:59:59.000Z',
+            allowLateSubmission: false,
+            title: 'Bài tập 3: Trắc nghiệm Bubble Sort',
+          },
+        ],
+      });
+      return;
+    }
+    if (method === 'GET' && /^\/classes\/\d+\/assignments$/.test(path)) {
+      await json(route, 200, [
+        {
+          id: 101,
+          classId: 7,
+          lessonId: 1,
+          exerciseId: null,
+          orderIndex: 1,
+          dueAt: '2026-09-01T23:59:59.000Z',
+          allowLateSubmission: true,
+          title: 'Bài 1: Sắp xếp nổi bọt (Bubble Sort)',
+        },
+        {
+          id: 102,
+          classId: 7,
+          lessonId: 2,
+          exerciseId: null,
+          orderIndex: 2,
+          dueAt: '2026-09-05T23:59:59.000Z',
+          allowLateSubmission: true,
+          title: 'Bài 2: Tìm kiếm nhị phân',
+        },
+        {
+          id: 103,
+          classId: 7,
+          lessonId: null,
+          exerciseId: 1,
+          orderIndex: 3,
+          dueAt: '2026-09-10T23:59:59.000Z',
+          allowLateSubmission: false,
+          title: 'Bài tập 3: Trắc nghiệm Bubble Sort',
+        },
+      ]);
+      return;
+    }
+    if (method === 'POST' && /^\/classes\/\d+\/assignments$/.test(path)) {
+      const body = request.postDataJSON() as any;
+      await json(route, 201, {
+        id: 100 + Math.floor(Math.random() * 100),
+        classId: 7,
+        lessonId: body?.lessonId ?? null,
+        exerciseId: body?.exerciseId ?? null,
+        orderIndex: 4,
+        dueAt: body?.dueAt ?? null,
+        allowLateSubmission: body?.allowLateSubmission ?? true,
+        title: body?.lessonId ? `Bài học #${body.lessonId}` : `Bài tập #${body?.exerciseId}`,
+      });
+      return;
+    }
+    if (method === 'PUT' && (/^\/classes\/\d+\/curriculum\/reorder$/.test(path) || /^\/classes\/\d+\/assignments\/reorder$/.test(path))) {
+      await json(route, 200, { success: true });
+      return;
+    }
+    if (method === 'DELETE' && /^\/classes\/\d+\/assignments\/\d+$/.test(path)) {
+      await empty(route, 204);
+      return;
+    }
+    if (method === 'GET' && /^\/classes\/\d+\/curriculum$/.test(path)) {
+      await json(route, 200, {
+        title: 'Lộ trình Lớp DSA 01',
+        description: 'Lộ trình giải thuật cơ bản và nâng cao',
+        published: true,
+        progressPct: 35,
+        items: [
+          {
+            assignmentId: 101,
+            title: 'Sắp xếp nổi bọt (Bubble Sort)',
+            exerciseId: null,
+            status: 'completed',
+            bestScore: 10,
+          },
+          {
+            assignmentId: 102,
+            title: 'Tìm kiếm nhị phân',
+            exerciseId: null,
+            status: 'in_progress',
+            bestScore: null,
+          },
+          {
+            assignmentId: 103,
+            title: 'Trắc nghiệm Bubble Sort',
+            exerciseId: 1,
+            status: 'not_started',
+            bestScore: null,
+          },
+        ],
+      });
       return;
     }
 
     if (method === 'GET' && path === '/lessons') {
-      // PagedResponse<LessonSummary> — rỗng, an toàn cho view dùng fallback
-      await json(route, 200, { items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 });
+      // Trả về danh sách bài học mẫu cho Studio
+      const defaultLessons = [
+        {
+          id: 1,
+          title: 'Sắp xếp nổi bọt (Bubble Sort)',
+          description: 'Thuật toán sắp xếp cơ bản',
+          topicId: 1,
+          sortOrder: 1,
+          status: 'active',
+          simulationCount: 1,
+          exerciseCount: 1,
+          progress: null,
+          createdBy: 1,
+        },
+        {
+          id: 2,
+          title: 'Tìm kiếm nhị phân',
+          description: 'Chia đôi không gian tìm kiếm mỗi bước',
+          topicId: 1,
+          sortOrder: 2,
+          status: 'active',
+          simulationCount: 1,
+          exerciseCount: 1,
+          progress: null,
+          createdBy: 1,
+        },
+        {
+          id: 3,
+          title: 'Sắp xếp nhanh (Quick Sort)',
+          description: 'Chia để trị với pivot ngẫu nhiên',
+          topicId: 1,
+          sortOrder: 3,
+          status: 'pendingreview',
+          simulationCount: 1,
+          exerciseCount: 0,
+          progress: null,
+          createdBy: 2,
+        },
+      ];
+      await json(route, 200, { items: defaultLessons, page: 1, pageSize: 20, total: defaultLessons.length, totalPages: 1 });
+      return;
+    }
+    if (method === 'POST' && /^\/lessons\/\d+\/review$/.test(path)) {
+      const body = request.postDataJSON() as { approve?: boolean; reason?: string } | null;
+      await json(route, 200, {
+        message: body?.approve ? 'Đã phê duyệt bài học thành công!' : 'Đã từ chối bài học.',
+      });
+      return;
+    }
+    if (method === 'DELETE' && /^\/lessons\/\d+$/.test(path)) {
+      await empty(route, 204);
       return;
     }
     if (method === 'GET' && /^\/lessons\/\d+$/.test(path)) {
@@ -479,19 +697,16 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    // ── Exercises (API_REFERENCE §4.6) — G-F2b: GET /exercises/{id} để Màn 06 render quiz thật
+    // ── Exercises (API_REFERENCE §4.6) ──
     if (method === 'GET' && /^\/exercises\/\d+$/.test(path)) {
       await json(route, 200, MOCK_EXERCISE);
       return;
     }
-    // G-F2c: GET /exercises?nodeId&stage — LadderView (Bậc 1 quiz + Bậc 3 code) → trả summary
     if (method === 'GET' && path === '/exercises') {
-      const nodeIdParam = url.searchParams.get('nodeId');
-      const stageParam = url.searchParams.get('stage');
       const items = [
-        { id: 1, title: 'Trắc nghiệm Bubble Sort', type: 'MCQ', lessonId: 1, nodeId: 1, stage: 1, durationMinutes: 10, maxScore: 4, status: 'active' },
-        { id: 2, title: 'Code Bubble Sort', type: 'CODE', lessonId: 1, nodeId: 1, stage: 3, durationMinutes: 15, maxScore: 10, status: 'active' },
-      ].filter((item) => (!nodeIdParam || String(item.nodeId) === nodeIdParam) && (!stageParam || String(item.stage) === stageParam));
+        { id: 1, title: 'Trắc nghiệm Bubble Sort', type: 'MCQ', lessonId: 1, nodeId: 1, stage: 1, durationMinutes: 10, maxScore: 4, status: 'active', createdBy: 1 },
+        { id: 2, title: 'Code Bubble Sort', type: 'CODE', lessonId: 1, nodeId: 1, stage: 3, durationMinutes: 15, maxScore: 10, status: 'active', createdBy: 1 },
+      ];
       await json(route, 200, { items, page: 1, pageSize: 20, total: items.length, totalPages: 1 });
       return;
     }
@@ -504,7 +719,6 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
 
     // ── Gamification (API_REFERENCE §4.14) ──
     if (method === 'GET' && path === '/me/inventory') {
-      // AppHeader (global) fetch inventory trên mọi trang — mock rỗng (D4: tránh 404 console).
       await json(route, 200, []);
       return;
     }
@@ -526,7 +740,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    // ── Leaderboard (API_REFERENCE §4.14 — G-F2d: PagedResponse, thứ tự theo tab) ──
+    // ── Leaderboard (API_REFERENCE §4.14) ──
     if (method === 'GET' && path === '/leaderboard') {
       const tab = url.searchParams.get('tab') ?? 'week';
       const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
@@ -540,13 +754,12 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
     if (method === 'POST' && /^\/learning-path\/\d+\/nodes\/\d+\/enter$/.test(path)) {
-      // FR-10.1: trừ 1 tim atomic — heartsLeft giảm mỗi lần gọi (mock stateful)
       hearts = Math.max(0, hearts - 1);
       await json(route, 200, { session: { id: 1, nodeId: 1 }, heartsLeft: hearts });
       return;
     }
 
-    // ── Favorites (API_REFERENCE §4.9 — SimulatorView checkFavorite khi đã đăng nhập) ──
+    // ── Favorites (API_REFERENCE §4.9) ──
     if (method === 'GET' && path === '/favorites') {
       await json(route, 200, []);
       return;
@@ -560,7 +773,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    // ── Code Runner (API_REFERENCE §4.13 — ADR-012 sandbox client; chỉ lưu vết lên server) ──
+    // ── Code Runner (API_REFERENCE §4.13) ──
     if (method === 'POST' && path === '/code-runs') {
       await json(route, 201, {
         id: 1,
@@ -577,7 +790,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    // ── Benchmark (API_REFERENCE §4.14 — G-F2c: POST /benchmarks/run lưu kết quả đo client) ──
+    // ── Benchmark (API_REFERENCE §4.14) ──
     if (method === 'POST' && path === '/benchmarks/run') {
       const body = request.postDataJSON() as { keys?: string[]; sizes?: number[] } | null;
       await json(route, 201, {
@@ -590,13 +803,91 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    // ── Courses/Lộ trình (courseApi — /concepts/courses*) — B4 ──
+    // ── Courses / Lộ trình (courseApi — /concepts/courses*) ──
+    if (method === 'GET' && path === '/concepts/courses/pending') {
+      await json(route, 200, [
+        {
+          id: '99',
+          title: 'Lộ trình Cây nhị phân nâng cao',
+          description: 'Cây AVL, Red-Black, Min-Max Heap và ứng dụng',
+          category: 'Tree/Graph',
+          difficulty: 'Advanced',
+          isPremium: false,
+          isPublished: false,
+          status: 'pending_review',
+          xpReward: 300,
+          totalLessons: 4,
+          completedLessons: 0,
+          progressPercent: 0,
+          authorName: 'Giảng viên Thu Hà',
+          createdBy: 15,
+          submittedAt: '2026-08-20T00:00:00.000Z',
+        },
+      ]);
+      return;
+    }
+    if (method === 'POST' && /^\/concepts\/courses\/[^/]+\/review$/.test(path)) {
+      const body = request.postDataJSON() as { approve?: boolean; reason?: string } | null;
+      await json(route, 200, {
+        message: body?.approve ? 'Đã duyệt giáo trình thành công!' : 'Đã từ chối giáo trình.',
+      });
+      return;
+    }
+    if (method === 'POST' && /^\/concepts\/courses\/[^/]+\/submit-review$/.test(path)) {
+      await json(route, 200, {
+        message: 'Đã gửi duyệt giáo trình thành công!',
+      });
+      return;
+    }
+    if (method === 'DELETE' && /^\/concepts\/courses\/[^/]+$/.test(path)) {
+      await empty(route, 204);
+      return;
+    }
     if (method === 'GET' && path === '/concepts/courses') {
       await json(route, 200, MOCK_COURSE_LIST);
       return;
     }
     if (method === 'GET' && /^\/concepts\/courses\/[^/]+$/.test(path)) {
       await json(route, 200, MOCK_COURSE_DETAIL);
+      return;
+    }
+
+    // ── Feedback (for teachers / courses) ──
+    if (method === 'GET' && (path === '/courses/feedback/for-teacher' || path === '/courses/feedback/all')) {
+      await json(route, 200, [
+        {
+          id: 1,
+          courseId: 1,
+          courseTitle: 'Lộ trình nền tảng DSA',
+          userId: 11,
+          userName: 'Nguyễn Minh Anh',
+          type: 'Suggestion',
+          content: 'Bài giảng Bubble Sort rất trực quan, mong thầy cô thêm ví dụ về worst case.',
+          status: 'New',
+          replyText: null,
+          repliedByName: null,
+          repliedAt: null,
+          createdAt: '2026-08-25T10:00:00.000Z',
+        },
+      ]);
+      return;
+    }
+    if (method === 'PUT' && /^\/courses\/feedback\/\d+$/.test(path)) {
+      const body = request.postDataJSON() as any;
+      await json(route, 200, {
+        id: 1,
+        courseId: 1,
+        courseTitle: 'Lộ trình nền tảng DSA',
+        userId: 11,
+        userName: 'Nguyễn Minh Anh',
+        type: 'Suggestion',
+        content: 'Bài giảng Bubble Sort rất trực quan',
+        status: body?.status || 'Resolved',
+        replyText: body?.replyText || 'Cảm ơn em đã góp ý!',
+        repliedByName: 'Giảng viên',
+        repliedAt: '2026-08-30T10:00:00.000Z',
+        createdAt: '2026-08-25T10:00:00.000Z',
+      });
       return;
     }
 

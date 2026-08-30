@@ -160,6 +160,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     if (!currentSim.value || !currentSim.value.generator) return;
     loading.value = true;
     loadError.value = null;
+    clearPlayback();
     try {
       const validation = currentSim.value.generator.validate(input);
       if (!validation.ok) {

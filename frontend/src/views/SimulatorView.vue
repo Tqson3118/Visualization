@@ -19,10 +19,11 @@ import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import * as favoritesApi from '@/api/favorites';
 import { getCatalogMeta } from '@/engines/catalog';
+import type { InputConfig } from '@/engines/core/types';
 import { buildSimOverviewHtml } from '@/utils/simOverview';
 import { getReference } from '@/data/referenceLinks';
 import { messages } from '@/i18n/vi';
-import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Settings2, Share2, Star } from 'lucide-vue-next';
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Maximize2, Minimize2, Settings2, Share2, Star } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 
@@ -37,28 +38,25 @@ const isDemoKey = computed(() => getCatalogMeta(key.value)?.demoAllowed === true
 const isDemo = computed(() => !auth.isAuthenticated);
 
 onMounted(() => {
-  if (!auth.isAuthenticated && !isDemoKey.value) {
-    void router.replace({ name: 'login', query: { redirect: route.fullPath } });
-    return;
-  }
   window.addEventListener('keydown', onKeydown);
   checkFavorite();
+});
 
-  if (route.query.input) {
-    try {
-      const rawInput = route.query.input as string;
-      const parsed = JSON.parse(decodeURIComponent(rawInput));
-      if (parsed !== null && parsed !== undefined) {
-        if (parsed && typeof parsed === 'object' && 'data' in parsed) {
-          void configureInput(parsed as any);
-        } else {
-          void configureInput({ data: parsed } as any);
-        }
+const initialInput = computed<InputConfig | undefined>(() => {
+  if (!route.query.input) return undefined;
+  try {
+    const rawInput = route.query.input as string;
+    const parsed = JSON.parse(decodeURIComponent(rawInput));
+    if (parsed !== null && parsed !== undefined) {
+      if (parsed && typeof parsed === 'object' && 'data' in parsed) {
+        return parsed as InputConfig;
       }
-    } catch (e) {
-      console.warn('Failed to parse input from query string', e);
+      return { data: parsed } as InputConfig;
     }
+  } catch (e) {
+    console.warn('Failed to parse input from query string', e);
   }
+  return undefined;
 });
 
 const {
@@ -83,7 +81,16 @@ const {
   breakpoints,
   breakpointHit,
   toggleBreakpoint,
-} = useSimulation(key.value);
+} = useSimulation(key, initialInput);
+
+watch(steps, (newSteps) => {
+  if (newSteps.length > 0 && route.query.step) {
+    const targetStep = parseInt(String(route.query.step), 10);
+    if (!Number.isNaN(targetStep) && targetStep >= 0) {
+      jumpTo(targetStep);
+    }
+  }
+}, { immediate: true });
 
 const configOpen = ref(false);
 const showLegend = ref(false);
@@ -91,6 +98,8 @@ const favorite = ref(false);
 const showCallStack = ref(false);
 const theoryOpen = ref(false);
 const pseudocodeCollapsed = ref(false);
+const focusMode = ref(false);
+const mobileActiveTab = ref<'canvas' | 'code' | 'explain'>('canvas');
 const renderOptions = ref({ showIndex: true, showValues: true, zoom: 1 });
 
 // ── Dropdown link tham khảo ──
@@ -138,7 +147,9 @@ const complexityFull = computed(() => {
   const meta = getCatalogMeta(key.value);
   if (!meta) return '';
   const { best, average, worst, space } = meta.complexity;
-  return messages.simulator.complexityFull(best, average, worst, space);
+  if (!generator.value) return '';
+  const c = generator.value.complexity;
+  return `Tệ nhất: ${c.worst} | Trung bình: ${c.average} | Tốt nhất: ${c.best} | Bộ nhớ: ${c.space}`;
 });
 
 onBeforeUnmount(() => {
@@ -155,33 +166,48 @@ watch(key, () => {
 /** Phím tắt: Space, ->/<- , Home/End, [ ] */
 function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement;
-  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+  if (
+    (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range') ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT'
+  ) {
+    return;
+  }
   if (configOpen.value) return;
-  switch (event.key) {
-    case ' ':
-      event.preventDefault();
-      status.value === 'running' ? pause() : play();
-      break;
-    case 'ArrowRight':
-      stepForward();
-      break;
-    case 'ArrowLeft':
-      stepBack();
-      break;
-    case 'Home':
-      reset();
-      break;
-    case 'End':
-      if (steps.value.length > 0) {
-        jumpTo(steps.value.length - 1);
-      }
-      break;
-    case '[':
-      setSpeed(Math.max(0.25, speed.value / 2));
-      break;
-    case ']':
-      setSpeed(Math.min(4, speed.value * 2));
-      break;
+  if (event.key === ' ' || event.code === 'Space') {
+    event.preventDefault();
+    status.value === 'running' ? pause() : play();
+    return;
+  }
+  if (event.key === 'ArrowRight' || event.code === 'ArrowRight') {
+    event.preventDefault();
+    stepForward();
+    return;
+  }
+  if (event.key === 'ArrowLeft' || event.code === 'ArrowLeft') {
+    event.preventDefault();
+    stepBack();
+    return;
+  }
+  if (event.key === 'Home' || event.code === 'Home') {
+    event.preventDefault();
+    reset();
+    return;
+  }
+  if (event.key === 'End' || event.code === 'End') {
+    event.preventDefault();
+    if (steps.value.length > 0) {
+      jumpTo(steps.value.length - 1);
+    }
+    return;
+  }
+  if (event.key === '[' || event.code === 'BracketLeft') {
+    setSpeed(Math.max(0.25, speed.value / 2));
+    return;
+  }
+  if (event.key === ']' || event.code === 'BracketRight') {
+    setSpeed(Math.min(4, speed.value * 2));
+    return;
   }
 }
 
@@ -217,15 +243,21 @@ async function toggleFavorite(): Promise<void> {
 }
 
 function shareLink(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set('sim', key.value);
-  if (inputConfig.value) url.searchParams.set('input', encodeURIComponent(JSON.stringify(inputConfig.value.data)));
+  const resolved = router.resolve({ name: 'simulator', params: { key: key.value } });
+  const url = new URL(resolved.href, window.location.origin);
+  if (inputConfig.value?.data) {
+    url.searchParams.set('input', encodeURIComponent(JSON.stringify(inputConfig.value.data)));
+  }
   void navigator.clipboard?.writeText(url.toString()).then(() => {
     ui.showToast(messages.simulator.toastCopied, 'success');
   });
 }
 
 const currentVariables = computed(() => currentStep.value?.variables ?? {});
+const hasCallStack = computed(() => {
+  const raw = currentVariables.value?.callStack;
+  return Array.isArray(raw) && raw.length > 0;
+});
 const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)));
 </script>
 
@@ -250,6 +282,19 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
         <Button
           variant="ghost"
           size="sm"
+          :class="{ 'text-purple-300 bg-purple-500/20 border border-purple-500/40': focusMode }"
+          :aria-label="focusMode ? 'Tắt chế độ tập trung' : 'Bật chế độ tập trung'"
+          :title="focusMode ? 'Thoát chế độ tập trung' : 'Chế độ tập trung (ẩn thanh bên)'"
+          class="hidden sm:inline-flex items-center gap-1 text-xs"
+          @click="focusMode = !focusMode"
+        >
+          <component :is="focusMode ? Minimize2 : Maximize2" :size="14" />
+          <span>{{ focusMode ? 'Thu nhỏ' : 'Tập trung' }}</span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
           :class="{ 'text-amber-400': favorite }"
           :aria-label="favorite ? messages.simulator.unfavoriteAria : messages.simulator.favoriteAria"
           @click="toggleFavorite"
@@ -266,7 +311,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           <span>{{ messages.simulator.inputConfig }}</span>
         </Button>
 
-        <div v-if="docLinks.length > 0" ref="docMenuRef" class="relative">
+        <div v-if="docLinks && docLinks.length > 0" ref="docMenuRef" class="relative">
           <Button
             size="sm"
             variant="ghost"
@@ -308,10 +353,56 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
       </Button>
     </div>
 
+    <!-- Mobile Segmented Tabs (màn hình <= 1024px) -->
+    <nav
+      v-if="!loading && !loadError && !notFound"
+      class="simulator-mobile-tabs lg:hidden flex items-center bg-[#13111C] p-1 rounded-xl border border-white/10 gap-1 shrink-0"
+      aria-label="Chuyển đổi khung nhìn"
+    >
+      <button
+        type="button"
+        class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer"
+        :class="mobileActiveTab === 'canvas' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+        @click="mobileActiveTab = 'canvas'"
+      >
+        Mô phỏng
+      </button>
+      <button
+        type="button"
+        class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer"
+        :class="mobileActiveTab === 'code' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+        @click="mobileActiveTab = 'code'"
+      >
+        Mã giả
+      </button>
+      <button
+        type="button"
+        class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer"
+        :class="mobileActiveTab === 'explain' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+        @click="mobileActiveTab = 'explain'"
+      >
+        Giải thích
+      </button>
+    </nav>
+
     <!-- 3 Cột Workspace: Mã giả · Canvas + Điều khiển · Giải thích -->
-    <div v-else class="simulator-workspace">
+    <!-- Lưu ý: KHÔNG dùng v-else ở đây — nav mobile tabs ở trên có v-if riêng,
+         làm đứt chuỗi v-if/v-else (v-else sẽ ghép nhầm với nav → workspace chỉ render
+         khi loading/lỗi). Dùng điều kiện tường minh để giữ cả hai hiển thị đúng. -->
+    <div
+      v-if="!loading && !loadError && !notFound"
+      class="simulator-workspace"
+      :class="{
+        'simulator-workspace--collapsed-left': pseudocodeCollapsed && !focusMode,
+        'simulator-workspace--focus': focusMode,
+      }"
+    >
       <!-- CỘT 1 (Trái): Mã giả (Pseudocode) & Biến -->
-      <aside class="simulator-col simulator-col--left">
+      <aside
+        v-show="!focusMode"
+        class="simulator-col simulator-col--left"
+        :class="{ 'hidden lg:flex': mobileActiveTab !== 'code', 'flex': mobileActiveTab === 'code' }"
+      >
         <PseudocodePanel
           class="h-full"
           :pseudocode="generator?.pseudocode ?? []"
@@ -325,7 +416,10 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
       </aside>
 
       <!-- CỘT 2 (Giữa): Canvas Trực quan + Điều khiển + Thống kê -->
-      <section class="simulator-col simulator-col--center">
+      <section
+        class="simulator-col simulator-col--center"
+        :class="{ 'hidden lg:flex': mobileActiveTab !== 'canvas' && !focusMode, 'flex': mobileActiveTab === 'canvas' || focusMode }"
+      >
         <div class="simulator-canvas-card">
           <CanvasArea
             :structure="currentStep?.structure ?? null"
@@ -371,10 +465,14 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
       </section>
 
       <!-- CỘT 3 (Phải): Giải thích bước chạy + Chú giải -->
-      <aside class="simulator-col simulator-col--right">
+      <aside
+        v-show="!focusMode"
+        class="simulator-col simulator-col--right"
+        :class="{ 'hidden lg:flex': mobileActiveTab !== 'explain', 'flex': mobileActiveTab === 'explain' }"
+      >
         <ExplainPanel
           :explanation="currentStep?.explanation ?? ''"
-          :kind="undefined"
+          :kind="currentStep?.structure?.kind"
           :frame-key="currentIndex"
         />
 
@@ -389,7 +487,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           <div class="border border-vdsa-border rounded-xl bg-vdsa-surface overflow-hidden">
             <button
               type="button"
-              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition"
+              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition cursor-pointer"
               @click="theoryOpen = !theoryOpen"
             >
               <span>Giới thiệu thuật toán</span>
@@ -400,13 +498,17 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             </div>
           </div>
 
-          <div class="border border-vdsa-border rounded-xl bg-vdsa-surface overflow-hidden">
+          <!-- Chỉ hiển thị Call Stack khi thuật toán thật sự có frame đệ quy -->
+          <div v-if="hasCallStack" class="border border-vdsa-border rounded-xl bg-vdsa-surface overflow-hidden">
             <button
               type="button"
-              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition"
+              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition cursor-pointer"
               @click="showCallStack = !showCallStack"
             >
-              <span>{{ messages.simulator.callStack }}</span>
+              <div class="flex items-center gap-1.5">
+                <span>{{ messages.simulator.callStack }}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 font-mono">Đệ quy</span>
+              </div>
               <component :is="showCallStack ? ChevronDown : ChevronRight" :size="14" />
             </button>
             <div v-if="showCallStack" class="p-3 border-t border-vdsa-border-subtle">
@@ -414,129 +516,145 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
             </div>
           </div>
 
+          <!-- Chú giải màu sắc -->
           <div class="border border-vdsa-border rounded-xl bg-vdsa-surface overflow-hidden">
             <button
               type="button"
-              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition"
+              class="w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-vdsa-secondary hover:text-white transition cursor-pointer"
               @click="showLegend = !showLegend"
             >
               <span>{{ messages.simulator.legend }}</span>
               <component :is="showLegend ? ChevronDown : ChevronRight" :size="14" />
             </button>
             <div v-if="showLegend" class="p-3 border-t border-vdsa-border-subtle">
-              <LegendPanel :collapsed="false" />
+              <LegendPanel />
             </div>
           </div>
-        </div>
-
-        <div class="text-[11px] text-vdsa-muted text-center pt-2 font-mono">
-          Phím tắt: Space (Phát/Dừng) · ←/→ (Tua bước) · Home/End · [ / ] (Tốc độ)
         </div>
       </aside>
     </div>
 
-    <!-- Modal Cấu hình đầu vào -->
+    <!-- Modal Cấu hình dữ liệu đầu vào -->
     <InputModal
+      v-if="generator"
       :open="configOpen"
-      :schema="generator?.inputSchema ?? null"
+      :schema="generator.inputSchema"
       :current="inputConfig"
       :validate="generator?.validate"
-      :loading="loading"
       @close="configOpen = false"
-      @apply="
-        (input) => {
-          configOpen = false;
-          void configureInput(input);
-        }
-      "
+      @apply="(input) => { configureInput(input); configOpen = false; }"
     />
   </div>
 </template>
 
 <style scoped>
 .simulator-app {
+  height: calc(100vh - var(--app-header-h, 68px));
+  max-height: calc(100vh - var(--app-header-h, 68px));
+  /* Viewport thấp (laptop + zoom 125–150%): 100vh−header không đủ chứa controls.
+     min-height thắng height/max-height → trang được CUỘN thay vì cắt cụt,
+     nút Chạy luôn với tới được. */
+  min-height: 560px;
+  background: #0B0914;
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--app-header-h, 112px));
-  max-height: calc(100vh - var(--app-header-h, 112px));
-  overflow: hidden;
-  background: var(--color-bg, #0B0A12);
-  padding: 8px 16px 12px;
+  padding: 8px 12px;
   gap: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Header thanh gọn */
+/* Header */
 .simulator-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 16px;
-  background: var(--color-card-raised, rgba(22, 20, 36, 0.7));
-  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  padding: 4px 12px;
+  background: #13111C;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg, 12px);
-  backdrop-filter: blur(12px);
+  min-height: 44px;
   flex-shrink: 0;
+  gap: 12px;
 }
 
 .simulator-header__left {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .simulator-header__back {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-primary, #A855F7);
+  color: #9CA3AF;
   text-decoration: none;
-  transition: opacity 150ms ease;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color 150ms, background 150ms;
+  flex-shrink: 0;
 }
 .simulator-header__back:hover {
-  opacity: 0.85;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .simulator-header__divider {
-  color: var(--color-text-tertiary, #6B7280);
+  color: rgba(255, 255, 255, 0.2);
   font-size: 12px;
 }
 
 .simulator-header__title {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #FFFFFF;
   margin: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .simulator-header__badge {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
   color: #D1D5DB;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .simulator-header__badge--accent {
   background: rgba(168, 85, 247, 0.15);
-  border-color: rgba(168, 85, 247, 0.3);
-  color: #D8B4FE;
-  font-family: var(--font-mono, monospace);
+  color: #C084FC;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .simulator-header__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
+}
+
+/* Mobile (≤640px): hàng hành động xuống dòng riêng — 5 nút ~453px không vừa 375px,
+   trước đây gây tràn ngang toàn trang. */
+@media (max-width: 640px) {
+  .simulator-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .simulator-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
 }
 
 /* Dropdown link tài liệu */
@@ -574,17 +692,38 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   flex: 1 1 0%;
   min-height: 0;
   display: grid;
-  grid-template-columns: 3fr 6fr 3fr;
+  grid-template-columns: minmax(260px, 3fr) minmax(440px, 6fr) minmax(260px, 3fr);
+  gap: 12px;
+  transition: grid-template-columns 200ms ease;
+}
+
+.simulator-workspace--collapsed-left {
+  grid-template-columns: 56px minmax(500px, 8.5fr) minmax(260px, 3.5fr);
   gap: 12px;
   overflow: hidden;
+}
+
+/* Chế độ tập trung (Zen Mode) */
+.simulator-workspace--focus {
+  grid-template-columns: 1fr;
+  gap: 0;
 }
 
 .simulator-col {
   min-height: 0;
   min-width: 0;
-  display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* display:flex chỉ áp dụng desktop (≥1024px): dưới ngưỡng này việc hiện/ẩn cột
+   do Tailwind utilities ('hidden'/'flex' theo mobileActiveTab) quyết định.
+   Lưu ý: scoped style KHÔNG đóng layer sẽ override @layer utilities của
+   Tailwind v4, nên KHÔNG được khai báo display tường minh ở đây. */
+@media (min-width: 1024px) {
+  .simulator-col {
+    display: flex;
+  }
 }
 
 .simulator-col--left {
@@ -592,7 +731,10 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 }
 
 .simulator-col--center {
-  overflow: hidden;
+  overflow: visible;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 
 .simulator-col--right {
@@ -603,7 +745,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
 /* Khung Canvas */
 .simulator-canvas-card {
   flex: 1 1 0%;
-  min-height: 0;
+  min-height: 140px;
   position: relative;
   background: #0D0B18;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -618,24 +760,29 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
   display: flex;
   flex-direction: column;
   gap: 6px;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
 }
 
 /* Mobile & Tablet */
 @media (max-width: 1024px) {
   .simulator-app {
     height: auto;
+    min-height: calc(100vh - var(--app-header-h, 68px));
     max-height: none;
     overflow: visible;
   }
   .simulator-workspace {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     overflow: visible;
   }
   .simulator-col--right {
     overflow-y: visible;
   }
   .simulator-canvas-card {
-    min-height: 380px;
+    min-height: 360px;
   }
 }
 </style>

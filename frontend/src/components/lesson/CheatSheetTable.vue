@@ -18,7 +18,7 @@ import {
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
 import { getReference } from '@/data/referenceLinks';
 import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/button/Button.vue';
+import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { messages } from '@/i18n/vi';
 import { normalizeVi } from '@/utils/searchNormalize';
@@ -122,7 +122,7 @@ const REFERENCE_DOCS = [
       </div>
 
       <div class="flex items-center gap-2">
-        <Button variant="outline" size="sm" class="gap-1.5" @click="printCheatSheet">
+        <Button variant="secondary" size="sm" class="gap-1.5" @click="printCheatSheet">
           <Printer :size="15" /> Xuất File PDF / In CheatSheet (A4)
         </Button>
       </div>
@@ -199,7 +199,7 @@ const REFERENCE_DOCS = [
           <Button
             v-for="group in groups"
             :key="group"
-            variant="outline"
+            variant="secondary"
             size="sm"
             :aria-pressed="activeGroup === group"
             :class="
@@ -281,7 +281,7 @@ const REFERENCE_DOCS = [
                     Tài liệu
                   </a>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     :aria-label="messages.cheatsheet.openSimulation(item.title)"
                     @click="emit('open-simulation', item.key)"

@@ -1,4 +1,4 @@
-﻿// engines/generators/sort/selection.ts — Selection Sort (SDD §4.7.2)
+// engines/generators/sort/selection.ts — Selection Sort (SDD §4.7.2)
 import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { arrayStructure, buildGenerator, parseArrayParams, Trace, validateArrayParams } from '../helpers';
@@ -117,13 +117,14 @@ export function createSelectionGenerator(): SimulationGenerator {
         if (minIdx !== i) {
           statuses[i] = 'swap';
           statuses[minIdx] = 'swap';
-          const x = a[i];
-          a[i] = a[minIdx];
-          a[minIdx] = x;
+          const oldI = a[i];
+          const oldMin = a[minIdx];
+          a[i] = oldMin;
+          a[minIdx] = oldI;
           trace.stats.swaps++;
           trace.push({
             line: 8,
-            explanation: `minIdx=${minIdx} ≠ i=${i} → hoán đổi a[${i}]=${a[minIdx]} và a[${minIdx}]=${x}.`,
+            explanation: `minIdx=${minIdx} ≠ i=${i} → hoán đổi a[${i}] (${oldI}) và a[${minIdx}] (${oldMin}).`,
             structure: arrayStructure(a, statuses),
             annotations: ['hoán đổi'],
           });

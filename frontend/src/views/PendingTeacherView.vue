@@ -20,7 +20,7 @@ function goHome(): void {
 </script>
 
 <template>
-  <div class="pending-teacher min-h-[calc(100vh-80px)] flex items-center justify-center p-4 bg-[#0b0a12]">
+  <div class="pending-teacher min-h-[calc(100vh-var(--app-header-h,68px))] flex items-center justify-center p-4 bg-[#0b0a12]">
     <Card class="max-w-lg w-full p-8 bg-[#161b22] border border-[#30363d] rounded-2xl shadow-2xl space-y-6 text-center">
       <!-- Icon badge -->
       <div class="w-16 h-16 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-950/20">

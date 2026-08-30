@@ -134,16 +134,14 @@ describe('engines/catalog — khớp shared/simulation-catalog.json', () => {
     expect(keys).toEqual(CATALOG.map((m) => m.key).sort());
   });
 
-  it('GOLDEN TEST bubble [3,1,2]: 21 bước, c=4, s=2, bước 2 active, bước 3 swap, cuối toàn done', () => {
+  it('GOLDEN TEST bubble [3,1,2]: 17 bước, c=3, s=2, bước 2 active, bước 3 swap, cuối toàn done', () => {
     const gen = getSimulation('sort.bubble')!;
     const steps = gen.generate({ kind: 'array', data: { values: [3, 1, 2] } });
 
-    // Trace chuẩn SDD §4.9A: 21 bước, comparisons cuối = n(n-1)/2 = 4.
-    expect(steps.length).toBe(21);
+    // Trace chuẩn có cận j <= n-2-i: 17 bước, comparisons cuối = 3, swaps = 2.
+    expect(steps.length).toBe(17);
     const last = steps[steps.length - 1];
-    expect(last.stats.comparisons).toBe(4);
-    // LƯU Ý: bảng §4.9A ghi swaps=3 nhưng bản thân nó mâu thuẫn (pass 1 dùng giá trị cũ a[1]=3
-    // sau khi pass 0 đã xong [1,2,3]); trace trung thực theo SDD §4.0.2 cho swaps=2.
+    expect(last.stats.comparisons).toBe(3);
     expect(last.stats.swaps).toBe(2);
     expect(last.explanation).toContain('Kết thúc');
 

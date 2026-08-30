@@ -77,7 +77,7 @@ function highlight(line: string): string {
 <template>
   <section class="pseudo" :class="{ 'pseudo--collapsed': collapsed }" aria-label="Mã giả">
     <header class="pseudo__header">
-      <h3 class="pseudo__title">Mã giả thuật toán</h3>
+      <h2 class="pseudo__title">Mã giả thuật toán</h2>
       <button
         type="button"
         class="pseudo__collapse"

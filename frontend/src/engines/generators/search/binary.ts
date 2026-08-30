@@ -1,8 +1,8 @@
-﻿// engines/generators/search/binary.ts — Binary Search (SDD §4.7.8, §4.6.2, §4.9B)
+// engines/generators/search/binary.ts — Binary Search (SDD §4.7.8, §4.6.2, §4.9B)
 // Dữ liệu chưa sắp xếp → TỰ SẮP XẾP kèm annotation banner (không lỗi — SDD §4.14).
-import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
+import type { Element, ElementStatus, InputConfig, InputSchema, SimulationGenerator, Structure } from '../../core/types';
 import type { StatusMap } from '../helpers';
-import { arrayStructure, buildGenerator, intField, intArrayField, parseArrayParams, strField, Trace, validateArrayParams } from '../helpers';
+import { buildGenerator, intField, intArrayField, parseArrayParams, strField, Trace, validateArrayParams } from '../helpers';
 
 const PSEUDOCODE = [
   'procedure binarySearch(a[0..n-1], target)   // a đã sắp xếp',
@@ -19,7 +19,7 @@ const PSEUDOCODE = [
 const SCHEMA: InputSchema = {
   kind: 'array',
   fields: [
-    { name: 'target', type: 'int', label: 'Giá trị cần tìm', min: -999, max: 999, default: 42, description: 'Giá trị cần tìm trong mảng' },
+    { name: 'target', type: 'int', label: 'Giá trị cần tìm', min: -999, max: 999, default: 19, description: 'Giá trị cần tìm trong mảng' },
     { name: 'inputSource', type: 'select', label: 'Nguồn dữ liệu', options: [
       { label: 'Ngẫu nhiên', value: 'random' },
       { label: 'Tự nhập', value: 'manual' },
@@ -31,24 +31,73 @@ const SCHEMA: InputSchema = {
   ],
 };
 
-/** Bản đồ trạng thái: ngoài đoạn [low..high] → muted; mid → highlight (hoặc active khi so sánh); found → done. */
-function binaryStatuses(
-  n: number,
-  low: number,
-  high: number,
+/** Dựng cấu trúc trực quan dạng hàng ô vuông (displayMode: squares) kèm con trỏ low/mid/high rõ ràng */
+function binaryStructure(
+  a: number[],
+  low: number | null,
+  high: number | null,
   mid: number | null,
   statuses: StatusMap,
   foundIdx: number | null,
   midActive = false,
-): StatusMap {
-  const m: StatusMap = { ...statuses };
-  for (let k = 0; k < n; k++) {
-    if (foundIdx !== null && k === foundIdx) m[k] = 'done';
-    else if (mid !== null && k === mid) m[k] = midActive ? 'active' : 'highlight';
-    else if (k < low || k > high) m[k] = 'muted';
-    else if (m[k] !== 'done') m[k] = 'default';
+): Structure {
+  const n = a.length;
+  const elements: Element[] = a.map((v, i) => {
+    let status: ElementStatus = statuses[i] ?? 'default';
+    if (foundIdx !== null && i === foundIdx) status = 'done';
+    else if (mid !== null && i === mid) status = midActive ? 'active' : 'highlight';
+    else if (low !== null && high !== null && (i < low || i > high)) status = 'muted';
+    return {
+      id: `cell:${i}`,
+      label: String(v),
+      status,
+    };
+  });
+
+  if (foundIdx === null) {
+    if (low !== null && low >= 0 && low < n) {
+      elements.push({
+        id: 'ptr:low',
+        group: 'pointer',
+        label: low === high ? 'low, high' : 'low',
+        status: 'highlight',
+        meta: { target: `cell:${low}` },
+      });
+    }
+    if (mid !== null && mid >= 0 && mid < n) {
+      elements.push({
+        id: 'ptr:mid',
+        group: 'pointer',
+        label: 'mid',
+        status: midActive ? 'active' : 'highlight',
+        meta: { target: `cell:${mid}` },
+      });
+    }
+    if (high !== null && high >= 0 && high < n && high !== low) {
+      elements.push({
+        id: 'ptr:high',
+        group: 'pointer',
+        label: 'high',
+        status: 'highlight',
+        meta: { target: `cell:${high}` },
+      });
+    }
+  } else {
+    elements.push({
+      id: 'ptr:found',
+      group: 'pointer',
+      label: 'FOUND',
+      status: 'done',
+      meta: { target: `cell:${foundIdx}` },
+    });
   }
-  return m;
+
+  return {
+    kind: 'array',
+    meta: { displayMode: 'squares' },
+    elements,
+    links: [],
+  };
 }
 
 export function createBinaryGenerator(): SimulationGenerator {
@@ -56,19 +105,19 @@ export function createBinaryGenerator(): SimulationGenerator {
     validate(input: InputConfig) {
       const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
       const errors = validateArrayParams(input.data);
-      const target = intField(rec, 'target', 42);
+      const target = intField(rec, 'target', 19);
       if (target < -999 || target > 999) errors.push(`target: phải trong khoảng -999..999 (hiện tại ${target})`);
       const source = strField(rec, 'inputSource', 'random');
       if (source !== 'random' && source !== 'manual') errors.push(`inputSource: phải là 'random' hoặc 'manual' (hiện tại '${source}')`);
-      if (source === 'manual' && !(Array.isArray(rec.values) && rec.values.length > 0)) {
-        errors.push('inputSource=manual yêu cầu nhập values (2–100 phần tử)');
+      if (source === 'manual' && !(Array.isArray(rec.values) && rec.values.length >= 1)) {
+        errors.push('inputSource=manual yêu cầu nhập values (1–100 phần tử)');
       }
       return { ok: errors.length === 0, errors };
     },
 
     generate(input: InputConfig) {
       const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
-      const target = intField(rec, 'target', 42);
+      const target = intField(rec, 'target', 19);
       const source = strField(rec, 'inputSource', 'random');
       const manual = source === 'manual' || (Array.isArray(rec.values) && rec.values.length > 0);
       const params = parseArrayParams(input.data);
@@ -87,7 +136,7 @@ export function createBinaryGenerator(): SimulationGenerator {
       trace.push({
         line: 1,
         explanation: `Bắt đầu: mảng [${a.join(', ')}], tìm target=${target}.`,
-        structure: arrayStructure(a, statuses),
+        structure: binaryStructure(a, null, null, null, statuses, null),
         annotations: [`target=${target}, n=${n}`],
       });
 
@@ -101,7 +150,7 @@ export function createBinaryGenerator(): SimulationGenerator {
         trace.push({
           line: 1,
           explanation: `Dữ liệu chưa sắp xếp → tự sắp xếp thành [${a.join(', ')}] trước khi tìm kiếm.`,
-          structure: arrayStructure(a, statuses),
+          structure: binaryStructure(a, null, null, null, statuses, null),
           annotations: ['Dữ liệu chưa sắp xếp → tự sắp xếp'],
         });
       }
@@ -113,7 +162,7 @@ export function createBinaryGenerator(): SimulationGenerator {
       trace.push({
         line: 2,
         explanation: `Khởi tạo low = 0, high = ${n - 1}.`,
-        structure: arrayStructure(a, binaryStatuses(n, low, high, null, statuses, null)),
+        structure: binaryStructure(a, low, high, null, statuses, null),
         annotations: [`low=${low}, high=${high}`],
       });
 
@@ -126,7 +175,7 @@ export function createBinaryGenerator(): SimulationGenerator {
         trace.push({
           line: 3,
           explanation: `Kiểm tra low=${low} ≤ high=${high} → đúng, tiếp tục tìm kiếm.`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, null, statuses, null)),
+          structure: binaryStructure(a, low, high, null, statuses, null),
           annotations: [`low=${low} ≤ high=${high}`],
         });
 
@@ -135,7 +184,7 @@ export function createBinaryGenerator(): SimulationGenerator {
         trace.push({
           line: 4,
           explanation: `mid = (${low} + ${high}) / 2 = ${mid} (làm tròn xuống).`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, mid, statuses, null)),
+          structure: binaryStructure(a, low, high, mid, statuses, null),
           annotations: [`mid=${mid}, a[${mid}]=${a[mid]}`],
         });
 
@@ -143,7 +192,7 @@ export function createBinaryGenerator(): SimulationGenerator {
         trace.push({
           line: 5,
           explanation: `So sánh a[${mid}]=${a[mid]} và target=${target}.`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, mid, statuses, null, true)),
+          structure: binaryStructure(a, low, high, mid, statuses, null, true),
           annotations: [`a[${mid}]=${a[mid]} = target=${target}?`],
         });
         if (a[mid] === target) {
@@ -153,22 +202,21 @@ export function createBinaryGenerator(): SimulationGenerator {
           trace.push({
             line: 5,
             explanation: `a[${mid}]=${a[mid]} = target=${target} → Tìm thấy tại vị trí ${mid}.`,
-            structure: arrayStructure(a, binaryStatuses(n, low, high, mid, statuses, foundIdx)),
+            structure: binaryStructure(a, low, high, mid, statuses, foundIdx),
             annotations: [`Tìm thấy target=${target} tại vị trí ${mid}`],
           });
           break;
         }
         trace.push({
           line: 5,
-          explanation: `a[${mid}]=${a[mid]} = target=${target} → sai, thu hẹp phạm vi.`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, mid, statuses, null, true)),
+          explanation: `a[${mid}]=${a[mid]} ≠ target=${target} → không khớp, tiếp tục phân nhánh.`,
+          structure: binaryStructure(a, low, high, mid, statuses, null, true),
         });
 
-        trace.stats.comparisons++;
         trace.push({
           line: 6,
           explanation: `So sánh a[${mid}]=${a[mid]} và target=${target}.`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, mid, statuses, null, true)),
+          structure: binaryStructure(a, low, high, mid, statuses, null, true),
           annotations: [`a[${mid}]=${a[mid]} < target=${target}?`],
         });
         if (a[mid] < target) {
@@ -177,7 +225,7 @@ export function createBinaryGenerator(): SimulationGenerator {
           trace.push({
             line: 6,
             explanation: `a[${mid}]=${a[mid]} < target=${target} → đúng, tìm nửa phải: low = ${low}.`,
-            structure: arrayStructure(a, binaryStatuses(n, low, high, null, statuses, null)),
+            structure: binaryStructure(a, low, high, null, statuses, null),
             annotations: [`low=${low}`],
           });
         } else {
@@ -186,7 +234,7 @@ export function createBinaryGenerator(): SimulationGenerator {
           trace.push({
             line: 7,
             explanation: `a[${mid}]=${a[mid]} < target=${target} → sai, tìm nửa trái: high = ${high}.`,
-            structure: arrayStructure(a, binaryStatuses(n, low, high, null, statuses, null)),
+            structure: binaryStructure(a, low, high, null, statuses, null),
             annotations: [`high=${high}`],
           });
         }
@@ -197,14 +245,14 @@ export function createBinaryGenerator(): SimulationGenerator {
         trace.push({
           line: 8,
           explanation: `Kết thúc: không tìm thấy target=${target} trong mảng (return -1).`,
-          structure: arrayStructure(a, statuses),
+          structure: binaryStructure(a, null, null, null, statuses, null),
           annotations: ['Không tìm thấy'],
         });
       } else {
         trace.push({
           line: 9,
           explanation: `Kết thúc: tìm thấy target=${target} tại vị trí ${foundIdx}.`,
-          structure: arrayStructure(a, binaryStatuses(n, low, high, null, statuses, foundIdx)),
+          structure: binaryStructure(a, low, high, null, statuses, foundIdx),
           annotations: [`Tìm thấy target=${target} tại vị trí ${foundIdx}`],
         });
       }

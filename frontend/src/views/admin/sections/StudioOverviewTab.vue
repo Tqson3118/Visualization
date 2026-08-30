@@ -28,9 +28,8 @@ import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Card from '@/components/ui/Card.vue';
-
 const emit = defineEmits<{
-  (e: 'switchTab', tab: 'curriculum' | 'exercises' | 'feedback'): void;
+  (e: 'switchTab', tab: 'curriculum' | 'feedback'): void;
 }>();
 
 const auth = useAuthStore();
@@ -50,8 +49,8 @@ const recentLessons = ref<lessonsApi.LessonSummary[]>([]);
 // 4 Hubs
 const sections = [
   {
-    title: 'Lộ trình & Bài giảng',
-    description: 'Thiết kế lộ trình học, tổ chức cây Chương - Bài giảng, biên soạn Markdown GFM và gắn mô phỏng trực quan.',
+    title: 'Giáo trình & Bài giảng',
+    description: 'Thiết kế giáo trình học, tổ chức cây Chương - Bài giảng, biên soạn Markdown GFM và gắn mô phỏng trực quan.',
     icon: Network,
     tab: 'curriculum' as const,
     badge: 'Cốt lõi',
@@ -59,11 +58,11 @@ const sections = [
     accentColor: 'text-vdsa-purple-light bg-vdsa-purple/10 border-vdsa-purple/20',
   },
   {
-    title: 'Ngân hàng Quiz & Codelab',
-    description: 'Tạo câu hỏi trắc nghiệm 4 đáp án, tải file mẫu CSV, bài tập chấm code tự động và lab thực hành.',
+    title: 'Quiz & Codelab trong lộ trình',
+    description: 'Thêm Quiz trắc nghiệm và Lab chấm code tự động vào cây lộ trình — mỗi item một mục trên cây.',
     icon: ClipboardList,
-    tab: 'exercises' as const,
-    actionLabel: 'Ngân hàng Bài tập',
+    tab: 'curriculum' as const,
+    actionLabel: 'Mở cây lộ trình',
     accentColor: 'text-vdsa-yellow bg-vdsa-yellow/10 border-vdsa-yellow/20',
   },
   {
@@ -96,9 +95,9 @@ const workflowSteps = [
   {
     step: '02',
     title: 'Soạn bài',
-    desc: 'Soạn lý thuyết GFM Markdown + định dạng trực quan',
-    to: { name: 'studio-lesson-new' },
-    btnText: 'Soạn bài mới',
+    desc: 'Soạn lý thuyết GFM Markdown + định dạng trực quan ngay trong panel cây lộ trình',
+    tab: 'curriculum' as const,
+    btnText: 'Mở cây lộ trình',
   },
   {
     step: '03',
@@ -110,14 +109,14 @@ const workflowSteps = [
   {
     step: '04',
     title: 'Quiz & Lab',
-    desc: 'Tải CSV trắc nghiệm hoặc tạo bài code chấm điểm',
-    tab: 'exercises' as const,
-    btnText: 'Tạo quiz',
+    desc: 'Thêm quiz 4 đáp án và lab chấm code tự động vào cây lộ trình',
+    tab: 'curriculum' as const,
+    btnText: 'Thêm quiz/lab',
   },
   {
     step: '05',
     title: 'Giao cho lớp',
-    desc: 'Nhập lộ trình học vào lớp — học sinh tham gia học',
+    desc: 'Lớp trỏ vào lộ trình active — học sinh tham gia học',
     to: { name: 'classes' },
     btnText: 'Mở lớp học',
   },
@@ -179,7 +178,7 @@ onMounted(() => {
             Xin chào, {{ auth.user?.displayName || 'Thầy/Cô' }}!
           </h1>
           <p class="text-sm text-vdsa-muted max-w-2xl leading-relaxed">
-            Biên soạn bài giảng trực quan, đính kèm thuật toán mô phỏng tương tác, tổ chức lộ trình đào tạo và kiểm soát chất lượng giảng dạy DSA.
+            Biên soạn bài giảng trực quan, đính kèm thuật toán mô phỏng tương tác, tổ chức giáo trình đào tạo và kiểm soát chất lượng giảng dạy DSA.
           </p>
         </div>
 
@@ -187,8 +186,8 @@ onMounted(() => {
           <Button variant="secondary" size="sm" :disabled="loading" @click="loadStudioData" title="Làm mới dữ liệu">
             <RefreshCw :size="14" :class="{ 'animate-spin': loading }" /> Làm mới
           </Button>
-          <Button variant="primary" size="sm" class="gap-1.5 font-bold" @click="router.push({ name: 'studio-lesson-new' })">
-            <Plus :size="15" /> Soạn bài học mới
+          <Button variant="primary" size="sm" class="gap-1.5 font-bold" @click="router.push({ path: '/studio', query: { tab: 'curriculum' } })">
+            <Network :size="15" /> Tạo lộ trình mới
           </Button>
         </div>
       </div>
@@ -221,7 +220,7 @@ onMounted(() => {
           <Layers3 :size="22" />
         </div>
         <div>
-          <p class="text-[11px] font-bold text-vdsa-muted uppercase">Lộ trình Course</p>
+          <p class="text-[11px] font-bold text-vdsa-muted uppercase">Giáo trình (Course)</p>
           <h3 class="text-xl font-black text-white mt-0.5">{{ totalCourses }}</h3>
         </div>
       </Card>
@@ -365,9 +364,9 @@ onMounted(() => {
                 <button
                   type="button"
                   class="px-2.5 py-1 rounded bg-vdsa-bg-secondary hover:bg-slate-700 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1"
-                  @click="router.push(`/studio/lessons/${l.id}/edit`)"
+                  @click="router.push({ path: '/studio', query: { tab: 'curriculum' } })"
                 >
-                  <Edit :size="12" /> Sửa
+                  <Edit :size="12" /> Sửa trong Studio
                 </button>
                 <a
                   :href="`/lessons/${l.id}`"

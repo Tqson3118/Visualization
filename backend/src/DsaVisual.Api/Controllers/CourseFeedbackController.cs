@@ -93,12 +93,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
             .Take(50)
             .ToListAsync(ct);
 
-        var result = new List<CourseFeedbackDto>();
-        foreach (var item in items)
-        {
-            result.Add(await ToDtoAsync(item, ct));
-        }
-        return Ok(result);
+        return Ok(await ToDtoListAsync(items, ct));
     }
 
     /// <summary>GV xem tất cả ý kiến của một khóa (có thể lọc theo trạng thái).</summary>
@@ -124,12 +119,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
             .Take(200)
             .ToListAsync(ct);
 
-        var result = new List<CourseFeedbackDto>();
-        foreach (var item in items)
-        {
-            result.Add(await ToDtoAsync(item, ct));
-        }
-        return Ok(result);
+        return Ok(await ToDtoListAsync(items, ct));
     }
 
     /// <summary>GV xem tất cả ý kiến của các khóa mình quản lý (hoặc admin xem tất cả).</summary>
@@ -176,12 +166,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
             .Take(200)
             .ToListAsync(ct);
 
-        var result = new List<CourseFeedbackDto>();
-        foreach (var item in items)
-        {
-            result.Add(await ToDtoAsync(item, ct));
-        }
-        return Ok(result);
+        return Ok(await ToDtoListAsync(items, ct));
     }
 
     public sealed class CourseFeedbackReplyRequest
@@ -202,31 +187,31 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Ý kiến không tồn tại." });
         }
 
-        var replyText = request.ReplyText?.Trim();
-        if (replyText is { Length: > 2000 })
+        var userId = CurrentUserId();
+        var role = CurrentRole();
+
+        // Kiểm tra quyền: Teacher chỉ được reply các khóa mình quản lý, Admin reply mọi khóa
+        if (role == "TEACHER")
         {
-            return BadRequest(new { message = "Câu trả lời tối đa 2000 ký tự." });
+            var canManage = await _db.LearningPaths.AsNoTracking()
+                .AnyAsync(p => p.Id == feedback.CourseId && (p.CreatedBy == userId || p.AuthorId == userId), ct);
+            if (!canManage)
+            {
+                return Forbid();
+            }
         }
 
         var now = DateTime.UtcNow;
-        if (replyText is not null)
+        if (!string.IsNullOrWhiteSpace(request.Status) && TryParseStatus(request.Status, out var newStatus))
         {
-            feedback.ReplyText = replyText.Length == 0 ? null : replyText;
-            feedback.RepliedById = CurrentUserId();
-            feedback.RepliedAt = now;
-            if (request.Status is null)
-            {
-                feedback.Status = CourseFeedbackStatus.Resolved;
-            }
+            feedback.Status = newStatus;
         }
 
-        if (request.Status is not null)
+        if (request.ReplyText is not null)
         {
-            if (!TryParseStatus(request.Status, out var status))
-            {
-                return BadRequest(new { message = "Trạng thái không hợp lệ (New | Read | Resolved)." });
-            }
-            feedback.Status = status;
+            feedback.ReplyText = request.ReplyText;
+            feedback.RepliedById = userId;
+            feedback.RepliedAt = now;
         }
 
         feedback.UpdatedAt = now;
@@ -237,50 +222,45 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
 
     // ── Helpers ──────────────────────────────────────────────
 
+    private async Task<List<CourseFeedbackDto>> ToDtoListAsync(List<CourseFeedback> items, CancellationToken ct)
+    {
+        if (items.Count == 0) return [];
+
+        var courseIds = items.Select(i => i.CourseId).Distinct().ToList();
+        var userIds = items.Select(i => i.UserId)
+            .Concat(items.Where(i => i.RepliedById.HasValue).Select(i => i.RepliedById!.Value))
+            .Distinct()
+            .ToList();
+
+        var coursesMap = await _db.LearningPaths.AsNoTracking()
+            .Where(p => courseIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Title, ct);
+
+        var usersMap = await _db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return items.Select(item => new CourseFeedbackDto
+        {
+            Id = item.Id,
+            CourseId = item.CourseId,
+            CourseTitle = coursesMap.GetValueOrDefault(item.CourseId, string.Empty),
+            UserId = item.UserId,
+            UserName = usersMap.GetValueOrDefault(item.UserId, string.Empty),
+            Type = item.Type.ToString(),
+            Content = item.Content,
+            Status = item.Status.ToString(),
+            ReplyText = item.ReplyText,
+            RepliedByName = item.RepliedById.HasValue ? usersMap.GetValueOrDefault(item.RepliedById.Value) : null,
+            RepliedAt = item.RepliedAt,
+            CreatedAt = item.CreatedAt
+        }).ToList();
+    }
+
     private async Task<CourseFeedbackDto> ToDtoAsync(CourseFeedback feedback, CancellationToken ct)
     {
-        var courseTitle = string.Empty;
-        var course = await _db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == feedback.CourseId, ct);
-        if (course is not null)
-        {
-            courseTitle = course.Title;
-        }
-
-        var userName = string.Empty;
-        var user = await _db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == feedback.UserId, ct);
-        if (user is not null)
-        {
-            userName = user.DisplayName;
-        }
-
-        var repliedByName = (string?)null;
-        if (feedback.RepliedById is { } repliedById)
-        {
-            var replier = await _db.Users.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == repliedById, ct);
-            if (replier is not null)
-            {
-                repliedByName = replier.DisplayName;
-            }
-        }
-
-        return new CourseFeedbackDto
-        {
-            Id = feedback.Id,
-            CourseId = feedback.CourseId,
-            CourseTitle = courseTitle,
-            UserId = feedback.UserId,
-            UserName = userName,
-            Type = feedback.Type.ToString(),
-            Content = feedback.Content,
-            Status = feedback.Status.ToString(),
-            ReplyText = feedback.ReplyText,
-            RepliedByName = repliedByName,
-            RepliedAt = feedback.RepliedAt,
-            CreatedAt = feedback.CreatedAt
-        };
+        var list = await ToDtoListAsync([feedback], ct);
+        return list[0];
     }
 
     private static CourseFeedbackType ParseType(string type) =>

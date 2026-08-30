@@ -1,4 +1,4 @@
-﻿using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -55,10 +55,7 @@ public sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
         builder.HasIndex(l => l.TopicId);
         builder.HasIndex(l => new { l.CreatedBy, l.Status });
 
-        // UNIQUE (TopicId, Title) — chốt khoá seed Lessons (SDD §7.3.2, audit bề mặt #2).
-        // Filter DeletedAt IS NULL: xóa mềm không chặn tái sử dụng Title (pattern IX_Users_Xp).
-        builder.HasIndex(l => new { l.TopicId, l.Title })
-            .IsUnique()
-            .HasFilter("[DeletedAt] IS NULL");
+        // Index (TopicId, Title) cho tìm kiếm bài học theo chủ đề
+        builder.HasIndex(l => new { l.TopicId, l.Title });
     }
 }

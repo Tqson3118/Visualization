@@ -327,7 +327,9 @@ function runBst(input: InputConfig, op: 'insert' | 'delete' | 'search'): ReturnT
     });
     return trace.steps;
   }
-  root = deleteWithTrace(root, value, trace, statuses);
+  const state: { root: BNode | null } = { root };
+  state.root = deleteWithTrace(state, state.root, value, trace, statuses);
+  root = state.root;
   trace.push({
     line: 11,
     explanation: `Kết thúc: đã xóa ${value} khỏi cây BST.`,
@@ -346,13 +348,17 @@ function insertWithTrace(
   statuses: Record<string, ElementStatus>,
 ): BNode {
   if (node === null) {
+    const newNode: BNode = { key: x, left: null, right: null };
+    if (state.root === null) state.root = newNode;
+    statuses[`node:${x}`] = 'highlight';
     trace.push({
       line: 2,
       explanation: `Gặp vị trí rỗng → tạo nút mới mang giá trị ${x}.`,
-      structure: treeStructure(state.root, statuses),
+      structure: treeStructure(state.root ?? newNode, statuses),
       annotations: [`newNode(${x})`],
     });
-    return { key: x, left: null, right: null };
+    statuses[`node:${x}`] = 'default';
+    return newNode;
   }
   statuses[`node:${node.key}`] = 'active';
   trace.stats.comparisons++;
@@ -370,7 +376,20 @@ function insertWithTrace(
       annotations: [`${x} < ${node.key} → trái`],
     });
     statuses[`node:${node.key}`] = 'muted';
-    node.left = insertWithTrace(state, node.left, x, trace, statuses);
+    if (node.left === null) {
+      const newNode: BNode = { key: x, left: null, right: null };
+      node.left = newNode;
+      statuses[`node:${x}`] = 'highlight';
+      trace.push({
+        line: 2,
+        explanation: `Gặp vị trí rỗng bên trái nút ${node.key} → tạo nút mới mang giá trị ${x}.`,
+        structure: treeStructure(state.root, statuses),
+        annotations: [`newNode(${x})`],
+      });
+      statuses[`node:${x}`] = 'default';
+    } else {
+      node.left = insertWithTrace(state, node.left, x, trace, statuses);
+    }
     statuses[`node:${node.key}`] = 'default';
   } else if (x > node.key) {
     trace.push({
@@ -380,7 +399,20 @@ function insertWithTrace(
       annotations: [`${x} > ${node.key} → phải`],
     });
     statuses[`node:${node.key}`] = 'muted';
-    node.right = insertWithTrace(state, node.right, x, trace, statuses);
+    if (node.right === null) {
+      const newNode: BNode = { key: x, left: null, right: null };
+      node.right = newNode;
+      statuses[`node:${x}`] = 'highlight';
+      trace.push({
+        line: 2,
+        explanation: `Gặp vị trí rỗng bên phải nút ${node.key} → tạo nút mới mang giá trị ${x}.`,
+        structure: treeStructure(state.root, statuses),
+        annotations: [`newNode(${x})`],
+      });
+      statuses[`node:${x}`] = 'default';
+    } else {
+      node.right = insertWithTrace(state, node.right, x, trace, statuses);
+    }
     statuses[`node:${node.key}`] = 'default';
   } else {
     statuses[`node:${node.key}`] = 'highlight';
@@ -396,33 +428,42 @@ function insertWithTrace(
 }
 
 /** Xóa kèm trace: trả về root mới. */
-function deleteWithTrace(node: BNode, x: number, trace: Trace, statuses: Record<string, ElementStatus>): BNode | null {
+function deleteWithTrace(
+  state: { root: BNode | null },
+  node: BNode | null,
+  x: number,
+  trace: Trace,
+  statuses: Record<string, ElementStatus>,
+): BNode | null {
+  if (node === null) return null;
   statuses[`node:${node.key}`] = 'active';
   trace.stats.comparisons++;
   trace.push({
     line: 3,
     explanation: `So sánh x=${x} và nút ${node.key}.`,
-    structure: treeStructure(node, statuses),
+    structure: treeStructure(state.root, statuses),
     annotations: [`x=${x} so với nút ${node.key}`],
   });
   if (x < node.key) {
     trace.push({
       line: 3,
       explanation: `${x} < ${node.key} → rẽ trái.`,
-      structure: treeStructure(node, statuses),
+      structure: treeStructure(state.root, statuses),
     });
     statuses[`node:${node.key}`] = 'muted';
-    if (node.left) node.left = deleteWithTrace(node.left, x, trace, statuses);
+    node.left = deleteWithTrace(state, node.left, x, trace, statuses);
+    statuses[`node:${node.key}`] = 'default';
     return node;
   }
   if (x > node.key) {
     trace.push({
       line: 4,
       explanation: `${x} > ${node.key} → rẽ phải.`,
-      structure: treeStructure(node, statuses),
+      structure: treeStructure(state.root, statuses),
     });
     statuses[`node:${node.key}`] = 'muted';
-    if (node.right) node.right = deleteWithTrace(node.right, x, trace, statuses);
+    node.right = deleteWithTrace(state, node.right, x, trace, statuses);
+    statuses[`node:${node.key}`] = 'default';
     return node;
   }
 
@@ -431,57 +472,61 @@ function deleteWithTrace(node: BNode, x: number, trace: Trace, statuses: Record<
   trace.push({
     line: 5,
     explanation: `Tìm thấy nút ${node.key} cần xóa.`,
-    structure: treeStructure(node, statuses),
+    structure: treeStructure(state.root, statuses),
     annotations: [`xóa nút ${node.key}`],
   });
 
   if (node.left === null) {
     statuses[`node:${node.key}`] = 'muted';
+    const next = node.right;
     trace.push({
       line: 6,
       explanation: `Nút ${node.key} không có con trái → thay bằng con phải.`,
-      structure: treeStructure(node, statuses),
+      structure: treeStructure(state.root, statuses),
     });
-    return node.right;
+    delete statuses[`node:${node.key}`];
+    return next;
   }
   if (node.right === null) {
     statuses[`node:${node.key}`] = 'muted';
+    const next = node.left;
     trace.push({
       line: 7,
       explanation: `Nút ${node.key} không có con phải → thay bằng con trái.`,
-      structure: treeStructure(node, statuses),
+      structure: treeStructure(state.root, statuses),
     });
-    return node.left;
+    delete statuses[`node:${node.key}`];
+    return next;
   }
 
   // 2 con: tìm min cây con phải
   let min = node.right;
   while (min.left) min = min.left;
-  statuses[`node:${min.key}`] = 'highlight';
+  const minKey = min.key;
+  statuses[`node:${minKey}`] = 'highlight';
   trace.push({
     line: 8,
-    explanation: `Nút ${node.key} có 2 con → tìm min cây con phải: nút ${min.key}.`,
-    structure: treeStructure(node, statuses),
-    annotations: [`min=${min.key}`],
+    explanation: `Nút ${node.key} có 2 con → tìm min cây con phải: nút ${minKey}.`,
+    structure: treeStructure(state.root, statuses),
+    annotations: [`min=${minKey}`],
   });
   statuses[`node:${node.key}`] = 'swap';
   trace.stats.writes++;
   trace.push({
     line: 9,
-    explanation: `Thay giá trị: nút ${node.key}.key ← ${min.key}.`,
-    structure: treeStructure(node, statuses),
-    annotations: [`${node.key} ← ${min.key}`],
+    explanation: `Thay giá trị: nút ${node.key}.key ← ${minKey}.`,
+    structure: treeStructure(state.root, statuses),
+    annotations: [`${node.key} ← ${minKey}`],
   });
-  const deletedKey = node.key;
-  node.key = min.key;
+  node.key = minKey;
   statuses[`node:${node.key}`] = 'default';
-  statuses[`node:${deletedKey}`] = 'muted';
+  delete statuses[`node:${x}`];
   trace.push({
     line: 10,
-    explanation: `Xóa đệ quy nút ${min.key} khỏi cây con phải.`,
-    structure: treeStructure(node, statuses),
+    explanation: `Xóa đệ quy nút ${minKey} khỏi cây con phải.`,
+    structure: treeStructure(state.root, statuses),
   });
-  node.right = deleteRaw(node.right, min.key);
+  node.right = deleteWithTrace(state, node.right, minKey, trace, statuses);
   return node;
 }
 

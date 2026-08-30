@@ -109,7 +109,7 @@ public sealed class ExerciseService(
                 Stage = e.Stage,
                 Title = e.Title,
                 Description = e.Description,
-                Type = e.Type.ToString(),
+                Type = e.Type == ExerciseType.Mcq ? "MCQ" : e.Type == ExerciseType.Code ? "CODE" : e.Type == ExerciseType.SimulationLab ? "SIMULATION_LAB" : "SIMULATION_PREDICT",
                 DurationMinutes = e.DurationMinutes,
                 MaxScore = e.MaxScore,
                 Status = e.Status.ToString(),
@@ -1688,6 +1688,15 @@ public sealed class ExerciseService(
         SortOrder = dto.SortOrder
     };
 
+    public static string ToExerciseTypeString(ExerciseType type) => type switch
+    {
+        ExerciseType.Mcq => "MCQ",
+        ExerciseType.Code => "CODE",
+        ExerciseType.SimulationLab => "SIMULATION_LAB",
+        ExerciseType.SimulationPredict => "SIMULATION_PREDICT",
+        _ => type.ToString().ToUpperInvariant()
+    };
+
     private static ExerciseDto ToDto(Exercise exercise) => new()
     {
         Id = exercise.Id,
@@ -1696,7 +1705,7 @@ public sealed class ExerciseService(
         Stage = exercise.Stage,
         Title = exercise.Title,
         Description = exercise.Description,
-        Type = exercise.Type.ToString(),
+        Type = ToExerciseTypeString(exercise.Type),
         DurationMinutes = exercise.DurationMinutes,
         MaxScore = exercise.MaxScore,
         Status = exercise.Status.ToString(),

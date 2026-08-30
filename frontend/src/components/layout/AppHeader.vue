@@ -281,7 +281,9 @@ html.light .app-header {
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-  padding: 30px 0 10px;
+  padding: 12px 0;
+  min-height: var(--app-header-h, 68px);
+  box-sizing: border-box;
 }
 
 .app-header__brand {
@@ -293,20 +295,20 @@ html.light .app-header {
 }
 
 .app-header__brand-img {
-  height: 72px;
+  height: 44px;
   width: auto;
   display: block;
   filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.35));
-  transition: filter 200ms ease, height 300ms ease;
+  transition: filter 200ms ease, height 200ms ease;
 }
 
-/* Phase 1 — Khi scroll: logo thu nhỏ để header compact hơn */
+/* Khi scroll: logo thu nhỏ nhẹ để header thanh thoát hơn */
 .app-header--scrolled .app-header__brand-img {
-  height: 48px;
+  height: 38px;
 }
 
 .app-header--scrolled .app-header__inner {
-  padding: 12px 0;
+  padding: 10px 0;
 }
 
 .app-header__brand:hover .app-header__brand-img {

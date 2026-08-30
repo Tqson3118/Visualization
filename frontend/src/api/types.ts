@@ -18,6 +18,8 @@ export interface ClassDto {
   inviteCode: string;
   ownerId: number;
   memberCount: number;
+  learningPathId?: number | null;
+  learningPathTitle?: string | null;
   createdAt: string;
   /** Vai trò của người gọi trong lớp (quyết định tab/điều khiển hiển thị) */
   role: 'OWNER' | 'TEACHER' | 'STUDENT';
@@ -48,6 +50,8 @@ export type ClassDetailDto = ClassDto & {
   members?: ClassMemberDto[];
   assignments?: ClassAssignmentDto[];
   /** Lộ trình học (curriculum) per-class. */
+  learningPathId?: number | null;
+  learningPathTitle?: string | null;
   curriculumTitle?: string | null;
   curriculumDescription?: string | null;
   curriculumPublished?: boolean;
@@ -73,20 +77,34 @@ export interface ClassCurriculumReorderRequest {
 
 /** Một item trong lộ trình — status: not_started | in_progress | completed. */
 export interface ClassCurriculumItemDto {
-  assignmentId: number;
-  lessonId: number | null;
-  exerciseId: number | null;
+  /** Id node trên CÂY lộ trình (mô hình hợp nhất — D2/D7). Có thể trùng assignmentId ở data cũ. */
+  pathItemId?: number;
+  /** Legacy: id assignment per-class (mô hình copy cũ). */
+  assignmentId?: number;
+  lessonId?: number | null;
+  exerciseId?: number | null;
   title: string;
-  itemType: 'lesson' | 'exercise';
+  /** Cây mới: folder | theory | quiz | lab. Cũ: lesson | exercise | quiz | codelab. */
+  itemType: 'folder' | 'theory' | 'quiz' | 'lab' | 'lesson' | 'exercise' | 'codelab';
+  parentId?: number | null;
   sortOrder: number;
   dueAt: string | null;
+  allowLateSubmission?: boolean;
   status: 'not_started' | 'in_progress' | 'completed';
   bestScore: number | null;
+  /** Cây mới trả DFS lồng nhau (children); fallback: danh sách phẳng có parentId. */
+  children?: ClassCurriculumItemDto[];
+  topicId?: number;
+  topicName?: string;
+  simulationCount?: number;
+  xpReward?: number;
 }
 
 /** Lộ trình học của lớp cho học viên — GET /classes/{id}/curriculum. */
 export interface ClassCurriculumDto {
   classId: number;
+  learningPathId?: number | null;
+  learningPathTitle?: string | null;
   title: string | null;
   description: string | null;
   published: boolean;

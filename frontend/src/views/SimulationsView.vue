@@ -11,7 +11,7 @@
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { Motion } from 'motion-v';
+
 import {
   ArrowRight,
   ArrowUpDown,
@@ -35,13 +35,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Tabs, { type TabItem } from '@/components/ui/Tabs.vue';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import Card from '@/components/ui/Card.vue';
 import { messages } from '@/i18n/vi';
 import { normalizeVi } from '@/utils/searchNormalize';
 
@@ -73,6 +67,10 @@ const PAGE_SIZE = 12;
 
 watch(page, () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+watch([search, structureFilter, levelFilter, tagFilter], () => {
+  page.value = 1;
 });
 
 const structures = computed(() => ['', ...new Set(CATALOG.map((item) => item.dataStructure))]);
@@ -259,12 +257,7 @@ function referenceUrl(key: string): string | undefined {
 <template>
   <section class="simulations container">
     <!-- Chrome header — surface band level-2 (bỏ gradient mint + shadow, §1/§6) -->
-    <Motion
-      class="simulations__chrome"
-      :initial="{ opacity: 0, y: 12 }"
-      :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
-    >
+    <div class="simulations__chrome">
       <nav class="simulations__breadcrumb" aria-label="Breadcrumb">
         <RouterLink :to="{ name: 'home' }">{{ messages.explore.breadcrumbHome }}</RouterLink>
         <span aria-hidden="true">/</span>
@@ -313,7 +306,7 @@ function referenceUrl(key: string): string | undefined {
           </div>
         </div>
       </div>
-    </Motion>
+    </div>
 
     <!-- Tabs shadcn (giữ key catalog/compare/cheatsheet) -->
     <Tabs :tabs="TAB_ITEMS" :model-value="tab" @change="onTabChange">
@@ -391,6 +384,7 @@ function referenceUrl(key: string): string | undefined {
               <Card
                 v-for="item in group.items"
                 :key="item.key"
+                :padded="false"
                 class="simulations__card shadow-none"
                 role="button"
                 tabindex="0"
@@ -399,7 +393,7 @@ function referenceUrl(key: string): string | undefined {
                 @keydown.enter="openSimulation(item.key)"
                 @keydown.space.prevent="openSimulation(item.key)"
               >
-              <CardHeader>
+              <div class="flex flex-col gap-y-1.5 p-6">
                 <div class="simulations__card-head">
                   <span class="simulations__card-icon" aria-hidden="true">
                     <component :is="iconFor(item)" :size="20" />
@@ -423,10 +417,10 @@ function referenceUrl(key: string): string | undefined {
                     </Badge>
                   </span>
                 </div>
-                <CardTitle class="simulations__card-title">{{ item.title }}</CardTitle>
-                <CardDescription class="simulations__card-key">{{ item.key }}</CardDescription>
-              </CardHeader>
-              <CardContent class="simulations__card-content">
+                <h3 class="text-2xl font-semibold leading-none tracking-tight simulations__card-title">{{ item.title }}</h3>
+                <p class="text-sm text-muted-foreground simulations__card-key">{{ item.key }}</p>
+              </div>
+              <div class="p-6 pt-0 simulations__card-content">
                 <div class="simulations__card-row">
                   <dl class="simulations__complexity">
                     <dt>{{ messages.explore.complexityLabel }}</dt>
@@ -460,7 +454,7 @@ function referenceUrl(key: string): string | undefined {
                     {{ link.label }}
                   </a>
                 </div>
-              </CardContent>
+              </div>
             </Card>
             </div>
           </section>

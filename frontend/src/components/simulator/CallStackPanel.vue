@@ -24,21 +24,25 @@ const depth = computed(() => Number(props.variables?.recursionDepth ?? frames.va
 </script>
 
 <template>
-  <section v-if="frames.length > 0" class="callstack" aria-label="Call stack">
-    <header class="callstack__header">
-      <h4 class="callstack__title">Call stack ({{ depth }})</h4>
+  <section class="callstack" aria-label="Call stack">
+    <header class="callstack__header flex items-center justify-between">
+      <h4 class="callstack__title text-xs font-bold text-white">Ngăn xếp đệ quy ({{ depth }})</h4>
+      <span v-if="frames.length === 0" class="text-[10px] text-vdsa-muted font-mono">Không hoạt động</span>
     </header>
-    <ol class="callstack__list">
+    <ol v-if="frames.length > 0" class="callstack__list space-y-1 p-2">
       <li
         v-for="(frame, idx) in frames"
         :key="idx"
-        class="callstack__frame"
+        class="callstack__frame p-1.5 rounded bg-vdsa-surface text-xs flex justify-between"
         :class="{ 'callstack__frame--top': idx === frames.length - 1 }"
       >
-        <span class="callstack__name">{{ frame.name }}</span>
-        <span class="callstack__depth">depth {{ frame.depth }}</span>
+        <span class="callstack__name font-mono text-purple-300">{{ frame.name }}</span>
+        <span class="callstack__depth text-slate-400 text-[11px]">depth {{ frame.depth }}</span>
       </li>
     </ol>
+    <div v-else class="p-3 text-center text-xs text-vdsa-muted italic leading-relaxed">
+      Thuật toán này chạy vòng lặp tuần tự (Iterative), không sử dụng ngăn xếp đệ quy.
+    </div>
     <p v-if="frames.length >= 15" class="callstack__note">
       {{ messages.simulator.stepOf.replace('{current}', '15').replace('{total}', '15') }}+ frame — hiển thị tối đa 15
     </p>

@@ -10,6 +10,8 @@ public sealed class ClassDto
     public string? Description { get; set; }
     public int OwnerId { get; set; }
     public string Status { get; set; } = "open";
+    public int? LearningPathId { get; set; }
+    public string? LearningPathTitle { get; set; }
     public int MemberCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -22,4 +24,5 @@ public sealed class ClassUpsertRequest
     public string? Description { get; set; }
     public string? Status { get; set; }          // open/closed
     public int? OwnerId { get; set; }            // Admin chuyển quyền sở hữu (v2.8)
+    public int? LearningPathId { get; set; }
 }

@@ -11,7 +11,7 @@ public sealed class ExerciseSummaryDto
     public int? Stage { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string Type { get; set; } = ExerciseType.Mcq.ToString();
+    public string Type { get; set; } = "MCQ";
     public int? DurationMinutes { get; set; }
     public int MaxScore { get; set; }
     public string Status { get; set; } = ExerciseStatus.Draft.ToString();

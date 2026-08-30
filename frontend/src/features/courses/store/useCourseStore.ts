@@ -291,5 +291,14 @@ export const useCourseStore = defineStore('course', () => {
     enrollCourse,
     isEnrolled,
     enrolledCourseIds,
+    reset() {
+      courses.value = [];
+      isLoading.value = false;
+      error.value = '';
+      selectedCategory.value = 'All';
+      selectedDifficulty.value = 'All';
+      searchQuery.value = '';
+      enrolledCourseIds.value = new Set();
+    },
   };
 });

@@ -772,7 +772,9 @@ async function toggleHistory(): Promise<void> {
 }
 
 @media (max-width: 640px) {
-  .code-runner__chrome { padding: var(--space-md); }
-  .code-runner__panel { padding: var(--space-sm); }
+  .code-runner { padding-inline: var(--space-sm, 12px); max-width: 100%; overflow-x: hidden; }
+  .code-runner__chrome { padding: var(--space-md); width: 100%; max-width: 100%; }
+  .code-runner__panel { padding: var(--space-sm); width: 100%; max-width: 100%; }
+  .code-runner__title { font-size: var(--text-2xl); }
 }
 </style>

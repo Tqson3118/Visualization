@@ -7,13 +7,12 @@
 // GIá»® NGUYÊN logic FAQ/contact + aria-expanded.
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { Motion } from 'motion-v';
+
 import { CheckCircle2, ChevronDown, LifeBuoy, Mail, User } from 'lucide-vue-next';
 
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
-import { buttonVariants } from '@/components/ui/button';
 import { messages } from '@/i18n/vi';
 
 const openIndex = ref<number | null>(0);
@@ -52,12 +51,7 @@ function toggle(idx: number): void {
 <template>
   <main class="help container">
     <!-- Hero â€” surface band level-2 (bỏ gradient aurora + shadow, Â§1/Â§6) -->
-    <Motion
-      class="help__chrome"
-      :initial="{ opacity: 0, y: 12 }"
-      :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
-    >
+    <div class="help__chrome">
       <nav class="help__breadcrumb" aria-label="Breadcrumb">
         <RouterLink :to="{ name: 'home' }">{{ messages.help.breadcrumbHome }}</RouterLink>
         <span aria-hidden="true">/</span>
@@ -72,7 +66,7 @@ function toggle(idx: number): void {
           <p class="help__sub">{{ messages.help.sub }}</p>
         </div>
       </div>
-    </Motion>
+    </div>
 
     <div class="help__grid">
       <section class="help__faq" :aria-label="messages.help.faqAria">
@@ -97,7 +91,7 @@ function toggle(idx: number): void {
               :class="{ 'help__chevron--open': openIndex === idx }"
               aria-hidden="true"
             />
-          </button>
+          </Button>
           <Transition name="faq">
             <p v-if="openIndex === idx" :id="`faq-answer-${idx}`" class="help__answer">{{ faq.a }}</p>
           </Transition>
@@ -409,8 +403,10 @@ function toggle(idx: number): void {
 .faq-enter-from, .faq-leave-to { opacity: 0; transform: translateY(-4px); }
 
 @media (max-width: 768px) {
-  .help__grid { grid-template-columns: 1fr; width: 100%; }
-  .help__contact { position: static; width: 100%; padding: var(--space-md); }
-  .help__chrome { padding: var(--space-md); }
+  .help { padding-inline: var(--space-sm, 12px); max-width: 100%; overflow-x: hidden; }
+  .help__grid { grid-template-columns: 1fr; width: 100%; max-width: 100%; }
+  .help__contact { position: static; width: 100%; max-width: 100%; padding: var(--space-md); }
+  .help__chrome { padding: var(--space-md); width: 100%; max-width: 100%; }
+  .help__title { font-size: var(--text-2xl); }
 }
 </style>

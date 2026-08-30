@@ -14,12 +14,22 @@ export const EXERCISE_ENDPOINTS = {
   remove: (id: number) => `/exercises/${id}`,
 } as const;
 
-// ── DTO (API_REFERENCE §3.7-3.8) ──
+export type ExerciseTypeUnion = 'MCQ' | 'SIMULATION_LAB' | 'SIMULATION_PREDICT' | 'CODE';
+
+export function normalizeExerciseType(raw?: string): ExerciseTypeUnion {
+  if (!raw) return 'MCQ';
+  const u = String(raw).toUpperCase().replace('-', '_');
+  if (u === 'MCQ') return 'MCQ';
+  if (u === 'CODE') return 'CODE';
+  if (u === 'SIMULATION_LAB' || u === 'SIMULATIONLAB' || u === 'LAB') return 'SIMULATION_LAB';
+  if (u === 'SIMULATION_PREDICT' || u === 'SIMULATIONPREDICT' || u === 'PREDICT') return 'SIMULATION_PREDICT';
+  return 'MCQ';
+}
 
 export interface QuestionDto {
   id: number;
   content: string;
-  type: 'SINGLE' | 'MULTIPLE' | 'FILL' | 'MATCH';
+  type: 'SINGLE' | 'MULTIPLE' | 'FILL' | 'MATCH' | string;
   options: string[];
   points: number;
 }
@@ -28,16 +38,17 @@ export interface ExerciseDto {
   id: number;
   title: string;
   description?: string;
-  type: 'MCQ' | 'SIMULATION_LAB' | 'CODE';
+  type: ExerciseTypeUnion;
   lessonId: number | null;
   nodeId: number | null;
   stage: number;
   durationMinutes: number;
   maxScore: number;
-  status: 'draft' | 'active' | 'hidden';
+  status: 'draft' | 'active' | 'hidden' | 'Draft' | 'Active' | 'Hidden' | string;
   questions: QuestionDto[];
   passThreshold?: number;
   passingScore?: number;
+  configJson?: string;
 }
 
 /** Dòng trong GET /exercises (PagedResponse<ExerciseSummaryDto> — không kèm questions; lấy chi tiết qua GET /exercises/{id}) */
@@ -45,15 +56,14 @@ export interface ExerciseSummaryDto {
   id: number;
   title: string;
   description?: string;
-  type: 'MCQ' | 'SIMULATION_LAB' | 'CODE';
+  type: ExerciseTypeUnion;
   lessonId: number | null;
   nodeId: number | null;
   stage: number | null;
   durationMinutes: number;
   maxScore: number;
-  status: 'draft' | 'active' | 'hidden';
+  status: 'draft' | 'active' | 'hidden' | 'Draft' | 'Active' | 'Hidden' | string;
   createdBy?: number;
-  /** Số user đã pass exercise này (field mới — optional để tương thích khi backend chưa deploy) */
   completedByUserCount?: number;
 }
 
@@ -100,11 +110,19 @@ export async function fetchExercises(params: {
 } = {}): Promise<ExerciseSummaryDto[]> {
   // BE trả PagedResponse<ExerciseSummaryDto> { items, ... } (API_REFERENCE §3.11) — unwrap items (SETUP_TODO §6.6)
   const paged = await getData<PagedResponse<ExerciseSummaryDto>>({ method: 'GET', url: EXERCISE_ENDPOINTS.list, params });
-  return Array.isArray(paged.items) ? paged.items : [];
+  const items = Array.isArray(paged.items) ? paged.items : [];
+  return items.map((item) => ({
+    ...item,
+    type: normalizeExerciseType(item.type),
+  }));
 }
 
 export async function fetchExercise(id: number): Promise<ExerciseDto> {
-  return getData<ExerciseDto>({ method: 'GET', url: EXERCISE_ENDPOINTS.detail(id) });
+  const data = await getData<ExerciseDto>({ method: 'GET', url: EXERCISE_ENDPOINTS.detail(id) });
+  return {
+    ...data,
+    type: normalizeExerciseType(data.type),
+  };
 }
 
 export async function submitExercise(id: number, payload: SubmitRequest): Promise<SubmitResultDto> {

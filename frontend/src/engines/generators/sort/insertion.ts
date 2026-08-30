@@ -1,4 +1,4 @@
-﻿// engines/generators/sort/insertion.ts — Insertion Sort (SDD §4.7.3)
+// engines/generators/sort/insertion.ts — Insertion Sort (SDD §4.7.3)
 import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { arrayStructure, buildGenerator, parseArrayParams, Trace, validateArrayParams } from '../helpers';
@@ -122,13 +122,13 @@ export function createInsertionGenerator(): SimulationGenerator {
           });
         }
 
-        trace.stats.comparisons++;
+        if (j >= 0) trace.stats.comparisons++;
         trace.push({
           line: 5,
           explanation: j < 0
             ? `j=${j} < 0 → dừng dịch chuyển (đã hết đoạn đã sắp xếp).`
             : `a[${j}]=${a[j]} > key=${key} → sai, dừng dịch chuyển.`,
-          structure: arrayStructure(a, statuses),
+          structure: arrayStructure(a, j >= 0 ? { ...statuses, [j]: 'active' } : statuses),
           annotations: [`vị trí chèn: ${j + 1}`],
         });
 

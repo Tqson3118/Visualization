@@ -109,7 +109,7 @@ function blockStatusClass(status: string): string {
       <span class="home__bench-dot home__bench-dot--red" />
       <span class="home__bench-dot home__bench-dot--yellow" />
       <span class="home__bench-dot home__bench-dot--green" />
-      <span class="home__bench-title">{{ messages.home.benchTitle }}</span>
+      <span class="home__bench-title font-mono">simulator://{{ activeKey }}</span>
       <span class="home__bench-live">
         <span class="home__bench-live-dot" aria-hidden="true" />
         {{ messages.home.simLive }}

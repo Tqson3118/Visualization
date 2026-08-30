@@ -37,7 +37,8 @@ const SCHEMA: InputSchema = {
 export function createDijkstraGenerator(): SimulationGenerator {
   return buildGenerator('graph.dijkstra', SCHEMA, PSEUDOCODE, {
     validate(input: InputConfig) {
-      return { ok: true, errors: validateGraphParams(input.data) };
+      const errors = validateGraphParams(input.data);
+      return { ok: errors.length === 0, errors };
     },
 
     generate(input: InputConfig) {
@@ -100,6 +101,16 @@ export function createDijkstraGenerator(): SimulationGenerator {
           annotations: [`d[${u}]=${dist[u]} → đã chốt`],
         });
 
+        if (g.target !== null && g.target !== undefined && u === g.target) {
+          trace.push({
+            line: 5,
+            explanation: `Đã đến đỉnh đích u = ${u} (target=${g.target}) với khoảng cách tối ưu d[${u}] = ${dist[u]} → dừng sớm.`,
+            structure: graphStructure(g, edges, statuses, dist),
+            annotations: [`Đạt đích target=${g.target}, d=${dist[u]}`],
+          });
+          break;
+        }
+
         for (const [v, w] of adj[u]) {
           if (!unvisited.has(v)) continue;
           statuses.edges[edgeKey(u, v)] = 'active';
@@ -144,18 +155,51 @@ export function createDijkstraGenerator(): SimulationGenerator {
         }
       }
 
-      // Cây đường đi ngắn nhất: tô các cạnh parent thành done
-      for (const v of Object.keys(parent)) {
-        const child = Number(v);
-        const p = parent[child];
-        statuses.edges[edgeKey(p, child)] = 'done';
+      if (g.target !== null && g.target !== undefined && g.target >= 0 && g.target < g.vertices) {
+        const target = g.target;
+        if (dist[target] !== null) {
+          const path: number[] = [];
+          let curr: number | undefined = target;
+          while (curr !== undefined) {
+            path.unshift(curr);
+            if (curr === g.source) break;
+            curr = parent[curr];
+          }
+          statuses.edges = {};
+          for (let i = 0; i + 1 < path.length; i++) {
+            statuses.edges[edgeKey(path[i], path[i + 1])] = 'done';
+            statuses.nodes[path[i]] = 'done';
+          }
+          statuses.nodes[target] = 'done';
+
+          trace.push({
+            line: 9,
+            explanation: `Kết thúc: đường đi ngắn nhất từ ${g.source} đến đích ${target}: [${path.join(' → ')}] (tổng khoảng cách = ${dist[target]}).`,
+            structure: graphStructure(g, edges, statuses, dist),
+            annotations: [`Path: ${path.join(' → ')}`, `Chi phí: ${dist[target]}`],
+          });
+        } else {
+          trace.push({
+            line: 9,
+            explanation: `Kết thúc: không có đường đi từ đỉnh nguồn ${g.source} đến đỉnh đích ${target} (d[${target}] = ∞).`,
+            structure: graphStructure(g, edges, statuses, dist),
+            annotations: [`Không có đường đến ${target}`],
+          });
+        }
+      } else {
+        // Cây đường đi ngắn nhất: tô các cạnh parent thành done
+        for (const v of Object.keys(parent)) {
+          const child = Number(v);
+          const p = parent[child];
+          statuses.edges[edgeKey(p, child)] = 'done';
+        }
+        trace.push({
+          line: 9,
+          explanation: `Kết thúc: đường đi ngắn nhất từ ${g.source}: d = [${dist.map((d) => (d === null ? '∞' : d)).join(', ')}].`,
+          structure: graphStructure(g, edges, statuses, dist),
+          annotations: [`d = [${dist.map((d) => (d === null ? '∞' : d)).join(', ')}]`],
+        });
       }
-      trace.push({
-        line: 9,
-        explanation: `Kết thúc: đường đi ngắn nhất từ ${g.source}: d = [${dist.map((d) => (d === null ? '∞' : d)).join(', ')}].`,
-        structure: graphStructure(g, edges, statuses, dist),
-        annotations: [`d = [${dist.map((d) => (d === null ? '∞' : d)).join(', ')}]`],
-      });
       return trace.steps;
     },
   });

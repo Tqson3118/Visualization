@@ -15,13 +15,16 @@ public sealed class LearningPathConfiguration : IEntityTypeConfiguration<Learnin
         builder.Property(p => p.Description).HasMaxLength(500);
         builder.Property(p => p.SortOrder).HasDefaultValue(0);
         builder.Property(p => p.IsActive).HasDefaultValue(true);
-        builder.Property(p => p.Status).HasDefaultValue(LearningPathStatus.Active);
+        // KHÔNG dùng HasDefaultValue cho Status: Draft = 0 trùng CLR default — EF sentinel sẽ bỏ
+        // giá trị 0 khi INSERT và DB default (Active) ghi đè → lộ trình Nháp tự thành Công khai.
+        builder.Property(p => p.Status).HasConversion<int>();
+        builder.Property(p => p.Visibility).HasConversion<int>().HasDefaultValue(PathVisibility.Private);
         builder.Property(p => p.RejectionReason).HasMaxLength(500);
         builder.Property(p => p.ReviewedAt).HasColumnType("datetime2");
         builder.Property(p => p.SubmittedAt).HasColumnType("datetime2");
 
-        // UNIQUE Title — chốt khoá seed LearningPaths (SDD §7.3.25, audit bề mặt #2).
-        builder.HasIndex(p => p.Title).IsUnique();
+        // Index Title cho tìm kiếm và sắp xếp lộ trình
+        builder.HasIndex(p => p.Title);
 
         builder.HasOne<Topic>()
             .WithMany()
@@ -55,16 +58,23 @@ public sealed class LearningPathNodeConfiguration : IEntityTypeConfiguration<Lea
         builder.ToTable("LearningPathNodes");
 
         builder.Property(n => n.Title).HasMaxLength(200).IsRequired();
+        builder.Property(n => n.Description).HasMaxLength(1000);
+        // KHÔNG dùng HasDefaultValue cho ItemType: Folder = 0 trùng CLR default của enum,
+        // EF sentinel sẽ bỏ giá trị 0 khi INSERT và DB default (Theory) ghi đè → Folder luôn biến thành Theory.
+        builder.Property(n => n.ItemType).HasConversion<int>();
+        builder.Property(n => n.DeletedAt).HasColumnType("datetime2");
 
-        builder.HasIndex(n => new { n.PathId, n.SortOrder }).IsUnique();
-
-        // UNIQUE (PathId, Title) — chốt khoá seed LearningPathNodes (SDD §7.3.25, audit bề mặt #2).
-        builder.HasIndex(n => new { n.PathId, n.Title }).IsUnique();
+        builder.HasIndex(n => new { n.PathId, n.ParentId, n.SortOrder });
 
         builder.HasOne<LearningPath>()
             .WithMany()
             .HasForeignKey(n => n.PathId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<LearningPathNode>()
+            .WithMany()
+            .HasForeignKey(n => n.ParentId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Lesson>()
             .WithMany()
@@ -74,6 +84,11 @@ public sealed class LearningPathNodeConfiguration : IEntityTypeConfiguration<Lea
         builder.HasOne<Exercise>()
             .WithMany()
             .HasForeignKey(n => n.FinalTestId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Exercise>()
+            .WithMany()
+            .HasForeignKey(n => n.LabExerciseId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

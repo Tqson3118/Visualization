@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed, watch, shallowRef } from 'vue';
 import { CompilerStepExecutor, type PlaybackFrame } from '../../../core/CompilerStepExecutor';
 import { DEFAULT_BUBBLE_SORT_CODE } from './vcrDefaults';
+import { useUiStore } from '@/stores/ui';
 
 
 export interface VcrBaseFrame {
@@ -80,7 +81,7 @@ export const useVcrStore = defineStore('vcr-player', () => {
     if (playbackFrames.value.length === 0) compileAndLoad();
     if (playbackFrames.value.length > 0) isPlaying.value = true;
     else if (compilationError.value) {
-      alert("LỖI BIÊN DỊCH CODE:\n\n" + compilationError.value);
+      useUiStore().showToast("Lỗi biên dịch code: " + compilationError.value, "error");
     }
   };
   const pause  = () => { isPlaying.value = false; };

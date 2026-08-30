@@ -186,6 +186,7 @@ function runStackOps(input: InputConfig, _preferred: 'push' | 'pop' | 'peek'): R
         structure: stackStructure(stack, capacity, statuses),
         annotations: [`top=${top - 1}`],
       });
+      delete statuses[top];
     } else {
       if (top < 0) {
         trace.push({

@@ -54,28 +54,36 @@ export class TreeRenderer implements Renderer {
     }
     const byId = new Map<string, Element>();
     for (const el of structure.elements) byId.set(el.id, el);
-    const root = structure.elements.find((el) => !parents.has(el.id)) ?? structure.elements[0];
-    if (!root) return;
+    const roots = structure.elements.filter((el) => !parents.has(el.id));
+    const effectiveRoots = roots.length > 0 ? roots : [structure.elements[0]];
+    if (effectiveRoots.length === 0 || !effectiveRoots[0]) return;
 
-    // Gán cột theo in-order (trái → gốc → phải) và độ sâu.
+    // Gán cột theo in-order (trái → gốc → phải) và độ sâu, có guard chống chu trình.
     const orderOf = new Map<string, number>();
     const depthOf = new Map<string, number>();
+    const visited = new Set<string>();
     let counter = 0;
     const assign = (id: string, depth: number): void => {
+      if (visited.has(id)) return;
+      visited.add(id);
       const kids = childrenOf.get(id) ?? [];
       const left = kids.find((l) => l.label === 'L' || l.label === 'left') ?? kids[0];
-      const right = kids.find((l) => l.label === 'R' || l.label === 'right') ?? kids[1];
-      if (left) assign(left.to, depth + 1);
+      const right = kids.find((l) => l.label === 'R' || l.label === 'right') ?? (kids.length > 1 ? kids[1] : undefined);
+      if (left && left.to !== id) assign(left.to, depth + 1);
       orderOf.set(id, counter++);
       depthOf.set(id, depth);
-      if (right) assign(right.to, depth + 1);
+      if (right && right.to !== id) assign(right.to, depth + 1);
     };
-    assign(root.id, 0);
+    for (const root of effectiveRoots) {
+      if (!visited.has(root.id)) assign(root.id, 0);
+    }
 
     const nodeCount = Math.max(1, orderOf.size);
     const maxDepth = Math.max(1, ...Array.from(depthOf.values()).map((d) => d + 1));
     const slotW = (w - 2 * CANVAS_LAYOUT.margin) / nodeCount;
-    const levelH = Math.max(MIN_LEVEL_H, Math.min(MAX_LEVEL_H, (h - CANVAS_LAYOUT.paddingTop - bottomReserve - CANVAS_LAYOUT.margin) / maxDepth));
+    const availH = Math.max(80, h - CANVAS_LAYOUT.paddingTop - bottomReserve - CANVAS_LAYOUT.margin);
+    const levelH = Math.min(MAX_LEVEL_H, Math.max(22, availH / maxDepth));
+    const nodeR = Math.max(10, Math.min(NODE_R, Math.floor(levelH * 0.42), Math.floor(slotW * 0.42)));
     const posOf = new Map<string, { x: number; y: number }>();
     for (const el of structure.elements) {
       const order = orderOf.get(el.id);
@@ -83,7 +91,7 @@ export class TreeRenderer implements Renderer {
       if (order === undefined || depth === undefined) continue;
       posOf.set(el.id, {
         x: CANVAS_LAYOUT.margin + order * slotW + slotW / 2,
-        y: CANVAS_LAYOUT.paddingTop + depth * levelH + NODE_R,
+        y: CANVAS_LAYOUT.paddingTop + depth * levelH + nodeR,
       });
     }
 
@@ -94,9 +102,9 @@ export class TreeRenderer implements Renderer {
       if (!from || !to) continue;
       const color = this.painter.edgeColor(link.status);
       const bubble = link.status === 'active' || link.status === 'swap' || link.status === 'highlight';
-      this.painter.curve(from.x, from.y + NODE_R - 4, to.x, to.y - NODE_R + 4, color, 2, 16, bubble);
+      this.painter.curve(from.x, from.y + nodeR - 3, to.x, to.y - nodeR + 3, color, 2, 16, bubble);
       if (link.label === 'L' || link.label === 'R') {
-        this.painter.label(link.label, (from.x + to.x) / 2 + 8, (from.y + to.y) / 2 - 6, CANVAS_COLORS.muted, 9);
+        this.painter.label(link.label, (from.x + to.x) / 2 + 8, (from.y + to.y) / 2 - 6, CANVAS_COLORS.muted, Math.max(7, Math.min(9, nodeR * 0.75)));
       }
     }
 
@@ -104,7 +112,7 @@ export class TreeRenderer implements Renderer {
     for (const el of structure.elements) {
       const pos = posOf.get(el.id);
       if (!pos) continue;
-      this.drawNode(el, pos.x, pos.y, options);
+      this.drawNode(el, pos.x, pos.y, nodeR, options);
     }
 
     // Mảng heap tương ứng phía dưới.
@@ -113,18 +121,19 @@ export class TreeRenderer implements Renderer {
     }
   }
 
-  private drawNode(el: Element, x: number, y: number, options: RenderOptions): void {
+  private drawNode(el: Element, x: number, y: number, r: number, options: RenderOptions): void {
     const muted = el.status === 'muted';
     const fill = muted ? this.painter.statusColorWithAlpha('muted', 0.5) : this.painter.statusColor(el.status);
     const stroke = hexToRgba(this.painter.statusColor(el.status), 0.8);
     // Glow cho nút đang xét — vẽ trước hình tròn để nằm dưới.
     if (el.status === 'active' || el.status === 'highlight') {
-      this.painter.arcGlow(x, y, NODE_R, this.painter.statusColor(el.status), 8);
+      this.painter.arcGlow(x, y, r, this.painter.statusColor(el.status), Math.min(8, r * 0.5));
     }
-    this.painter.circle(x, y, NODE_R, fill, stroke);
+    this.painter.circle(x, y, r, fill, stroke);
     if (options.showValues) {
+      const fontSize = Math.max(9, Math.min(12, Math.round(r * 0.9)));
       this.painter.text(el.label, x, y, {
-        size: 12,
+        size: fontSize,
         weight: 'bold',
         color: muted ? CANVAS_COLORS.muted : CANVAS_COLORS.text,
       });

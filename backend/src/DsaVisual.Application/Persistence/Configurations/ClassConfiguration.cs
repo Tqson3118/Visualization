@@ -17,6 +17,7 @@ public sealed class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(c => c.Description).HasMaxLength(500);
         builder.Property(c => c.CurriculumTitle).HasMaxLength(200);
         builder.Property(c => c.CurriculumDescription).HasMaxLength(500);
+        builder.Property(c => c.LearningPathId).IsRequired(false);
         // C6: lớp mới mặc định CurriculumPublished=false (Nháp) — GV phải bấm Xuất bản mới sang published
         builder.Property(c => c.CurriculumPublished).HasDefaultValue(false);
         builder.Property(c => c.Status).HasConversion<int>().HasDefaultValue(ClassStatus.Open);
@@ -25,11 +26,17 @@ public sealed class ClassConfiguration : IEntityTypeConfiguration<Class>
 
         builder.HasIndex(c => c.InviteCode).IsUnique();
         builder.HasIndex(c => c.OwnerId);
+        builder.HasIndex(c => c.LearningPathId);
 
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(c => c.OwnerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<LearningPath>()
+            .WithMany()
+            .HasForeignKey(c => c.LearningPathId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
 
@@ -65,16 +72,28 @@ public sealed class ClassAssignmentConfiguration : IEntityTypeConfiguration<Clas
         builder.Property(a => a.DueAt).HasColumnType("datetime2");
         builder.Property(a => a.CreatedAt).HasColumnType("datetime2");
         builder.Property(a => a.SortOrder).HasDefaultValue(0);
+        builder.Property(a => a.Archived).HasDefaultValue(false);
 
         builder.HasIndex(a => new { a.ClassId, a.DueAt });
         builder.HasIndex(a => new { a.ClassId, a.SortOrder });
         builder.HasIndex(a => a.LessonId);
         builder.HasIndex(a => a.ExerciseId);
 
+        // UNIQUE (ClassId, PathItemId) khi PathItemId != NULL — chặn gán trùng node PAGE vào 1 lớp
+        // (double-submit race). Overlay assignment cho cùng node phải update chứ không insert thêm.
+        builder.HasIndex(a => new { a.ClassId, a.PathItemId })
+            .IsUnique()
+            .HasFilter("[PathItemId] IS NOT NULL");
+
         builder.HasOne<Class>()
             .WithMany()
             .HasForeignKey(a => a.ClassId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<LearningPathNode>()
+            .WithMany()
+            .HasForeignKey(a => a.PathItemId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Lesson>()
             .WithMany()
@@ -86,8 +105,8 @@ public sealed class ClassAssignmentConfiguration : IEntityTypeConfiguration<Clas
             .HasForeignKey(a => a.ExerciseId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // SDD §7.3.18: CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL)
+        // CHECK (LessonId IS NOT NULL OR ExerciseId IS NOT NULL OR PathItemId IS NOT NULL)
         builder.ToTable(t => t.HasCheckConstraint("CK_ClassAssignments_Content",
-            "([LessonId] IS NOT NULL OR [ExerciseId] IS NOT NULL)"));
+            "([LessonId] IS NOT NULL OR [ExerciseId] IS NOT NULL OR [PathItemId] IS NOT NULL)"));
     }
 }

@@ -1,4 +1,4 @@
-﻿// engines/generators/sort/quick.ts — Quick Sort (Lomuto) (SDD §4.7.5)
+// engines/generators/sort/quick.ts — Quick Sort (Lomuto) (SDD §4.7.5)
 import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { arrayStructure, buildGenerator, parseArrayParams, Trace, validateArrayParams } from '../helpers';
@@ -55,9 +55,12 @@ export function createQuickGenerator(): SimulationGenerator {
       const doneMap: StatusMap = {};
 
       const segMap = (lo: number, hi: number, extra: StatusMap = {}): StatusMap => {
-        const m: StatusMap = { ...doneMap, ...extra };
-        for (let k = lo; k <= hi; k++) {
-          if (doneMap[k] !== 'done' && !(k in extra)) m[k] = 'active';
+        const m: StatusMap = {};
+        for (let k = 0; k < n; k++) {
+          if (doneMap[k] === 'done') m[k] = 'done';
+          else if (k in extra) m[k] = extra[k];
+          else if (k >= lo && k <= hi) m[k] = 'default';
+          else m[k] = 'muted';
         }
         return m;
       };
@@ -163,11 +166,12 @@ export function createQuickGenerator(): SimulationGenerator {
           annotations: [`pivot về vị trí ${i + 1}`],
         });
         trace.vars.p = i + 1;
+        doneMap[i + 1] = 'done';
         trace.push({
           line: 14,
-          explanation: `return i+1 = ${i + 1} — vị trí chia đôi của pivot.`,
+          explanation: `return i+1 = ${i + 1} — vị trí chia đôi của pivot (a[${i + 1}]=${a[i + 1]} đã cố định).`,
           structure: arrayStructure(a, segMap(lo, hi, { [i + 1]: 'done' })),
-          annotations: [`p=${i + 1}`],
+          annotations: [`p=${i + 1}`, `a[${i + 1}] đúng vị trí`],
         });
         return i + 1;
       };
@@ -180,6 +184,7 @@ export function createQuickGenerator(): SimulationGenerator {
           annotations: [`đoạn [${lo}..${hi}]`],
         });
         if (lo >= hi) {
+          if (lo === hi) doneMap[lo] = 'done';
           trace.push({
             line: 2,
             explanation: `low=${lo} ≥ high=${hi} → đoạn có ≤ 1 phần tử, quay về.`,
@@ -193,13 +198,6 @@ export function createQuickGenerator(): SimulationGenerator {
           structure: arrayStructure(a, segMap(lo, hi)),
         });
         const p = partition(lo, hi);
-        doneMap[p] = 'done';
-        trace.push({
-          line: 13,
-          explanation: `Pivot a[${p}]=${a[p]} đã nằm đúng vị trí cuối cùng.`,
-          structure: arrayStructure(a, segMap(lo, hi, { [p]: 'done' })),
-          annotations: [`a[${p}] đúng vị trí`],
-        });
         trace.push({
           line: 4,
           explanation: `Đệ quy sắp xếp nửa trái a[${lo}..${p - 1}].`,

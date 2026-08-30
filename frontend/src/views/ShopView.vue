@@ -120,6 +120,13 @@ const CATEGORY_TABS: Array<{ id: 'all' | 'support' | 'avatar' | 'frame' | 'boost
   { id: 'boost', label: 'Tăng tốc' },
 ];
 
+const categoryTabItems = computed(() =>
+  CATEGORY_TABS.map((c) => ({
+    key: c.id,
+    label: c.label,
+  })),
+);
+
 function isItemInCategory(item: ShopItemDto, cat: string): boolean {
   if (cat === 'all') return true;
   if (cat === 'support') return item.slot === 'hint' || item.slot === 'freeze' || item.slot === 'support';
@@ -368,20 +375,9 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
 
           <!-- Khu phải: trưng bày vật phẩm theo lưới 3×3 -->
           <section class="shop__showcase" aria-label="Trưng bày vật phẩm">
-            <header class="shop__showcase-head">
-              <div class="shop__cat-list">
-                <button
-                  v-for="cat in CATEGORY_TABS"
-                  :key="cat.id"
-                  type="button"
-                  class="shop__cat-tab"
-                  :class="{ 'shop__cat-tab--active': activeCategory === cat.id }"
-                  @click="activeCategory = cat.id"
-                >
-                  {{ cat.label }}
-                </button>
-              </div>
-              <span class="shop__showcase-count">{{ filteredItems.length }} ITEMS</span>
+            <header class="shop__showcase-head flex-col sm:flex-row gap-3">
+              <Tabs :tabs="categoryTabItems" v-model="activeCategory" class="shop__cat-tabs flex-1" />
+              <span class="shop__showcase-count shrink-0">{{ filteredItems.length }} ITEMS</span>
             </header>
 
             <div v-if="filteredItems.length === 0" class="shop__empty-cat card">

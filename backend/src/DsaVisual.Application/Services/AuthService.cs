@@ -1177,7 +1177,7 @@ public sealed class AuthService(
         return false;
     }
 
-    /// <summary>Gửi email chứa mã OTP đăng ký — SMTP thiếu → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5).</summary>
+    /// <summary>Gửi email chứa mã OTP đăng ký dạng HTML cao cấp — SMTP thiếu → KHÔNG block luồng; KHÔNG log mã OTP (finding security#5).</summary>
     private async Task SendRegisterOtpEmailAsync(string email, string code, CancellationToken ct)
     {
         var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
@@ -1191,11 +1191,15 @@ public sealed class AuthService(
         try
         {
             using var smtp = SmtpClientFactory.Create(emailOpts);
-            await smtp.SendMailAsync(
-                emailOpts.From ?? "no-reply@dsa-visual.local",
-                email,
-                "Mã xác thực đăng ký — DSA Visual",
-                $"Mã xác thực đăng ký tài khoản của bạn là: {code}\n\nMã có hiệu lực {OtpLifetimeMinutes} phút và chỉ dùng được 1 lần.\nNếu bạn không yêu cầu đăng ký, hãy bỏ qua email này.", ct);
+            using var mail = new MailMessage
+            {
+                From = new MailAddress(emailOpts.From ?? "no-reply@dsa-visual.local", "DSA Visual"),
+                Subject = "Mã xác thực đăng ký — DSA Visual",
+                Body = EmailTemplateService.BuildRegisterOtpEmail(code, OtpLifetimeMinutes),
+                IsBodyHtml = true
+            };
+            mail.To.Add(email);
+            await smtp.SendMailAsync(mail, ct);
         }
         catch (Exception ex)
         {
@@ -1259,11 +1263,15 @@ public sealed class AuthService(
         try
         {
             using var smtp = SmtpClientFactory.Create(emailOpts);
-            await smtp.SendMailAsync(
-                emailOpts.From ?? "no-reply@dsa-visual.local",
-                user.Email,
-                "Đặt lại mật khẩu — DSA Visual",
-                $"Nhấn link sau để đặt lại mật khẩu (hiệu lực 30 phút): {resetLink}", ct);
+            using var mail = new MailMessage
+            {
+                From = new MailAddress(emailOpts.From ?? "no-reply@dsa-visual.local", "DSA Visual"),
+                Subject = "Đặt lại mật khẩu — DSA Visual",
+                Body = EmailTemplateService.BuildPasswordResetEmail(resetLink, 30),
+                IsBodyHtml = true
+            };
+            mail.To.Add(user.Email);
+            await smtp.SendMailAsync(mail, ct);
         }
         catch (Exception ex)
         {
@@ -1286,13 +1294,15 @@ public sealed class AuthService(
         try
         {
             using var smtp = SmtpClientFactory.Create(emailOpts);
-            await smtp.SendMailAsync(
-                emailOpts.From ?? "no-reply@dsa-visual.local",
-                user.Email,
-                "Mã xác thực 2FA — DSA Visual",
-                $"Mã xác thực hai lớp (2FA) của bạn là: {code}\n\n" +
-                $"Mã có hiệu lực {OtpLifetimeMinutes} phút và chỉ dùng được 1 lần.\n" +
-                "Nếu bạn không yêu cầu, hãy bỏ qua email này.", ct);
+            using var mail = new MailMessage
+            {
+                From = new MailAddress(emailOpts.From ?? "no-reply@dsa-visual.local", "DSA Visual"),
+                Subject = "Mã xác thực 2FA — DSA Visual",
+                Body = EmailTemplateService.Build2FaOtpEmail(code, OtpLifetimeMinutes),
+                IsBodyHtml = true
+            };
+            mail.To.Add(user.Email);
+            await smtp.SendMailAsync(mail, ct);
         }
         catch (Exception ex)
         {

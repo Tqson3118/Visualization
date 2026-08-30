@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router';
 import { Motion } from 'motion-v';
 
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/buttonVariants';
 import { messages } from '@/i18n/vi';
 
 /** Strip block-token trang trí (aria-hidden) — giá trị block đánh vần "404", index 03 out of bounds. */

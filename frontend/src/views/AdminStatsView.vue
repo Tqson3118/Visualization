@@ -22,17 +22,12 @@ import * as adminApi from '@/api/admin';
 import type { AdminStatsDto } from '@/api/admin';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
-import AdminNav from '@/components/admin/AdminNav.vue';
+import StudioShell from '@/components/studio/StudioShell.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import VChartLazy from '@/components/ui/VChartLazy.vue';
 import { formatNumber } from '@/utils/format';
-
-import { use } from 'echarts/core';
-import { PieChart } from 'echarts/charts';
-
-use([PieChart]);
 
 const ui = useUiStore();
 const stats = ref<AdminStatsDto | null>(null);
@@ -234,29 +229,28 @@ const roleChartOption = computed(() => {
 </script>
 
 <template>
-  <main class="admin-stats container">
-    <!-- Header Hero Banner -->
-    <header class="admin-stats__hero">
-      <div class="admin-stats__hero-inner">
-        <div class="admin-stats__hero-main">
-          <div class="admin-stats__hero-badges">
-            <Badge variant="primary">
-              <Activity :size="13" /> Quản Trị Hệ Thống
-            </Badge>
+  <StudioShell active-tab="stats">
+    <div class="space-y-6">
+      <!-- Header Hero Banner -->
+      <header class="admin-stats__hero">
+        <div class="admin-stats__hero-inner">
+          <div class="admin-stats__hero-main">
+            <div class="admin-stats__hero-badges">
+              <Badge variant="primary">
+                <Activity :size="13" /> Quản Trị Hệ Thống
+              </Badge>
+            </div>
+            <h1 class="admin-stats__title">Thống Kê &amp; Báo Cáo Tổng Quan</h1>
+            <p class="admin-stats__sub">Theo dõi các chỉ số tăng trưởng người dùng, nội dung đào tạo và giao dịch hệ thống theo thời gian thực.</p>
           </div>
-          <h1 class="admin-stats__title">Thống Kê &amp; Báo Cáo Tổng Quan</h1>
-          <p class="admin-stats__sub">Theo dõi các chỉ số tăng trưởng người dùng, nội dung đào tạo và giao dịch hệ thống theo thời gian thực.</p>
-        </div>
 
-        <div class="flex items-center gap-3">
-          <Button variant="secondary" size="sm" class="gap-1.5" :loading="loading" @click="load">
-            <RefreshCw :size="14" /> Làm mới dữ liệu
-          </Button>
+          <div class="flex items-center gap-3">
+            <Button variant="secondary" size="sm" class="gap-1.5" :loading="loading" @click="load">
+              <RefreshCw :size="14" /> Làm mới dữ liệu
+            </Button>
+          </div>
         </div>
-      </div>
-    </header>
-
-    <AdminNav active="stats" />
+      </header>
 
     <!-- Loading Skeletons -->
     <div v-if="loading" class="space-y-6" aria-busy="true">
@@ -442,7 +436,8 @@ const roleChartOption = computed(() => {
         </div>
       </div>
     </template>
-  </main>
+    </div>
+  </StudioShell>
 </template>
 
 <style scoped>

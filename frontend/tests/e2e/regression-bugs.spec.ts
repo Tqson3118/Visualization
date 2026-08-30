@@ -20,8 +20,8 @@ test.describe('REGRESSION TEST SUITE - 10 CRITICAL BUGS', () => {
     await page.getByRole('button', { name: /đăng nhập/i }).click();
     await page.waitForTimeout(2000);
 
-    // Navigate to Lesson Editor
-    await page.goto(`${BASE}/studio/lessons/new`);
+    // Navigate to Studio curriculum (màn soạn hợp nhất)
+    await page.goto(`${BASE}/studio?tab=curriculum`);
     await expect(page.locator('body')).toBeVisible({ timeout: 10_000 });
   });
 

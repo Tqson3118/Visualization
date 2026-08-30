@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import {
+  AlertCircle,
   Check,
+  CheckCircle2,
+  Download,
   FileSpreadsheet,
   HelpCircle,
+  Info,
   Plus,
   Puzzle,
   Sparkles,
@@ -11,6 +15,7 @@ import {
   Upload,
   X,
 } from 'lucide-vue-next';
+import * as XLSX from 'xlsx';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, ExerciseSummaryDto } from '@/api/exercises';
@@ -20,76 +25,64 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 
+export interface InlineQuestionItem {
+  id?: number;
+  content: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  points: number;
+}
+
 const props = defineProps<{
   lessonId: number | null;
   lessonTitle: string;
+  modelValue?: InlineQuestionItem[];
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', questions: InlineQuestionItem[]): void;
 }>();
 
 const ui = useUiStore();
 
-const loading = ref(false);
-const exercises = ref<ExerciseSummaryDto[]>([]);
-const createModalOpen = ref(false);
-const creating = ref(false);
+// Local list of questions
+const questions = ref<InlineQuestionItem[]>(
+  props.modelValue && props.modelValue.length > 0
+    ? JSON.parse(JSON.stringify(props.modelValue))
+    : [
+        {
+          content: 'Độ phức tạp thời gian tốt nhất của thuật toán Bubble Sort (có cờ kiểm tra) là bao nhiêu?',
+          options: ['O(N)', 'O(N^2)', 'O(log N)', 'O(1)'],
+          correctIndex: 0,
+          explanation: 'Khi mảng đã được sắp xếp trước, thuật toán dừng sau 1 lần duyệt kiểm tra O(N).',
+          points: 2,
+        },
+      ],
+);
 
-const csvInputRef = ref<HTMLInputElement | null>(null);
-const importingCsv = ref(false);
+// Sync with modelValue
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal && JSON.stringify(newVal) !== JSON.stringify(questions.value)) {
+      questions.value = JSON.parse(JSON.stringify(newVal));
+    }
+  },
+  { deep: true },
+);
 
-// Form tạo quiz mới
-const quizForm = ref({
-  title: '',
-  description: '',
-  durationMinutes: 10,
-  maxScore: 10,
-  questions: [
-    {
-      content: '',
-      options: ['', '', '', ''],
-      correctIndex: 0,
-      explanation: '',
-      points: 2,
-    },
-  ],
-});
-
-async function loadExercises(): Promise<void> {
-  if (!props.lessonId) {
-    exercises.value = [];
-    return;
-  }
-  loading.value = true;
-  try {
-    exercises.value = await exercisesApi.fetchExercises({ lessonId: props.lessonId });
-  } catch {
-    exercises.value = [];
-  } finally {
-    loading.value = false;
-  }
-}
-
-watch(() => props.lessonId, loadExercises, { immediate: true });
-
-function openCreateModal(): void {
-  quizForm.value = {
-    title: `Quiz: ${props.lessonTitle || 'Kiểm tra kiến thức'}`,
-    description: 'Trắc nghiệm củng cố lý thuyết và phân tích thuật toán.',
-    durationMinutes: 10,
-    maxScore: 10,
-    questions: [
-      {
-        content: '',
-        options: ['', '', '', ''],
-        correctIndex: 0,
-        explanation: '',
-        points: 2,
-      },
-    ],
-  };
-  createModalOpen.value = true;
-}
+// Emit update when local questions change
+watch(
+  questions,
+  () => {
+    emit('update:modelValue', JSON.parse(JSON.stringify(questions.value)));
+  },
+  { deep: true },
+);
 
 function addQuestion(): void {
-  quizForm.value.questions.push({
+  questions.value.push({
     content: '',
     options: ['', '', '', ''],
     correctIndex: 0,
@@ -99,262 +92,326 @@ function addQuestion(): void {
 }
 
 function removeQuestion(idx: number): void {
-  if (quizForm.value.questions.length > 1) {
-    quizForm.value.questions.splice(idx, 1);
+  if (questions.value.length > 1) {
+    questions.value.splice(idx, 1);
   }
 }
 
-async function handleCreateQuiz(): Promise<void> {
-  if (!props.lessonId) {
-    ui.showToast('Vui lòng lưu bài học trước khi tạo Quiz.', 'warning');
-    return;
-  }
-  if (!quizForm.value.title.trim()) {
-    ui.showToast('Vui lòng nhập tiêu đề Quiz.', 'warning');
-    return;
-  }
+// ── Preset Templates ──
+function addSampleQuestions(): void {
+  const samples: InlineQuestionItem[] = [
+    {
+      content: 'Cấu trúc dữ liệu Ngăn xếp (Stack) hoạt động theo nguyên lý nào sau đây?',
+      options: ['LIFO (Last In, First Out)', 'FIFO (First In, First Out)', 'LILO (Last In, Last Out)', 'Random Access'],
+      correctIndex: 0,
+      explanation: 'Stack hoạt động theo cơ chế vào sau ra trước (LIFO).',
+      points: 2,
+    },
+    {
+      content: 'Thuật toán sắp xếp nào sau đây KHÔNG có tính ổn định (Not Stable)?',
+      options: ['Selection Sort', 'Merge Sort', 'Bubble Sort', 'Insertion Sort'],
+      correctIndex: 0,
+      explanation: 'Selection Sort có thể hoán đổi các phần tử có cùng giá trị qua khoảng cách xa làm đổi thứ tự ban đầu.',
+      points: 2,
+    },
+    {
+      content: 'Cây tìm kiếm nhị phân (BST) có đặc điểm nào dưới đây?',
+      options: [
+        'Mọi node con bên trái đều nhỏ hơn node cha và bên phải lớn hơn node cha',
+        'Mọi node con bên trái đều lớn hơn node cha',
+        'Các node luôn được cân bằng hoàn hảo',
+        'Là một đồ thị có chu trình kín',
+      ],
+      correctIndex: 0,
+      explanation: 'Quy tắc cơ bản của BST là: Cây con trái < Node cha < Cây con phải.',
+      points: 2,
+    },
+  ];
 
-  // Validate questions
-  for (let i = 0; i < quizForm.value.questions.length; i++) {
-    const q = quizForm.value.questions[i];
-    if (!q.content.trim()) {
-      ui.showToast(`Vui lòng nhập nội dung cho câu hỏi #${i + 1}.`, 'warning');
-      return;
-    }
-    const filledOptions = q.options.filter((o) => o.trim().length > 0);
-    if (filledOptions.length < 2) {
-      ui.showToast(`Câu hỏi #${i + 1} phải có ít nhất 2 đáp án lựa chọn.`, 'warning');
-      return;
-    }
-  }
-
-  creating.value = true;
-  try {
-    const formattedQuestions = quizForm.value.questions.map((q, idx) => ({
-      content: q.content.trim(),
-      type: 'Single' as const,
-      options: q.options.map((o) => o.trim()).filter(Boolean),
-      answerJson: JSON.stringify([q.correctIndex]),
-      explanation: q.explanation.trim() || undefined,
-      points: q.points || 2,
-      sortOrder: idx + 1,
-    }));
-
-    await exercisesApi.createExercise({
-      lessonId: props.lessonId,
-      title: quizForm.value.title.trim(),
-      description: quizForm.value.description.trim() || undefined,
-      type: 'Mcq',
-      durationMinutes: quizForm.value.durationMinutes,
-      maxScore: quizForm.value.maxScore,
-      status: 'Active',
-      questions: formattedQuestions,
-    });
-
-    ui.showToast('Đã tạo Quiz trắc nghiệm gắn vào bài học thành công!', 'success');
-    createModalOpen.value = false;
-    await loadExercises();
-  } catch (err: any) {
-    ui.showToast(err.message || 'Tạo Quiz thất bại.', 'error');
-  } finally {
-    creating.value = false;
-  }
+  questions.value.push(...samples);
+  ui.showToast('Đã thêm 3 câu hỏi trắc nghiệm DSA mẫu!', 'success');
 }
 
-async function handleDeleteExercise(id: number): Promise<void> {
-  if (!confirm('Bạn có chắc chắn muốn xóa Quiz này không?')) return;
-  try {
-    await exercisesApi.deleteExercise(id);
-    ui.showToast('Đã xóa Quiz thành công.', 'success');
-    await loadExercises();
-  } catch (err: any) {
-    ui.showToast(err.message || 'Xóa Quiz thất bại.', 'error');
-  }
+// ── Import CSV / Excel ──
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const importModalOpen = ref(false);
+const parsedPreviewQuestions = ref<InlineQuestionItem[]>([]);
+
+function triggerFileInput(): void {
+  fileInputRef.value?.click();
 }
 
-function triggerCsvUpload(): void {
-  csvInputRef.value?.click();
+function downloadSampleCsv(): void {
+  const csvContent = `question,option_a,option_b,option_c,option_d,correct_option,explanation
+"Độ phức tạp thời gian tốt nhất của Bubble Sort là gì?","O(N)","O(N^2)","O(log N)","O(1)","A","Khi mảng đã sắp xếp và có cờ swapped, Bubble Sort dừng sau 1 lượt O(N)."
+"Thuật toán sắp xếp nào sau đây KHÔNG có tính ổn định (Not Stable)?","Selection Sort","Merge Sort","Bubble Sort","Insertion Sort","A","Selection Sort có thể hoán đổi các phần tử bằng nhau qua khoảng cách xa."
+"Ngăn xếp (Stack) hoạt động theo nguyên lý nào?","LIFO","FIFO","LILO","FILO","A","Stack hoạt động theo cơ chế Last-In-First-Out."`;
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'mau_cau_hoi_quiz_dsa.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  ui.showToast('Đã tải xuống file mẫu CSV!', 'success');
 }
 
-async function onCsvFileSelected(event: Event): Promise<void> {
+async function onFileSelected(event: Event): Promise<void> {
   const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file || !props.lessonId) return;
+  if (!file) return;
 
-  importingCsv.value = true;
   try {
-    const res = await exercisesApi.importExerciseCsv(props.lessonId, file);
-    ui.showToast(`Đã nhập thành công ${res.createdCount || 'các'} câu hỏi từ CSV!`, 'success');
-    await loadExercises();
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    let rows: any[] = [];
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    } else {
+      const text = await file.text();
+      const wb = XLSX.read(text, { type: 'string' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      ui.showToast('File không có dữ liệu câu hỏi hợp lệ.', 'warning');
+      return;
+    }
+
+    const importedList: InlineQuestionItem[] = [];
+    for (const r of rows) {
+      const content = String(r.question || r['Câu hỏi'] || r['Content'] || '').trim();
+      if (!content) continue;
+
+      const optA = String(r.option_a || r['Đáp án A'] || r['A'] || '').trim();
+      const optB = String(r.option_b || r['Đáp án B'] || r['B'] || '').trim();
+      const optC = String(r.option_c || r['Đáp án C'] || r['C'] || '').trim();
+      const optD = String(r.option_d || r['Đáp án D'] || r['D'] || '').trim();
+
+      const options = [optA, optB, optC, optD].filter(Boolean);
+      if (options.length < 2) continue;
+
+      const correctRaw = String(r.correct_option || r['Đáp án đúng'] || r['Correct'] || 'A').trim().toUpperCase();
+      let correctIdx = 0;
+      if (correctRaw === 'B' || correctRaw === '1') correctIdx = 1;
+      else if (correctRaw === 'C' || correctRaw === '2') correctIdx = 2;
+      else if (correctRaw === 'D' || correctRaw === '3') correctIdx = 3;
+
+      const explanation = String(r.explanation || r['Giải thích'] || '').trim();
+
+      importedList.push({
+        content,
+        options: [optA || '', optB || '', optC || '', optD || ''],
+        correctIndex: correctIdx,
+        explanation,
+        points: 2,
+      });
+    }
+
+    if (importedList.length === 0) {
+      ui.showToast('Không tìm thấy câu hỏi đúng cấu trúc trong file.', 'warning');
+      return;
+    }
+
+    parsedPreviewQuestions.value = importedList;
+    importModalOpen.value = true;
   } catch (err: any) {
-    ui.showToast(err.message || 'Không thể nhập file CSV.', 'error');
+    ui.showToast(`Lỗi đọc file: ${err?.message || err}`, 'error');
   } finally {
-    importingCsv.value = false;
-    if (csvInputRef.value) csvInputRef.value.value = '';
+    if (fileInputRef.value) fileInputRef.value.value = '';
   }
+}
+
+function confirmImport(): void {
+  questions.value.push(...parsedPreviewQuestions.value);
+  ui.showToast(`Đã nạp thành công ${parsedPreviewQuestions.value.length} câu hỏi vào bài học!`, 'success');
+  importModalOpen.value = false;
+  parsedPreviewQuestions.value = [];
 }
 </script>
 
 <template>
   <div class="quiz-tab flex flex-col h-full p-6 overflow-y-auto max-w-5xl mx-auto space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between border-b border-vdsa-border pb-4">
-      <div>
-        <h2 class="text-lg font-black text-white flex items-center gap-2">
-          <Puzzle class="text-vdsa-purple" :size="20" />
-          Bài tập & Câu hỏi trắc nghiệm (Quiz)
-        </h2>
-        <p class="text-xs text-vdsa-muted mt-1">
-          Gắn các bộ câu hỏi trắc nghiệm giúp học viên kiểm tra kiến thức ngay sau khi đọc lý thuyết bài học.
-        </p>
-      </div>
-
-      <div class="flex items-center gap-2" v-if="lessonId">
-        <input ref="csvInputRef" type="file" accept=".csv" class="hidden" @change="onCsvFileSelected" />
-        <Button variant="secondary" size="sm" class="gap-1.5 text-xs" :loading="importingCsv" @click="triggerCsvUpload">
-          <Upload :size="13" /> Nhập từ CSV
-        </Button>
-        <Button variant="primary" size="sm" class="gap-1.5 text-xs" @click="openCreateModal">
-          <Plus :size="13" /> Tạo bộ Quiz mới
-        </Button>
-      </div>
-    </div>
-
-    <!-- Alert if lesson not saved yet -->
-    <div v-if="!lessonId" class="p-6 rounded-2xl bg-purple-950/20 border border-purple-500/30 text-center space-y-3">
-      <div class="w-12 h-12 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center mx-auto text-lg font-bold">
-        ❓
-      </div>
-      <h3 class="text-sm font-bold text-white">Bài học chưa được lưu</h3>
-      <p class="text-xs text-slate-400 max-w-md mx-auto">
-        Vui lòng lưu hoặc xuất bản bài học trước để hệ thống cấp mã định danh ID, sau đó bạn có thể gắn câu hỏi trắc nghiệm và bài tập trực tiếp cho bài học này.
-      </p>
-    </div>
-
-    <!-- Exercises list -->
-    <div v-else class="space-y-4">
-      <div v-if="loading" class="text-center py-8 text-xs text-slate-400">
-        Đang tải danh sách bài tập...
-      </div>
-
-      <div v-else-if="exercises.length === 0" class="p-8 rounded-2xl bg-vdsa-surface border border-vdsa-border text-center space-y-3">
-        <HelpCircle class="w-10 h-10 text-slate-500 mx-auto" />
-        <h3 class="text-sm font-bold text-white">Chưa có bài tập hay câu hỏi Quiz nào</h3>
-        <p class="text-xs text-slate-400">
-          Bài học này hiện chưa gắn bài kiểm tra. Bạn có thể bấm nút bên dưới để tạo bài trắc nghiệm mới.
-        </p>
-        <Button variant="primary" size="sm" class="mt-2" @click="openCreateModal">
-          <Plus :size="13" /> Tạo câu hỏi Quiz đầu tiên
-        </Button>
-      </div>
-
-      <div v-else class="grid grid-cols-1 gap-3">
-        <div
-          v-for="ex in exercises"
-          :key="ex.id"
-          class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border flex items-center justify-between gap-4 hover:border-slate-600 transition-colors"
-        >
-          <div class="flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
-              <Check :size="16" />
-            </span>
-            <div>
-              <h4 class="text-sm font-bold text-white">{{ ex.title }}</h4>
-              <p class="text-xs text-slate-400 mt-0.5">{{ ex.description || 'Bài tập trắc nghiệm' }}</p>
-              <div class="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400">
-                <span>⏱ {{ ex.durationMinutes }} phút</span>
-                <span>⭐ Tối đa: {{ ex.maxScore }} điểm</span>
-                <span class="font-mono text-purple-300">#{{ ex.id }}</span>
-              </div>
-            </div>
-          </div>
-
+    <!-- Header Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-vdsa-surface to-purple-950/20 border border-purple-500/30 shadow-lg">
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0">
+          <Puzzle :size="22" />
+        </div>
+        <div>
           <div class="flex items-center gap-2">
-            <a
-              :href="`/exercise/${ex.id}`"
-              target="_blank"
-              class="px-3 py-1.5 rounded-lg bg-vdsa-bg-secondary hover:bg-slate-700 text-white text-xs font-medium transition-colors"
-            >
-              Làm thử ↗
-            </a>
-            <Button size="icon" variant="danger" class="w-8 h-8" @click="handleDeleteExercise(ex.id)">
-              <Trash2 :size="14" />
-            </Button>
+            <h2 class="text-base font-black text-white">Câu hỏi Trắc nghiệm (Mini-Quiz)</h2>
+            <Badge variant="primary" class="text-[11px] font-bold">{{ questions.length }} câu</Badge>
           </div>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Củng cố kiến thức cho học viên ngay sau khi đọc lý thuyết bài học. Tự động lưu kèm bài học.
+          </p>
         </div>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <input ref="fileInputRef" type="file" accept=".csv, .xlsx, .xls" class="hidden" @change="onFileSelected" />
+        <Button size="sm" variant="ghost" class="text-xs" @click="downloadSampleCsv">
+          <Download :size="13" /> File mẫu
+        </Button>
+        <Button size="sm" variant="secondary" class="text-xs gap-1.5" @click="triggerFileInput">
+          <Upload :size="13" /> Nhập Excel / CSV
+        </Button>
+        <Button size="sm" variant="primary" class="text-xs gap-1.5" @click="addQuestion">
+          <Plus :size="13" /> Thêm câu hỏi
+        </Button>
       </div>
     </div>
 
-    <!-- Modal Tạo Quiz mới -->
-    <Modal :open="createModalOpen" title="Tạo bộ câu hỏi Quiz cho bài học" @close="createModalOpen = false">
-      <form class="space-y-4 max-h-[70vh] overflow-y-auto pr-1" @submit.prevent="handleCreateQuiz">
-        <Input v-model="quizForm.title" label="Tiêu đề Quiz" placeholder="VD: Trắc nghiệm Quick Sort..." required />
-        <Input v-model="quizForm.description" label="Mô tả tóm tắt" placeholder="Mô tả yêu cầu hoặc kiến thức..." />
+    <!-- Quick Templates Bar -->
+    <div class="p-3.5 rounded-xl bg-vdsa-surface border border-vdsa-border flex items-center justify-between gap-2 flex-wrap">
+      <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+        <Sparkles :size="14" class="text-amber-400" /> Điền nhanh câu hỏi mẫu:
+      </span>
+      <Button size="sm" variant="secondary" class="text-xs py-1 h-7 text-amber-300 border-amber-500/30 hover:bg-amber-500/10" @click="addSampleQuestions">
+        <Sparkles :size="13" /> + Thêm 3 câu hỏi mẫu DSA
+      </Button>
+    </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <Input v-model.number="quizForm.durationMinutes" label="Thời gian làm bài (phút)" type="number" min="1" />
-          <Input v-model.number="quizForm.maxScore" label="Điểm tối đa" type="number" min="1" />
-        </div>
-
-        <!-- Questions List -->
-        <div class="border-t border-vdsa-border pt-4 space-y-4">
-          <div class="flex items-center justify-between">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-white">
-              Danh sách câu hỏi ({{ quizForm.questions.length }})
-            </h4>
-            <Button type="button" size="sm" variant="secondary" class="text-xs" @click="addQuestion">
-              <Plus :size="12" /> Thêm câu hỏi
-            </Button>
+    <!-- Questions Form List -->
+    <div class="space-y-4">
+      <article
+        v-for="(q, idx) in questions"
+        :key="idx"
+        class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4 shadow-md relative group hover:border-purple-500/40 transition-colors"
+      >
+        <!-- Header Question -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 font-mono font-bold text-xs flex items-center justify-center">
+              {{ idx + 1 }}
+            </span>
+            <span class="text-xs font-bold text-slate-200">Câu hỏi #{{ idx + 1 }}</span>
           </div>
 
-          <div
-            v-for="(q, qIdx) in quizForm.questions"
-            :key="qIdx"
-            class="p-4 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border space-y-3"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-vdsa-purple-light">Câu hỏi #{{ qIdx + 1 }}</span>
-              <button
-                v-if="quizForm.questions.length > 1"
-                type="button"
-                class="text-xs text-red-400 hover:underline cursor-pointer"
-                @click="removeQuestion(qIdx)"
-              >
-                Xóa câu này
-              </button>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 text-xs text-slate-400">
+              <span>Điểm:</span>
+              <input
+                v-model.number="q.points"
+                type="number"
+                min="1"
+                max="100"
+                class="w-14 h-7 rounded bg-slate-900 border border-slate-700 px-2 text-center text-xs text-white focus:outline-none focus:border-purple-500"
+              />
             </div>
 
-            <Input v-model="q.content" label="Nội dung câu hỏi" placeholder="VD: Độ phức tạp trung bình của Quick Sort là gì?" required />
+            <button
+              v-if="questions.length > 1"
+              type="button"
+              class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+              title="Xóa câu hỏi này"
+              @click="removeQuestion(idx)"
+            >
+              <Trash2 :size="15" />
+            </button>
+          </div>
+        </div>
 
-            <!-- Options -->
-            <div class="space-y-2">
-              <label class="text-[11px] font-bold text-slate-300 block">Các lựa chọn đáp án (chọn radio để đánh dấu đáp án đúng):</label>
-              <div v-for="(_, optIdx) in q.options" :key="optIdx" class="flex items-center gap-2">
-                <input
-                  type="radio"
-                  :name="`correct_${qIdx}`"
-                  :checked="q.correctIndex === optIdx"
-                  @change="q.correctIndex = optIdx"
-                  class="text-emerald-500 focus:ring-0 cursor-pointer"
-                  :title="`Chọn đáp án ${optIdx + 1} là đáp án đúng`"
-                />
-                <input
-                  v-model="q.options[optIdx]"
-                  type="text"
-                  :placeholder="`Đáp án ${String.fromCharCode(65 + optIdx)}...`"
-                  class="flex-1 px-3 py-1.5 rounded-lg bg-vdsa-surface border border-vdsa-border text-xs text-white outline-none focus:border-vdsa-accent"
-                />
+        <!-- Question Content -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nội dung câu hỏi <span class="text-rose-400">*</span></label>
+          <textarea
+            v-model="q.content"
+            rows="2"
+            class="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500 font-sans leading-relaxed"
+            placeholder="Nhập nội dung câu hỏi trắc nghiệm..."
+          ></textarea>
+        </div>
+
+        <!-- 4 Options Grid -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300">
+            Các lựa chọn đáp án & Chọn đáp án đúng:
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div
+              v-for="(opt, optIdx) in q.options"
+              :key="optIdx"
+              class="flex items-center gap-2 p-2 rounded-xl border transition-all"
+              :class="q.correctIndex === optIdx ? 'bg-emerald-950/20 border-emerald-500/60 ring-1 ring-emerald-500/30' : 'bg-slate-900/60 border-slate-800'"
+            >
+              <button
+                type="button"
+                class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                :class="q.correctIndex === optIdx ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white'"
+                :title="q.correctIndex === optIdx ? 'Đáp án đúng' : 'Bấm để chọn làm đáp án đúng'"
+                @click="q.correctIndex = optIdx"
+              >
+                {{ String.fromCharCode(65 + optIdx) }}
+              </button>
+
+              <input
+                v-model="q.options[optIdx]"
+                type="text"
+                :placeholder="`Nhập nội dung lựa chọn ${String.fromCharCode(65 + optIdx)}...`"
+                class="flex-1 bg-transparent border-none outline-none text-xs text-slate-100 placeholder-slate-500"
+              />
+
+              <Check v-if="q.correctIndex === optIdx" :size="14" class="text-emerald-400 shrink-0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Explanation -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+            <Info :size="12" class="text-purple-400" /> Giải thích chi tiết (Hiển thị cho học viên sau khi nộp bài)
+          </label>
+          <input
+            v-model="q.explanation"
+            type="text"
+            placeholder="Giải thích vì sao đáp án trên là chính xác..."
+            class="w-full h-8 rounded-lg border border-slate-800 bg-slate-950 px-3 text-xs text-slate-300 focus:outline-none focus:border-purple-500"
+          />
+        </div>
+      </article>
+
+      <Button variant="secondary" size="md" class="w-full py-3 border-dashed border-slate-700 hover:border-purple-500 text-slate-300 hover:text-white" @click="addQuestion">
+        <Plus :size="16" /> + Thêm câu hỏi tiếp theo
+      </Button>
+    </div>
+
+    <!-- Modal Preview Import CSV -->
+    <Modal :open="importModalOpen" title="Xem trước câu hỏi nhập từ file" size="lg" @close="importModalOpen = false">
+      <div class="space-y-4 max-h-[70vh] overflow-y-auto p-4 bg-[#090d16] rounded-xl text-slate-200">
+        <p class="text-xs text-slate-400">
+          Tìm thấy <strong class="text-white">{{ parsedPreviewQuestions.length }}</strong> câu hỏi hợp lệ trong file. Xác nhận nạp vào bài học?
+        </p>
+
+        <div class="space-y-2">
+          <div
+            v-for="(pq, pIdx) in parsedPreviewQuestions"
+            :key="pIdx"
+            class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1.5"
+          >
+            <div class="font-bold text-white">#{{ pIdx + 1 }}. {{ pq.content }}</div>
+            <div class="grid grid-cols-2 gap-2 text-slate-300">
+              <div v-for="(o, oIdx) in pq.options" :key="oIdx" :class="{ 'text-emerald-400 font-bold': pq.correctIndex === oIdx }">
+                {{ String.fromCharCode(65 + oIdx) }}. {{ o }}
               </div>
             </div>
-
-            <Input v-model="q.explanation" label="Giải thích chi tiết (hiện sau khi nộp)" placeholder="Giải thích vì sao đáp án này đúng..." />
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-4 border-t border-vdsa-border">
-          <Button variant="ghost" type="button" @click="createModalOpen = false">Hủy</Button>
-          <Button variant="primary" type="submit" :loading="creating">Lưu & Gắn vào bài học</Button>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <Button variant="ghost" size="sm" @click="importModalOpen = false">Hủy bỏ</Button>
+          <Button variant="primary" size="sm" class="bg-emerald-600 hover:bg-emerald-500" @click="confirmImport">
+            Nạp {{ parsedPreviewQuestions.length }} câu hỏi vào bài
+          </Button>
         </div>
-      </form>
+      </div>
     </Modal>
   </div>
 </template>

@@ -109,6 +109,7 @@ export class GraphRenderer implements Renderer {
       });
     }
 
+    const nodeR = Math.max(10, Math.min(NODE_R, Math.floor((2 * Math.PI * radius) / (Math.max(1, vertices.length) * 2.5))));
     const directed = this.isDirected(structure);
 
     // Vẽ cạnh trước (nằm dưới đỉnh).
@@ -117,19 +118,23 @@ export class GraphRenderer implements Renderer {
       const to = posOf.get(link.to);
       if (!from || !to) continue;
       const color = this.painter.edgeColor(link.status);
-      const sx = from.x + (to.x - from.x) * 0.12;
-      const sy = from.y + (to.y - from.y) * 0.12;
-      const ex = to.x - (to.x - from.x) * 0.12;
-      const ey = to.y - (to.y - from.y) * 0.12;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const dist = Math.hypot(dx, dy);
+      const ratio = dist > 0 ? Math.min(0.45, (nodeR + 3) / dist) : 0.12;
+      const sx = from.x + dx * ratio;
+      const sy = from.y + dy * ratio;
+      const ex = to.x - dx * ratio;
+      const ey = to.y - dy * ratio;
       if (directed) {
-        this.painter.arrow(sx, sy, ex, ey, color, 2, 8);
+        this.painter.arrow(sx, sy, ex, ey, color, 2, Math.max(5, Math.min(8, nodeR * 0.45)));
       } else {
         this.painter.line(sx, sy, ex, ey, color, 2);
       }
       if (link.label) {
         const mx = (from.x + to.x) / 2;
         const my = (from.y + to.y) / 2 - 6;
-        this.painter.label(link.label, mx, my, CANVAS_COLORS.muted, 10);
+        this.painter.label(link.label, mx, my, CANVAS_COLORS.muted, Math.max(8, Math.min(10, nodeR * 0.6)));
       }
     }
 
@@ -137,37 +142,43 @@ export class GraphRenderer implements Renderer {
     for (const el of vertices) {
       const pos = posOf.get(el.id);
       if (!pos) continue;
-      this.drawVertex(el, pos.x, pos.y, options);
+      this.drawVertex(el, pos.x, pos.y, nodeR, options);
     }
   }
 
-  private drawVertex(el: Element, x: number, y: number, options: RenderOptions): void {
+  private drawVertex(el: Element, x: number, y: number, r: number, options: RenderOptions): void {
     const muted = el.status === 'muted';
     const fill = muted ? this.painter.statusColorWithAlpha('muted', 0.5) : this.painter.statusColor(el.status);
     const stroke = hexToRgba(this.painter.statusColor(el.status), 0.8);
-    // Glow cho đỉnh đang xét — vẽ trước hình tròn để nằm dưới.
+    // Glow cho nút đang xét.
     if (el.status === 'active' || el.status === 'highlight') {
-      this.painter.arcGlow(x, y, NODE_R, this.painter.statusColor(el.status), 8);
+      this.painter.arcGlow(x, y, r, this.painter.statusColor(el.status), Math.min(8, r * 0.4));
     }
-    this.painter.circle(x, y, NODE_R, fill, stroke);
-
+    this.painter.circle(x, y, r, fill, stroke);
+    let extraYOffset = 0;
     if (options.showValues) {
+      const fontSize = Math.max(9, Math.min(12, Math.round(r * 0.85)));
       // Nhãn chính (số đỉnh) — bỏ qua nhãn dạng d[] (vẽ riêng phía dưới).
       if (!/^d\[/.test(el.label)) {
-        this.painter.text(el.label, x, y, { size: 12, weight: 'bold', color: muted ? CANVAS_COLORS.muted : CANVAS_COLORS.text });
+        this.painter.text(el.label, x, y, {
+          size: fontSize,
+          weight: 'bold',
+          color: muted ? CANVAS_COLORS.muted : CANVAS_COLORS.text,
+        });
       }
       // Tên đỉnh bên dưới circle — bỏ qua khi trùng id hoặc nhãn dạng d[].
       if (el.label !== el.id && !/^d\[/.test(el.label)) {
-        this.painter.label(el.label, x, y + NODE_R + LABEL_OFFSET, CANVAS_COLORS.muted, 10);
+        this.painter.label(el.label, x, y + r + LABEL_OFFSET, CANVAS_COLORS.muted, 10);
+        extraYOffset = 12;
       }
     }
 
     // Dijkstra d[]: meta.d là số, hoặc label dạng 'd[x]=...'.
     const dist = el.meta?.d;
     if (typeof dist === 'number') {
-      this.painter.label(`d=${dist}`, x, y + NODE_R + LABEL_OFFSET, CANVAS_COLORS.compare, 10);
+      this.painter.label(`d=${dist}`, x, y + r + LABEL_OFFSET + extraYOffset, CANVAS_COLORS.compare, 10);
     } else if (/^d\[/.test(el.label)) {
-      this.painter.label(el.label, x, y + NODE_R + LABEL_OFFSET, CANVAS_COLORS.compare, 10);
+      this.painter.label(el.label, x, y + r + LABEL_OFFSET + extraYOffset, CANVAS_COLORS.compare, 10);
     }
   }
 
@@ -181,7 +192,6 @@ export class GraphRenderer implements Renderer {
     for (const link of structure.links) {
       if (pairs.has(`${link.to}|${link.from}`)) return true;
     }
-    // Mặc định vẽ mũi tên (thể hiện hướng duyệt BFS/DFS).
-    return true;
+    return false;
   }
 }

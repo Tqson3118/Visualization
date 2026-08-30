@@ -27,6 +27,9 @@ public interface IClassService
     Task<Result<ClassReportDto>> GetReportAsync(int userId, string role, int id, CancellationToken ct);
 
     // ── Learning Path / Curriculum (per-class) ──
+    Task<Result<ClassDetailDto>> SetLearningPathAsync(int userId, string role, int id, int? learningPathId, CancellationToken ct);
+    Task<Result> UpdateLessonDeadlineAsync(int userId, string role, int id, int lessonId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct);
+    Task<Result> UpdateAssignmentDeadlineAsync(int userId, string role, int id, int pathItemId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct);
     Task<Result<ClassDetailDto>> UpdateCurriculumAsync(int userId, string role, int id, ClassCurriculumUpsertRequest request, CancellationToken ct);
     Task<Result> ReorderCurriculumAsync(int userId, string role, int id, ClassCurriculumReorderRequest request, CancellationToken ct);
     Task<Result<ClassCurriculumDto>> GetCurriculumAsync(int userId, string role, int id, CancellationToken ct);

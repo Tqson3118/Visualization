@@ -199,32 +199,38 @@ function onSliderChange(event: Event): void {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 88px;
-  height: 32px;
-  padding: 0 10px;
-  background: var(--color-primary, #10b981);
-  color: #fff;
+  min-width: 100px;
+  height: 34px;
+  padding: 0 12px;
+  background: #10b981;
+  color: #ffffff;
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary, #10b981) 35%, transparent);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
   transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  shrink: 0;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .control-bar__play:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary, #10b981) 50%, transparent);
+  background: #059669;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.6);
 }
 
 .control-bar__play--active {
   background: #f59e0b;
-  color: #000;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  color: #000000;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.5);
+}
+
+.control-bar__play--active:hover {
+  background: #d97706;
 }
 
 .control-bar__btn-text {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }

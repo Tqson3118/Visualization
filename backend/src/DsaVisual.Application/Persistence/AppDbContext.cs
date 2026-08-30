@@ -1,5 +1,6 @@
 using DsaVisual.Application.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace DsaVisual.Application.Persistence;
 
@@ -53,5 +54,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        // Soft delete (D6): node đã xóa mềm tự động ẩn khỏi MỌI truy vấn
+        // (tree PathItemService, ConceptsController, ClassService, GamificationService, Seed).
+        modelBuilder.Entity<LearningPathNode>().HasQueryFilter(n => n.DeletedAt == null);
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // NodeSession.NodeId / UserNodeProgress.NodeId là FK bắt buộc vào LearningPathNode (bị query filter).
+        // EF cảnh báo PossibleIncorrectRequiredRelationshipWithQueryFilterInteraction — chấp nhận có chủ đích:
+        // các dòng progress/session của node đã xóa mềm vẫn đọc được trực tiếp, mọi luồng nghiệp vụ
+        // đều load node trước khi join nên không có hiện tượng mất dòng ngoài ý muốn.
+        optionsBuilder.ConfigureWarnings(w =>
+            w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+        base.OnConfiguring(optionsBuilder);
     }
 }

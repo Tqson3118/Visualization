@@ -1,4 +1,4 @@
-﻿// engines/generators/heap/heapOps.ts — Heap: insert/extract/heapify (SDD §4.7.14, §4.6.4)
+// engines/generators/heap/heapOps.ts — Heap: insert/extract/heapify (SDD §4.7.14, §4.6.4)
 import type { ElementStatus, InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { buildGenerator, heapStructure, intField, intArrayField, strField, Trace } from '../helpers';
@@ -83,7 +83,8 @@ function isHeap(a: number[], size: number): boolean {
 function runHeap(input: InputConfig, _preferred: 'insert' | 'extract' | 'heapify'): ReturnType<SimulationGenerator['generate']> {
   const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
   const keys = intArrayField(rec, 'keys', [10, 7, 9, 4, 6, 8]);
-  const op = strField(rec, 'operation', 'heapify');
+  const rawOp = typeof rec.operation === 'string' ? rec.operation : undefined;
+  const op = rawOp && rawOp !== 'heapify' ? rawOp : (_preferred ?? rawOp ?? 'heapify');
   const value = intField(rec, 'value', 15);
   const trace = new Trace();
   const statuses: StatusMap = {};
@@ -288,30 +289,21 @@ function runHeap(input: InputConfig, _preferred: 'insert' | 'extract' | 'heapify
   }
 
   // heapify
-  if (isHeap(a, size)) {
+  trace.push({
+    line: 13,
+    explanation: `Mảng [${a.join(', ')}] (size=${size}) → bắt đầu heapify từ nút nội bộ cuối cùng ${Math.floor(size / 2) - 1} về gốc 0.`,
+    structure: heapStructure(a, statuses, size),
+    annotations: [`bắt đầu heapify, size=${size}`],
+  });
+  for (let i = Math.floor(size / 2) - 1; i >= 0; i--) {
+    trace.vars.i = i;
     trace.push({
-      line: 13,
-      explanation: `Mảng [${a.join(', ')}] đã là max-heap hợp lệ (mọi cha ≥ con).`,
-      structure: heapStructure(a, statuses, size),
-      annotations: ['đã là max-heap'],
+      line: 14,
+      explanation: `Heapify nút i=${i} (a[${i}]=${a[i]}).`,
+      structure: heapStructure(a, { ...statuses, [i]: 'active' }, size),
+      annotations: [`i=${i}`],
     });
-  } else {
-    trace.push({
-      line: 13,
-      explanation: `Mảng [${a.join(', ')}] chưa phải max-heap → heapify từ dưới lên.`,
-      structure: heapStructure(a, statuses, size),
-      annotations: [`bắt đầu heapify, size=${size}`],
-    });
-    for (let i = Math.floor(size / 2) - 1; i >= 0; i--) {
-      trace.vars.i = i;
-      trace.push({
-        line: 14,
-        explanation: `Heapify nút i=${i} (a[${i}]=${a[i]}).`,
-        structure: heapStructure(a, { ...statuses, [i]: 'active' }, size),
-        annotations: [`i=${i}`],
-      });
-      siftDown(i, size - 1, 16);
-    }
+    siftDown(i, size - 1, 16);
   }
   for (let k = 0; k < size; k++) statuses[k] = 'done';
   trace.push({

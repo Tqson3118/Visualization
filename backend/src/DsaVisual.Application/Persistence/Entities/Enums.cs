@@ -28,8 +28,9 @@ public enum LearningPathStatus
 {
     Draft = 0,          // GV đang soạn
     PendingReview = 1,  // GV đã gửi duyệt, chờ Admin
-    Active = 2,         // Admin đã duyệt, SV thấy được
-    Rejected = 3        // Admin từ chối, GV sửa lại
+    Active = 2,         // Admin đã duyệt, SV thấy được (Công khai)
+    Rejected = 3,       // Admin từ chối, GV sửa lại
+    ClassOnly = 4       // Dùng cho Lớp (GV tự gán lớp ngay, không cần duyệt admin)
 }
 
 public sealed class LessonStatusJsonConverter : JsonConverter<LessonStatus>
@@ -74,8 +75,9 @@ public sealed class LearningPathStatusJsonConverter : JsonConverter<LearningPath
         {
             var str = reader.GetString();
             if (string.IsNullOrWhiteSpace(str)) return LearningPathStatus.Draft;
-            if (str.Equals("active", StringComparison.OrdinalIgnoreCase) || str.Equals("published", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Active;
+            if (str.Equals("active", StringComparison.OrdinalIgnoreCase) || str.Equals("published", StringComparison.OrdinalIgnoreCase) || str.Equals("public", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Active;
             if (str.Equals("pending_review", StringComparison.OrdinalIgnoreCase) || str.Equals("pendingreview", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.PendingReview;
+            if (str.Equals("class", StringComparison.OrdinalIgnoreCase) || str.Equals("classonly", StringComparison.OrdinalIgnoreCase) || str.Equals("class_only", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.ClassOnly;
             if (str.Equals("rejected", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Rejected;
             if (str.Equals("draft", StringComparison.OrdinalIgnoreCase)) return LearningPathStatus.Draft;
             if (Enum.TryParse<LearningPathStatus>(str, true, out var parsed)) return parsed;
@@ -85,6 +87,82 @@ public sealed class LearningPathStatusJsonConverter : JsonConverter<LearningPath
     }
 
     public override void Write(Utf8JsonWriter writer, LearningPathStatus value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString().ToLowerInvariant());
+    }
+}
+
+/// <summary>Khả kiến lộ trình học (0=Private: chỉ tác giả/admin, 1=ClassOnly: tác giả/admin/lớp trỏ vào, 2=Public: hiển thị toàn sàn khi Active).</summary>
+[JsonConverter(typeof(PathVisibilityJsonConverter))]
+public enum PathVisibility
+{
+    Private = 0,
+    ClassOnly = 1,
+    Public = 2
+}
+
+public sealed class PathVisibilityJsonConverter : JsonConverter<PathVisibility>
+{
+    public override PathVisibility Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var intVal))
+        {
+            return Enum.IsDefined(typeof(PathVisibility), intVal) ? (PathVisibility)intVal : PathVisibility.Private;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrWhiteSpace(str)) return PathVisibility.Private;
+            if (str.Equals("public", StringComparison.OrdinalIgnoreCase)) return PathVisibility.Public;
+            if (str.Equals("class", StringComparison.OrdinalIgnoreCase) || str.Equals("classonly", StringComparison.OrdinalIgnoreCase) || str.Equals("class_only", StringComparison.OrdinalIgnoreCase)) return PathVisibility.ClassOnly;
+            if (str.Equals("private", StringComparison.OrdinalIgnoreCase) || str.Equals("draft", StringComparison.OrdinalIgnoreCase)) return PathVisibility.Private;
+            if (Enum.TryParse<PathVisibility>(str, true, out var parsed)) return parsed;
+        }
+
+        return PathVisibility.Private;
+    }
+
+    public override void Write(Utf8JsonWriter writer, PathVisibility value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString().ToLowerInvariant());
+    }
+}
+
+/// <summary>Loại node trong cây lộ trình (0=Folder, 1=Theory, 2=Quiz, 3=Lab).</summary>
+[JsonConverter(typeof(PathItemTypeJsonConverter))]
+public enum PathItemType
+{
+    Folder = 0,   // thư mục/module — KHÔNG có nội dung, chỉ chứa con
+    Theory = 1,   // trỏ LessonId
+    Quiz = 2,     // trỏ FinalTestId (exercise type Mcq)
+    Lab = 3       // trỏ LabExerciseId (exercise type Code hoặc SimulationLab)
+}
+
+public sealed class PathItemTypeJsonConverter : JsonConverter<PathItemType>
+{
+    public override PathItemType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var intVal))
+        {
+            return Enum.IsDefined(typeof(PathItemType), intVal) ? (PathItemType)intVal : PathItemType.Theory;
+        }
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrWhiteSpace(str)) return PathItemType.Theory;
+            if (str.Equals("folder", StringComparison.OrdinalIgnoreCase) || str.Equals("module", StringComparison.OrdinalIgnoreCase)) return PathItemType.Folder;
+            if (str.Equals("theory", StringComparison.OrdinalIgnoreCase) || str.Equals("lesson", StringComparison.OrdinalIgnoreCase)) return PathItemType.Theory;
+            if (str.Equals("quiz", StringComparison.OrdinalIgnoreCase) || str.Equals("mcq", StringComparison.OrdinalIgnoreCase)) return PathItemType.Quiz;
+            if (str.Equals("lab", StringComparison.OrdinalIgnoreCase) || str.Equals("code", StringComparison.OrdinalIgnoreCase) || str.Equals("codelab", StringComparison.OrdinalIgnoreCase)) return PathItemType.Lab;
+            if (Enum.TryParse<PathItemType>(str, true, out var parsed)) return parsed;
+        }
+
+        return PathItemType.Theory;
+    }
+
+    public override void Write(Utf8JsonWriter writer, PathItemType value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToString().ToLowerInvariant());
     }

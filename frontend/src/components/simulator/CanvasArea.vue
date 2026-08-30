@@ -424,9 +424,12 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
 .canvas-area {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 6px;
   height: 100%;
-  min-height: 320px;
+  width: 100%;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .canvas-area__toolbar {
@@ -436,6 +439,7 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
   flex-wrap: wrap;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .canvas-area__opt {
@@ -468,11 +472,12 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
   border-radius: var(--radius-sm);
 }
 
-/* Chiều cao CỐ ĐỊNH 420px: chặn vòng lặp ResizeObserver
-   (viewport trước đây flex:1 theo content → canvas phình → viewport phình → ...) */
+/* Chiều cao linh hoạt theo container, tự co giãn trong flex column */
 .canvas-area__viewport {
   position: relative;
-  height: 420px;
+  flex: 1 1 0%;
+  min-height: 140px;
+  width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-muted);

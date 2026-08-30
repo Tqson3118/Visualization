@@ -89,6 +89,9 @@ public static class SeedRunner
             await db.SaveChangesAsync(ct);
         }
 
+        // Reconcile tree and class assignments
+        await MigratePathTreeAndClassAssignmentsAsync(db, logger, ct);
+
         if (tx is not null)
         {
             await tx.CommitAsync(ct);
@@ -135,6 +138,72 @@ public static class SeedRunner
                 }
             }
         }
+        await db.SaveChangesAsync(ct);
+    }
+
+    public static async Task MigratePathTreeAndClassAssignmentsAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        // 1. Reconcile LearningPath.Visibility
+        var paths = await db.LearningPaths.ToListAsync(ct);
+        foreach (var path in paths)
+        {
+            if (path.Status == LearningPathStatus.Active && path.Visibility == PathVisibility.Private)
+            {
+                path.Visibility = PathVisibility.Public;
+            }
+            else if (path.Status == LearningPathStatus.ClassOnly && path.Visibility == PathVisibility.Private)
+            {
+                path.Visibility = PathVisibility.ClassOnly;
+            }
+        }
+
+        // 2. Reconcile LearningPathNodes ItemType
+        var nodes = await db.LearningPathNodes.ToListAsync(ct);
+        foreach (var node in nodes)
+        {
+            if (node.LessonId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Theory;
+            }
+            else if (node.FinalTestId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Quiz;
+            }
+            else if (node.LabExerciseId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Lab;
+            }
+        }
+
+        // 3. Reconcile ClassAssignments with PathItemId
+        var classes = await db.Classes.Where(c => c.LearningPathId != null && c.DeletedAt == null).ToListAsync(ct);
+        foreach (var cls in classes)
+        {
+            var classAssignments = await db.ClassAssignments.Where(a => a.ClassId == cls.Id && a.PathItemId == null).ToListAsync(ct);
+            if (classAssignments.Count == 0) continue;
+
+            var pathNodes = await db.LearningPathNodes.Where(n => n.PathId == cls.LearningPathId!.Value).ToListAsync(ct);
+            foreach (var assign in classAssignments)
+            {
+                if (assign.LessonId is { } lid)
+                {
+                    var match = pathNodes.FirstOrDefault(n => n.LessonId == lid);
+                    if (match is not null)
+                    {
+                        assign.PathItemId = match.Id;
+                    }
+                }
+                else if (assign.ExerciseId is { } eid)
+                {
+                    var match = pathNodes.FirstOrDefault(n => n.FinalTestId == eid || n.LabExerciseId == eid);
+                    if (match is not null)
+                    {
+                        assign.PathItemId = match.Id;
+                    }
+                }
+            }
+        }
+
         await db.SaveChangesAsync(ct);
     }
 

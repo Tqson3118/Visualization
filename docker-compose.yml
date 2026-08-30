@@ -1,59 +1,105 @@
-# ── Docker Compose dev (SDD §5.6 / DEPLOY §3.3) — SQL Server + MailHog + backend + frontend ──
-# KHÔNG Postgres/Redis/Judge0/Cloudinary — viết MỚI (không bê docker-compose V1).
-# Chạy: docker compose up -d --build
+﻿version: '3.8'
 
 services:
+  # ── 1. Database: Microsoft SQL Server 2022 ─────────────────────
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dsavisual-sqlserver
+    restart: unless-stopped
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Dsa!2026Pass}   # local real-data SQL Server password
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd!
+      - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd!' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 5
+      start_period: 20s
+    networks:
+      - dsavisual-network
 
+  # ── 2. Local SMTP Catcher (MailHog) ────────────────────────────
   mailhog:
-    image: mailhog/mailhog
+    image: mailhog/mailhog:latest
+    container_name: dsavisual-mailhog
+    restart: unless-stopped
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # UI xem email dev
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI
+    networks:
+      - dsavisual-network
 
+  # ── 3. Backend API: ASP.NET Core (.NET 10) ────────────────────
   backend:
-    build: ./backend
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      DSA__Jwt__Secret: ${DSA__Jwt__Secret:-change-me-dev-secret-0123456789abcdef}
-      ConnectionStrings__Default: Server=sqlserver;Database=DsaVisual;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Dsa!2026Pass};TrustServerCertificate=True
-      DSA__Cors__AllowedOrigins: http://localhost:8081
-      DSA__Email__SmtpHost: mailhog
-      DSA__Email__SmtpPort: "1025"
-      DSA__Email__UseMailHog: "${DSA__EMAIL__USE_MAILHOG:-true}"
-      DSA__Email__SmtpUsername: "${DSA__EMAIL__SMTP_USERNAME:-}"
-      DSA__Email__SmtpPassword: "${DSA__EMAIL__SMTP_PASSWORD:-}"
-    ports:
-      - "5000:8080"   # host 5000 (DEPLOY §2.3) → container 8080
-    volumes:
-      - ./shared:/app/shared:ro
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dsavisual-backend
+    restart: unless-stopped
     depends_on:
       sqlserver:
         condition: service_healthy
-      mailhog:
-        condition: service_started
-
-  frontend:
-    build: ./frontend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=DsaVisualDb;User Id=sa;Password=YourStrong@Passw0rd!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - DSA__Jwt__Secret=dsa-visual-super-secret-key-at-least-32-chars-long!
+      - DSA__Jwt__Issuer=DsaVisual
+      - DSA__Jwt__Audience=DsaVisualApp
+      - DSA__Jwt__AccessTokenLifetimeMinutes=60
+      - DSA__Jwt__RefreshTokenLifetimeDays=7
+      - DSA__Smtp__Host=mailhog
+      - DSA__Smtp__Port=1025
+      - DSA__Smtp__EnableSsl=false
+      - DSA__Smtp__FromEmail=noreply@dsavisual.edu.vn
+      - DSA__Smtp__FromName=DSA Visual
+      - DSA__Cors__AllowedOrigins__0=http://localhost
+      - DSA__Cors__AllowedOrigins__1=http://localhost:80
+      - DSA__Cors__AllowedOrigins__2=http://localhost:5173
+      - DSA__Cors__AllowedOrigins__3=http://localhost:3000
     ports:
-      - "8081:8080"   # SPA + proxy /api → backend:8080
+      - "5000:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - dsavisual-network
+
+  # ── 4. Frontend SPA: Vue 3 + Nginx ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=/api/v1
+    container_name: dsavisual-frontend
+    restart: unless-stopped
     depends_on:
       - backend
+    ports:
+      - "80:8080"
+      - "3000:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - dsavisual-network
 
 volumes:
   sqlserver-data:
+    driver: local
 
+networks:
+  dsavisual-network:
+    driver: bridge

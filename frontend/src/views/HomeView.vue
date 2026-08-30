@@ -29,7 +29,7 @@ import HomeCtaBand from '@/components/home/HomeCtaBand.vue';
   flex-direction: column;
   gap: var(--space-2xl, 32px);
   padding-bottom: var(--space-3xl, 48px);
-  margin-top: calc(-1 * var(--app-header-h, 112px));
+  margin-top: calc(-1 * var(--app-header-h, 68px));
   background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(168, 85, 247, 0.08), transparent 70%);
   color: var(--cos-text);
   overflow: hidden;

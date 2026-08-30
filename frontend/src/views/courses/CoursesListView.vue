@@ -1,5 +1,5 @@
 <template>
-  <div class="courses-list-view w-full px-4 md:px-8 py-8 animate-fade-in bg-vdsa-bg min-h-[calc(100vh-64px)]">
+  <div class="courses-list-view w-full px-4 md:px-8 py-8 animate-fade-in bg-vdsa-bg min-h-[calc(100vh-var(--app-header-h,68px))]">
 
     <header class="mb-10 text-left flex flex-col md:flex-row md:items-end justify-between gap-6">
       <div class="flex-1">
@@ -158,7 +158,7 @@ onMounted(async () => {
 
 <style scoped>
 .courses-list-view {
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - var(--app-header-h, 68px));
   background-color: #0d0d11;
 }
 

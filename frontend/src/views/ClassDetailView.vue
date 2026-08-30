@@ -19,17 +19,23 @@ import {
   ChevronRight,
   ClipboardCopy,
   Clock,
+  Code2,
+  Download,
+  ExternalLink,
   KeyRound,
+  Layers,
   Pencil,
+  Play,
+  Plus,
   Puzzle,
-  Save,
-  Send,
+  Settings2,
+  Sparkles,
   Timer,
   Trash2,
   UserPlus,
   Users,
-  Download,
   X,
+  Zap,
 } from 'lucide-vue-next';
 import type { Component } from 'vue';
 
@@ -42,8 +48,7 @@ import * as exercisesApi from '@/api/exercises';
 import { courseApi, type CourseListDto } from '@/services/courseApi';
 import { formatDate } from '@/utils/format';
 import { messages } from '@/i18n/vi';
-import type { ClassAssignmentDto, ClassCurriculumItemDto } from '@/api/types';
-import { buildReorderItems } from '@/utils/curriculumOrder';
+import type { ClassCurriculumItemDto } from '@/api/types';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -55,6 +60,8 @@ import Tabs from '@/components/ui/Tabs.vue';
 import Select, { type SelectOption } from '@/components/ui/Select.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import PageHero from '@/components/ui/PageHero.vue';
+import PathModuleList, { type PathModuleGroup, type PathModuleLesson } from '@/components/path/PathModuleList.vue';
+import { updateClassDeadline } from '@/api/pathItems';
 
 const route = useRoute();
 const router = useRouter();
@@ -63,7 +70,7 @@ const auth = useAuthStore();
 const ui = useUiStore();
 
 const classId = computed(() => Number(route.params.id));
-const tab = ref<'members' | 'curriculum' | 'settings'>('members');
+const tab = ref<'members' | 'curriculum' | 'settings'>('curriculum');
 const loading = ref(true);
 
 const confirmRemove = ref<number | null>(null);
@@ -71,57 +78,200 @@ const confirmDelete = ref(false);
 const copied = ref(false);
 const addEmail = ref('');
 const addMemberOpen = ref(false);
-const assignOpen = ref(false);
-const assignType = ref<string>('lesson');
-const assignItem = ref('');
-const assignDue = ref('');
-const assignLate = ref(true);
-const assignSubmitting = ref(false);
-const assignLoading = ref(false);
-const lessonOptions = ref<SelectOption[]>([]);
-const exerciseOptions = ref<SelectOption[]>([]);
 
-// B4: editAssign/confirmAssignDelete removed — assignments tab bị bỏ
+// ── Learning Path / Curriculum (per-class) — lớp TRỎ vào lộ trình (D2) ──
+// ── Main Door: Select/Change Active Learning Path ──
+const selectPathModalOpen = ref(false);
+const availablePaths = ref<CourseListDto[]>([]);
+const loadingPaths = ref(false);
+const selectedPathId = ref<number | null>(null);
+const bindingPath = ref(false);
 
-// ── Learning Path / Curriculum (per-class) ──
-const curriculumTitle = ref('');
-const curriculumDesc = ref('');
-const curriculumBusy = ref(false);
-const curriculumRemoveId = ref<number | null>(null);
-
-// Modal Nhập từ Lộ trình có sẵn
-const importCourseModalOpen = ref(false);
-const availableCourses = ref<CourseListDto[]>([]);
-const loadingCourses = ref(false);
-const selectedCourseIdToImport = ref<number | null>(null);
-const importingCourse = ref(false);
-
-async function openImportCourseModal(): Promise<void> {
-  importCourseModalOpen.value = true;
-  selectedCourseIdToImport.value = null;
-  loadingCourses.value = true;
+async function openSelectPathModal(): Promise<void> {
+  selectPathModalOpen.value = true;
+  selectedPathId.value = classStore.currentClass?.learningPathId ?? null;
+  loadingPaths.value = true;
   try {
-    availableCourses.value = await courseApi.getCourses();
+    availablePaths.value = await courseApi.getCourses();
   } catch {
-    availableCourses.value = [];
+    availablePaths.value = [];
   } finally {
-    loadingCourses.value = false;
+    loadingPaths.value = false;
   }
 }
 
-async function handleImportCourse(): Promise<void> {
-  if (!selectedCourseIdToImport.value) return;
-  importingCourse.value = true;
+async function handleSetLearningPath(pathId: number | null): Promise<void> {
+  bindingPath.value = true;
   try {
-    await classesApi.importCourseToClass(classId.value, selectedCourseIdToImport.value);
-    ui.showToast('Đã nạp toàn bộ bài học từ Lộ trình vào Lớp thành công!', 'success');
-    importCourseModalOpen.value = false;
+    await classStore.setLearningPath(classId.value, pathId);
+    ui.showToast(pathId ? 'Đã gán Lộ trình cho lớp thành công!' : 'Đã gỡ lộ trình khỏi lớp.', 'success');
+    selectPathModalOpen.value = false;
     await classStore.fetchClass(classId.value);
-    await classStore.fetchCurriculum(classId.value).catch(() => undefined);
+    await classStore.fetchCurriculum(classId.value);
+    if (isManager.value) void loadReport();
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Không thể nạp lộ trình.', 'error');
+    ui.showToast(err instanceof Error ? err.message : 'Không thể gán lộ trình.', 'error');
   } finally {
-    importingCourse.value = false;
+    bindingPath.value = false;
+  }
+}
+
+// ── Class Modules Grouping & Deadlines (reusing /path styling per D4) ──
+const FOLDER_TYPES = new Set(['folder', 'Folder', 0]);
+
+function isFolderItem(t: ClassCurriculumItemDto['itemType']): boolean {
+  return FOLDER_TYPES.has(t as string | number);
+}
+
+function mapItemType(t: ClassCurriculumItemDto['itemType']): 'theory' | 'quiz' | 'codelab' {
+  const s = String(t).toLowerCase();
+  if (s === 'quiz' || s === '2') return 'quiz';
+  if (s === 'lab' || s === 'codelab' || s === 'exercise' || s === '3') return 'codelab';
+  return 'theory';
+}
+
+/** Cây MỚI: items là DFS của cây lộ trình — Folder = module tiêu đề, Page = bài học. */
+const classModules = computed<PathModuleGroup[]>(() => {
+  const items = classStore.curriculum?.items ?? [];
+  if (items.length === 0) return [];
+
+  const modules: PathModuleGroup[] = [];
+  let current: PathModuleGroup | null = null;
+
+  const pushLesson = (item: ClassCurriculumItemDto): void => {
+    if (!current) {
+      current = { title: item.topicName || 'Nội dung lộ trình', lessons: [] };
+      modules.push(current);
+    }
+    current.lessons.push({
+      id: item.pathItemId ?? item.assignmentId ?? item.lessonId ?? item.exerciseId ?? item.title,
+      pathItemId: item.pathItemId ?? item.assignmentId,
+      lessonId: item.lessonId ?? undefined,
+      assignmentId: item.assignmentId,
+      title: item.title,
+      sandboxType: mapItemType(item.itemType),
+      status: item.status === 'completed' ? 'Completed' : item.status,
+      isCompleted: item.status === 'completed',
+      locked: false,
+      isLocked: false,
+      dueAt: item.dueAt,
+      allowLateSubmission: item.allowLateSubmission,
+      bestScore: item.bestScore,
+      xpReward: item.xpReward,
+    });
+  };
+
+  const walk = (list: ClassCurriculumItemDto[]): void => {
+    for (const item of list) {
+      if (isFolderItem(item.itemType)) {
+        current = { title: item.title || item.topicName || 'Chủ đề bài học', lessons: [] };
+        modules.push(current);
+        if (Array.isArray(item.children) && item.children.length) walk(item.children);
+        continue;
+      }
+      pushLesson(item);
+    }
+  };
+
+  walk(items);
+  return modules.filter((m) => m.lessons.length > 0 || modules.length === 1);
+});
+
+/** Mục kế tiếp chưa hoàn thành (DFS) — cho nút "Tiếp tục học". */
+const nextUpItem = computed<ClassCurriculumItemDto | null>(() => {
+  const all: ClassCurriculumItemDto[] = [];
+  const collect = (list: ClassCurriculumItemDto[]): void => {
+    for (const item of list) {
+      if (!isFolderItem(item.itemType)) all.push(item);
+      if (Array.isArray(item.children) && item.children.length) collect(item.children);
+    }
+  };
+  collect(classStore.curriculum?.items ?? []);
+  return all.find((i) => i.status !== 'completed') ?? null;
+});
+
+const continueLabel = computed(() => {
+  const items = classStore.curriculum?.items ?? [];
+  const anyDone = items.some((i) => i.status === 'completed');
+  return anyDone ? 'Tiếp tục học' : 'Bắt đầu học';
+});
+
+function continueLearning(): void {
+  const item = nextUpItem.value;
+  if (!item) return;
+  if (item.lessonId) {
+    void router.push({ name: 'lesson-study', params: { id: String(item.lessonId) } });
+    return;
+  }
+  const pathId = classStore.currentClass?.learningPathId;
+  const targetId = item.pathItemId ?? item.assignmentId;
+  if (pathId && targetId) {
+    void router.push({ path: '/learn/' + pathId + '/' + targetId });
+  }
+}
+
+function handleSelectModuleLesson(lesson: PathModuleLesson): void {
+  if (lesson.lessonId) {
+    if (classStore.currentClass?.learningPathId) {
+      void router.push({ path: `/learn/${classStore.currentClass.learningPathId}/${lesson.lessonId}` });
+    } else {
+      void router.push({ name: 'lesson-study', params: { id: String(lesson.lessonId) } });
+    }
+  } else if (lesson.pathItemId && classStore.currentClass?.learningPathId) {
+    void router.push({ path: `/learn/${classStore.currentClass.learningPathId}/${lesson.pathItemId}` });
+  }
+}
+
+// ── Deadline Editing (Per-lesson overlay) ──
+const deadlineModalOpen = ref(false);
+const editingLessonDeadline = ref<{
+  lessonId?: number;
+  pathItemId?: number;
+  title: string;
+  dueAt: string;
+  allowLateSubmission: boolean;
+} | null>(null);
+const savingDeadline = ref(false);
+
+function openDeadlineModal(item: ClassCurriculumItemDto | PathModuleLesson): void {
+  const lessonId = (item as any).lessonId;
+  const pathItemId = (item as any).pathItemId;
+  if (!lessonId && !pathItemId) return;
+  editingLessonDeadline.value = {
+    lessonId: lessonId,
+    pathItemId: pathItemId,
+    title: item.title,
+    dueAt: item.dueAt ? toLocalInput(item.dueAt) : '',
+    allowLateSubmission: item.allowLateSubmission ?? true,
+  };
+  deadlineModalOpen.value = true;
+}
+
+async function handleSaveDeadline(): Promise<void> {
+  if (!editingLessonDeadline.value) return;
+  savingDeadline.value = true;
+  try {
+    const dueAtIso = editingLessonDeadline.value.dueAt ? new Date(editingLessonDeadline.value.dueAt).toISOString() : null;
+    if (editingLessonDeadline.value.pathItemId) {
+      await updateClassDeadline(classId.value, {
+        pathItemId: editingLessonDeadline.value.pathItemId,
+        dueAt: dueAtIso,
+        allowLateSubmission: editingLessonDeadline.value.allowLateSubmission,
+      });
+    } else if (editingLessonDeadline.value.lessonId) {
+      await classesApi.updateLessonDeadline(classId.value, editingLessonDeadline.value.lessonId, {
+        dueAt: dueAtIso,
+        allowLateSubmission: editingLessonDeadline.value.allowLateSubmission,
+      });
+    }
+    ui.showToast('Đã cập nhật hạn nộp.', 'success');
+    deadlineModalOpen.value = false;
+    await classStore.fetchCurriculum(classId.value);
+    if (isManager.value) void loadReport();
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể lưu hạn nộp.', 'error');
+  } finally {
+    savingDeadline.value = false;
   }
 }
 
@@ -173,13 +323,6 @@ async function loadReport(): Promise<void> {
 /** Số bài thiếu của 1 học viên (0 = không trong danh sách chậm tiến độ của report). */
 const missingOf = (userId: number): number => laggingMap.value[userId] ?? 0;
 
-const assignOptions = computed<SelectOption[]>(() => (assignType.value === 'lesson' ? lessonOptions.value : exerciseOptions.value));
-
-/** Đổi loại nội dung → reset lựa chọn item. */
-watch(assignType, () => {
-  assignItem.value = '';
-});
-
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
 onUnmounted(() => {
@@ -204,16 +347,6 @@ const detailTabs = computed<Array<{ key: 'members' | 'curriculum' | 'settings'; 
   if (isManager.value) tabs.push({ key: 'settings', label: messages.classes.detailTabSettings });
   return tabs;
 });
-
-// Đồng bộ title/desc lộ trình khi currentClass tải xong / thay đổi.
-watch(
-  () => classStore.currentClass,
-  (cls) => {
-    curriculumTitle.value = cls?.curriculumTitle ?? '';
-    curriculumDesc.value = cls?.curriculumDescription ?? '';
-  },
-  { immediate: true },
-);
 
 const initial = (name: string): string => (name.trim() ? name.trim().charAt(0).toUpperCase() : '?');
 
@@ -265,55 +398,6 @@ async function addMember(): Promise<void> {
   }
 }
 
-/** Mở modal gán: tải danh sách bài học + bài tập để chọn (GET /lessons, GET /exercises). */
-async function openAssign(): Promise<void> {
-  assignOpen.value = true;
-  assignLoading.value = true;
-  try {
-    const [lessonsPaged, exercises] = await Promise.all([
-      lessonsApi.fetchLessons({ page: 1, pageSize: 100 }),
-      exercisesApi.fetchExercises({}),
-    ]);
-    lessonOptions.value = (lessonsPaged.items ?? []).map((l) => ({ label: l.title, value: l.id }));
-    exerciseOptions.value = exercises.map((e) => ({ label: e.title, value: e.id }));
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.detailAssignFailed, 'error');
-    lessonOptions.value = [];
-    exerciseOptions.value = [];
-  } finally {
-    assignLoading.value = false;
-  }
-}
-
-async function createAssignment(): Promise<void> {
-  const itemId = Number(assignItem.value);
-  if (!assignItem.value || !Number.isFinite(itemId)) {
-    ui.showToast(messages.classes.detailAssignItemRequired, 'warning');
-    return;
-  }
-  assignSubmitting.value = true;
-  try {
-    await classStore.assignContent({
-      classId: classId.value,
-      lessonId: assignType.value === 'lesson' ? itemId : null,
-      exerciseId: assignType.value === 'exercise' ? itemId : null,
-      dueAt: assignDue.value ? new Date(assignDue.value).toISOString() : null,
-      allowLateSubmission: assignLate.value,
-    });
-    ui.showToast(messages.classes.detailAssigned, 'success');
-    assignOpen.value = false;
-    assignItem.value = '';
-    assignDue.value = '';
-    assignLate.value = true;
-    await classStore.reloadAssignments(classId.value);
-    if (isManager.value) void loadReport();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.detailAssignFailed, 'error');
-  } finally {
-    assignSubmitting.value = false;
-  }
-}
-
 /** ISO → giá trị cho input datetime-local (múi giờ địa phương). */
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -355,111 +439,6 @@ function copyInvite(): void {
 function cleanTitle(title?: string): string {
   if (!title) return '';
   return title.replace(/Mini-Quizz/gi, 'Mini-Quiz');
-}
-
-function assignmentTitle(assign: ClassAssignmentDto): string {
-  if (assign.title) return cleanTitle(assign.title);
-  if (assign.lessonId !== null) return cleanTitle(messages.classes.detailLesson(assign.lessonId));
-  if (assign.exerciseId !== null) return cleanTitle(messages.classes.detailExercise(assign.exerciseId));
-  return messages.classes.detailGenericContent;
-}
-
-// ── Learning Path / Curriculum (per-class) ──────────────────
-
-/** Teacher: lưu tên/mô tả lộ trình (không đổi trạng thái publish). */
-async function saveCurriculumMeta(): Promise<void> {
-  curriculumBusy.value = true;
-  try {
-    await classStore.updateCurriculumMeta(classId.value, {
-      title: curriculumTitle.value.trim() || null,
-      description: curriculumDesc.value.trim() || null,
-    });
-    ui.showToast(messages.classes.curriculumMetaSaved, 'success');
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.curriculumMetaSaveFailed, 'error');
-  } finally {
-    curriculumBusy.value = false;
-  }
-}
-
-/** Teacher: lưu nháp (unpublish) → học viên tạm ẩn lộ trình. */
-async function saveDraft(): Promise<void> {
-  curriculumBusy.value = true;
-  try {
-    await classStore.updateCurriculumMeta(classId.value, {
-      title: curriculumTitle.value.trim() || null,
-      description: curriculumDesc.value.trim() || null,
-      published: false,
-    });
-    ui.showToast(messages.classes.curriculumDraftToast, 'success');
-    void classStore.fetchCurriculum(classId.value).catch(() => undefined);
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.curriculumFailed, 'error');
-  } finally {
-    curriculumBusy.value = false;
-  }
-}
-
-/** Teacher: xuất bản lộ trình → học viên thấy. */
-async function publishCurriculum(): Promise<void> {
-  curriculumBusy.value = true;
-  try {
-    await classStore.updateCurriculumMeta(classId.value, {
-      title: curriculumTitle.value.trim() || null,
-      description: curriculumDesc.value.trim() || null,
-      published: true,
-    });
-    ui.showToast(messages.classes.curriculumPublishedToast, 'success');
-    void classStore.fetchCurriculum(classId.value).catch(() => undefined);
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.curriculumFailed, 'error');
-  } finally {
-    curriculumBusy.value = false;
-  }
-}
-
-/** Teacher: đổi vị trí 1 item (lên/xuống) → gửi reorder → reload. */
-async function moveCurriculumItem(assign: ClassAssignmentDto, dir: -1 | 1): Promise<void> {
-  if (curriculumBusy.value) return;
-  const list = [...classStore.assignments];
-  const idx = list.findIndex((a) => a.id === assign.id);
-  const to = idx + dir;
-  if (idx < 0 || to < 0 || to >= list.length) return;
-  const items = buildReorderItems(list, idx, to);
-  curriculumBusy.value = true;
-  try {
-    await classStore.reorderCurriculum(classId.value, items);
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.curriculumReorderFailed, 'error');
-  } finally {
-    curriculumBusy.value = false;
-  }
-}
-
-/** Teacher: xóa item khỏi lộ trình (modal xác nhận). */
-async function removeCurriculumItem(): Promise<void> {
-  if (curriculumRemoveId.value === null) return;
-  try {
-    await classStore.removeAssignment(classId.value, curriculumRemoveId.value);
-    curriculumRemoveId.value = null;
-    ui.showToast(messages.classes.curriculumRemoved, 'success');
-    void classStore.fetchCurriculum(classId.value).catch(() => undefined);
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : messages.classes.curriculumFailed, 'error');
-  }
-}
-
-/** Student: mở nội dung của item trong lộ trình. */
-function openCurriculumItem(item: ClassCurriculumItemDto): void {
-  if (item.exerciseId !== null) {
-    void router.push({
-      name: 'exercise',
-      params: { id: String(item.exerciseId) },
-      query: { classAssignmentId: String(item.assignmentId) },
-    });
-  } else if (item.lessonId !== null) {
-    void router.push({ name: 'lesson-study', params: { id: String(item.lessonId) } });
-  }
 }
 
 </script>
@@ -629,192 +608,121 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
         </Card>
       </section>
 
-      <!-- B4: Tab Bài tập đã bị bỏ — lớp học chỉ dùng Tab Lộ trình -->
-
       <!-- Tab Lộ trình học (curriculum — feature port: teacher tạo path, student xem status) -->
-      <section v-else-if="tab === 'curriculum'" class="class-detail__panel">
-        <!-- Teacher: meta + publish/draft -->
-        <Card v-if="isManager" class="class-detail__curriculum-meta">
-          <div class="class-detail__curriculum-meta-head">
-            <div class="class-detail__curriculum-meta-title-wrap">
-              <h2 class="class-detail__curriculum-meta-title">{{ messages.classes.curriculumTitleLabel }}</h2>
-              <p class="class-detail__curriculum-meta-note">{{ messages.classes.curriculumPublishHint }}</p>
+      <section v-else-if="tab === 'curriculum'" class="class-detail__panel space-y-4">
+        <!-- Banner Lộ trình Active của Lớp (Mô hình hợp nhất) -->
+        <Card class="p-4 sm:p-5 bg-vdsa-surface border border-vdsa-border rounded-2xl space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers :size="15" /> Lộ trình học chính
+                </span>
+                <Badge
+                  v-if="classStore.currentClass?.curriculumPublished"
+                  variant="success"
+                  class="text-[11px]"
+                >
+                  Đã xuất bản cho học viên
+                </Badge>
+                <Badge
+                  v-else
+                  variant="warning"
+                  class="text-[11px]"
+                >
+                  Bản nháp (Học viên chưa thấy)
+                </Badge>
+              </div>
+              <h2 class="text-lg sm:text-xl font-black text-white">
+                {{ classStore.currentClass?.learningPathTitle || classStore.curriculum?.title || classStore.currentClass?.curriculumTitle || 'Chưa chọn lộ trình cho lớp' }}
+              </h2>
+              <p v-if="classStore.curriculum?.description" class="text-xs text-slate-400 line-clamp-2">
+                {{ classStore.curriculum.description }}
+              </p>
             </div>
-            <Badge :variant="classStore.currentClass?.curriculumPublished ? 'success' : 'warning'">
-              {{
-                classStore.currentClass?.curriculumPublished
-                  ? messages.classes.curriculumPublishedBadge
-                  : messages.classes.curriculumDraft
-              }}
-            </Badge>
+
+            <!-- Học ngay mục kế tiếp (tiến độ theo cây — D9) -->
+            <div class="flex items-center gap-2 flex-wrap shrink-0">
+              <Button
+                v-if="nextUpItem"
+                size="sm"
+                variant="primary"
+                data-testid="continue-learning"
+                class="gap-1.5 bg-purple-600 hover:bg-purple-500"
+                @click="continueLearning"
+              >
+                <Play :size="14" aria-hidden="true" /> {{ continueLabel }}
+              </Button>
+              <template v-if="isManager">
+                <Button size="sm" variant="secondary" class="gap-1.5" @click="openSelectPathModal">
+                  <Layers :size="14" /> {{ classStore.currentClass?.learningPathId ? 'Đổi Lộ trình khác' : 'Chọn Lộ trình giảng dạy' }}
+                </Button>
+                <Button
+                  v-if="classStore.currentClass?.learningPathId"
+                  size="sm"
+                  variant="secondary"
+                  class="gap-1.5"
+                  @click="router.push({ path: '/studio', query: { tab: 'curriculum', courseId: String(classStore.currentClass.learningPathId) } })"
+                >
+                  <ExternalLink :size="14" /> Soạn trong Studio
+                </Button>
+              </template>
+            </div>
           </div>
-          <Input
-            v-model="curriculumTitle"
-            :placeholder="messages.classes.curriculumTitlePlaceholder"
-            :aria-label="messages.classes.curriculumTitleLabel"
-          />
-          <Input
-            v-model="curriculumDesc"
-            :placeholder="messages.classes.curriculumDescPlaceholder"
-            :aria-label="messages.classes.curriculumDescLabel"
-          />
-          <div class="class-detail__curriculum-actions">
-            <Button size="sm" variant="secondary" :loading="curriculumBusy" @click="saveCurriculumMeta">
-              <Save :size="14" aria-hidden="true" /> {{ messages.classes.curriculumSaveMeta }}
-            </Button>
-            <Button size="sm" variant="secondary" :loading="curriculumBusy" @click="saveDraft">
-              {{ messages.classes.curriculumSaveDraft }}
-            </Button>
-            <Button size="sm" :loading="curriculumBusy" @click="publishCurriculum">
-              <Send :size="14" aria-hidden="true" /> {{ messages.classes.curriculumPublish }}
-            </Button>
+
+          <!-- Overall Progress Bar -->
+          <div class="pt-2 border-t border-vdsa-border/60 flex items-center gap-4">
+            <div class="flex-1">
+              <div class="flex items-center justify-between text-xs text-slate-300 font-semibold mb-1">
+                <span>Tiến độ hoàn thành</span>
+                <span class="font-mono text-emerald-400 font-bold">{{ classStore.curriculum?.progressPct ?? 0 }}%</span>
+              </div>
+              <ProgressBar :value="classStore.curriculum?.progressPct ?? 0" variant="success" />
+            </div>
+            <span class="text-xs text-slate-400 font-mono shrink-0">
+              {{ classStore.curriculum?.items.length ?? 0 }} bài học
+            </span>
           </div>
         </Card>
 
-        <!-- Teacher: builder (thêm + sắp xếp + xóa) -->
-        <template v-if="isManager">
-          <div class="class-detail__toolbar flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <Button size="md" @click="openAssign">
-                <BookOpen :size="14" aria-hidden="true" /> {{ messages.classes.curriculumAddBtn }}
-              </Button>
-              <Button size="md" variant="secondary" @click="openImportCourseModal">
-                <Download :size="14" aria-hidden="true" /> Nhập từ Lộ trình có sẵn (Course)
-              </Button>
-            </div>
-          </div>
-          <EmptyState
-            v-if="classStore.assignments.length === 0"
-            icon="book"
-            :title="messages.classes.curriculumEmpty"
-            :description="messages.classes.curriculumEmptyDesc"
-          />
-          <div v-else class="class-detail__curriculum-list">
-            <Card
-              v-for="(assign, i) in classStore.assignments"
-              :key="assign.id"
-              class="class-detail__curriculum-row"
-            >
-              <span class="class-detail__curriculum-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
-              <span class="class-detail__assign-icon" aria-hidden="true">
-                <Puzzle v-if="assign.exerciseId !== null" :size="18" />
-                <BookOpen v-else :size="18" />
-              </span>
-              <div class="class-detail__curriculum-row-main">
-                <p class="class-detail__curriculum-row-title">{{ assignmentTitle(assign) }}</p>
-                <Badge variant="muted">
-                  {{
-                    assign.exerciseId !== null
-                      ? messages.classes.curriculumItemExercise
-                      : messages.classes.curriculumItemLesson
-                  }}
-                </Badge>
-              </div>
-              <div class="class-detail__curriculum-row-actions">
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  :disabled="i === 0 || curriculumBusy"
-                  :aria-label="messages.classes.curriculumMoveUp"
-                  @click="moveCurriculumItem(assign, -1)"
-                >
-                  <ArrowUp :size="15" aria-hidden="true" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  :disabled="i === classStore.assignments.length - 1 || curriculumBusy"
-                  :aria-label="messages.classes.curriculumMoveDown"
-                  @click="moveCurriculumItem(assign, 1)"
-                >
-                  <ArrowDown :size="15" aria-hidden="true" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  :aria-label="messages.classes.curriculumRemove"
-                  @click="curriculumRemoveId = assign.id"
-                >
-                  <Trash2 :size="14" aria-hidden="true" />
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </template>
+        <div v-if="classStore.curriculumLoading" class="space-y-3 py-4">
+          <Skeleton v-for="i in 5" :key="i" height="60px" class="rounded-xl" />
+        </div>
 
-        <!-- Student: xem path + trạng thái tiến độ thật -->
-        <template v-else>
-          <div v-if="classStore.curriculumLoading" class="class-detail__loading" aria-busy="true">
-            <Skeleton v-for="i in 4" :key="i" height="52px" />
+        <!-- Guided Empty State -->
+        <div
+          v-else-if="!classStore.curriculum?.items || classStore.curriculum.items.length === 0"
+          class="p-8 sm:p-12 rounded-2xl border-2 border-dashed border-vdsa-border bg-card/40 text-center space-y-4 max-w-xl mx-auto my-4"
+        >
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-300 flex items-center justify-center mx-auto">
+            <BookOpen :size="24" />
           </div>
-          <template v-else-if="classStore.curriculum">
-            <div class="class-detail__curriculum-student-head">
-              <h2 class="class-detail__curriculum-student-title">
-                {{ classStore.curriculum.title || classStore.currentClass?.name }}
-              </h2>
-              <p v-if="classStore.curriculum.description" class="class-detail__curriculum-student-desc">
-                {{ classStore.curriculum.description }}
-              </p>
-              <p v-if="!classStore.curriculum.published" class="class-detail__curriculum-draft-msg">
-                {{ messages.classes.curriculumStudentDraftMsg }}
-              </p>
-            </div>
-            <div class="class-detail__curriculum-progress">
-              <span class="class-detail__curriculum-progress-label">
-                {{ messages.classes.curriculumStudentProgress(classStore.curriculum.progressPct) }}
-              </span>
-              <ProgressBar :value="classStore.curriculum.progressPct" variant="success" />
-            </div>
-            <EmptyState
-              v-if="classStore.curriculum.items.length === 0"
-              icon="book"
-              :title="messages.classes.curriculumStudentEmptyTitle"
-              :description="messages.classes.curriculumStudentEmptyDesc"
-            />
-            <div v-else class="class-detail__curriculum-list class-detail__curriculum-student-list">
-              <Card
-                v-for="(item, i) in classStore.curriculum.items"
-                :key="item.assignmentId"
-                class="class-detail__curriculum-row"
-                role="button"
-                tabindex="0"
-                :aria-label="item.title"
-                @click="openCurriculumItem(item)"
-                @keydown.enter="openCurriculumItem(item)"
-                @keydown.space.prevent="openCurriculumItem(item)"
-              >
-                <span class="class-detail__curriculum-index" aria-hidden="true">#{{ pad(i + 1) }}</span>
-                <span class="class-detail__assign-icon" aria-hidden="true">
-                  <Puzzle v-if="item.exerciseId !== null" :size="18" />
-                  <BookOpen v-else :size="18" />
-                </span>
-                <div class="class-detail__curriculum-row-main">
-                  <p class="class-detail__curriculum-row-title">{{ cleanTitle(item.title) }}</p>
-                  <Badge
-                    :variant="
-                      item.status === 'completed'
-                        ? 'success'
-                        : item.status === 'in_progress'
-                          ? 'warning'
-                          : 'muted'
-                    "
-                  >
-                    {{
-                      item.status === 'completed'
-                        ? messages.classes.curriculumStatusCompleted
-                        : item.status === 'in_progress'
-                          ? messages.classes.curriculumStatusInProgress
-                          : messages.classes.curriculumStatusNotStarted
-                    }}
-                  </Badge>
-                </div>
-                <Badge v-if="item.status === 'completed'" variant="success">
-                  <Check :size="13" aria-hidden="true" />
-                </Badge>
-              </Card>
-            </div>
-          </template>
-        </template>
+          <div class="space-y-1">
+            <h3 class="text-base font-bold text-white">Lớp học chưa có Lộ trình giảng dạy</h3>
+            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              Hãy chọn một <strong>Lộ trình học</strong> (Course) từ thư viện của bạn hoặc toàn sàn để gán cho lớp. Mọi học sinh trong lớp sẽ học theo lộ trình này.
+            </p>
+          </div>
+          <div v-if="isManager" class="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+            <Button variant="primary" size="md" class="w-full sm:w-auto gap-1.5 bg-purple-600 hover:bg-purple-500" @click="openSelectPathModal">
+              <Layers :size="15" /> Chọn Lộ trình cho lớp ngay
+            </Button>
+            <Button variant="secondary" size="md" class="w-full sm:w-auto gap-1.5" @click="router.push('/studio?tab=curriculum')">
+              <Plus :size="15" /> Tạo Lộ trình mới tại Studio
+            </Button>
+          </div>
+        </div>
+
+        <!-- Unified Module Tree List (using PathModuleList per Decision D4) -->
+        <div v-else class="space-y-4">
+          <PathModuleList
+            :modules="classModules"
+            :show-deadlines="true"
+            :is-teacher="isManager"
+            @select-lesson="handleSelectModuleLesson"
+            @edit-deadline="openDeadlineModal"
+          />
+        </div>
       </section>
 
       <!-- Tab Cài đặt -->
@@ -860,70 +768,6 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
       </form>
     </Modal>
 
-    <!-- Modal gán nội dung -->
-    <Modal :open="assignOpen" :title="messages.classes.detailAssignTitle" @close="assignOpen = false">
-      <form class="class-detail__assign-form" novalidate @submit.prevent="createAssignment">
-        <Select
-          v-model="assignType"
-          :label="messages.classes.detailAssignTypeLabel"
-          :options="[
-            { label: messages.classes.detailAssignTypeLesson, value: 'lesson' },
-            { label: messages.classes.detailAssignTypeExercise, value: 'exercise' },
-          ]"
-        />
-        <Select
-          v-model="assignItem"
-          :label="messages.classes.detailAssignItemLabel"
-          :options="assignOptions"
-          :placeholder="messages.classes.detailAssignItemPlaceholder"
-          :disabled="assignLoading"
-        />
-        <div class="space-y-1">
-          <div class="flex items-center justify-between">
-            <label for="assign-due" class="text-sm font-medium text-foreground">{{ messages.classes.detailAssignDueLabel }}</label>
-            <button
-              v-if="assignDue"
-              type="button"
-              class="text-xs text-red-400 hover:text-red-300 hover:underline cursor-pointer flex items-center gap-1"
-              @click="assignDue = ''"
-            >
-              <X :size="12" /> Xóa hạn nộp
-            </button>
-          </div>
-          <Input
-            id="assign-due"
-            v-model="assignDue"
-            type="datetime-local"
-          />
-        </div>
-        <label class="class-detail__late">
-          <input v-model="assignLate" type="checkbox" />
-          {{ messages.classes.detailAssignLateLabel }}
-        </label>
-        <div class="class-detail__modal-actions">
-          <Button variant="ghost" @click="assignOpen = false">{{ messages.classes.cancel }}</Button>
-          <Button type="submit" :loading="assignSubmitting">{{ messages.classes.detailAssignSubmit }}</Button>
-        </div>
-      </form>
-    </Modal>
-
-    <!-- B4: Modal sửa hạn nộp và modal xác nhận xóa bài gán đã bị bỏ -->
-
-    <!-- Modal xác nhận xóa item khỏi lộ trình -->
-    <Modal
-      :open="curriculumRemoveId !== null"
-      :title="messages.classes.curriculumRemove"
-      @close="curriculumRemoveId = null"
-    >
-      <p class="class-detail__modal-text">{{ messages.classes.curriculumRemoveConfirm }}</p>
-      <template #footer>
-        <Button variant="ghost" @click="curriculumRemoveId = null">{{ messages.classes.cancel }}</Button>
-        <Button variant="danger" @click="removeCurriculumItem">
-          <Trash2 :size="14" aria-hidden="true" /> {{ messages.classes.curriculumRemove }}
-        </Button>
-      </template>
-    </Modal>
-
     <!-- Modal xác nhận xóa lớp -->
     <Modal :open="confirmDelete" :title="messages.classes.detailDeleteTitle" @close="confirmDelete = false">
       <p class="class-detail__modal-text">
@@ -937,54 +781,128 @@ function openCurriculumItem(item: ClassCurriculumItemDto): void {
       </template>
     </Modal>
 
-    <!-- Modal Nhập từ Lộ trình có sẵn -->
-    <Modal :open="importCourseModalOpen" title="Nhập Lộ trình học vào Lớp học phần" @close="importCourseModalOpen = false">
+    <!-- Modal Gán / Đổi Lộ trình cho Lớp (Cửa chính) -->
+    <Modal :open="selectPathModalOpen" title="Chọn Lộ trình giảng dạy cho Lớp học" width="650px" @close="selectPathModalOpen = false">
       <div class="space-y-4">
-        <p class="text-sm text-vdsa-secondary">
-          Chọn một Lộ trình học (Course) để tự động nạp toàn bộ danh sách bài học và bài tập của khóa vào lộ trình lớp này.
+        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          Một lớp học chỉ gắn với <strong>1 Lộ trình active</strong> tại một thời điểm. Mọi thay đổi nội dung trên Lộ trình sẽ tự động cập nhật đến tất cả học sinh trong lớp.
         </p>
-        <div v-if="loadingCourses" class="py-6 text-center text-sm text-vdsa-muted">
-          Đang tải danh sách lộ trình...
+
+        <div v-if="loadingPaths" class="py-8 text-center text-sm text-slate-400">
+          <div class="inline-block w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+          <p>Đang tải danh sách lộ trình khả dụng...</p>
         </div>
-        <div v-else-if="availableCourses.length === 0" class="py-6 text-center text-sm text-vdsa-muted">
-          Chưa có lộ trình nào trên hệ thống.
+
+        <div v-else-if="availablePaths.length === 0" class="py-8 text-center text-sm text-slate-400 space-y-2">
+          <p>Chưa có lộ trình nào trên hệ thống.</p>
+          <Button size="sm" variant="secondary" @click="router.push('/studio?tab=curriculum')">
+            <Plus :size="14" /> Tạo Lộ trình mới tại Studio
+          </Button>
         </div>
-        <div v-else class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+
+        <div v-else data-testid="learning-path-select" class="space-y-2 max-h-72 overflow-y-auto pr-1">
           <label
-            v-for="c in availableCourses"
-            :key="c.id"
-            class="flex items-start gap-3 p-3 rounded-xl border border-vdsa-border bg-vdsa-surface hover:bg-vdsa-hover cursor-pointer transition-colors"
-            :class="{ 'ring-2 ring-vdsa-accent border-vdsa-accent': selectedCourseIdToImport === Number(c.id) }"
+            v-for="p in availablePaths"
+            :key="p.id"
+            class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+            :class="
+              selectedPathId === Number(p.id)
+                ? 'bg-purple-950/40 border-purple-500 ring-1 ring-purple-500/50'
+                : 'bg-vdsa-surface border-vdsa-border hover:border-slate-600'
+            "
           >
             <input
-              v-model="selectedCourseIdToImport"
+              v-model="selectedPathId"
               type="radio"
-              name="import-course"
-              :value="Number(c.id)"
+              name="select-path"
+              :value="Number(p.id)"
               class="mt-1 accent-purple-600 cursor-pointer"
             />
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-white text-sm">{{ c.title }}</span>
-                <Badge variant="secondary">{{ c.category || 'DSA' }}</Badge>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-bold text-white text-sm truncate">{{ p.title }}</span>
+                <Badge :variant="p.status === 'active' ? 'success' : p.status === 'class' ? 'secondary' : 'muted'">
+                  {{ p.status === 'active' ? 'Công khai' : p.status === 'class' ? 'Dành cho Lớp' : 'Bản nháp' }}
+                </Badge>
               </div>
-              <p class="text-xs text-vdsa-muted line-clamp-1 mt-0.5">{{ c.description }}</p>
-              <span class="text-xs text-vdsa-purple-light font-semibold mt-1 inline-block">
-                {{ c.totalLessons || c.lessons?.length || 0 }} bài học · {{ c.xpReward || 0 }} XP
-              </span>
+              <p class="text-xs text-slate-400 line-clamp-1 mt-0.5">{{ p.description }}</p>
+              <div class="flex items-center gap-3 text-[11px] text-purple-300 font-semibold mt-1">
+                <span>{{ p.totalLessons || p.lessons?.length || 0 }} bài học</span>
+                <span>·</span>
+                <span>{{ p.xpReward || 0 }} XP</span>
+                <span v-if="p.authorName">· Tác giả: {{ p.authorName }}</span>
+              </div>
             </div>
           </label>
         </div>
       </div>
+
       <template #footer>
-        <Button variant="ghost" @click="importCourseModalOpen = false">{{ messages.classes.cancel }}</Button>
-        <Button
-          variant="primary"
-          :disabled="selectedCourseIdToImport === null || importingCourse"
-          @click="handleImportCourse"
-        >
-          <span v-if="importingCourse" class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-          Xác nhận nạp vào Lớp
+        <div class="flex items-center justify-between w-full gap-2 flex-wrap">
+          <div>
+            <Button
+              v-if="classStore.currentClass?.learningPathId"
+              variant="danger"
+              size="sm"
+              :loading="bindingPath"
+              @click="handleSetLearningPath(null)"
+            >
+              Gỡ lộ trình khỏi lớp
+            </Button>
+          </div>
+          <div class="flex items-center gap-2">
+            <Button variant="ghost" size="sm" @click="selectPathModalOpen = false">{{ messages.classes.cancel }}</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="learning-path-confirm"
+              class="bg-purple-600 hover:bg-purple-500"
+              :disabled="selectedPathId === null || bindingPath"
+              :loading="bindingPath"
+              @click="handleSetLearningPath(selectedPathId)"
+            >
+              Xác nhận gán cho lớp
+            </Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Modal Cập nhật Deadline cho bài học trong lớp -->
+    <Modal :open="deadlineModalOpen" title="Cài đặt Hạn nộp & Deadline" width="460px" @close="deadlineModalOpen = false">
+      <div v-if="editingLessonDeadline" class="space-y-4">
+        <div>
+          <span class="text-xs text-slate-400 block mb-1">Bài học:</span>
+          <p class="text-sm font-bold text-white">{{ cleanTitle(editingLessonDeadline.title) }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Hạn nộp bài (Deadline)</label>
+          <input
+            v-model="editingLessonDeadline.dueAt"
+            type="datetime-local"
+            class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+          />
+          <span class="text-[11px] text-slate-500 mt-1 block">Để trống nếu không muốn áp dụng hạn nộp.</span>
+        </div>
+
+        <div class="flex items-center gap-2.5 pt-2">
+          <input
+            id="allow-late-toggle"
+            v-model="editingLessonDeadline.allowLateSubmission"
+            type="checkbox"
+            class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+          />
+          <label for="allow-late-toggle" class="text-xs font-semibold text-slate-300 cursor-pointer select-none">
+            Cho phép nộp muộn sau deadline (sẽ gắn nhãn "Nộp muộn" trong báo cáo)
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button variant="ghost" size="sm" @click="deadlineModalOpen = false">{{ messages.classes.cancel }}</Button>
+        <Button variant="primary" size="sm" data-testid="deadline-save" class="bg-purple-600 hover:bg-purple-500" :loading="savingDeadline" @click="handleSaveDeadline">
+          Lưu hạn nộp
         </Button>
       </template>
     </Modal>

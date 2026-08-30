@@ -24,7 +24,7 @@ import * as adminApi from '@/api/admin';
 import type { SystemSettingsDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
 import { normalizeVi } from '@/utils/searchNormalize';
-import AdminNav from '@/components/admin/AdminNav.vue';
+import StudioShell from '@/components/studio/StudioShell.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -262,11 +262,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="admin-settings-page container">
-    <AdminNav active="settings" class="mb-6" />
-
-    <!-- Hero Header -->
-    <header class="page-hero">
+  <StudioShell active-tab="settings">
+    <div class="space-y-6">
+      <!-- Hero Header -->
+      <header class="page-hero">
       <div class="page-hero__body">
         <div class="page-hero__icon">
           <Sliders :size="24" />
@@ -584,7 +583,8 @@ onMounted(() => {
         </article>
       </div>
     </section>
-  </div>
+    </div>
+  </StudioShell>
 </template>
 
 <style scoped>

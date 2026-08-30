@@ -95,7 +95,6 @@ const router = createRouter({
     {
       path: '/path',
       name: 'path-list',
-      alias: '/courses',
       component: () => import('@/views/courses/CoursesListView.vue'),
       meta: { public: true },
     },
@@ -276,20 +275,9 @@ const router = createRouter({
     // Studio Lộ trình & Soạn bài — entry thống nhất cho Teacher và Admin
     {
       path: '/studio',
+      alias: ['/admin/content'],
       name: 'curriculum-studio',
       component: AdminContentView,
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
-    },
-    {
-      path: '/studio/lessons/new',
-      name: 'studio-lesson-new',
-      component: () => import('@/views/admin/AdminLessonEditorView.vue'),
-      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
-    },
-    {
-      path: '/studio/lessons/:id/edit',
-      name: 'studio-lesson-edit',
-      component: () => import('@/views/admin/AdminLessonEditorView.vue'),
       meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
     // Teacher Studio — chuyển hướng thống nhất về Studio Overview
@@ -304,21 +292,23 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/admin/content',
-      redirect: '/studio',
-    },
-    {
       path: '/admin/content/lessons/new',
-      redirect: '/studio/lessons/new',
+      redirect: { path: '/studio', query: { tab: 'curriculum' } },
     },
     {
       path: '/admin/content/lessons/:id/edit',
-      redirect: (to) => `/studio/lessons/${to.params.id}/edit`,
+      redirect: { path: '/studio', query: { tab: 'curriculum' } },
     },
     // Màn 09/10/11 + N-5/N-6 — Admin
     {
       path: '/admin',
       redirect: (to) => ({ name: 'admin-users', query: to.query }),
+    },
+    {
+      path: '/admin/classes',
+      name: 'admin-classes',
+      component: () => import('@/views/admin/AdminClassesView.vue'),
+      meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
     },
     {
       path: '/admin/users',
@@ -340,7 +330,7 @@ const router = createRouter({
     },
     {
       path: '/admin/ladder',
-      redirect: { path: '/studio', query: { tab: 'exercises' } },
+      redirect: { path: '/studio', query: { tab: 'curriculum' } },
     },
     {
       path: '/admin/feedback',

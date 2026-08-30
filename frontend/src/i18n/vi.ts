@@ -40,6 +40,15 @@ export const messages = {
     toDarkTheme: 'Chuyển sang giao diện tối',
   },
 
+  courses: {
+    enrollWithHeart: (hearts: number) => `Mở khóa lộ trình (${hearts} 🤍)`,
+    startLearning: 'Bắt đầu học',
+    courseContent: 'Nội dung lộ trình',
+    lessonsCount: (n: number) => `${n} Bài học`,
+    quizCount: (n: number) => `${n} Quiz`,
+    labCount: (n: number) => `${n} Bài tập`,
+  },
+
   profile: {
     savePassword: 'Đổi mật khẩu',
     passwordChanged: 'Đã đổi mật khẩu.',
@@ -491,7 +500,7 @@ export const messages = {
     dataTooLarge: 'Dữ liệu lớn, mô phỏng có thể chậm',
     controlsTitle: 'Điều khiển mô phỏng',
     subtitle: 'Xem từng bước chạy, theo dõi bộ đếm thống kê và tự thực hành thao tác.',
-    canvasPlaceholder: 'Khu vực vẽ cấu trúc dữ liệu — renderer sẽ được gắn ở task renderer (SDD §4.4)',
+    canvasPlaceholder: 'Khu vực vẽ cấu trúc dữ liệu',
     notFound: 'Không tìm thấy mô phỏng với key này',
     simError: 'Không thể nạp mô phỏng',
     // Nhãn loại bước trace — SDD §4.0.3 (TraceKind)
@@ -526,8 +535,8 @@ export const messages = {
     backToCatalog: 'Về danh mục',
     canvasMeta: 'Khu vực vẽ — renderer cấu trúc dữ liệu',
     breakpointHit: (line: number) => `Đã dừng tại breakpoint dòng ${line}`,
-    callStack: 'Call stack',
-    legend: 'Legend',
+    callStack: 'Ngăn xếp đệ quy (Call Stack)',
+    legend: 'Bảng màu chú giải',
     footerShortcuts:
       'Phím tắt: Space = Phát/Dừng · ←/→ = Bước · Home/End = Về đầu/cuối · [ / ] = Tốc độ',
     toastCopied: 'Đã sao chép link chia sẻ!',

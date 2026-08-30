@@ -9,7 +9,7 @@ import { messages } from '@/i18n/vi';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
-import { Card } from '@/components/ui/card';
+import Card from '@/components/ui/Card.vue';
 import Drawer from '@/components/ui/Drawer.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -168,6 +168,7 @@ onBeforeUnmount(() => {
           <Card
             v-for="sim in lesson.simulations"
             :key="sim.simulationKey"
+            :padded="false"
             class="lesson-detail__sim hover-lift"
           >
             <div class="lesson-detail__sim-icon" aria-hidden="true">
@@ -186,7 +187,7 @@ onBeforeUnmount(() => {
       <section v-if="lesson.exercises && lesson.exercises.length > 0" class="lesson-detail__section">
         <h3 class="lesson-detail__section-title">Bài tập liên quan</h3>
         <div class="lesson-detail__sims">
-          <Card v-for="ex in lesson.exercises" :key="ex.id" class="lesson-detail__sim hover-lift">
+          <Card v-for="ex in lesson.exercises" :key="ex.id" :padded="false" class="lesson-detail__sim hover-lift">
             <div class="lesson-detail__sim-icon" aria-hidden="true">
               <BaseIcon name="puzzle" :size="18" />
             </div>

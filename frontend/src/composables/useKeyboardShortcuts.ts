@@ -6,7 +6,23 @@ export type ShortcutMap = Record<string, (event: KeyboardEvent) => void>;
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+    return true;
+  }
+  if (target.closest('.monaco-editor') || target.closest('[contenteditable="true"]')) {
+    return true;
+  }
+  const activeEl = document.activeElement;
+  if (activeEl instanceof HTMLElement) {
+    const activeTag = activeEl.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT' || activeEl.isContentEditable) {
+      return true;
+    }
+    if (activeEl.closest('.monaco-editor') || activeEl.closest('[contenteditable="true"]')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

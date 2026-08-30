@@ -1,9 +1,9 @@
-﻿// engines/generators/structure/structures.ts — 10 CTDL tĩnh (structure.*) theo SDD §4.2
+// engines/generators/structure/structures.ts — 10 CTDL tĩnh (structure.*) theo SDD §4.2
 // Mỗi structure key: ≥ 5 bước giới thiệu cấu trúc (khởi tạo mẫu, highlight từng phần,
 // thao tác minh họa O(1) insert/delete/search theo loại, tổng kết độ phức tạp, kết thúc)
 // kèm pseudocode mô tả thao tác chính.
 import type { Element, ElementStatus, InputConfig, InputSchema, Link, SimulationGenerator, Structure } from '../../core/types';
-import { buildGenerator, hashIndex, hashStructure, heapStructure, intArrayField, intField, Trace } from '../helpers';
+import { buildGenerator, buildGraphEdges, hashIndex, hashStructure, heapStructure, intArrayField, intField, Trace } from '../helpers';
 
 // ── Các schema nhỏ cho từng structure ────────────────────────────────────────
 
@@ -53,6 +53,18 @@ interface SNode {
   right: SNode | null;
 }
 
+function buildGeneralBinaryTree(keys: number[]): SNode | null {
+  if (keys.length === 0) return null;
+  const nodes: SNode[] = keys.map((k) => ({ key: k, left: null, right: null }));
+  for (let i = 0; i < nodes.length; i++) {
+    const leftIdx = 2 * i + 1;
+    const rightIdx = 2 * i + 2;
+    if (leftIdx < nodes.length) nodes[i].left = nodes[leftIdx];
+    if (rightIdx < nodes.length) nodes[i].right = nodes[rightIdx];
+  }
+  return nodes[0];
+}
+
 function buildBst(keys: number[]): SNode | null {
   let root: SNode | null = null;
   for (const k of keys) {
@@ -65,6 +77,91 @@ function buildBst(keys: number[]): SNode | null {
     root = insert(root);
   }
   return root;
+}
+
+interface AvlSNode {
+  key: number;
+  height: number;
+  left: AvlSNode | null;
+  right: AvlSNode | null;
+}
+
+function hOf(n: AvlSNode | null): number { return n ? n.height : 0; }
+function bfOf(n: AvlSNode | null): number { return n ? hOf(n.left) - hOf(n.right) : 0; }
+
+function rotR(y: AvlSNode): AvlSNode {
+  const x = y.left!;
+  const T2 = x.right;
+  x.right = y;
+  y.left = T2;
+  y.height = 1 + Math.max(hOf(y.left), hOf(y.right));
+  x.height = 1 + Math.max(hOf(x.left), hOf(x.right));
+  return x;
+}
+
+function rotL(x: AvlSNode): AvlSNode {
+  const y = x.right!;
+  const T2 = y.left;
+  y.left = x;
+  x.right = T2;
+  x.height = 1 + Math.max(hOf(x.left), hOf(x.right));
+  y.height = 1 + Math.max(hOf(y.left), hOf(y.right));
+  return y;
+}
+
+function insertAvlSNode(node: AvlSNode | null, key: number): AvlSNode {
+  if (!node) return { key, height: 1, left: null, right: null };
+  if (key < node.key) node.left = insertAvlSNode(node.left, key);
+  else if (key > node.key) node.right = insertAvlSNode(node.right, key);
+  else return node;
+
+  node.height = 1 + Math.max(hOf(node.left), hOf(node.right));
+  const bf = bfOf(node);
+
+  if (bf > 1 && key < (node.left?.key ?? 0)) return rotR(node);
+  if (bf < -1 && key > (node.right?.key ?? 0)) return rotL(node);
+  if (bf > 1 && key > (node.left?.key ?? 0)) {
+    node.left = rotL(node.left!);
+    return rotR(node);
+  }
+  if (bf < -1 && key < (node.right?.key ?? 0)) {
+    node.right = rotR(node.right!);
+    return rotL(node);
+  }
+  return node;
+}
+
+function buildAvlTree(keys: number[]): AvlSNode | null {
+  let root: AvlSNode | null = null;
+  for (const k of keys) root = insertAvlSNode(root, k);
+  return root;
+}
+
+function avlTreeOf(root: AvlSNode | null): Structure {
+  const elements: Element[] = [];
+  const links: Link[] = [];
+  if (!root) return { kind: 'tree', elements, links };
+  const queue: Array<AvlSNode> = [root];
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    const id = `node:${node.key}`;
+    elements.push({
+      id,
+      label: String(node.key),
+      status: 'default',
+      group: 'tree',
+      meta: { bf: bfOf(node), height: node.height },
+    });
+    if (node.left) {
+      links.push({ from: id, to: `node:${node.left.key}`, label: 'L' });
+      queue.push(node.left);
+    }
+    if (node.right) {
+      links.push({ from: id, to: `node:${node.right.key}`, label: 'R' });
+      queue.push(node.right);
+    }
+  }
+  return { kind: 'tree', elements, links };
 }
 
 function treeOf(root: SNode | null): Structure {
@@ -104,6 +201,7 @@ function setStatuses(structure: Structure, statusMap: Record<string, ElementStat
 function arrayStruct(values: number[], statuses: Record<number, ElementStatus> = {}): Structure {
   return {
     kind: 'array',
+    meta: { displayMode: 'squares' },
     elements: values.map((v, i) => ({ id: `cell:${i}`, label: String(v), status: statuses[i] ?? 'default' })),
     links: [],
   };
@@ -292,16 +390,39 @@ export function createStructureBinaryTreeGenerator(): SimulationGenerator {
     validate: (input) => wrapValidate(input, 1, 31),
     generate(input) {
       const keys = readValues(input, [50, 30, 70, 20, 40, 60, 80]);
-      const root = buildBst(keys);
+      const root = buildGeneralBinaryTree(keys);
       const trace = new Trace();
-      trace.push({ line: 1, explanation: `Bắt đầu: cây nhị phân ${keys.length} nút — mỗi nút có tối đa 2 con.`, structure: treeOf(root), annotations: [`n=${keys.length}`] });
+      const rootKey = keys[0];
+      const leftKey = keys.length > 1 ? keys[1] : undefined;
+      const rightKey = keys.length > 2 ? keys[2] : undefined;
+      const highlightIds = [`node:${rootKey}`];
+      if (leftKey !== undefined) highlightIds.push(`node:${leftKey}`);
+      if (rightKey !== undefined) highlightIds.push(`node:${rightKey}`);
 
-      trace.push({ line: 1, explanation: 'Nút gốc 50 có con trái 30 và con phải 70; nút lá không có con.', structure: markAll(treeOf(root), ['node:50', 'node:30', 'node:70'], 'highlight'), annotations: ['gốc + 2 con'] });
+      trace.push({ line: 1, explanation: `Bắt đầu: cây nhị phân tổng quát ${keys.length} nút — mỗi nút có tối đa 2 con.`, structure: treeOf(root), annotations: [`n=${keys.length}`] });
 
-      trace.push({ line: 2, explanation: `Duyệt level-order: [${keys.join(', ')}] — ghé thăm theo từng tầng, dùng hàng đợi → O(n).`, structure: markAll(treeOf(root), ['node:50', 'node:30', 'node:70'], 'done'), annotations: ['level-order O(n)'] });
+      trace.push({
+        line: 1,
+        explanation: `Nút gốc ${rootKey}${leftKey !== undefined ? ` có con trái ${leftKey}` : ''}${rightKey !== undefined ? ` và con phải ${rightKey}` : ''}; không yêu cầu thứ tự khóa.`,
+        structure: markAll(treeOf(root), highlightIds, 'highlight'),
+        annotations: ['cấu trúc phân nhánh'],
+      });
+
+      trace.push({
+        line: 2,
+        explanation: `Duyệt level-order: [${keys.join(', ')}] — ghé thăm theo từng tầng, dùng hàng đợi → O(n).`,
+        structure: markAll(treeOf(root), highlightIds, 'done'),
+        annotations: ['level-order O(n)'],
+      });
 
       trace.stats.comparisons += keys.length;
-      trace.push({ line: 4, explanation: `Tìm kiếm giá trị 40: cây nhị phân không có thứ tự sắp xếp → phải duyệt nhánh có thể chứa, trung bình O(n).`, structure: markAll(treeOf(root), ['node:40'], 'done'), annotations: ['search O(n)'] });
+      const targetSearch = keys[keys.length - 1];
+      trace.push({
+        line: 4,
+        explanation: `Tìm kiếm giá trị ${targetSearch}: cây nhị phân không có thứ tự sắp xếp → phải duyệt toàn bộ các nhánh, chi phí O(n).`,
+        structure: markAll(treeOf(root), [`node:${targetSearch}`], 'done'),
+        annotations: ['search O(n)'],
+      });
 
       trace.push({ line: 5, explanation: 'Kết thúc: cây nhị phân — duyệt O(n), tìm kiếm O(n), chiều cao trung bình O(log n) nếu cân bằng.', structure: markAll(treeOf(root), [], 'done'), annotations: ['chiều cao quyết định chi phí'] });
       return trace.steps;
@@ -325,17 +446,57 @@ export function createStructureBstGenerator(): SimulationGenerator {
       const trace = new Trace();
       trace.push({ line: 1, explanation: `Bắt đầu: BST từ [${keys.join(', ')}] — mọi nút trái < nút < mọi nút phải.`, structure: treeOf(root), annotations: [`n=${keys.length}`] });
 
-      trace.push({ line: 1, explanation: 'Quy tắc khóa: 20 và 40 nằm phía trái 30; 60 và 80 nằm phía phải 70.', structure: markAll(treeOf(root), ['node:30', 'node:70'], 'highlight'), annotations: ['trái < gốc < phải'] });
+      const rootKey = keys[0];
+      const leftKey = root?.left?.key;
+      const rightKey = root?.right?.key;
+      const highlightIds = [`node:${rootKey}`];
+      if (leftKey !== undefined) highlightIds.push(`node:${leftKey}`);
+      if (rightKey !== undefined) highlightIds.push(`node:${rightKey}`);
 
-      trace.stats.comparisons += 3;
-      trace.push({ line: 2, explanation: `Tìm kiếm 60: 60 > 50 → rẽ phải; 60 < 70 → rẽ trái; gặp 60 → tìm thấy sau 3 phép so sánh → O(log n).`, structure: markAll(treeOf(root), ['node:50', 'node:70', 'node:60'], 'done'), annotations: ['search O(log n)'] });
+      trace.push({
+        line: 1,
+        explanation: `Quy tắc khóa BST: các nút cây con trái < ${rootKey} < các nút cây con phải.`,
+        structure: markAll(treeOf(root), highlightIds, 'highlight'),
+        annotations: ['trái < gốc < phải'],
+      });
 
-      trace.stats.comparisons += 3;
-      trace.push({ line: 3, explanation: 'Chèn 25: 25 < 50 → trái; 25 < 30 → trái; 25 > 20 → phải → chèn làm con phải của 20.', structure: treeOf({ key: 50, left: { key: 30, left: { key: 20, left: null, right: { key: 25, left: null, right: null } }, right: { key: 40, left: null, right: null } }, right: { key: 70, left: { key: 60, left: null, right: null }, right: { key: 80, left: null, right: null } } }), annotations: ['insert O(log n)'] });
+      const searchKey = keys[keys.length > 2 ? 2 : 0];
+      trace.stats.comparisons += 2;
+      trace.push({
+        line: 2,
+        explanation: `Tìm kiếm ${searchKey}: so sánh từ gốc ${rootKey}, rẽ nhánh theo thứ tự khóa → tìm thấy trong O(log n).`,
+        structure: markAll(treeOf(root), [`node:${rootKey}`, `node:${searchKey}`], 'done'),
+        annotations: ['search O(log n)'],
+      });
 
-      trace.push({ line: 4, explanation: 'Xóa 30 (2 con): thay bằng min cây con phải là 40, rồi xóa nút 40 → O(log n).', structure: markAll(treeOf(root), ['node:30', 'node:40'], 'swap'), annotations: ['delete 2 con: min cây phải'] });
+      // Tìm một nút có con phải để minh họa xóa hoặc tìm min cây phải
+      let nodeToDelete = root;
+      if (nodeToDelete && !nodeToDelete.right && nodeToDelete.left) nodeToDelete = nodeToDelete.left;
+      const targetDelKey = nodeToDelete?.key ?? rootKey;
+      let minSuccessorKey = targetDelKey;
+      if (nodeToDelete?.right) {
+        let cur = nodeToDelete.right;
+        while (cur.left) cur = cur.left;
+        minSuccessorKey = cur.key;
+      }
+      const delHighlights = minSuccessorKey !== targetDelKey
+        ? [`node:${targetDelKey}`, `node:${minSuccessorKey}`]
+        : [`node:${targetDelKey}`];
 
-      trace.push({ line: 5, explanation: `Kết thúc: duyệt inorder ra dãy tăng dần [${[...keys].sort((x, y) => x - y).join(', ')}] — O(n).`, structure: markAll(treeOf(root), [], 'done'), annotations: ['inorder = dãy tăng dần'] });
+      trace.push({
+        line: 4,
+        explanation: `Xóa nút ${targetDelKey}: ${minSuccessorKey !== targetDelKey ? `thay bằng min cây con phải là ${minSuccessorKey}, rồi xóa nút ${minSuccessorKey}` : `nút không có 2 con, xóa trực tiếp`} → O(log n).`,
+        structure: markAll(treeOf(root), delHighlights, 'swap'),
+        annotations: ['delete O(log n)'],
+      });
+
+      const sortedKeys = [...keys].sort((x, y) => x - y);
+      trace.push({
+        line: 5,
+        explanation: `Kết thúc: duyệt inorder cho ra dãy tăng dần [${sortedKeys.join(', ')}] — O(n).`,
+        structure: markAll(treeOf(root), [], 'done'),
+        annotations: ['inorder = dãy tăng dần'],
+      });
       return trace.steps;
     },
   });
@@ -352,49 +513,42 @@ export function createStructureAvlGenerator(): SimulationGenerator {
     validate: (input) => wrapValidate(input, 1, 31),
     generate(input) {
       const keys = readValues(input, [50, 30, 70, 20, 40, 60, 80]);
-      const root = buildBst(keys);
-      const bfStruct = (): Structure => {
-        const s = treeOf(root);
-        const heights: Record<string, number> = {};
-        const calc = (node: SNode | null): number => {
-          if (node === null) return 0;
-          const h = 1 + Math.max(calc(node.left), calc(node.right));
-          heights[`node:${node.key}`] = h;
-          return h;
-        };
-        calc(root);
-        const leftH = (node: SNode | null): number => (node?.left ? (heights[`node:${node.left.key}`] ?? 0) : 0);
-        const rightH = (node: SNode | null): number => (node?.right ? (heights[`node:${node.right.key}`] ?? 0) : 0);
-        return {
-          kind: 'tree',
-          elements: s.elements.map((el) => {
-            const id = el.id;
-            const h = heights[id] ?? 0;
-            // Tìm bf qua khóa của nút (id = node:{key}).
-            const key = Number(id.slice('node:'.length));
-            let bf = 0;
-            const findBf = (n: SNode | null): void => {
-              if (n === null) return;
-              if (n.key === key) bf = leftH(n) - rightH(n);
-              findBf(n.left);
-              findBf(n.right);
-            };
-            findBf(root);
-            return { ...el, meta: { bf, height: h } };
-          }),
-          links: s.links,
-        };
-      };
+      const root = buildAvlTree(keys);
+      const s = avlTreeOf(root);
       const trace = new Trace();
-      trace.push({ line: 1, explanation: `Bắt đầu: cây AVL từ [${keys.join(', ')}] — mọi nút có |balance factor| ≤ 1.`, structure: bfStruct(), annotations: ['AVL cân bằng'] });
 
-      trace.push({ line: 1, explanation: 'balance factor bf(nút) = h(trái) − h(phải); nút lá có bf=0.', structure: bfStruct(), annotations: ['bf = hL − hR'] });
+      trace.push({
+        line: 1,
+        explanation: `Bắt đầu: cây AVL từ [${keys.join(', ')}] — mọi nút duy trì hệ số cân bằng |bf| ≤ 1.`,
+        structure: s,
+        annotations: ['AVL cân bằng'],
+      });
 
-      trace.push({ line: 3, explanation: 'Chèn 25 → cây lệch trái tại nút 30 (bf=2) → mất cân bằng.', structure: markAll(bfStruct(), ['node:30'], 'error'), annotations: ['bf=2 → mất cân bằng'] });
+      const rootKey = root?.key;
+      const rootBf = root ? bfOf(root) : 0;
+      const rootHeight = root ? root.height : 0;
 
-      trace.push({ line: 3, explanation: 'Xoay LL: xoay phải quanh nút 30 → cây cân bằng lại, chiều cao giảm từ 4 xuống 3.', structure: markAll(bfStruct(), ['node:30', 'node:20'], 'swap'), annotations: ['xoay LL'] });
+      trace.push({
+        line: 2,
+        explanation: `Balance factor bf(nút) = chiều_cao(trái) − chiều_cao(phải). Nút gốc ${rootKey ?? ''} có h=${rootHeight}, bf=${rootBf}.`,
+        structure: markAll(s, rootKey ? [`node:${rootKey}`] : [], 'highlight'),
+        annotations: ['bf = hL − hR'],
+      });
 
-      trace.push({ line: 4, explanation: `Kết thúc: AVL giữ chiều cao O(log n) → search/insert/delete luôn O(log n).`, structure: bfStruct(), annotations: ['mọi thao tác O(log n)'] });
+      // Minh họa cây duy trì chiều cao log n sau các phép xoay
+      trace.push({
+        line: 3,
+        explanation: `Khi chèn/xóa làm |bf| > 1, cây thực hiện xoay (LL, RR, LR, RL) để khôi phục cân bằng trong O(1) thời gian xoay.`,
+        structure: markAll(s, rootKey ? [`node:${rootKey}`] : [], 'swap'),
+        annotations: ['tự cân bằng'],
+      });
+
+      trace.push({
+        line: 4,
+        explanation: `Kết thúc: Cây AVL luôn giữ chiều cao O(log n) → tìm kiếm, chèn, xóa luôn đạt O(log n) trong mọi trường hợp.`,
+        structure: markAll(s, [], 'done'),
+        annotations: ['mọi thao tác O(log n)'],
+      });
       return trace.steps;
     },
   });
@@ -415,13 +569,15 @@ export function createStructureHeapGenerator(): SimulationGenerator {
       const trace = new Trace();
       trace.push({ line: 1, explanation: `Bắt đầu: max-heap [${keys.join(', ')}] — a[0] = ${keys[0]} là phần tử lớn nhất.`, structure: heapStructure(keys), annotations: [`max=${keys[0]}`] });
 
-      trace.push({ line: 2, explanation: 'Con của a[i] là a[2i+1] (trái) và a[2i+2] (phải); cha luôn ≥ con.', structure: heapStructure(keys, { [0]: 'highlight' }), annotations: ['cha ≥ con'] });
+      trace.push({ line: 2, explanation: `Cấu trúc cha-con: phần tử tại chỉ số i có con trái tại 2i+1, con phải tại 2i+2.`, structure: markAll(heapStructure(keys), ['node:0', 'node:1', 'node:2'], 'highlight'), annotations: ['cha ≥ con'] });
 
-      trace.push({ line: 3, explanation: `Chèn 15: thêm vào cuối mảng rồi bubble up (15 > 8 → đổi chỗ, 15 > 10 → đổi chỗ lên gốc).`, structure: heapStructure([15, 10, 9, 4, 6, 8, 7], { [0]: 'swap', [1]: 'swap', [6]: 'swap' }), annotations: ['insert + bubble up O(log n)'] });
+      trace.stats.comparisons += 2;
+      trace.push({ line: 3, explanation: `Chèn phần tử mới vào cuối mảng rồi bubble up (nổi lên) nếu lớn hơn cha → O(log n).`, structure: heapStructure(keys), annotations: ['insert O(log n)'] });
 
-      trace.push({ line: 4, explanation: `extractMax: lấy max=${keys[0]}, đưa phần tử cuối lên gốc rồi sift down → O(log n).`, structure: heapStructure([9, 7, 8, 4, 6], { [0]: 'swap' }), annotations: ['extractMax O(log n)'] });
+      trace.stats.swaps += 1;
+      trace.push({ line: 4, explanation: `extractMax: lấy max a[0], đưa phần tử cuối lên thay thế và sift down (chìm xuống) → O(log n).`, structure: markAll(heapStructure(keys), ['node:0'], 'swap'), annotations: ['extractMax O(log n)'] });
 
-      trace.push({ line: 5, explanation: 'Kết thúc: đống nhị phân — max O(1), insert/extract O(log n), heapify O(n), bộ nhớ O(n).', structure: heapStructure([9, 7, 8, 4, 6], { [0]: 'done', [1]: 'done', [2]: 'done', [3]: 'done', [4]: 'done' }), annotations: ['nền tảng của Heap Sort & Priority Queue'] });
+      trace.push({ line: 5, explanation: 'Kết thúc: đống nhị phân — heapify O(n), insert/extractMax O(log n), đỉnh max O(1).', structure: markAll(heapStructure(keys), [], 'done'), annotations: ['ưu tiên cao nhất ở gốc'] });
       return trace.steps;
     },
   });
@@ -461,7 +617,9 @@ export function createStructureHashTableGenerator(): SimulationGenerator {
       trace.push({ line: 3, explanation: 'Xung đột: hai khóa khác nhau cùng 1 bucket → nối tiếp vào chuỗi nối kết (danh sách liên kết).', structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'highlight' }), annotations: ['collision → chaining'] });
 
       trace.stats.comparisons += 2;
-      trace.push({ line: 4, explanation: `search(${keys[2]}): tính h(${keys[2]}) = ${hashIndex(keys[2], tableSize, 'modulo')}, duyệt bucket → tìm thấy → O(1) trung bình.`, structure: hashStructure(tableSize, buckets, statuses, { [hashIndex(keys[2], tableSize, 'modulo')]: 'done' }), annotations: ['search O(1) trung bình'] });
+      const searchKey = keys[Math.min(2, keys.length - 1)];
+      const searchIdx = hashIndex(searchKey, tableSize, 'modulo');
+      trace.push({ line: 4, explanation: `search(${searchKey}): tính h(${searchKey}) = ${searchIdx}, duyệt bucket → tìm thấy → O(1) trung bình.`, structure: hashStructure(tableSize, buckets, statuses, { [searchIdx]: 'done' }), annotations: ['search O(1) trung bình'] });
 
       trace.push({ line: 5, explanation: 'Kết thúc: bảng băm — insert/search/delete O(1) trung bình, O(n) tệ nhất khi nhiều xung đột, bộ nhớ O(n).', structure: hashStructure(tableSize, buckets, statuses, bucketStatuses), annotations: ['hệ số tải càng cao, xung đột càng nhiều'] });
       return trace.steps;
@@ -490,11 +648,31 @@ export function createStructureGraphGenerator(): SimulationGenerator {
       const vertices = intField(rec, 'vertices', 6);
       const directed = typeof rec.directed === 'boolean' ? rec.directed : true;
       const weighted = typeof rec.weighted === 'boolean' ? rec.weighted : true;
+      const preset = typeof rec.preset === 'string' ? rec.preset : 'path';
+
+      const edges = buildGraphEdges({
+        preset,
+        vertices,
+        directed,
+        weighted,
+        edges: Math.max(1, vertices),
+        source: 0,
+        target: null,
+      });
+
       const nodes: Element[] = Array.from({ length: vertices }, (_, i) => ({
-        id: `node:${i}`, label: String(i), status: 'default' as ElementStatus, meta: { d: null },
+        id: `node:${i}`,
+        label: String(i),
+        status: 'default' as ElementStatus,
+        meta: { d: null, directed },
       }));
-      const links: Link[] = [];
-      for (let i = 0; i + 1 < vertices; i++) links.push({ from: `node:${i}`, to: `node:${i + 1}`, label: weighted ? `w=${((i * 7) % 9) + 1}` : undefined });
+
+      const links: Link[] = edges.map(([u, v, w]) => ({
+        from: `node:${u}`,
+        to: `node:${v}`,
+        label: weighted ? `w=${w}` : undefined,
+      }));
+
       const graph: Structure = { kind: 'graph', elements: nodes, links };
 
       const trace = new Trace();

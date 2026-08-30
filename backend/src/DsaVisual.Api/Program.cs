@@ -100,6 +100,7 @@ builder.Services.AddApiVersioning(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient();
 
 // CORS — policy "frontend" (SDD §5.8 bước 3)
 var allowedOrigins = builder.Configuration.GetSection("DSA:Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -107,6 +108,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
         policy.WithOrigins(allowedOrigins)
+              .SetIsOriginAllowedToAllowWildcardSubdomains()
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -154,7 +156,8 @@ builder.Services.AddAuthorization();
 
 // EF Core — SQL Server, Service truy vấn DbContext trực tiếp (KHÔNG Repository — SDD §5.1)
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default"))
+           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.SqlServerEventId.SavepointsDisabledBecauseOfMARS)));
 
 // DI (SDD §5.3.7: Scoped cho DbContext + Service; Singleton cho Settings cache, TokenService (không state), DateTimeProvider)
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
@@ -195,6 +198,7 @@ builder.Services.AddScoped<IProgressService, ProgressService>();
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
 builder.Services.AddScoped<ISettingService, SettingService>();
 builder.Services.AddScoped<IClassService, ClassService>();
+builder.Services.AddScoped<IPathItemService, PathItemService>();
 builder.Services.AddScoped<ISimulationCatalogService, SimulationCatalogService>();
 builder.Services.AddScoped<ICodeRunnerService, CodeRunnerService>();
 builder.Services.AddScoped<IGamificationService, GamificationService>();
@@ -383,6 +387,29 @@ using (var startupScope = app.Services.CreateScope())
     {
         try
         {
+            await startupDb.Database.ExecuteSqlRawAsync(@"
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_LearningPathNodes_PathId_SortOrder' AND object_id = OBJECT_ID('LearningPathNodes'))
+                    DROP INDEX IX_LearningPathNodes_PathId_SortOrder ON LearningPathNodes;
+
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_LearningPathNodes_PathId_Title' AND object_id = OBJECT_ID('LearningPathNodes'))
+                    DROP INDEX IX_LearningPathNodes_PathId_Title ON LearningPathNodes;
+
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Lessons_TopicId_Title' AND is_unique = 1 AND object_id = OBJECT_ID('Lessons'))
+                    DROP INDEX IX_Lessons_TopicId_Title ON Lessons;
+
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_LearningPaths_Title' AND is_unique = 1 AND object_id = OBJECT_ID('LearningPaths'))
+                    DROP INDEX IX_LearningPaths_Title ON LearningPaths;
+
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ClassAssignments_ClassId_PathItemId' AND object_id = OBJECT_ID('ClassAssignments'))
+                    DROP INDEX IX_ClassAssignments_ClassId_PathItemId ON ClassAssignments;
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE name = 'DeletedAt' AND object_id = OBJECT_ID('LearningPathNodes'))
+                    ALTER TABLE LearningPathNodes ADD DeletedAt datetime2 NULL;
+
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_LearningPathNodes_PathId_ParentId_SortOrder' AND object_id = OBJECT_ID('LearningPathNodes'))
+                    CREATE NONCLUSTERED INDEX IX_LearningPathNodes_PathId_ParentId_SortOrder ON LearningPathNodes (PathId, ParentId, SortOrder);
+            ");
+
             await startupDb.Database.MigrateAsync();
             Log.Information("Database migrations verified and applied on startup.");
             await SeedRunner.FixMismatchedQuestionsAsync(startupDb);

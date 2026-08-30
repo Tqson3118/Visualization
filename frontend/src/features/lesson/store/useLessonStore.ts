@@ -616,5 +616,19 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     completeCodelab,
     goToStep,
     syncToServer,
+    reset() {
+      currentLesson.value = null;
+      lessonMeta.value = null;
+      activeStep.value = 1;
+      isLoading.value = false;
+      error.value = null;
+      isOfflineFallback.value = false;
+      hasWatchedVisualizer.value = false;
+      quizScore.value = null;
+      bestScore.value = 0;
+      codelabCompleted.value = false;
+      xpAwarded.value = 0;
+      lessonFinished.value = false;
+    },
   };
 });

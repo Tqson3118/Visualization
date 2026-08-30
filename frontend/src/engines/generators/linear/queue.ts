@@ -109,10 +109,10 @@ function runQueueOps(input: InputConfig): ReturnType<SimulationGenerator['genera
 
     if (op.kind === 'enqueue') {
       const value = op.value ?? 0;
-      if (rear + 1 >= capacity && front === 0) {
+      if (queue.length >= capacity) {
         trace.push({
           line: 1,
-          explanation: `Hàng đợi đầy: rear=${rear} = capacity-1=${capacity - 1}, front=0 — không thể enqueue ${value}.`,
+          explanation: `Hàng đợi đầy: số phần tử ${queue.length} = capacity ${capacity} — không thể enqueue ${value}.`,
           structure: queueStructure(queue, capacity, statuses),
           annotations: ['LỖI: Hàng đợi đầy'],
         });
@@ -152,21 +152,21 @@ function runQueueOps(input: InputConfig): ReturnType<SimulationGenerator['genera
         line: 4,
         explanation: `Dequeue: x ← q[0] = ${value}, front++.`,
         structure: queueStructure(queue, capacity, statuses),
-        annotations: [`x=${value}, front: 0 → 1`],
+        annotations: [`x=${value}`],
       });
       queue.shift();
       // Dịch trạng thái sang trái: ô cũ 0 bị lấy ra, các ô sau dịch lên.
       const next: Record<number, string> = {};
       for (let i = 0; i < queue.length; i++) next[i] = statuses[i + 1] ?? 'default';
       for (let i = queue.length; i < capacity; i++) next[i] = 'muted';
-      trace.vars.front = 1;
+      trace.vars.front = 0;
       trace.vars.rear = queue.length - 1;
       trace.vars.queue = queue.join(',');
       trace.push({
         line: 4,
         explanation: `Đã lấy ${value} ra khỏi hàng đợi (phần tử còn lại dịch lên đầu).`,
         structure: queueStructure(queue, capacity, next),
-        annotations: [`front=1, rear=${queue.length - 1}`],
+        annotations: [`front=0, rear=${queue.length - 1}`],
       });
       for (const k of Object.keys(statuses)) delete statuses[Number(k)];
       Object.assign(statuses, next);

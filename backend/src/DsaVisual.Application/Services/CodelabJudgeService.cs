@@ -139,13 +139,20 @@ public sealed class CodelabJudgeService
             return new CodelabJudgeResult(false, null, false, "Code đệ quy quá sâu — bị huỷ.", []);
         }
 
-        // 2) Chạy từng test case: input là JSON mảng tham số (cũng là JS array literal hợp lệ)
+        // 2) Chạy từng test case: input có thể là JS array literal hoặc giá trị đơn
         var cases = new List<CodelabCaseResult>();
         foreach (var tc in task.TestCases)
         {
             try
             {
-                var actual = engine.Evaluate($"JSON.stringify({task.EntryFunction}(...{tc.Input}))");
+                var inputTrimmed = tc.Input?.Trim() ?? string.Empty;
+                var callExpr = string.IsNullOrEmpty(inputTrimmed)
+                    ? $"{task.EntryFunction}()"
+                    : (inputTrimmed.StartsWith('[') && inputTrimmed.EndsWith(']'))
+                        ? $"{task.EntryFunction}(...{inputTrimmed})"
+                        : $"{task.EntryFunction}({inputTrimmed})";
+
+                var actual = engine.Evaluate($"JSON.stringify({callExpr})");
                 var actualText = actual.IsUndefined() ? string.Empty : actual.AsString();
                 var passed = Normalize(actualText) == Normalize(tc.ExpectedOutput);
                 cases.Add(new CodelabCaseResult(passed, null));

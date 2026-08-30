@@ -1,5 +1,5 @@
 <template>
-  <div class="course-detail-view w-full animate-fade-in bg-vdsa-bg min-h-[calc(100vh-64px)]" v-bind="$attrs">
+  <div class="course-detail-view w-full animate-fade-in bg-vdsa-bg min-h-[calc(100vh-var(--app-header-h,68px))]" v-bind="$attrs">
 
     <div v-if="loading" class="text-center py-32">
       <div class="inline-block w-8 h-8 border-4 border-accent/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -47,7 +47,7 @@
               @click="showRegisterModal = true"
               class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0"
             >
-              Tham gia lộ trình (1 🤍) <BaseIcon name="plus" class="w-4 h-4" />
+              <span>{{ messages.courses.enrollWithHeart(1) }}</span> <BaseIcon name="plus" class="w-4 h-4" />
             </button>
 
             <button
@@ -147,76 +147,13 @@
 
           <!-- COURSE CONTENT (curriculum kiểu Educative: đánh số + lesson count) -->
           <section id="course-lessons" class="scroll-mt-8">
-            <div class="flex items-center justify-between gap-4 mb-2">
-              <h2 class="text-xl font-bold text-white uppercase tracking-wider">Nội dung lộ trình</h2>
-              <button
-                v-if="modules.length > 1"
-                @click="toggleAllModules"
-                class="text-sm font-semibold text-vdsa-accent hover:text-vdsa-accent-light transition-colors"
-              >
-                {{ allExpanded ? 'Thu gọn tất cả' : 'Mở rộng tất cả' }}
-              </button>
-            </div>
+            <h2 class="text-xl font-bold text-white uppercase tracking-wider">Nội dung lộ trình</h2>
             <p class="text-sm text-vdsa-muted mb-6">{{ course.lessons.length }} bài học · {{ modules.length }} chủ đề</p>
 
-            <div class="flex flex-col gap-4">
-              <div v-for="(module, mIdx) in modules" :key="mIdx" class="module-group rounded-2xl border border-vdsa-border bg-vdsa-surface overflow-hidden">
-                <button
-                  @click="toggleModule(mIdx)"
-                  class="w-full flex items-center gap-5 p-5 text-left hover:bg-vdsa-hover transition-colors group"
-                >
-                  <span class="shrink-0 text-2xl font-black text-vdsa-disabled group-hover:text-vdsa-accent transition-colors w-10 text-center">
-                    {{ pad(mIdx + 1) }}
-                  </span>
-                  <div class="flex-1 min-w-0">
-                    <h3 class="text-base md:text-lg font-bold text-white leading-snug group-hover:text-vdsa-accent-light transition-colors">{{ module.title }}</h3>
-                    <p class="text-xs text-vdsa-muted mt-1">{{ module.lessons.length }} bài học</p>
-                  </div>
-                  <div
-                    class="w-9 h-9 rounded-full bg-vdsa-bg border border-vdsa-border flex items-center justify-center shrink-0 transition-transform duration-300"
-                    :class="expandedModules.includes(mIdx) ? 'rotate-180' : ''"
-                  >
-                    <BaseIcon name="chevron-down" class="w-5 h-5 text-vdsa-muted group-hover:text-white transition-colors" />
-                  </div>
-                </button>
-
-                <div v-show="expandedModules.includes(mIdx)" class="border-t border-vdsa-border-subtle">
-                  <button
-                    v-for="(lesson, idx) in module.lessons"
-                    :key="lesson.id"
-                    @click="startLesson(lesson)"
-                    :disabled="lesson.locked"
-                    class="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors cursor-pointer"
-                    :class="lesson.locked
-                      ? 'bg-vdsa-bg-secondary/20 opacity-60 cursor-not-allowed'
-                      : (lesson.status === 'Completed'
-                        ? 'bg-vdsa-green/10 hover:bg-vdsa-green/15'
-                        : 'bg-vdsa-bg-secondary/40 hover:bg-vdsa-hover')"
-                  >
-                    <span class="shrink-0 w-9 h-9 rounded-lg bg-vdsa-surface border border-vdsa-border flex items-center justify-center text-sm font-bold">
-                      <span v-if="lesson.status === 'Completed'" class="text-vdsa-green"><BaseIcon name="check" class="w-4 h-4" /></span>
-                      <span v-else-if="lesson.locked" class="text-vdsa-disabled"><BaseIcon name="lock" class="w-4 h-4" /></span>
-                      <span v-else class="text-vdsa-muted">{{ idx + 1 }}</span>
-                    </span>
-                    <span class="flex-1 min-w-0">
-                      <span class="block text-sm font-semibold text-white leading-snug">{{ cleanTitle(lesson.title) }}</span>
-                      <span class="block text-xs text-vdsa-muted mt-0.5 flex items-center gap-2 flex-wrap">
-                        <span v-if="lesson.locked" class="font-semibold uppercase text-[9px] tracking-wider text-vdsa-disabled flex items-center gap-1 whitespace-nowrap shrink-0">
-                          <BaseIcon name="lock" class="w-3 h-3" /> Bị khóa
-                        </span>
-                        <template v-else>
-                          <span class="flex items-center gap-1 font-semibold text-vdsa-yellow whitespace-nowrap shrink-0"><BaseIcon name="zap" class="w-3 h-3" /> +{{ lesson.xpReward }} XP</span>
-                          <span v-if="lesson.sandboxType === 'codelab'" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-yellow/10 text-vdsa-yellow px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Bài tập</span>
-                          <span v-else-if="lesson.sandboxType === 'quiz' || lesson.quizId" class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-purple/10 text-vdsa-purple-light px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Quiz</span>
-                          <span v-else class="font-bold uppercase text-[9px] tracking-wider bg-vdsa-accent/10 text-vdsa-accent px-2 py-0.5 rounded border border-vdsa-border whitespace-nowrap shrink-0">Lý thuyết</span>
-                        </template>
-                      </span>
-                    </span>
-                    <BaseIcon v-if="!lesson.locked" name="chevron-right" class="w-4 h-4 text-vdsa-disabled shrink-0" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PathModuleList
+              :modules="modules"
+              @select-lesson="onModuleLessonSelect"
+            />
           </section>
 
           <!-- TESTIMONIALS (từ backend — tùy biến theo khóa) -->
@@ -368,11 +305,11 @@
       <div class="bg-vdsa-surface border border-vdsa-border rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in-up">
         <div class="flex items-center gap-3 mb-4 text-vdsa-yellow">
           <BaseIcon name="alert-circle" class="w-6 h-6" />
-          <h3 class="text-xl font-bold text-white">Xác nhận đăng ký</h3>
+          <h3 class="text-xl font-bold text-white">Mở khóa lộ trình</h3>
         </div>
         <p class="text-vdsa-secondary mb-6 leading-relaxed">
-          Bạn có chắc muốn tham gia lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
-          <br /><span class="text-xs text-rose-400 font-medium inline-block mt-2">Chi phí đăng ký: 1 🤍 (Tim)</span>
+          Bạn có chắc muốn mở khóa lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
+          <br /><span class="text-xs text-emerald-400 font-medium inline-block mt-2">Mở khóa vĩnh viễn lộ trình này với 1 🤍 (Học không giới hạn toàn bộ bài học bên trong)</span>
         </p>
         <div class="flex gap-3 justify-end">
           <button
@@ -383,9 +320,9 @@
           </button>
           <button
             @click="confirmRegistration"
-            class="px-5 py-2.5 rounded-xl font-semibold bg-vdsa-accent hover:bg-vdsa-accent-light text-white shadow-lg shadow-vdsa-accent transition-all flex items-center gap-2"
+            class="px-5 py-2.5 rounded-xl font-semibold bg-vdsa-accent hover:bg-vdsa-accent-light text-white shadow-lg shadow-vdsa-accent transition-all flex items-center gap-2 cursor-pointer"
           >
-            Đồng ý
+            Mở khóa ngay (1 🤍)
             <BaseIcon name="check" class="w-4 h-4" />
           </button>
         </div>
@@ -406,6 +343,8 @@ import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import { courseApi, type CourseDetailDto, type CourseFeedbackDto, type CourseLessonDto } from '@/services/courseApi';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
+import PathModuleList, { type PathModuleGroup, type PathModuleLesson } from '@/components/path/PathModuleList.vue';
+import { messages } from '@/i18n/vi';
 
 const courseStore = useCourseStore();
 const auth = useAuthStore();
@@ -423,7 +362,7 @@ const course = ref<CourseDetailDto | null>(null);
 // ── v-reveal: hiện dần khi lướt vào viewport (2 chiều — lặp lại mỗi lần vào/ra) ──
 // Dùng làm binding: v-reveal="index" → stagger delay theo thứ tự item.
 const vReveal = {
-  mounted(el: HTMLElement, binding: { value?: number }) {
+  mounted(el: HTMLElement & { _observer?: IntersectionObserver }, binding: { value?: number }) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return;
     }
@@ -442,10 +381,14 @@ const vReveal = {
       { threshold: 0.2 },
     );
     observer.observe(el);
+    el._observer = observer;
+  },
+  unmounted(el: HTMLElement & { _observer?: IntersectionObserver }) {
+    el._observer?.disconnect();
+    delete el._observer;
   },
 };
 
-const expandedModules = ref<number[]>([]);
 
 // ── Timeline tô tím theo scroll (Why choose) ──
 const whyTrackRef = ref<HTMLElement | null>(null);
@@ -472,36 +415,36 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateTimelineFill);
 });
 
-const allExpanded = computed(() => modules.value.length > 0 && expandedModules.value.length === modules.value.length);
-
-const toggleModule = (mIdx: number) => {
-  if (expandedModules.value.includes(mIdx)) {
-    expandedModules.value = expandedModules.value.filter(i => i !== mIdx);
-  } else {
-    expandedModules.value.push(mIdx);
-  }
-};
-
-const toggleAllModules = () => {
-  if (allExpanded.value) {
-    expandedModules.value = [];
-  } else {
-    expandedModules.value = modules.value.map((_, i) => i);
-  }
-};
-
-const modules = computed(() => {
+const modules = computed<PathModuleGroup[]>(() => {
   if (!course.value?.lessons) return [];
-  const map = new Map<string, { title: string, lessons: CourseLessonDto[] }>();
+  const map = new Map<string, PathModuleLesson[]>();
   course.value.lessons.forEach(l => {
     const mTitle = l.moduleTitle || 'Nội dung bài học';
     if (!map.has(mTitle)) {
-      map.set(mTitle, { title: mTitle, lessons: [] });
+      map.set(mTitle, []);
     }
-    map.get(mTitle)!.lessons.push(l);
+    map.get(mTitle)!.push({
+      id: l.id,
+      lessonId: Number(l.id),
+      title: l.title,
+      sandboxType: l.sandboxType,
+      quizId: l.quizId ? Number(l.quizId) : undefined,
+      status: l.status,
+      isCompleted: l.status === 'Completed',
+      locked: !!l.locked,
+      xpReward: l.xpReward,
+    });
   });
-  return Array.from(map.values());
+  return Array.from(map.entries()).map(([title, lessons]) => ({ title, lessons }));
 });
+
+/** Adapter: PathModuleLesson → CourseLessonDto gốc rồi gọi startLesson. */
+function onModuleLessonSelect(lesson: PathModuleLesson): void {
+  const target = (course.value?.lessons ?? []).find(
+    (l) => String(l.id) === String(lesson.lessonId ?? lesson.id),
+  );
+  if (target) void startLesson(target);
+}
 
 const quizCount = computed(() => course.value?.lessons.filter(l => l.sandboxType === 'quiz' || l.quizId).length ?? 0);
 const labCount = computed(() => course.value?.lessons.filter(l => l.sandboxType === 'codelab').length ?? 0);
@@ -535,7 +478,6 @@ const courseOutcomes = computed(() => (course.value?.keyOutcomes ?? []).map((tex
   };
 }));
 
-function pad(n: number) { return String(n).padStart(2, '0'); }
 function initial(name: string) { return (name || '?').trim().charAt(0).toUpperCase(); }
 
 function scrollToLessons() {
@@ -556,7 +498,6 @@ async function loadCourseDetail() {
     if (course.value.lessons) {
       courseStore.updateCourseLessons(courseId, course.value.lessons);
     }
-    expandedModules.value = course.value.lessons.length ? [0] : [];
     updateTimelineFill();
 
     if (auth.isAuthenticated) {
@@ -626,10 +567,13 @@ async function startLesson(lesson: CourseLessonDto) {
 
   if (courseId && nodeId) {
     try {
-      await gamification.enterNode(courseId, nodeId);
+      const res = await gamification.enterNode(courseId, nodeId);
+      if (typeof res?.heartsLeft === 'number') {
+        gamification.hearts = res.heartsLeft;
+      }
     } catch (err: any) {
-      const errorCode = err?.response?.data?.code || err?.code;
-      if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY')) {
+      const errorCode = err?.response?.data?.code || err?.code || '';
+      if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY') || String(err?.message || '').includes('hết tim')) {
         ui.showToast('Bạn đã hết tim. Hãy chờ hồi hoặc nâng cấp Premium.', 'warning');
         return;
       }

@@ -61,11 +61,7 @@ function onPageEnter(): void {
            mode out-in tránh nhảy layout, tôn trọng prefers-reduced-motion
            (global.css đã cắt transition khi reduce). -->
       <RouterView v-slot="{ Component, route }">
-        <Transition name="page" @after-enter="onPageEnter">
-          <!-- G1: key theo route.path — đổi query params (tabs/filters/page) KHÔNG remount lại cả trang;
-               lesson-study cố định theo tên route để chuyển bài không nháy. -->
-          <component :is="Component" :key="route.name === 'lesson-study' ? 'lesson-study' : route.path" />
-        </Transition>
+        <component :is="Component" :key="route.name === 'lesson-study' ? 'lesson-study' : route.path" />
       </RouterView>
     </main>
 
@@ -95,10 +91,7 @@ function onPageEnter(): void {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  /* Header nổi (absolute) ở đỉnh — đẩy nội dung xuống đúng chiều cao cụm nổi
-     (--app-header-h = logo 72px + padding 30+10 = 112px, tokens.css) để trang
-     không bị che; nền body đồng màu (#0B0A12) nên nhìn liền mạch. */
-  padding-top: var(--app-header-h, 112px);
+  padding-top: var(--app-header-h, 68px);
 }
 
 /* Chòm sao tương tác — cố định theo viewport, nằm dưới mọi nội dung */
@@ -122,16 +115,10 @@ function onPageEnter(): void {
   flex-direction: column;
 }
 
-/* Sandbox (Sorting/Searching/Graph từ VisualizationDSA3) — trải nghiệm FULL VIEWPORT
-   như bên nguồn: view dùng h-full w-full nên main phải có chiều cao cố định
-   (100vh trừ header nổi), không scroll ngoài, ẩn footer.
-   QUAN TRỌNG: flex: 1 (flex-basis 0% + grow) của .app-shell__main sẽ kéo giãn main
-   theo nội dung → phải ép flex-basis cố định bằng chiều cao tính toán. */
 .app-shell__main--sandbox {
-  flex: 0 0 calc(100vh - var(--app-header-h, 112px));
-  height: calc(100vh - var(--app-header-h, 112px));
-  min-height: 0;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: calc(100vh - var(--app-header-h, 68px));
+  overflow: visible;
 }
 
 .app-shell__footer {
