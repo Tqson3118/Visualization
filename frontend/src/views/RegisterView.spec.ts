@@ -204,7 +204,7 @@ describe('RegisterView — form đăng ký giảng viên & OTP (Task B0, A2, A3)
     expect(payload).not.toHaveProperty('teacherBio');
     expect(payload).not.toHaveProperty('academicDegree');
     expect(payload).not.toHaveProperty('profileLink');
-    expect(replaceMock).toHaveBeenCalledWith({ name: 'courses' });
+    expect(replaceMock).toHaveBeenCalledWith({ name: 'path-list' });
   });
 
   // ── Block 2.3 — học vị + link hồ sơ giảng viên ──

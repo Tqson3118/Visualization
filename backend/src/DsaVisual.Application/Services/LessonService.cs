@@ -48,8 +48,8 @@ public sealed class LessonService(
         }
         else if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase))
         {
-            // Giảng viên xem danh sách bài học do chính mình tạo
-            query = query.Where(l => l.CreatedBy == userId);
+            // Giảng viên xem danh sách bài học do chính mình tạo + bài học hệ thống
+            query = query.Where(l => l.CreatedBy == userId || l.CreatedBy <= 1);
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<LessonStatus>(status, true, out var statusFilter))
             {
                 query = query.Where(l => l.Status == statusFilter);
@@ -119,9 +119,9 @@ public sealed class LessonService(
             return Result<LessonDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
         }
 
-        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && lesson.CreatedBy != userId && lesson.CreatedBy != 0 && (lesson.Status != LessonStatus.Active || lesson.IsClassOnly))
+        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && lesson.CreatedBy != userId && (lesson.Status != LessonStatus.Active || lesson.IsClassOnly))
         {
-            // Giảng viên xem được bài học của mình, bài học hệ thống (CreatedBy == 0) hoặc bài công khai (Active)
+            // Giảng viên xem được bài học của mình hoặc bài công khai (Active)
             return Result<LessonDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem bài học riêng tư của giảng viên khác");
         }
 
@@ -644,7 +644,8 @@ public sealed class LessonService(
         role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase);
 
     private static bool CanManage(int userId, string role, Lesson lesson) =>
-        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) || lesson.CreatedBy == userId;
+        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) ||
+        lesson.CreatedBy == userId;
 
     private static Dictionary<string, string[]> ToFieldErrors(ValidationResult result) =>
         result.Errors

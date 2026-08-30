@@ -1,4 +1,4 @@
-﻿// engines/generators/sort/bubble.ts — Bubble Sort (SDD §4.7.1, §4.9/4.9A)
+// engines/generators/sort/bubble.ts — Bubble Sort (SDD §4.7.1, §4.9/4.9A)
 import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { arrayStructure, buildGenerator, parseArrayParams, Trace, validateArrayParams } from '../helpers';
@@ -87,9 +87,8 @@ export function createBubbleGenerator(): SimulationGenerator {
           });
         }
 
-        // Trace chuẩn (§4.9A) dùng cận vòng trong j ≤ n-2 (không trừ i) → [3,1,2] đúng 21 bước,
-        // 4 phép so sánh; phần tử a[n-1-i] vẫn đứng đúng vị trí sau mỗi pass.
-        for (let j = 0; j <= n - 2; j++) {
+        // Vòng lặp trong: j ≤ n - 2 - i (không so sánh lại phần tử đã cố định ở cuối)
+        for (let j = 0; j <= n - 2 - i; j++) {
           trace.vars.j = j;
           if (statuses[j] !== 'done') statuses[j] = 'default';
           if (statuses[j + 1] !== 'done') statuses[j + 1] = 'default';
@@ -157,14 +156,15 @@ export function createBubbleGenerator(): SimulationGenerator {
           for (let k = 0; k < n; k++) statuses[k] = 'done';
           trace.push({
             line: 9,
-            explanation: 'swapped = false → mảng đã sắp xếp, kết thúc sớm (return).',
+            explanation: 'Kết thúc: swapped = false → mảng đã sắp xếp, kết thúc sớm (return).',
             structure: arrayStructure(a, statuses),
           });
           break;
         }
       }
 
-      if (trace.steps.length === 0 || trace.steps[trace.steps.length - 1].pseudocodeLine !== 10) {
+      const lastStep = trace.steps[trace.steps.length - 1];
+      if (!lastStep || (lastStep.pseudocodeLine !== 9 && lastStep.pseudocodeLine !== 10)) {
         for (let k = 0; k < n; k++) statuses[k] = 'done';
         trace.push({
           line: 10,

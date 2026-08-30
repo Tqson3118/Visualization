@@ -124,10 +124,13 @@ export function initCanvasContext(
     throw new Error('Không thể khởi tạo WebGPU canvas context.');
   }
 
-  const format = navigator.gpu.getPreferredCanvasFormat();
-  context.configure({ device, format, alphaMode: 'premultiplied' });
+  const format =
+    typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat
+      ? navigator.gpu.getPreferredCanvasFormat()
+      : 'bgra8unorm';
+  context.configure({ device, format: format as GPUTextureFormat, alphaMode: 'premultiplied' });
 
-  return { context, format };
+  return { context, format: format as GPUTextureFormat };
 }
 
 /** Tạo compute pipeline từ WGSL (layout auto — bindgroup khớp theo code shader). */

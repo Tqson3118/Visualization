@@ -479,7 +479,7 @@ const BENCH_BLOCKS = [
   color: var(--color-text-secondary);
 }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .login__shell { grid-template-columns: 1fr; max-width: 28rem; }
   .login__aside { padding: var(--space-lg); }
 }

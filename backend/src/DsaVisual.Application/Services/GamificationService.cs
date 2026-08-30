@@ -976,9 +976,26 @@ public sealed class GamificationService(
 
     public async Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(int userId, CancellationToken ct)
     {
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is not null && user.PremiumUntil > clock.UtcNow)
+        {
+            var activeSub = await db.PremiumSubscriptions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.Status == 0 && s.ExpiresAt > clock.UtcNow)
+                .OrderByDescending(s => s.ExpiresAt)
+                .FirstOrDefaultAsync(ct);
+
+            return Result<PremiumStatusDto>.Ok(new PremiumStatusDto
+            {
+                PlanId = activeSub?.PlanId ?? "1m",
+                StartedAt = activeSub?.StartedAt ?? user.CreatedAt,
+                ExpiresAt = user.PremiumUntil.Value,
+                Status = "active"
+            });
+        }
+
         var subscription = await db.PremiumSubscriptions.AsNoTracking()
-            .Where(s => s.UserId == userId && s.Status != 1)
-            .OrderByDescending(s => s.CreatedAt)
+            .Where(s => s.UserId == userId && s.Status == 0 && s.ExpiresAt > clock.UtcNow)
+            .OrderByDescending(s => s.ExpiresAt)
             .FirstOrDefaultAsync(ct);
 
         if (subscription is null || subscription.ExpiresAt is null || subscription.ExpiresAt <= clock.UtcNow)

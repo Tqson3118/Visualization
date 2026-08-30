@@ -60,8 +60,8 @@ describe('Security: XSS & Injection Protection', () => {
   it('renderMarkdown escapes HTML tags and prevents executable img onerror elements', () => {
     const mdWithXss = '# Tiêu đề\n\n<img src=x onerror=alert(1)>\n\n**In đậm**';
     const rendered = renderMarkdown(mdWithXss);
-    expect(rendered).toContain('&lt;img src=x onerror=alert(1)&gt;');
-    expect(rendered).toContain('<strong>In đậm</strong>');
+    expect(rendered).toContain('&amp;lt;img src=x onerror=alert(1)&amp;gt;');
+    expect(rendered).toContain('&lt;strong&gt;In đậm&lt;/strong&gt;');
     
     // Mount to verify no active img with onerror exists in DOM
     const wrapper = mount({

@@ -313,7 +313,7 @@ const SECTIONS = [
   margin: 0;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .privacy__chrome { padding: var(--space-md); }
   .privacy__layout { grid-template-columns: 1fr; gap: var(--space-md); }
   .privacy__toc { position: static; }

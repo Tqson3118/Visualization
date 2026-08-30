@@ -414,7 +414,7 @@ const BENCH_BLOCKS = [
   color: var(--color-text-secondary);
 }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .reset__shell { grid-template-columns: 1fr; max-width: 28rem; }
   .reset__aside { padding: var(--space-lg); }
 }

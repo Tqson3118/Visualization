@@ -153,6 +153,36 @@ public class ClassesController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    /// <summary>Teacher/Admin: gán/đổi lộ trình active cho lớp (Mô hình Class-First: 1 lớp trỏ 1 lộ trình).</summary>
+    [HttpPut("{id:int}/learning-path")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<ClassDetailDto>> SetLearningPath(
+        [FromRoute] int id, [FromBody] SetClassLearningPathRequest request, CancellationToken ct)
+    {
+        var result = await _service.SetLearningPathAsync(CurrentUserId(), CurrentRole(), id, request.LearningPathId, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>Teacher/Admin: cập nhật deadline/hạn nộp cho mục lộ trình trong lớp.</summary>
+    [HttpPut("{id:int}/assignments/deadline")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> UpdateAssignmentDeadline(
+        [FromRoute] int id, [FromBody] UpdateAssignmentDeadlineRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateAssignmentDeadlineAsync(CurrentUserId(), CurrentRole(), id, request.PathItemId, request.DueAt, request.AllowLateSubmission, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
+    /// <summary>Teacher/Admin: cập nhật deadline/hạn nộp cho bài học trong lớp (legacy).</summary>
+    [HttpPut("{id:int}/assignments/lessons/{lessonId:int}/deadline")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult> UpdateLessonDeadline(
+        [FromRoute] int id, [FromRoute] int lessonId, [FromBody] UpdateLessonDeadlineRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateLessonDeadlineAsync(CurrentUserId(), CurrentRole(), id, lessonId, request.DueAt, request.AllowLateSubmission, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     /// <summary>Teacher/Admin: tạo/đổi meta lộ trình + publish/unpublish (draft ẩn với học viên).</summary>
     [HttpPut("{id:int}/curriculum")]
     [Authorize(Roles = "TEACHER,ADMIN")]

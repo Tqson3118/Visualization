@@ -33,6 +33,7 @@ import { messages } from '@/i18n/vi';
 import { isValidEmail, isValidUrl, validatePassword } from '@/utils/validators';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import RegisterAside from '@/components/auth/RegisterAside.vue';
 
 type RegisterRole = 'student' | 'teacher';
 
@@ -353,7 +354,7 @@ async function handleVerifyAndRegister(): Promise<void> {
       registeredTeacher.value = true;
       currentStep.value = 3;
     } else {
-      await router.replace({ name: 'courses' });
+      await router.replace({ name: 'path-list' });
     }
   } catch (err) {
     if (err instanceof ApiError) {
@@ -404,32 +405,8 @@ const BENCH_BLOCKS = [
       :animate="{ opacity: 1, y: 0 }"
       :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
     >
-      <!-- Brand panel: nền tối canvas-ink + block-token -->
-      <aside class="register__aside" aria-label="Giới thiệu DSA Visual">
-        <div class="register__aside-inner">
-          <span class="register__aside-badge">{{ messages.app.name }}</span>
-          <h2 class="register__aside-title">{{ messages.app.tagline }}</h2>
-
-          <div class="register__aside-bench" aria-hidden="true">
-            <div
-              v-for="(b, idx) in BENCH_BLOCKS"
-              :key="b.value"
-              class="register__aside-block"
-              :class="`register__aside-block--${b.state}`"
-            >
-              <span class="register__aside-block-value">{{ b.value }}</span>
-              <span class="register__aside-block-index">{{ String(idx).padStart(2, '0') }}</span>
-            </div>
-          </div>
-
-          <ul class="register__points">
-            <li v-for="point in BRAND_POINTS" :key="point.text" class="register__point">
-              <component :is="point.icon" :size="16" class="register__point-icon" aria-hidden="true" />
-              <span>{{ point.text }}</span>
-            </li>
-          </ul>
-        </div>
-      </aside>
+      <!-- Brand panel -->
+      <RegisterAside />
 
       <!-- Wizard Flow Container -->
       <div class="register__form-col">
@@ -1168,15 +1145,16 @@ const BENCH_BLOCKS = [
 .register__otp-boxes {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: center;
+  gap: clamp(4px, 1.5vw, 8px);
+  width: 100%;
 }
 
 .register__otp-input {
-  width: 44px;
-  height: 52px;
+  width: clamp(34px, 11vw, 44px);
+  height: clamp(42px, 13vw, 52px);
   text-align: center;
-  font-size: 22px;
+  font-size: clamp(16px, 5vw, 22px);
   font-weight: 700;
   font-family: var(--font-mono, monospace);
   background: var(--color-surface, #161b22);
@@ -1184,6 +1162,7 @@ const BENCH_BLOCKS = [
   border-radius: 10px;
   color: #ffffff;
   transition: all 150ms ease;
+  flex-shrink: 1;
 }
 
 .register__otp-input:focus {
@@ -1227,9 +1206,10 @@ const BENCH_BLOCKS = [
   line-height: 1.5;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .register__shell { grid-template-columns: 1fr; max-width: 28rem; }
-  .register__aside { padding: var(--space-lg); }
-  .register__otp-input { width: 38px; height: 46px; font-size: 18px; }
+  :deep(.register__aside) { order: 2; padding: var(--space-lg); }
+  .register__form-col { order: 1; }
+  .register__otp-input { font-size: clamp(14px, 4.5vw, 18px); }
 }
 </style>

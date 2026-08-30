@@ -10,48 +10,53 @@ withDefaults(
 );
 
 const LEGEND = [
-  { color: '#5EEAD4', label: 'Mặc định' },
-  { color: '#FBBF24', label: 'Đang xử lý' },
-  { color: '#F87171', label: 'Hoán đổi' },
-  { color: '#34D399', label: 'Đã hoàn thành' },
-  { color: '#EF4444', label: 'Lỗi' },
-  { color: '#CBD5E1', label: 'Mờ / ngoài vùng' },
+  { color: '#5EEAD4', label: 'Mặc định (Chưa xét)' },
+  { color: '#FBBF24', label: 'Đang so sánh / Duyệt' },
+  { color: '#F87171', label: 'Hoán đổi vị trí' },
+  { color: '#34D399', label: 'Đã hoàn thành / Đúng vị trí' },
+  { color: '#EF4444', label: 'Lỗi / Không khớp' },
+  { color: '#CBD5E1', label: 'Ngoài phạm vi xét' },
 ];
 </script>
 
 <template>
   <div v-if="!collapsed" class="legend" aria-label="Chú giải màu">
-    <span
+    <div
       v-for="item in LEGEND"
       :key="item.label"
       class="legend__item"
       :title="item.label"
     >
       <span class="legend__dot" :style="{ background: item.color }" />
-      {{ item.label }}
-    </span>
+      <span class="legend__label">{{ item.label }}</span>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .legend {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
 }
 
 .legend__item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  color: #cbd5e1;
+}
+
+.legend__label {
+  line-height: 1.3;
 }
 
 .legend__dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
 }
 </style>

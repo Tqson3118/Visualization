@@ -9,12 +9,12 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { BarChart, RadarChart } from 'echarts/charts';
+import { BarChart, PieChart, RadarChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import type { EChartsCoreOption } from 'echarts/core';
 
-// Đăng ký module dùng riêng (tree-shaking): Bar + Radar là đủ cho 2 màn G-F2d.
-use([CanvasRenderer, BarChart, RadarChart, GridComponent, LegendComponent, TooltipComponent]);
+// Đăng ký module dùng riêng (tree-shaking): Bar + Radar + Pie cho các màn G-F2d / AdminStats.
+use([CanvasRenderer, BarChart, PieChart, RadarChart, GridComponent, LegendComponent, TooltipComponent]);
 
 // Lazy VChart → chunk "vue-echarts" chỉ tải khi có màn dùng chart.
 const VChart = defineAsyncComponent(() => import('vue-echarts'));

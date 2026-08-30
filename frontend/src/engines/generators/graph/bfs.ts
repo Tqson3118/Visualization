@@ -121,6 +121,22 @@ export function createBfsGenerator(): SimulationGenerator {
         }
       }
 
+      const unreachable: number[] = [];
+      for (let i = 0; i < g.vertices; i++) {
+        if (!visited.has(i)) {
+          unreachable.push(i);
+          statuses.nodes[i] = 'muted';
+        }
+      }
+      if (unreachable.length > 0) {
+        trace.push({
+          line: 10,
+          explanation: `Các đỉnh [${unreachable.join(', ')}] không thể đến được từ đỉnh nguồn ${g.source} (thuộc thành phần liên thông khác).`,
+          structure: graphStructure(g, edges, statuses),
+          annotations: [`unreachable: ${unreachable.join(', ')}`],
+        });
+      }
+
       trace.push({
         line: 10,
         explanation: `Kết thúc: BFS hoàn tất, thứ tự thăm [${Object.keys(order).sort((a, b) => order[Number(a)] - order[Number(b)]).join(', ')}].`,

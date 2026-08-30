@@ -10,18 +10,19 @@
       <div class="absolute top-3 right-3 flex gap-1.5 flex-wrap justify-end">
         <span
           v-if="course.isPremium"
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-yellow text-black shadow-sm whitespace-nowrap shrink-0"
+          class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-vdsa-yellow text-black shadow-sm whitespace-nowrap shrink-0"
         >
           Premium
         </span>
         <span
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0"
+          class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0"
           :class="difficultyBadgeClass"
         >
           {{ difficultyLabel }}
         </span>
         <span
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-vdsa-surface/80 text-vdsa-secondary whitespace-nowrap shrink-0"
+          v-if="course.category && course.category !== difficultyLabel"
+          class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-vdsa-surface/90 text-vdsa-secondary whitespace-nowrap shrink-0"
         >
           {{ course.category }}
         </span>
@@ -58,18 +59,17 @@
                 :class="progressPercent === 100 ? 'bg-vdsa-green' : 'bg-vdsa-accent'"
               />
             </div>
-            <span class="text-[9px] font-bold tabular-nums" :class="progressPercent === 100 ? 'text-vdsa-green' : 'text-vdsa-muted'">
+            <span class="text-xs font-bold tabular-nums" :class="progressPercent === 100 ? 'text-vdsa-green' : 'text-vdsa-muted'">
               {{ progressPercent }}%
             </span>
           </div>
 
-          <router-link
-            :to="{ name: 'course-detail', params: { id: course.id } }"
-            class="px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-lg cursor-pointer whitespace-nowrap shrink-0"
-            :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green hover:bg-vdsa-green text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent hover:bg-vdsa-accent text-white shadow-vdsa-accent/30')"
+          <span
+            class="inline-flex items-center px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg select-none whitespace-nowrap shrink-0"
+            :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border group-hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green group-hover:brightness-110 text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent group-hover:brightness-110 text-white shadow-vdsa-accent/30')"
           >
             {{ !isEnrolled ? 'Xem chi tiết' : (progressPercent === 100 ? 'Ôn tập' : 'Tiếp tục học') }}
-          </router-link>
+          </span>
         </div>
       </div>
     </div>

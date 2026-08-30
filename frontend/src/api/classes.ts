@@ -127,6 +127,25 @@ export async function reorderClassCurriculum(
   await client.put(CLASS_ENDPOINTS.curriculumReorder(id), payload);
 }
 
+/** Teacher/Admin: gán/đổi lộ trình active cho lớp. */
+export async function setClassLearningPath(id: number, learningPathId: number | null): Promise<ClassDetailDto> {
+  return getData<ClassDetailDto>({ method: 'PUT', url: `/classes/${id}/learning-path`, data: { learningPathId } });
+}
+
+/** Teacher/Admin: cập nhật deadline/hạn nộp cho bài học trong lớp. */
+export async function updateLessonDeadline(
+  id: number,
+  lessonId: number,
+  payload: { dueAt?: string | null; allowLateSubmission?: boolean },
+): Promise<void> {
+  await client.put(`/classes/${id}/assignments/lessons/${lessonId}/deadline`, payload);
+}
+
+/** Teacher/Admin: Gán lộ trình nhanh cho danh sách nhiều lớp học (Cửa phụ trong Builder). */
+export async function assignCourseToClasses(courseId: number, classIds: number[]): Promise<{ message: string }> {
+  return getData<{ message: string }>({ method: 'POST', url: `/concepts/courses/${courseId}/assign-classes`, data: { classIds } });
+}
+
 /** Teacher/Admin: Nhập nhanh toàn bộ bài học từ một Lộ trình có sẵn vào lớp. */
 export async function importCourseToClass(id: number, courseId: number): Promise<ClassDetailDto> {
   return getData<ClassDetailDto>({ method: 'POST', url: `/classes/${id}/import-course/${courseId}` });

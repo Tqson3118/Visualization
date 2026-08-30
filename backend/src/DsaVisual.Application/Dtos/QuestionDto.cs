@@ -7,5 +7,7 @@ public sealed class QuestionDto
     public string Content { get; set; } = string.Empty;
     public string Type { get; set; } = "SINGLE";
     public List<string> Options { get; set; } = [];
+    public List<int>? Answer { get; set; }
+    public string? Explanation { get; set; }
     public int Points { get; set; } = 1;
 }

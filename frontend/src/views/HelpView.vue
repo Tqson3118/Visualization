@@ -7,13 +7,12 @@
 // GIá»® NGUYÊN logic FAQ/contact + aria-expanded.
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { Motion } from 'motion-v';
+
 import { CheckCircle2, ChevronDown, LifeBuoy, Mail, User } from 'lucide-vue-next';
 
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
-import { buttonVariants } from '@/components/ui/button';
 import { messages } from '@/i18n/vi';
 
 const openIndex = ref<number | null>(0);
@@ -52,12 +51,7 @@ function toggle(idx: number): void {
 <template>
   <main class="help container">
     <!-- Hero â€” surface band level-2 (bỏ gradient aurora + shadow, Â§1/Â§6) -->
-    <Motion
-      class="help__chrome"
-      :initial="{ opacity: 0, y: 12 }"
-      :animate="{ opacity: 1, y: 0 }"
-      :transition="{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }"
-    >
+    <div class="help__chrome">
       <nav class="help__breadcrumb" aria-label="Breadcrumb">
         <RouterLink :to="{ name: 'home' }">{{ messages.help.breadcrumbHome }}</RouterLink>
         <span aria-hidden="true">/</span>
@@ -72,7 +66,7 @@ function toggle(idx: number): void {
           <p class="help__sub">{{ messages.help.sub }}</p>
         </div>
       </div>
-    </Motion>
+    </div>
 
     <div class="help__grid">
       <section class="help__faq" :aria-label="messages.help.faqAria">
@@ -97,7 +91,7 @@ function toggle(idx: number): void {
               :class="{ 'help__chevron--open': openIndex === idx }"
               aria-hidden="true"
             />
-          </button>
+          </Button>
           <Transition name="faq">
             <p v-if="openIndex === idx" :id="`faq-answer-${idx}`" class="help__answer">{{ faq.a }}</p>
           </Transition>
@@ -173,9 +167,11 @@ function toggle(idx: number): void {
   flex-direction: column;
   gap: var(--space-lg);
   max-width: 900px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* â”€â”€ Hero â€” surface band level-2 (Â§6): card-raised + border-subtle, KHÔNG shadow â”€â”€ */
+/* ── Hero — surface band level-2 (§6): card-raised + border-subtle, KHÔNG shadow ── */
 .help__chrome {
   display: flex;
   flex-direction: column;
@@ -184,6 +180,9 @@ function toggle(idx: number): void {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-lg) var(--space-xl);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .help__breadcrumb {
@@ -240,18 +239,39 @@ function toggle(idx: number): void {
   grid-template-columns: 3fr 2fr;
   gap: var(--space-lg);
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.help__faq { display: flex; flex-direction: column; gap: var(--space-sm); }
+.help__faq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
 .help__item {
   padding: var(--space-sm) var(--space-md);
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .help__item:hover { border-color: var(--color-border-strong); }
+
+.help__question {
+  white-space: normal !important;
+  text-align: left;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
 .help__q-index {
   font-family: var(--font-mono);
@@ -261,7 +281,14 @@ function toggle(idx: number): void {
   flex-shrink: 0;
 }
 
-.help__question-text { line-height: 1.45; font-weight: 600; }
+.help__question-text {
+  line-height: 1.45;
+  font-weight: 600;
+  white-space: normal !important;
+  word-break: break-word;
+  min-width: 0;
+  flex: 1;
+}
 
 .help__chevron {
   flex-shrink: 0;
@@ -289,6 +316,10 @@ function toggle(idx: number): void {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .help__contact-head {
@@ -371,9 +402,11 @@ function toggle(idx: number): void {
 
 .faq-enter-from, .faq-leave-to { opacity: 0; transform: translateY(-4px); }
 
-@media (max-width: 800px) {
-  .help__grid { grid-template-columns: 1fr; }
-  .help__contact { position: static; }
-  .help__chrome { padding: var(--space-md); }
+@media (max-width: 768px) {
+  .help { padding-inline: var(--space-sm, 12px); max-width: 100%; overflow-x: hidden; }
+  .help__grid { grid-template-columns: 1fr; width: 100%; max-width: 100%; }
+  .help__contact { position: static; width: 100%; max-width: 100%; padding: var(--space-md); }
+  .help__chrome { padding: var(--space-md); width: 100%; max-width: 100%; }
+  .help__title { font-size: var(--text-2xl); }
 }
 </style>

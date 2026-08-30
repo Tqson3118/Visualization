@@ -54,7 +54,8 @@ export class StackQueueRenderer implements Renderer {
     const n = Math.max(1, structure.elements.length);
     const cellSize = Math.max(MIN_CELL_SIZE, Math.min(CELL_SIZE, (h - 2 * CANVAS_LAYOUT.margin) / n));
     const cx = w / 2;
-    const bottom = h - CANVAS_LAYOUT.margin;
+    const totalHeight = n * cellSize;
+    const bottom = Math.min(h - CANVAS_LAYOUT.margin, (h + totalHeight) / 2);
     const cells = sortedElements(structure);
 
     let topCellY: number | null = null;
@@ -66,9 +67,9 @@ export class StackQueueRenderer implements Renderer {
       if (topCellY === null && !isEmptyCell(el)) topCellY = cy;
     });
 
-    // Nhãn "đỉnh" bên phải ô trên cùng (top).
+    // Nhãn "đỉnh" bên phải ô trên cùng (top) kèm mũi tên chỉ rõ ràng.
     if (topCellY !== null && options.showValues) {
-      this.painter.label('top', cx + cellSize / 2 + 10, topCellY, CANVAS_COLORS.muted, 10);
+      this.painter.label('← top', cx + cellSize / 2 + 24, topCellY, CANVAS_COLORS.compare, 11);
     }
   }
 
@@ -80,6 +81,8 @@ export class StackQueueRenderer implements Renderer {
     const n = Math.max(1, structure.elements.length);
     const cellSize = Math.max(MIN_CELL_SIZE, Math.min(CELL_SIZE, (w - 2 * CANVAS_LAYOUT.margin) / n));
     const cy = h / 2;
+    const totalWidth = n * cellSize;
+    const startX = Math.max(CANVAS_LAYOUT.margin, (w - totalWidth) / 2);
     const cells = sortedElements(structure);
 
     // Front = ô có dữ liệu đầu tiên, rear = ô có dữ liệu cuối cùng.
@@ -88,21 +91,36 @@ export class StackQueueRenderer implements Renderer {
     const rearEl = filled[filled.length - 1];
 
     cells.forEach((el, i) => {
-      let cx = CANVAS_LAYOUT.margin + i * cellSize + cellSize / 2;
+      let cx = startX + i * cellSize + cellSize / 2;
       const flying = el.status === 'swap' && !hasAnimOverride(el);
       if (flying) cx -= FLY_OFFSET; // dequeue: bay ra trái
-      this.drawCell(el, cx - cellSize / 2, cy - cellSize / 2, cellSize, cellSize, options, flying ? FLY_ALPHA : undefined);
-      // Nhãn front/rear dưới ô tương ứng.
-      if (options.showValues && frontEl && el.id === frontEl.id) {
-        this.painter.label('front', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.compare, 10);
-      }
-      if (options.showValues && rearEl && el.id === rearEl.id) {
-        this.painter.label('rear', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.muted, 10);
+      this.drawCell(el, cx - cellSize / 2, cy - cellSize / 2, cellSize, cellSize, options, flying ? FLY_ALPHA : undefined, 'queue');
+      
+      if (options.showValues) {
+        if (frontEl && rearEl && frontEl.id === rearEl.id && el.id === frontEl.id) {
+          this.painter.label('front / rear', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.compare, 11);
+        } else {
+          if (frontEl && el.id === frontEl.id) {
+            this.painter.label('front', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.compare, 11);
+          }
+          if (rearEl && el.id === rearEl.id) {
+            this.painter.label('rear', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.muted, 11);
+          }
+        }
       }
     });
   }
 
-  private drawCell(el: Element, x: number, y: number, w: number, h: number, options: RenderOptions, alpha?: number): void {
+  private drawCell(
+    el: Element,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    options: RenderOptions,
+    alpha?: number,
+    kind: 'stack' | 'queue' = 'stack',
+  ): void {
     // Override meta từ useStructureTransition (Task 3): animX/animY dịch tương đối
     // (element trượt/bay trong lúc push/pop), animAlpha thay thế alpha (fade khi pop/dequeue).
     const anim = el.meta;
@@ -131,11 +149,15 @@ export class StackQueueRenderer implements Renderer {
         color: empty ? CANVAS_COLORS.muted : CANVAS_COLORS.text,
       });
     }
-    // Index nhỏ bên phải ô (hiện dung lượng / vị trí).
+    // Index: bên trái cho stack (tránh đè 'top' bên phải), hoặc dưới đáy cho queue.
     if (options.showIndex) {
       const idx = CanvasPainter.indexFromId(el.id);
       if (idx !== null) {
-        this.painter.label(String(idx), x + w + 8, cy, CANVAS_COLORS.muted, 9);
+        if (kind === 'stack') {
+          this.painter.label(String(idx), x - 10, cy, CANVAS_COLORS.muted, 10);
+        } else {
+          this.painter.label(String(idx), cx, y + h + 12, CANVAS_COLORS.muted, 10);
+        }
       }
     }
   }

@@ -35,14 +35,18 @@ async function bootstrap(): Promise<void> {
   app.component('BaseIcon', BaseIcon);
 
   const auth = useAuthStore(pinia);
-  try {
-    const token = await auth.refresh();
-    if (token) {
-      // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
-      await auth.fetchMe();
+  // F3 (D1.1): Chỉ gọi auth.refresh() khi có cookie phiên dsa.session để tránh 401 đỏ console cho Guest
+  const hasSession = typeof document !== 'undefined' && document.cookie.includes('dsa.session');
+  if (hasSession) {
+    try {
+      const token = await auth.refresh();
+      if (token) {
+        // Refresh thành công → lấy user để role guard (admin/**) và header hiển thị đúng
+        await auth.fetchMe();
+      }
+    } catch {
+      // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
     }
-  } catch {
-    // refresh/fetchMe lỗi (mạng, cookie hết hạn) → giữ nguyên trạng thái 'error'; guard lo phần còn lại
   }
 
   app.use(router);

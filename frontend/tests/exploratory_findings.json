@@ -1,0 +1,22 @@
+[
+  {
+    "id": "ISSUE-02",
+    "module": "Glossary Banner",
+    "type": "LAYOUT",
+    "severity": "MINOR",
+    "summary": "TeacherGlossaryBanner bị tràn ngang trên màn hình mobile 375px",
+    "stepsToReproduce": "1. Đặt viewport 375x667\n2. Mở tab curriculum",
+    "observedBehavior": "Banner có độ rộng scrollWidth lớn hơn clientWidth",
+    "expectedBehavior": "Banner co giãn vừa vặn màn hình mobile"
+  },
+  {
+    "id": "ISSUE-08",
+    "module": "Studio Shell",
+    "type": "LAYOUT",
+    "severity": "MINOR",
+    "summary": "Các tab Studio bị khuất trên màn hình mobile 375px nếu không có thanh cuộn ngang hỗ trợ",
+    "stepsToReproduce": "1. Đặt viewport 375px\n2. Vào /admin/content",
+    "observedBehavior": "Overview: false, Feedback: false",
+    "expectedBehavior": "Tất cả 4 tabs phải hiển thị hoặc cho phép vuốt ngang dễ dàng"
+  }
+]

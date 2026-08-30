@@ -39,8 +39,19 @@ export class HashTableRenderer implements Renderer {
 
     const w = this.painter.logicalWidth;
 
-    // Nhãn hàm băm (SDD §8.3): h(k) = k mod m.
-    this.painter.label('h(k) = k mod m', CANVAS_LAYOUT.margin, 20, CANVAS_COLORS.muted, 12);
+    // Nhãn hàm băm (SDD §8.3): hiển thị theo meta (mặc định k mod m hoặc phép nhân)
+    let formula = 'h(k) = k mod m';
+    for (const el of structure.elements) {
+      if (el.meta?.formula) {
+        formula = String(el.meta.formula);
+        break;
+      }
+      if (el.meta?.hashMode === 'multiplication') {
+        formula = 'h(k) = ⌊m · (k · A mod 1)⌋';
+        break;
+      }
+    }
+    this.painter.text(formula, CANVAS_LAYOUT.margin + 8, 20, { size: 12, color: CANVAS_COLORS.muted, align: 'left' });
 
     // Gom element theo bucket: header (id bucket:i) + các nút trong chuỗi.
     const buckets = new Map<number, { header: Element | null; nodes: Element[] }>();
@@ -90,35 +101,38 @@ export class HashTableRenderer implements Renderer {
         this.painter.text(rec.header.label, hx + hw / 2, HEADER_Y + HEADER_H / 2, { size: 12, weight: 'bold' });
       }
 
-      // Chuỗi nối kết ngang trong bucket.
+      // Chuỗi nối kết dọc trong bucket (chaining)
       const nodes = rec.nodes
         .slice()
         .sort((a, b) => (typeof a.meta?.chainPos === 'number' ? a.meta.chainPos : (CanvasPainter.indexFromId(a.id) ?? 0))
           - (typeof b.meta?.chainPos === 'number' ? b.meta.chainPos : (CanvasPainter.indexFromId(b.id) ?? 0)));
       if (nodes.length === 0) {
-        this.painter.text('∅', centerX, HEADER_Y + HEADER_H + 26, { size: 14, color: CANVAS_COLORS.muted });
+        this.painter.text('∅', centerX, HEADER_Y + HEADER_H + 20, { size: 14, color: CANVAS_COLORS.muted });
         return;
       }
 
-      const nodeW = Math.max(28, Math.min(52, colW - CHAIN_GAP - 12));
-      const nodeH = 30;
-      const totalW = nodes.length * nodeW + (nodes.length - 1) * CHAIN_GAP;
-      const y = HEADER_Y + HEADER_H + 20;
-      let x = centerX - totalW / 2;
+      const nodeW = Math.max(24, Math.min(56, colW - 12));
+      const nodeH = 26;
+      const chainVGap = 16;
+      const x = colX + (colW - nodeW) / 2;
+
+      // Mũi tên từ header xuống nút đầu tiên
+      this.painter.arrow(centerX, HEADER_Y + HEADER_H + 2, centerX, HEADER_Y + HEADER_H + chainVGap - 2, hexToRgba(CANVAS_COLORS.text, 0.4), 2, 5);
+
+      let curY = HEADER_Y + HEADER_H + chainVGap;
       nodes.forEach((el, i) => {
         const muted = el.status === 'muted';
         const fill = muted ? this.painter.statusColorWithAlpha('muted', 0.5) : this.painter.statusColor(el.status);
         const stroke = hexToRgba(this.painter.statusColor(el.status), 0.8);
-        this.painter.roundRect(x, y, nodeW, nodeH, CANVAS_LAYOUT.borderRadius, fill, stroke);
+        this.painter.roundRect(x, curY, nodeW, nodeH, CANVAS_LAYOUT.borderRadius, fill, stroke);
         if (options.showValues) {
-          this.painter.text(el.label, x + nodeW / 2, y + nodeH / 2, { size: 11, weight: 'bold', color: muted ? CANVAS_COLORS.muted : CANVAS_COLORS.text });
+          this.painter.text(el.label, x + nodeW / 2, curY + nodeH / 2, { size: 11, weight: 'bold', color: muted ? CANVAS_COLORS.muted : CANVAS_COLORS.text });
         }
-        // Mũi tên sang nút kế tiếp (theo links nếu có).
-        const next = linkTargets.get(el.id);
-        if (next && nodes.some((nn) => nn.id === next.id)) {
-          this.painter.arrow(x + nodeW + 2, y + nodeH / 2, x + nodeW + CHAIN_GAP - 2, y + nodeH / 2, hexToRgba(CANVAS_COLORS.text, 0.4), 2, 6);
+        // Mũi tên xuống nút kế tiếp trong chuỗi
+        if (i < nodes.length - 1) {
+          this.painter.arrow(centerX, curY + nodeH + 2, centerX, curY + nodeH + chainVGap - 2, hexToRgba(CANVAS_COLORS.text, 0.4), 2, 5);
         }
-        x += nodeW + CHAIN_GAP;
+        curY += nodeH + chainVGap;
       });
     });
   }

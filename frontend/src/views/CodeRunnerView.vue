@@ -429,6 +429,9 @@ async function toggleHistory(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Chrome header — surface band level-2 (DESIGN.md §1 + §6, không gradient/shadow) ── */
@@ -437,6 +440,9 @@ async function toggleHistory(): Promise<void> {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-lg) var(--space-xl);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .code-runner__breadcrumb {
@@ -485,6 +491,9 @@ async function toggleHistory(): Promise<void> {
   grid-template-columns: 1fr 1fr;
   gap: var(--space-md);
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* ── Panel chung — elevation level-1, KHÔNG shadow (§6) ── */
@@ -496,6 +505,10 @@ async function toggleHistory(): Promise<void> {
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   padding: var(--space-md);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .code-runner__panel-header {
@@ -523,6 +536,10 @@ async function toggleHistory(): Promise<void> {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-canvas-ink);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .code-runner__gutter {
@@ -709,6 +726,8 @@ async function toggleHistory(): Promise<void> {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .code-runner__step-info { font-size: var(--text-xs); color: var(--color-text-tertiary); font-family: var(--font-mono); }
@@ -721,6 +740,9 @@ async function toggleHistory(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .code-runner__history-title { font-size: var(--text-md); font-weight: 600; letter-spacing: -0.015em; }
@@ -732,6 +754,8 @@ async function toggleHistory(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  width: 100%;
+  max-width: 100%;
 }
 
 .code-runner__history-list li {
@@ -744,6 +768,13 @@ async function toggleHistory(): Promise<void> {
 .code-runner__history-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
 
 @media (max-width: 1000px) {
-  .code-runner__layout { grid-template-columns: 1fr; }
+  .code-runner__layout { grid-template-columns: 1fr; width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .code-runner { padding-inline: var(--space-sm, 12px); max-width: 100%; overflow-x: hidden; }
+  .code-runner__chrome { padding: var(--space-md); width: 100%; max-width: 100%; }
+  .code-runner__panel { padding: var(--space-sm); width: 100%; max-width: 100%; }
+  .code-runner__title { font-size: var(--text-2xl); }
 }
 </style>

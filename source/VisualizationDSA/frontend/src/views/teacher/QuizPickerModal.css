@@ -1,8 +1,0 @@
-.quiz-picker-modal {
-  position: relative;
-}
-
-.quiz-picker-list {
-  max-height: 60vh;
-  overflow-y: auto;
-}

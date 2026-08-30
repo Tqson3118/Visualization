@@ -73,8 +73,13 @@ export class ArrayRenderer implements Renderer {
       .slice()
       .sort((a, b) => (CanvasPainter.indexFromId(a.id) ?? 0) - (CanvasPainter.indexFromId(b.id) ?? 0));
 
-    // Mọi label là số (hoặc placeholder —/—) → bar mode; label chữ → ô vuông (fallback).
-    if (cells.every((el) => el.group === 'pointer' || isNumericLabel(el.label))) {
+    // Mọi label là số (hoặc placeholder —/—) → bar mode; label chữ hoặc có con trỏ/displayMode squares → ô vuông (fallback).
+    const isSquareMode =
+      structure.meta?.displayMode === 'squares' ||
+      structure.meta?.displayMode === 'cells' ||
+      elements.some((el) => el.group === 'pointer' || el.meta?.pointer === true);
+
+    if (!isSquareMode && cells.every((el) => el.group === 'pointer' || isNumericLabel(el.label))) {
       this.renderBars(cells, elements, w, h, options);
     } else {
       this.renderSquares(cells, elements, w, h, options);
@@ -82,11 +87,13 @@ export class ArrayRenderer implements Renderer {
   }
 
   /**
-   * Ô vuông (fallback khi label không phải số — giữ hành vi cũ).
+   * Ô vuông (fallback khi label không phải số, hoặc khi giải thuật tìm kiếm / có con trỏ).
    * Mảng dài (ô hẹp < 36px) → wrap nhiều hàng, hàng cách nhau CANVAS_LAYOUT.rowGap.
    */
   private renderSquares(cells: Element[], elements: Element[], w: number, h: number, options: RenderOptions): void {
-    const n = cells.length;
+    const dataCells = cells.filter((c) => c.group !== 'pointer');
+    const n = dataCells.length;
+    if (n === 0) return;
     const rawCell = (w - 2 * CANVAS_LAYOUT.margin) / Math.max(1, n);
 
     // Vị trí tâm + đỉnh của từng ô (dùng cho con trỏ).
@@ -100,30 +107,30 @@ export class ArrayRenderer implements Renderer {
         MIN_CELL_SIZE,
         Math.min(CELL_SIZE, (w - 2 * CANVAS_LAYOUT.margin) / Math.min(n, maxPerRow)),
       );
-      const rowHeight = cellSize + CANVAS_LAYOUT.rowGap;
-      const y0 = Math.max(16, (h - (rows * cellSize + (rows - 1) * CANVAS_LAYOUT.rowGap)) / 2);
+      const rowHeight = cellSize + CANVAS_LAYOUT.rowGap + 36;
+      const y0 = Math.max(48, (h - (rows * cellSize + (rows - 1) * (CANVAS_LAYOUT.rowGap + 36))) / 2);
 
-      cells.forEach((el, i) => {
+      dataCells.forEach((el, i) => {
         const row = Math.floor(i / maxPerRow);
         const col = i % maxPerRow;
         const x = CANVAS_LAYOUT.margin + col * cellSize;
         const cx = x + cellSize / 2;
         const y = y0 + row * rowHeight;
         positions.set(el.id, { cx, top: y });
-        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
-        if (el.group !== 'pointer') this.drawCell(el, x, y, cellSize, options);
+        this.drawCell(el, x, y, cellSize, options);
       });
     } else {
-      // Mảng ngắn: 1 hàng (công thức cũ).
+      // Mảng ngắn: 1 hàng (căn giữa đẹp mắt).
       const cellSize = Math.max(MIN_CELL_SIZE, Math.min(CELL_SIZE, rawCell));
-      const y0 = Math.max(16, (h - cellSize) / 2);
+      const totalWidth = n * cellSize;
+      const x0 = Math.max(CANVAS_LAYOUT.margin, (w - totalWidth) / 2);
+      const y0 = Math.max(48, (h - cellSize) / 2);
 
-      cells.forEach((el, i) => {
-        const x = CANVAS_LAYOUT.margin + i * cellSize;
+      dataCells.forEach((el, i) => {
+        const x = x0 + i * cellSize;
         const cx = x + cellSize / 2;
         positions.set(el.id, { cx, top: y0 });
-        // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
-        if (el.group !== 'pointer') this.drawCell(el, x, y0, cellSize, options);
+        this.drawCell(el, x, y0, cellSize, options);
       });
     }
 
@@ -140,14 +147,17 @@ export class ArrayRenderer implements Renderer {
   private renderBars(cells: Element[], elements: Element[], w: number, h: number, options: RenderOptions): void {
     const values = new Map<string, number>();
     let maxVal = 0;
+    let minVal = 0;
     for (const el of cells) {
       if (el.group === 'pointer') continue;
       const v = parseNumericLabel(el.label);
       if (v !== null) {
         values.set(el.id, v);
         if (v > maxVal) maxVal = v;
+        if (v < minVal) minVal = v;
       }
     }
+    const valRange = Math.max(1, maxVal - minVal);
 
     const n = cells.length;
     const top = CANVAS_LAYOUT.paddingTop;
@@ -176,14 +186,14 @@ export class ArrayRenderer implements Renderer {
         const v = values.get(el.id);
         const barH = v === undefined
           ? BAR_PLACEHOLDER_H
-          : Math.max(BAR_MIN_H, Math.min(usablePerRow, (v / Math.max(1, maxVal)) * usablePerRow));
+          : Math.max(BAR_MIN_H, Math.min(usablePerRow, ((v - minVal) / valRange) * (usablePerRow - BAR_MIN_H) + BAR_MIN_H));
         const y = rowBaseY[row] - barH;
         positions.set(el.id, { cx, top: y });
         // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
         if (el.group !== 'pointer') this.drawBar(el, x, y, barW, barH, options);
       });
     } else {
-      // Mảng ngắn: 1 hàng (công thức cũ — giữ nguyên hành vi).
+      // Mảng ngắn: 1 hàng.
       const barW = Math.max(14, Math.min(88, slotW - 6));
       const usable = Math.max(30, baseY - top - 8);
 
@@ -193,7 +203,7 @@ export class ArrayRenderer implements Renderer {
         const v = values.get(el.id);
         const barH = v === undefined
           ? BAR_PLACEHOLDER_H
-          : Math.max(BAR_MIN_H, Math.min(usable, (v / Math.max(1, maxVal)) * usable));
+          : Math.max(BAR_MIN_H, Math.min(usable, ((v - minVal) / valRange) * (usable - BAR_MIN_H) + BAR_MIN_H));
         const y = baseY - barH;
         positions.set(el.id, { cx, top: y });
         // Element nhóm 'pointer' không phải ô dữ liệu → vẽ ở bước con trỏ.
@@ -301,7 +311,7 @@ export class ArrayRenderer implements Renderer {
     const startY = pos.top - POINTER_ARROW_LEN - 8;
     const endY = pos.top - 4;
     this.painter.arrow(pos.cx, startY, pos.cx, endY, arrowColor, 2, 8);
-    const labelText = options.showValues ? el.label : '';
+    const labelText = el.label;
     if (labelText) {
       this.painter.label(labelText, pos.cx, startY - 8, CANVAS_COLORS.compare, 12);
     }

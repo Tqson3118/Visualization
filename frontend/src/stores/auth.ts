@@ -93,6 +93,14 @@ export const useAuthStore = defineStore('auth', () => {
         useLessonStore().reset();
       } catch {}
       try {
+        const { useLessonStore: useLessonStudyStore } = await import('@/features/lesson/store/useLessonStore');
+        useLessonStudyStore().reset();
+      } catch {}
+      try {
+        const { useCourseStore } = await import('@/features/courses/store/useCourseStore');
+        useCourseStore().reset();
+      } catch {}
+      try {
         const { useClassStore } = await import('./classStore');
         useClassStore().reset();
       } catch {}

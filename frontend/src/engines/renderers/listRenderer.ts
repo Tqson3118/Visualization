@@ -74,6 +74,11 @@ export class ListRenderer implements Renderer {
     const nodeW = wrap ? NODE_W : Math.max(44, Math.round(NODE_W * scale));
     const gap = wrap ? GAP : Math.max(16, Math.round(GAP * scale));
 
+    const totalRowW = wrap
+      ? maxPerRow * nodeW + (maxPerRow - 1) * gap + GAP + NULL_NODE
+      : chain.length * nodeW + Math.max(0, chain.length - 1) * gap + GAP + NULL_NODE;
+    const startX = Math.max(CANVAS_LAYOUT.margin, (w - totalRowW) / 2);
+
     // Căn giữa theo chiều dọc khối (1 hoặc nhiều hàng); hàng r đặt tại rowY(r).
     const blockH = rows * NODE_H + (rows - 1) * CANVAS_LAYOUT.rowGap;
     const y = Math.max(24, (h - blockH) / 2);
@@ -87,15 +92,15 @@ export class ListRenderer implements Renderer {
     chain.forEach((el, i) => {
       const col = wrap ? i % maxPerRow : i;
       const r = wrap ? Math.floor(i / maxPerRow) : 0;
-      const nx = CANVAS_LAYOUT.margin + col * (nodeW + gap);
+      const nx = startX + col * (nodeW + gap);
       const ny = rowY(r);
       this.drawNode(el, nx, ny, nodeW, options);
       if (i < chain.length - 1) {
         const color = this.edgeColorFor(el);
         if (wrap && col === maxPerRow - 1) {
           // Nút cuối hàng r → nút đầu hàng r+1: cong nhẹ xuống dưới.
-          const xEnd = CANVAS_LAYOUT.margin + (maxPerRow - 1) * (nodeW + gap) + nodeW + gap - 2;
-          this.painter.curve(xEnd, ny + NODE_H / 2, CANVAS_LAYOUT.margin + 2, rowY(r + 1) + NODE_H / 2, color, 2, 12, true);
+          const xEnd = startX + (maxPerRow - 1) * (nodeW + gap) + nodeW + gap - 2;
+          this.painter.curve(xEnd, ny + NODE_H / 2, startX + 2, rowY(r + 1) + NODE_H / 2, color, 2, 12, true);
         } else {
           this.painter.arrow(nx + nodeW + 2, ny + NODE_H / 2, nx + nodeW + gap - 2, ny + NODE_H / 2, color, 2, 7);
         }
@@ -104,9 +109,10 @@ export class ListRenderer implements Renderer {
 
     // Ô null cuối chuỗi (∅): sau node cuối thật của hàng cuối.
     if (chain.length > 0) {
-      const nullX = wrap
-        ? CANVAS_LAYOUT.margin + lastCol * (nodeW + gap) + nodeW + 4
-        : CANVAS_LAYOUT.margin + chain.length * (nodeW + gap) + 4;
+      const lastNodeX = startX + lastCol * (nodeW + gap);
+      const nullX = lastNodeX + nodeW + gap;
+      const midY = rowY(rows - 1) + NODE_H / 2;
+      this.painter.arrow(lastNodeX + nodeW + 2, midY, nullX - 2, midY, CANVAS_COLORS.muted, 2, 7);
       this.drawNullNode(nullX, rowY(rows - 1) + (NODE_H - NULL_NODE) / 2);
     } else {
       // Danh sách rỗng: chỉ vẽ ô null giữa màn hình.
@@ -115,8 +121,12 @@ export class ListRenderer implements Renderer {
 
     // Nhãn head / tail phía trên nút đầu (hàng 0) / nút cuối (hàng cuối).
     if (chain.length > 0 && options.showValues) {
-      this.painter.label('head', CANVAS_LAYOUT.margin + nodeW / 2, rowY(0) - 12, CANVAS_COLORS.compare, 10);
-      this.painter.label('tail', CANVAS_LAYOUT.margin + lastCol * (nodeW + gap) + nodeW / 2, rowY(rows - 1) - 12, CANVAS_COLORS.muted, 10);
+      if (chain.length === 1) {
+        this.painter.label('head / tail', startX + nodeW / 2, rowY(0) - 12, CANVAS_COLORS.compare, 10);
+      } else {
+        this.painter.label('head', startX + nodeW / 2, rowY(0) - 12, CANVAS_COLORS.compare, 10);
+        this.painter.label('tail', startX + lastCol * (nodeW + gap) + nodeW / 2, rowY(rows - 1) - 12, CANVAS_COLORS.muted, 10);
+      }
     }
 
     // Nút nổi (chưa nối vào chuỗi — thao tác insert): vẽ bên dưới hàng cuối, viền đứt nét.
@@ -124,7 +134,7 @@ export class ListRenderer implements Renderer {
     if (floating.length > 0) {
       const fy = rowY(rows - 1) + NODE_H + FLOAT_GAP;
       floating.forEach((el, i) => {
-        const fx = CANVAS_LAYOUT.margin + i * (nodeW + gap);
+        const fx = startX + i * (nodeW + gap);
         this.drawFloatingNode(el, fx, fy, nodeW, options);
       });
     }

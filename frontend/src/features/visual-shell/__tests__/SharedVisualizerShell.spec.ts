@@ -5,7 +5,7 @@ import { mount } from '@vue/test-utils';
 
 import SharedVisualizerShell from '../components/SharedVisualizerShell.vue';
 import { useVcrStore } from '../../vcr-player/store/useVcrStore';
-import { generateBubbleSortFrames } from '../../algorithm-sandbox/algorithms/bubbleSort';
+import { generateBubbleSortFrames } from '../algorithms/bubbleSort';
 
 describe('SharedVisualizerShell (B2) — shared sandbox shell', () => {
   beforeEach(() => {

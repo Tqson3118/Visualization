@@ -4,6 +4,7 @@ import type { Lesson, QuizQuestion, CodeLabTask } from '../types/lesson.types';
 import { fetchLessonProgress, saveLessonProgress, awardXp, fetchLessonDetail, getLessonAuthToken, type LessonDetailResponse } from '../services/lessonApi';
 import { statelessQuizApi } from '../../quiz-system/service/statelessQuizApi';
 import { parseSandboxDemo, parseSandboxSimulationKey } from '../utils/sandboxConfig';
+import { CODELAB_TASK_REGISTRY } from '../utils/codelabTaskRegistry';
 import { useAuthStore } from '@/stores/auth';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { courseApi, type CourseDetailDto } from '@/services/courseApi';
@@ -269,18 +270,41 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         } else if (config.id && config.testCases) {
           codelabTask = config as CodeLabTask;
         } else if (config.signature && config.testCases) {
-          // ConfigJson từ SeedGrokkingData (assignment): { signature, language, testCases }
-          codelabTask = {
-            description: config.signature ?? detail.title,
-            initialCode: '// Viết code của bạn ở đây\nfunction solve() {\n  // Cài đặt giải thuật tại đây\n}',
-            solution: '',
-            entryFunction: config.testCases?.[0]?.entryFunction ?? 'solve',
-            testCases: (config.testCases ?? []).map((tc: { name?: string; input?: string; expectedOutput?: string; isHidden?: boolean }) => ({
+          // Check if registry has better matching data (e.g. for bubble-sort, binary-search)
+          const lowerTitle = detail.title.toLowerCase();
+          let registryTask: CodeLabTask | undefined;
+          if (lowerTitle.includes('bubble') || lowerTitle.includes('nổi bọt')) registryTask = CODELAB_TASK_REGISTRY['bubble-sort'];
+          else if (lowerTitle.includes('binary search') || lowerTitle.includes('nhị phân')) registryTask = CODELAB_TASK_REGISTRY['binary-search'];
+          else if (lowerTitle.includes('stack') || lowerTitle.includes('ngăn xếp')) registryTask = CODELAB_TASK_REGISTRY['stack'];
+          else if (lowerTitle.includes('tree') || lowerTitle.includes('cây') || lowerTitle.includes('đệ quy')) registryTask = CODELAB_TASK_REGISTRY['tree-traversal'];
+          else if (lowerTitle.includes('two pointers') || lowerTitle.includes('hai con trỏ')) registryTask = CODELAB_TASK_REGISTRY['two-pointers'];
+
+          if (registryTask) {
+            codelabTask = registryTask;
+          } else {
+            // Parse entry function and params from signature e.g. "function bubbleSort(arr)"
+            const match = /function\s+([a-zA-Z0-9_$]+)\s*\(([^)]*)\)/.exec(config.signature);
+            const fnName = match ? match[1] : (config.testCases?.[0]?.entryFunction ?? 'solve');
+            const fnParams = match ? match[2] : 'arr';
+
+            const validTestCases = (config.testCases ?? []).filter((tc: any) => tc.input || tc.expectedOutput).map((tc: any) => ({
               input: tc.input ?? '',
               expectedOutput: tc.expectedOutput ?? '',
               isHidden: tc.isHidden ?? false,
-            })),
-          };
+            }));
+
+            codelabTask = {
+              description: config.signature ?? detail.title,
+              initialCode: `function ${fnName}(${fnParams}) {\n  // Hướng dẫn: Cài đặt giải thuật tại đây\n  \n  return null;\n}`,
+              solution: '',
+              entryFunction: fnName,
+              testCases: validTestCases.length > 0 ? validTestCases : [
+                { input: '[[5, 2, 8, 1, 9]]', expectedOutput: '[1, 2, 5, 8, 9]' },
+                { input: '[[3, 1, 2]]', expectedOutput: '[1, 2, 3]' },
+                { input: '[[]]', expectedOutput: '[]', isHidden: true },
+              ],
+            };
+          }
         }
       } catch (e) {
         console.warn('Cannot parse sandboxConfig for codelabTask');
@@ -592,5 +616,19 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     completeCodelab,
     goToStep,
     syncToServer,
+    reset() {
+      currentLesson.value = null;
+      lessonMeta.value = null;
+      activeStep.value = 1;
+      isLoading.value = false;
+      error.value = null;
+      isOfflineFallback.value = false;
+      hasWatchedVisualizer.value = false;
+      quizScore.value = null;
+      bestScore.value = 0;
+      codelabCompleted.value = false;
+      xpAwarded.value = 0;
+      lessonFinished.value = false;
+    },
   };
 });

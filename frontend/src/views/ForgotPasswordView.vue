@@ -340,7 +340,7 @@ const BENCH_BLOCKS = [
   padding-block: var(--space-xs);
 }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .forgot__shell { grid-template-columns: 1fr; max-width: 28rem; }
   .forgot__aside { padding: var(--space-lg); }
 }

@@ -1,7 +1,7 @@
-﻿// engines/generators/search/linear.ts — Linear Search (SDD §4.7.7, §4.6.2)
-import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
+// engines/generators/search/linear.ts — Linear Search (SDD §4.7.7, §4.6.2)
+import type { Element, ElementStatus, InputConfig, InputSchema, SimulationGenerator, Structure } from '../../core/types';
 import type { StatusMap } from '../helpers';
-import { arrayStructure, buildGenerator, intField, intArrayField, parseArrayParams, strField, Trace, validateArrayParams } from '../helpers';
+import { buildGenerator, intField, intArrayField, parseArrayParams, strField, Trace, validateArrayParams } from '../helpers';
 
 const PSEUDOCODE = [
   'procedure linearSearch(a[0..n-1], target)',
@@ -15,7 +15,7 @@ const PSEUDOCODE = [
 const SCHEMA: InputSchema = {
   kind: 'array',
   fields: [
-    { name: 'target', type: 'int', label: 'Giá trị cần tìm', min: -999, max: 999, default: 42, description: 'Giá trị cần tìm trong mảng' },
+    { name: 'target', type: 'int', label: 'Giá trị cần tìm', min: -999, max: 999, default: 8, description: 'Giá trị cần tìm trong mảng' },
     { name: 'inputSource', type: 'select', label: 'Nguồn dữ liệu', options: [
       { label: 'Ngẫu nhiên', value: 'random' },
       { label: 'Tự nhập', value: 'manual' },
@@ -27,12 +27,45 @@ const SCHEMA: InputSchema = {
   ],
 };
 
+function linearStructure(a: number[], currentI: number | null, statuses: StatusMap, foundAt: number | null): Structure {
+  const elements: Element[] = a.map((v, idx) => ({
+    id: `cell:${idx}`,
+    label: String(v),
+    status: (statuses[idx] ?? 'default') as ElementStatus,
+  }));
+
+  if (foundAt !== null) {
+    elements.push({
+      id: 'ptr:found',
+      group: 'pointer',
+      label: 'FOUND',
+      status: 'done',
+      meta: { target: `cell:${foundAt}` },
+    });
+  } else if (currentI !== null && currentI >= 0 && currentI < a.length) {
+    elements.push({
+      id: 'ptr:i',
+      group: 'pointer',
+      label: 'i',
+      status: 'active',
+      meta: { target: `cell:${currentI}` },
+    });
+  }
+
+  return {
+    kind: 'array',
+    meta: { displayMode: 'squares' },
+    elements,
+    links: [],
+  };
+}
+
 export function createLinearGenerator(): SimulationGenerator {
   return buildGenerator('search.linear', SCHEMA, PSEUDOCODE, {
     validate(input: InputConfig) {
       const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
       const errors = validateArrayParams(input.data);
-      const target = intField(rec, 'target', 42);
+      const target = intField(rec, 'target', 8);
       if (target < -999 || target > 999) errors.push(`target: phải trong khoảng -999..999 (hiện tại ${target})`);
       const source = strField(rec, 'inputSource', 'random');
       if (source !== 'random' && source !== 'manual') errors.push(`inputSource: phải là 'random' hoặc 'manual' (hiện tại '${source}')`);
@@ -44,9 +77,8 @@ export function createLinearGenerator(): SimulationGenerator {
 
     generate(input: InputConfig) {
       const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
-      const target = intField(rec, 'target', 42);
+      const target = intField(rec, 'target', 8);
       const source = strField(rec, 'inputSource', 'random');
-      // inputSource=manual ưu tiên values nhập tay (nếu có), ngược lại sinh ngẫu nhiên.
       const manual = source === 'manual' || (Array.isArray(rec.values) && rec.values.length > 0);
       const params = parseArrayParams(input.data);
       const values = manual ? intArrayField(rec, 'values', [5, 3, 8, 1, 9, 2]) : params.values;
@@ -62,7 +94,7 @@ export function createLinearGenerator(): SimulationGenerator {
       trace.push({
         line: 1,
         explanation: `Bắt đầu: mảng [${a.join(', ')}], tìm target=${target}.`,
-        structure: arrayStructure(a, statuses),
+        structure: linearStructure(a, null, statuses, null),
         annotations: [`target=${target}, n=${n}`],
       });
 
@@ -72,14 +104,14 @@ export function createLinearGenerator(): SimulationGenerator {
         trace.push({
           line: 2,
           explanation: `Xét a[${i}]=${a[i]}.`,
-          structure: arrayStructure(a, { ...statuses, [i]: 'active' }),
+          structure: linearStructure(a, i, { ...statuses, [i]: 'active' }, null),
           annotations: [`i=${i}`],
         });
         trace.stats.comparisons++;
         trace.push({
           line: 3,
           explanation: `So sánh a[${i}]=${a[i]} và target=${target}.`,
-          structure: arrayStructure(a, { ...statuses, [i]: 'active' }),
+          structure: linearStructure(a, i, { ...statuses, [i]: 'active' }, null),
           annotations: [`a[${i}]=${a[i]} so với target=${target}?`],
         });
         if (a[i] === target) {
@@ -89,15 +121,15 @@ export function createLinearGenerator(): SimulationGenerator {
           trace.push({
             line: 4,
             explanation: `a[${i}]=${a[i]} = target=${target} → Tìm thấy tại vị trí ${i}.`,
-            structure: arrayStructure(a, statuses),
+            structure: linearStructure(a, null, statuses, i),
             annotations: [`Tìm thấy tại vị trí ${i}`],
           });
           break;
         }
         trace.push({
           line: 3,
-          explanation: `a[${i}]=${a[i]} = target=${target} → sai, tiếp tục duyệt.`,
-          structure: arrayStructure(a, { ...statuses, [i]: 'muted' }),
+          explanation: `a[${i}]=${a[i]} ≠ target=${target} → không khớp, tiếp tục duyệt phần tử kế tiếp.`,
+          structure: linearStructure(a, i, { ...statuses, [i]: 'muted' }, null),
         });
         statuses[i] = 'muted';
       }
@@ -107,15 +139,15 @@ export function createLinearGenerator(): SimulationGenerator {
         trace.push({
           line: 5,
           explanation: `Kết thúc: không tìm thấy target=${target} trong mảng (return -1).`,
-          structure: arrayStructure(a, statuses),
+          structure: linearStructure(a, null, statuses, null),
           annotations: ['Không tìm thấy'],
         });
       } else {
         trace.push({
           line: 6,
           explanation: `Kết thúc: tìm thấy target=${target} tại vị trí ${foundAt}.`,
-          structure: arrayStructure(a, statuses),
-          annotations: [`Tìm thấy tại vị trí ${foundAt}`],
+          structure: linearStructure(a, null, statuses, foundAt),
+          annotations: [`Tìm thấy target=${target} tại vị trí ${foundAt}`],
         });
       }
       return trace.steps;

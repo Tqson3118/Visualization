@@ -21,7 +21,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import Card from '@/components/ui/Card.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -165,17 +165,17 @@ function printReport(): void {
           </div>
         </Card>
         <Card v-for="kpi in secondaryKpis" :key="kpi.label" :padded="false" class="class-report__kpi">
-          <CardHeader class="class-report__kpi-head">
-            <CardDescription class="class-report__kpi-label">{{ kpi.label }}</CardDescription>
-          </CardHeader>
-          <CardContent class="class-report__kpi-body">
+          <div class="flex flex-col gap-y-1.5 p-6 class-report__kpi-head">
+            <p class="text-sm text-muted-foreground class-report__kpi-label">{{ kpi.label }}</p>
+          </div>
+          <div class="p-6 pt-0 class-report__kpi-body">
             <p class="class-report__kpi-value">{{ kpi.value }}</p>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
       <!-- Tỷ lệ hoàn thành -->
-      <Card class="class-report__summary">
+      <Card :padded="false" class="class-report__summary">
         <p class="class-report__summary-text">{{ messages.classes.reportSummary }}</p>
         <ProgressBar
           :value="totals.pct"
@@ -189,7 +189,7 @@ function printReport(): void {
 
       <!-- Bảng bài gán (cột số mono — DESIGN §4.6) -->
       <template v-if="report.assignments.length > 0">
-        <Card class="class-report__table">
+        <Card :padded="false" class="class-report__table">
           <div class="class-report__table-scroll">
             <table>
               <thead>
@@ -241,7 +241,7 @@ function printReport(): void {
       />
 
       <!-- Học viên chậm tiến độ: block-token tối + index mono (quyết định #4/#5) -->
-      <Card class="class-report__lagging">
+      <Card :padded="false" class="class-report__lagging">
         <h2 class="class-report__lagging-title">{{ messages.classes.reportLaggingTitle }}</h2>
         <div v-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
           <Check :size="14" class="text-resolved" aria-hidden="true" />

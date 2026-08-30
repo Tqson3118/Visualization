@@ -9,7 +9,7 @@
 // loading=true → Skeleton thay toàn bộ card.
 import { type Component } from 'vue';
 
-import { Card } from '@/components/ui/card';
+import Card from '@/components/ui/Card.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
   withDefaults(
@@ -42,6 +42,7 @@ import Skeleton from '@/components/ui/Skeleton.vue';
   <Card
     v-else
     v-bind="$attrs"
+    :padded="false"
     class="stat-card"
     :class="level === 'hero' ? 'stat-card--hero' : 'stat-card--default'"
   >

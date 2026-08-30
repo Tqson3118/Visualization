@@ -1,4 +1,4 @@
-﻿// engines/generators/sort/merge.ts — Merge Sort (SDD §4.7.4)
+// engines/generators/sort/merge.ts — Merge Sort (SDD §4.7.4)
 import type { InputConfig, InputSchema, SimulationGenerator } from '../../core/types';
 import type { StatusMap } from '../helpers';
 import { arrayStructure, buildGenerator, parseArrayParams, Trace, validateArrayParams } from '../helpers';
@@ -112,9 +112,9 @@ export function createMergeGenerator(): SimulationGenerator {
             trace.stats.writes++;
             trace.push({
               line: 10,
-              explanation: `a[${i}]=${a[i]} ≤ a[${j}]=${a[j]} → đúng, ghi t[${k}] ← a[${i}]=${a[i]}, i++.`,
-              structure: arrayStructure(a, segMap(lo, hi, { [i]: 'swap' })),
-              annotations: [`t[${k}]=${a[i]}`],
+              explanation: `a[${i}]=${a[i]} ≤ a[${j}]=${a[j]} → đúng, ghi t[${k - lo}] (vị trí ${k}) ← a[${i}]=${a[i]}, i++.`,
+              structure: arrayStructure(a, segMap(lo, hi, { [i]: 'highlight' })),
+              annotations: [`t[${k - lo}]=${a[i]}`],
             });
             i++;
           } else {
@@ -122,9 +122,9 @@ export function createMergeGenerator(): SimulationGenerator {
             trace.stats.writes++;
             trace.push({
               line: 11,
-              explanation: `a[${i}]=${a[i]} ≤ a[${j}]=${a[j]} → sai, ghi t[${k}] ← a[${j}]=${a[j]}, j++.`,
-              structure: arrayStructure(a, segMap(lo, hi, { [j]: 'swap' })),
-              annotations: [`t[${k}]=${a[j]}`],
+              explanation: `a[${i}]=${a[i]} ≤ a[${j}]=${a[j]} → sai, ghi t[${k - lo}] (vị trí ${k}) ← a[${j}]=${a[j]}, j++.`,
+              structure: arrayStructure(a, segMap(lo, hi, { [j]: 'highlight' })),
+              annotations: [`t[${k - lo}]=${a[j]}`],
             });
             j++;
           }
@@ -143,9 +143,9 @@ export function createMergeGenerator(): SimulationGenerator {
           trace.stats.writes++;
           trace.push({
             line: 13,
-            explanation: `Sao chép phần còn lại nửa trái: t[${k}] ← a[${i}]=${a[i]}, i++.`,
-            structure: arrayStructure(a, segMap(lo, hi, { [i]: 'swap' })),
-            annotations: [`t[${k}]=${a[i]}`],
+            explanation: `Sao chép phần còn lại nửa trái: t[${k - lo}] (vị trí ${k}) ← a[${i}]=${a[i]}, i++.`,
+            structure: arrayStructure(a, segMap(lo, hi, { [i]: 'highlight' })),
+            annotations: [`t[${k - lo}]=${a[i]}`],
           });
           i++;
           k++;
@@ -155,22 +155,23 @@ export function createMergeGenerator(): SimulationGenerator {
           trace.stats.writes++;
           trace.push({
             line: 13,
-            explanation: `Sao chép phần còn lại nửa phải: t[${k}] ← a[${j}]=${a[j]}, j++.`,
-            structure: arrayStructure(a, segMap(lo, hi, { [j]: 'swap' })),
-            annotations: [`t[${k}]=${a[j]}`],
+            explanation: `Sao chép phần còn lại nửa phải: t[${k - lo}] (vị trí ${k}) ← a[${j}]=${a[j]}, j++.`,
+            structure: arrayStructure(a, segMap(lo, hi, { [j]: 'highlight' })),
+            annotations: [`t[${k - lo}]=${a[j]}`],
           });
           j++;
           k++;
         }
 
+        const isGlobalDone = lo === 0 && hi === n - 1;
         for (let p = lo; p <= hi; p++) {
           a[p] = t[p - lo];
-          doneMap[p] = 'done';
+          if (isGlobalDone) doneMap[p] = 'done';
           trace.stats.writes++;
           trace.push({
             line: 14,
             explanation: `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]}.`,
-            structure: arrayStructure(a, segMap(lo, hi, { [p]: 'done' })),
+            structure: arrayStructure(a, segMap(lo, hi, { [p]: isGlobalDone ? 'done' : 'highlight' })),
             annotations: [`a[${p}]=${a[p]}`],
           });
         }

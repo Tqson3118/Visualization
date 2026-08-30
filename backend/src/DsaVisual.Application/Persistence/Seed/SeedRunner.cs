@@ -89,6 +89,9 @@ public static class SeedRunner
             await db.SaveChangesAsync(ct);
         }
 
+        // Reconcile tree and class assignments
+        await MigratePathTreeAndClassAssignmentsAsync(db, logger, ct);
+
         if (tx is not null)
         {
             await tx.CommitAsync(ct);
@@ -100,6 +103,108 @@ public static class SeedRunner
             await db.Exercises.CountAsync(ct), await db.Questions.CountAsync(ct),
             await db.LearningPaths.CountAsync(ct), await db.DailyQuests.CountAsync(ct),
             await db.ShopItems.CountAsync(ct), await db.Settings.CountAsync(ct));
+    }
+
+    public static async Task FixMismatchedQuestionsAsync(AppDbContext db, CancellationToken ct = default)
+    {
+        foreach (var (title, questions) in AuthoredQuestionsByLesson)
+        {
+            var quizTitle = $"Quiz: {title}";
+            var exercises = await db.Exercises.Where(e => e.Title == quizTitle && e.DeletedAt == null).ToListAsync(ct);
+            foreach (var ex in exercises)
+            {
+                var curQuestions = await db.Questions.Where(q => q.ExerciseId == ex.Id).ToListAsync(ct);
+                var isWrong = curQuestions.Any(q => q.Content.Contains("AVL", StringComparison.OrdinalIgnoreCase)) && !title.Contains("AVL", StringComparison.OrdinalIgnoreCase);
+                if (isWrong || curQuestions.Count == 0)
+                {
+                    db.Questions.RemoveRange(curQuestions);
+                    var sort = 1;
+                    foreach (var (text, opts, correct, exp) in questions)
+                    {
+                        db.Questions.Add(new Question
+                        {
+                            ExerciseId = ex.Id,
+                            Type = QuestionType.Single,
+                            Content = text,
+                            OptionsJson = System.Text.Json.JsonSerializer.Serialize(opts),
+                            AnswerJson = $"[{correct}]",
+                            Explanation = exp,
+                            Points = 1,
+                            SortOrder = sort++
+                        });
+                    }
+                    ex.MaxScore = questions.Count;
+                    ex.Description = $"Trắc nghiệm kiến thức {title} — {questions.Count} câu, giải thích tiếng Việt sau khi nộp.";
+                }
+            }
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    public static async Task MigratePathTreeAndClassAssignmentsAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        // 1. Reconcile LearningPath.Visibility
+        var paths = await db.LearningPaths.ToListAsync(ct);
+        foreach (var path in paths)
+        {
+            if (path.Status == LearningPathStatus.Active && path.Visibility == PathVisibility.Private)
+            {
+                path.Visibility = PathVisibility.Public;
+            }
+            else if (path.Status == LearningPathStatus.ClassOnly && path.Visibility == PathVisibility.Private)
+            {
+                path.Visibility = PathVisibility.ClassOnly;
+            }
+        }
+
+        // 2. Reconcile LearningPathNodes ItemType
+        var nodes = await db.LearningPathNodes.ToListAsync(ct);
+        foreach (var node in nodes)
+        {
+            if (node.LessonId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Theory;
+            }
+            else if (node.FinalTestId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Quiz;
+            }
+            else if (node.LabExerciseId != null && node.ItemType == PathItemType.Folder)
+            {
+                node.ItemType = PathItemType.Lab;
+            }
+        }
+
+        // 3. Reconcile ClassAssignments with PathItemId
+        var classes = await db.Classes.Where(c => c.LearningPathId != null && c.DeletedAt == null).ToListAsync(ct);
+        foreach (var cls in classes)
+        {
+            var classAssignments = await db.ClassAssignments.Where(a => a.ClassId == cls.Id && a.PathItemId == null).ToListAsync(ct);
+            if (classAssignments.Count == 0) continue;
+
+            var pathNodes = await db.LearningPathNodes.Where(n => n.PathId == cls.LearningPathId!.Value).ToListAsync(ct);
+            foreach (var assign in classAssignments)
+            {
+                if (assign.LessonId is { } lid)
+                {
+                    var match = pathNodes.FirstOrDefault(n => n.LessonId == lid);
+                    if (match is not null)
+                    {
+                        assign.PathItemId = match.Id;
+                    }
+                }
+                else if (assign.ExerciseId is { } eid)
+                {
+                    var match = pathNodes.FirstOrDefault(n => n.FinalTestId == eid || n.LabExerciseId == eid);
+                    if (match is not null)
+                    {
+                        assign.PathItemId = match.Id;
+                    }
+                }
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     // ── 1. Users ────────────────────────────────────────────────
@@ -328,6 +433,23 @@ public static class SeedRunner
             e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
         if (existing is not null)
         {
+            var correctQuestions = LoadQuizQuestions(lesson.Title, seed.SourceLesson);
+            var currentQuestions = await db.Questions.Where(q => q.ExerciseId == existing.Id).ToListAsync(ct);
+            var hasMismatch = currentQuestions.Any(q => q.Content.Contains("AVL", StringComparison.OrdinalIgnoreCase)) && !lesson.Title.Contains("AVL", StringComparison.OrdinalIgnoreCase);
+            if (hasMismatch || currentQuestions.Count == 0)
+            {
+                db.Questions.RemoveRange(currentQuestions);
+                foreach (var q in correctQuestions)
+                {
+                    q.ExerciseId = existing.Id;
+                    db.Questions.Add(q);
+                }
+                existing.MaxScore = correctQuestions.Sum(q => q.Points);
+                existing.Description = $"Trắc nghiệm kiến thức {lesson.Title} — {correctQuestions.Count} câu, giải thích tiếng Việt sau khi nộp.";
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Seed: Cập nhật lại câu hỏi chuẩn cho {Title}", title);
+            }
+
             // H-FINAL1 backfill: DB cũ seed trước fix có NodeId=null → gán lại (idempotent, không nhân đôi)
             if (existing.NodeId != node.Id || existing.Stage != StageQuiz)
             {
@@ -726,7 +848,14 @@ public static class SeedRunner
 
         if (selected.Count == 0)
         {
-            selected = AuthoredQuestionsByLesson["AVL"];   // fallback an toàn nếu thiếu file nguồn
+            if (AuthoredQuestionsByLesson.TryGetValue(lessonTitle, out var authoredFallback))
+            {
+                selected = authoredFallback;
+            }
+            else
+            {
+                selected = AuthoredQuestionsByLesson["Bubble Sort"];
+            }
         }
 
         if (takeFirst > 0)
@@ -788,16 +917,28 @@ public static class SeedRunner
 
     // ── Source files ────────────────────────────────────────────
 
-    /// <summary>Tìm thư mục content-drafts bằng cách đi lên từ thư mục chạy (repo root: có source/VisualizationDSA3).</summary>
+    private static readonly string[] ContentDraftCandidates =
+    [
+        "trees\\admin-content-tools\\source\\VisualizationDSA3\\plan\\content-drafts\\v2",
+        "trees\\admin-content-tools\\source\\VisualizationDSA\\plan\\content-drafts\\v2",
+        "source\\VisualizationDSA3\\plan\\content-drafts\\v2",
+        "source\\VisualizationDSA\\plan\\content-drafts\\v2",
+        "plan\\content-drafts\\v2"
+    ];
+
+    /// <summary>Tìm thư mục content-drafts bằng cách đi lên từ thư mục chạy.</summary>
     private static string? FindContentDraftsRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, ContentDraftsRelative);
-            if (Directory.Exists(candidate))
+            foreach (var candidateRel in ContentDraftCandidates)
             {
-                return candidate;
+                var candidate = Path.Combine(dir.FullName, candidateRel);
+                if (Directory.Exists(candidate))
+                {
+                    return candidate;
+                }
             }
 
             dir = dir.Parent;
@@ -1159,6 +1300,87 @@ public static class SeedRunner
     private static readonly IReadOnlyDictionary<string, List<(string Text, List<string> Options, int Correct, string? Explanation)>> AuthoredQuestionsByLesson =
         new Dictionary<string, List<(string, List<string>, int, string?)>>
         {
+            ["Bubble Sort"] =
+            [
+                ("Trong Bubble Sort, sau mỗi lượt duyệt ngoài cùng (outer pass), phần tử nào chắc chắn về đúng vị trí?",
+                    ["Phần tử lớn nhất trong đoạn chưa sắp xếp nổi về cuối", "Phần tử nhỏ nhất", "Phần tử ở vị trí giữa", "Không xác định"], 0,
+                    "Mỗi lượt so sánh cặp liền kề đẩy giá trị lớn nhất còn lại về vị trí cuối cùng của đoạn."),
+                ("Độ phức tạp thời gian trung bình và xấu nhất của Bubble Sort là gì?",
+                    ["O(N²)", "O(N log N)", "O(N)", "O(1)"], 0,
+                    "Bubble Sort cần 2 vòng lặp lồng nhau nên độ phức tạp trung bình và tệ nhất đều là O(N²)."),
+                ("Thuật toán Bubble Sort có tính ổn định (Stable Sort) không?",
+                    ["Có, vì chỉ đổi chỗ khi phần tử trước lớn hơn hẳn phần tử sau", "Không bao giờ ổn định", "Tùy thuộc vào dữ liệu", "Chỉ ổn định với số nguyên"], 0,
+                    "Các phần tử có giá trị bằng nhau không bị đổi chỗ nên giữ nguyên thứ tự tương đối ban đầu."),
+                ("Khi mảng đã được sắp xếp sẵn tăng dần, Bubble Sort có cờ swapped tối ưu chạy trong bao lâu?",
+                    ["O(N)", "O(N²)", "O(log N)", "O(N log N)"], 0,
+                    "Chỉ cần 1 lượt duyệt kiểm tra không có swap nào xảy ra → dừng ngay trong O(N)."),
+                ("Thao tác cơ bản nhất diễn ra liên tục trong Bubble Sort là gì?",
+                    ["So sánh cặp liền kề và đổi chỗ (Swap)", "Chia đôi mảng", "Tìm kiếm nhị phân", "Xây dựng cây nhị phân"], 0,
+                    "Bubble Sort so sánh arr[j] và arr[j+1], nếu arr[j] > arr[j+1] thì đổi chỗ."),
+            ],
+            ["Binary Search"] =
+            [
+                ("Điều kiện tiên quyết bắt buộc để áp dụng Binary Search trên một mảng là gì?",
+                    ["Mảng phải được sắp xếp trước", "Mảng phải chứa toàn số dương", "Kích thước mảng phải là lũy thừa của 2", "Mảng không chứa phần tử trùng"], 0,
+                    "Binary Search dựa vào tính thứ tự để loại bỏ một nửa không gian tìm kiếm sau mỗi bước."),
+                ("Độ phức tạp thời gian của Binary Search trong trường hợp xấu nhất là gì?",
+                    ["O(log N)", "O(N)", "O(N²)", "O(1)"], 0,
+                    "Sau mỗi phép so sánh, kích thước bài toán giảm đi một nửa: N → N/2 → N/4 ... mất tối đa log2(N) bước."),
+                ("Khi không tìm thấy phần tử mục tiêu, hàm Binary Search chuẩn thường trả về giá trị nào?",
+                    ["-1", "0", "null", "Vô cùng"], 0,
+                    "Quy ước -1 biểu thị chỉ số không hợp lệ trong mảng."),
+                ("Công thức an toàn tránh tràn số nguyên khi tính chỉ số giữa (mid) là gì?",
+                    ["mid = left + (right - left) / 2", "mid = (left + right) / 2", "mid = right - left", "mid = left * 2"], 0,
+                    "Phép cộng left + right có thể vượt quá giới hạn INT_MAX; dùng left + (right - left) / 2 an toàn tuyệt đối."),
+            ],
+            ["Stack"] =
+            [
+                ("Ngăn xếp (Stack) hoạt động theo nguyên lý nào?",
+                    ["LIFO (Last In First Out - Vào sau Ra trước)", "FIFO (First In First Out)", "Ưu tiên theo giá trị", "Ngẫu nhiên"], 0,
+                    "Phần tử được đưa vào cuối cùng sẽ là phần tử đầu tiên được lấy ra."),
+                ("Thao tác nào lấy phần tử ra khỏi đỉnh ngăn xếp?",
+                    ["pop()", "push()", "peek()", "enqueue()"], 0,
+                    "push thêm vào đỉnh, pop lấy ra khỏi đỉnh, peek xem đỉnh mà không lấy ra."),
+                ("Ứng dụng nào sau đây thường sử dụng cấu trúc Ngăn xếp (Stack)?",
+                    ["Kiểm tra tính hợp lệ của dấu ngoặc và Undo/Redo", "Hàng đợi in ấn", "Tìm đường đi ngắn nhất đồ thị", "Bảng tra cứu từ điển"], 0,
+                    "Kiểm tra cặp ngoặc lồng nhau và lịch sử hoàn tác (Undo) là ứng dụng kinh điển của LIFO Stack."),
+            ],
+            ["Linked List"] =
+            [
+                ("Ưu điểm nổi bật của Linked List so với Mảng tĩnh (Array) là gì?",
+                    ["Chèn/xóa ở đầu danh sách trong O(1) không cần dời các phần tử", "Truy cập ngẫu nhiên theo index trong O(1)", "Tiết kiệm bộ nhớ hơn mảng", "Tự động sắp xếp"], 0,
+                    "Linked List chỉ cần thay đổi con trỏ Head trong O(1), trong khi Array phải dịch chuyển toàn bộ N phần tử."),
+                ("Mỗi Node trong Danh sách liên kết đơn (Singly Linked List) chứa những gì?",
+                    ["Giá trị (Data) và Con trỏ tới Node tiếp theo (Next)", "Chỉ chứa Giá trị", "Con trỏ Next và Con trỏ Prev", "Mảng các phần tử"], 0,
+                    "Node đơn gồm vùng chứa dữ liệu (val) và con trỏ next liên kết tới node kế tiếp."),
+            ],
+            ["BST"] =
+            [
+                ("Trong Cây nhị phân tìm kiếm (BST), tính chất nào luôn đúng với mọi Node X?",
+                    ["Mọi node ở cây con trái < X và mọi node ở cây con phải > X", "Cây con trái luôn có số node bằng cây con phải", "Node lá luôn có giá trị chẵn", "Chiều cao luôn là O(log N)"], 0,
+                    "Tính chất cốt lõi: Cây con trái < Gốc < Cây con phải."),
+                ("Phép duyệt cây nào trên BST cho ra dãy giá trị theo thứ tự TĂNG DẦN?",
+                    ["Duyệt trung thứ tự (In-order: Trái - Gốc - Phải)", "Duyệt tiền thứ tự (Pre-order: Gốc - Trái - Phải)", "Duyệt hậu thứ tự (Post-order)", "Duyệt theo tầng (BFS)"], 0,
+                    "In-order duyệt Trái → Gốc → Phải trên BST luôn sinh ra dãy số đã sắp xếp tăng dần."),
+            ],
+            ["Hash Table"] =
+            [
+                ("Bảng băm (Hash Table) đạt độ phức tạp thời gian trung bình cho thao tác tra cứu/chèn là bao nhiêu?",
+                    ["O(1)", "O(log N)", "O(N)", "O(N²)"], 0,
+                    "Hàm băm ánh xạ trực tiếp key sang index mảng, cho phép tra cứu trung bình O(1)."),
+                ("Phương pháp xử lý va chạm bằng danh sách liên kết tại mỗi ô gọi là gì?",
+                    ["Separate Chaining (Nối chuỗi)", "Linear Probing", "Quadratic Probing", "Double Hashing"], 0,
+                    "Chaining lưu các phần tử trùng hash vào một danh sách liên kết tại bucket đó."),
+            ],
+            ["BFS"] =
+            [
+                ("Thuật toán Duyệt theo chiều rộng (BFS) sử dụng cấu trúc dữ liệu nào để lưu các đỉnh chờ duyệt?",
+                    ["Hàng đợi (Queue - FIFO)", "Ngăn xếp (Stack - LIFO)", "Cây nhị phân", "Bảng băm"], 0,
+                    "BFS thăm các đỉnh theo từng lớp sóng lan tỏa (tầng), do đó dùng Queue (FIFO) để bảo đảm thứ tự trước-sau."),
+                ("BFS trên đồ thị không trọng số có thể dùng để giải quyết bài toán nào?",
+                    ["Tìm đường đi ngắn nhất (ít cạnh nhất) từ đỉnh nguồn", "Tìm cây khung nhỏ nhất", "Sắp xếp topo", "Tìm chu trình Euler"], 0,
+                    "Vì BFS duyệt theo từng tầng khoảng cách tăng dần, đường đi đầu tiên tìm thấy tới đích luôn là ngắn nhất."),
+            ],
             ["AVL"] =
             [
                 ("Hệ số cân bằng (balance factor) của một node trong cây AVL được tính như thế nào?",

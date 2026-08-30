@@ -138,7 +138,6 @@ function onSubmit(): void {
               :id="`inp-${field.name}`"
               v-model="form[field.name]"
               type="checkbox"
-              :checked="form[field.name] === true"
             />
             {{ field.label }}
           </label>

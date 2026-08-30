@@ -9,7 +9,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import * as exercisesApi from '@/api/exercises';
 import type { ExerciseDto, SubmissionSummaryDto } from '@/api/exercises';
-import QuizStage from '@/components/ladder/QuizStage.vue';
+import QuizStage from '@/components/quiz/QuizStage.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -74,14 +74,14 @@ function onPassed(): void {
 }
 
 function onFinished(): void {
-  router.push({ name: 'courses' });
+  router.push({ name: 'path-list' });
 }
 </script>
 
 <template>
-  <main class="exercise container">
+  <section class="exercise container">
     <nav class="exercise__breadcrumb" aria-label="Breadcrumb">
-      <RouterLink :to="{ name: 'courses' }">Lộ trình</RouterLink>
+      <RouterLink :to="{ name: 'path-list' }">Lộ trình</RouterLink>
       <span aria-hidden="true">/</span>
       <span>Bài tập</span>
     </nav>
@@ -96,7 +96,7 @@ function onFinished(): void {
       title="Bài tập không tồn tại"
       :description="error"
       action-label="Về lộ trình"
-      @action="router.push({ name: 'courses' })"
+      @action="router.push({ name: 'path-list' })"
     />
 
     <template v-else>
@@ -135,7 +135,7 @@ function onFinished(): void {
         @finished="onFinished"
       />
     </template>
-  </main>
+  </section>
 
   <!-- Drawer lịch sử -->
   <Drawer

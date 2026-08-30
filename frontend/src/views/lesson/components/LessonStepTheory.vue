@@ -73,24 +73,38 @@
       <div v-html="formattedContent"></div>
     </div>
 
-    <div class="mt-8 pt-6 border-t border-vdsa-border flex items-center justify-between">
+    <div class="mt-8 pt-6 border-t border-vdsa-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <span class="text-xs text-vdsa-muted">
-        {{ isCompleted ? 'Bạn đã hoàn thành bài học này.' : 'Đọc hết nội dung để hoàn thành bài học.' }}
+        <template v-if="isCompleted">
+          Bạn đã hoàn thành bài học này.
+        </template>
+        <template v-else-if="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer">
+          💡 Hãy bấm <strong class="text-white">"Chạy thử thuật toán"</strong> ở trên để trực quan hóa trước khi hoàn thành bài.
+        </template>
+        <template v-else>
+          Đã sẵn sàng! Nhấn hoàn thành để nhận XP và sang bài tiếp theo.
+        </template>
       </span>
+
       <div
         v-if="isCompleted"
-        class="px-5 py-2.5 bg-vdsa-green/15 text-vdsa-green border border-vdsa-green/30 rounded-xl text-xs font-bold flex items-center gap-2 select-none"
+        class="px-5 py-2.5 bg-vdsa-green/15 text-vdsa-green border border-vdsa-green/30 rounded-xl text-xs font-bold flex items-center gap-2 select-none shrink-0"
       >
         <BaseIcon name="check-circle" class="w-4 h-4 text-vdsa-green" />
         <span>Đã hoàn thành</span>
       </div>
+
       <button
         v-else
+        :disabled="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer"
         @click="$emit('completeStep')"
-        class="px-5 py-2.5 bg-vdsa-accent hover:bg-vdsa-accent-dark text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-vdsa-accent/30 flex items-center gap-2 cursor-pointer"
+        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer disabled:cursor-not-allowed"
+        :class="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer
+          ? 'bg-vdsa-surface border border-vdsa-border text-vdsa-disabled opacity-60'
+          : 'bg-vdsa-accent hover:bg-vdsa-accent-dark text-white shadow-lg shadow-vdsa-accent/30 ring-1 ring-vdsa-accent-light/50 hover:scale-[1.02]'"
       >
         <span>Hoàn thành bài học</span>
-        <BaseIcon name="check" class="w-4 h-4" />
+        <BaseIcon :name="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer ? 'lock' : 'check'" class="w-4 h-4" />
       </button>
     </div>
   </div>
@@ -103,7 +117,7 @@ import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import { parseMarkdownToHtml } from '@/utils/markdownParser';
 import SharedVisualizerShell from '../../../features/visual-shell/components/SharedVisualizerShell.vue';
 import { buildFramesFromCatalogKey } from '../../../features/visual-shell/buildFrames';
-import type { SortFrame } from '../../../features/algorithm-sandbox/types/sorting.types';
+import type { SortFrame } from '../../../features/visual-shell/types/sorting.types';
 import { CATALOG } from '@/engines/catalog';
 
 const props = defineProps<{
@@ -122,6 +136,7 @@ defineEmits<{
 
 const visualizerOpen = ref(false);
 const activeSimKey = ref<string | null>(props.simulationKey || null);
+const hasInteractedWithVisualizer = ref(false);
 
 const allSimulationKeys = computed<string[]>(() => {
   const list = [...(props.simulationKeys || [])];
@@ -139,6 +154,7 @@ function getSimulationTitle(key: string): string {
 function openEmbeddedVisualizer(key: string): void {
   activeSimKey.value = key;
   visualizerOpen.value = true;
+  hasInteractedWithVisualizer.value = true;
 }
 
 /** Frame từ engine generator: key → Step[] → LegacyStepAdapter → SortFrame[]. */

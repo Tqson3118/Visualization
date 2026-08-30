@@ -1,58 +1,25 @@
-# Node / frontend
-node_modules/
-dist/
-dist-ssr/
-coverage/
-*.tsbuildinfo
-.vite/
+﻿# Environment & Secrets
+.env
+.env.*
+!.env.example
 
-# .NET / backend
+# Temporary and test logs/outputs
+*.log
+*.txt
+test-results/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
 bin/
 obj/
 *.user
 *.suo
 
-# Env / secrets (CHỈ giữ .env.example)
-.env
-.env.*
-!.env.example
-!.env.*.example
-*.pem
-*.key
-secrets/
-
-# IDE / OS
+# IDE
+.vs/
 .vscode/
 .idea/
-.DS_Store
-Thumbs.db
-*.log
-
-# Tooling artifacts
-.playwright-mcp/
-trees/
-session/
-
-# FE artifacts
-frontend/test-results/
-frontend/*.txt
-frontend/public/screenshots/
-docs/work/
-frontend/capture_current_review.mjs
-frontend/scripts/capture-after.cjs
-frontend/scripts/capture-screenshots.cjs
-source/capture_all.cjs
-frontend/docs/
-sim-catalog-final.png
-sim-snapshot.txt
-test_api.py
-tailieu/BaoCaoDoAn_new.docx
-
-future/real-data-accounts.md
-future/be.out.log
-future/be.err.log
-dist_usb/
-*.bak
-*.bak-*
-*.backup-realdata.docx
-tailieu/database/*.bak

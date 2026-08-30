@@ -9,6 +9,7 @@ public sealed class LearningPath
     public int? TopicId { get; set; }
     public int SortOrder { get; set; }                               // mở khóa tuần tự 1→5
     public bool IsActive { get; set; } = true;
+    public PathVisibility Visibility { get; set; } = PathVisibility.Private;
     public int CreatedBy { get; set; }
     public int? AuthorId { get; set; }                               // tác giả khóa (User role Teacher) — trang chi tiết khóa
 

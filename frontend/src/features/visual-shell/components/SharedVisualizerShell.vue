@@ -80,12 +80,12 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useVcrStore } from '../../vcr-player';
 import VcrDockBar from '../../vcr-player/components/VcrDockBar.vue';
-import SortingHudOverlay from '../../algorithm-sandbox/components/SortingHudOverlay.vue';
-import SortingVisualizerDispatcher from '../../algorithm-sandbox/components/SortingVisualizerDispatcher.vue';
-import SortingProgressBar from '../../algorithm-sandbox/components/SortingProgressBar.vue';
-import SortingTraceTable from '../../algorithm-sandbox/components/SortingTraceTable.vue';
+import SortingHudOverlay from './SortingHudOverlay.vue';
+import SortingVisualizerDispatcher from './SortingVisualizerDispatcher.vue';
+import SortingProgressBar from './SortingProgressBar.vue';
+import SortingTraceTable from './SortingTraceTable.vue';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
-import type { SortFrame } from '../../algorithm-sandbox/types/sorting.types';
+import type { SortFrame } from '../types/sorting.types';
 
 const props = defineProps<{
   frames: SortFrame[];

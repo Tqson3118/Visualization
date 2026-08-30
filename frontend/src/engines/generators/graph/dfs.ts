@@ -89,7 +89,7 @@ export function createDfsGenerator(): SimulationGenerator {
           // Push ngược để pop theo thứ tự tăng dần (tương đương DFS đệ quy).
           for (let i = adj[u].length - 1; i >= 0; i--) {
             const [v] = adj[u][i];
-            if (!visited.has(v) && !stack.includes(v)) {
+            if (!visited.has(v)) {
               parent[v] = u;
               statuses.edges[edgeKey(u, v)] = 'active';
               statuses.nodes[v] = 'active';
@@ -106,7 +106,30 @@ export function createDfsGenerator(): SimulationGenerator {
               statuses.nodes[v] = 'default';
             }
           }
+        } else {
+          trace.push({
+            line: 5,
+            explanation: `Đỉnh ${u} đã được thăm trước đó → bỏ qua.`,
+            structure: graphStructure(g, edges, statuses),
+            annotations: [`visited[${u}]=true`],
+          });
         }
+      }
+
+      const unreachable: number[] = [];
+      for (let i = 0; i < g.vertices; i++) {
+        if (!visited.has(i)) {
+          unreachable.push(i);
+          statuses.nodes[i] = 'muted';
+        }
+      }
+      if (unreachable.length > 0) {
+        trace.push({
+          line: 9,
+          explanation: `Các đỉnh [${unreachable.join(', ')}] không thể đến được từ đỉnh nguồn ${g.source} (thuộc thành phần liên thông khác).`,
+          structure: graphStructure(g, edges, statuses),
+          annotations: [`unreachable: ${unreachable.join(', ')}`],
+        });
       }
 
       trace.push({

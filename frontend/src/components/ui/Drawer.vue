@@ -59,7 +59,7 @@ function handleClose(): void {
       <DrawerOverlay class="fixed inset-0 z-50 bg-black/40" @click="handleClose" />
       <DrawerContent
         class="fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col border-l bg-background shadow-xl outline-none"
-        :style="{ maxWidth: width }"
+        :style="{ maxWidth: width ? `min(${width}, 95vw)` : 'min(420px, 95vw)' }"
       >
         <header class="flex items-center justify-between gap-4 border-b px-6 py-4">
           <DrawerTitle v-if="title" class="text-base font-semibold">{{ title }}</DrawerTitle>

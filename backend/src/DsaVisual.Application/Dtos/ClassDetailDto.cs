@@ -14,6 +14,8 @@ public sealed class ClassDetailDto
     public DateTime CreatedAt { get; set; }
 
     // ── Learning Path / Curriculum (per-class) ──
+    public int? LearningPathId { get; set; }
+    public string? LearningPathTitle { get; set; }
     public string? CurriculumTitle { get; set; }
     public string? CurriculumDescription { get; set; }
     public bool CurriculumPublished { get; set; } = false;

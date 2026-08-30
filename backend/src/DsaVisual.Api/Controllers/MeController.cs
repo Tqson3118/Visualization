@@ -81,8 +81,22 @@ public class MeController(
             note.UpdatedAt = now;
         }
 
-        await _db.SaveChangesAsync(ct);
-        return Ok(new NoteDto { LessonId = lessonId, ContentHtml = note.ContentHtml, UpdatedAt = note.UpdatedAt });
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            note = await _db.LessonNotes.FirstOrDefaultAsync(n => n.UserId == CurrentUserId() && n.LessonId == lessonId, ct);
+            if (note is not null)
+            {
+                note.ContentHtml = sanitized;
+                note.UpdatedAt = now;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        return Ok(new NoteDto { LessonId = lessonId, ContentHtml = note?.ContentHtml ?? sanitized, UpdatedAt = note?.UpdatedAt ?? now });
     }
 
     [HttpDelete("notes/{lessonId:int}")]

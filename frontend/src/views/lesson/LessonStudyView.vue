@@ -1,5 +1,5 @@
 <template>
-  <div class="lesson-study-view flex h-[calc(100vh-64px)] w-full overflow-hidden bg-vdsa-bg-secondary font-sans">
+  <div class="lesson-study-view flex h-[calc(100vh-var(--app-header-h,68px))] w-full overflow-hidden bg-vdsa-bg-secondary font-sans">
 
     <!-- LEFT SIDEBAR: Course Mini Map -->
     <aside class="w-72 lg:w-80 shrink-0 bg-vdsa-surface border-r border-vdsa-border flex flex-col h-full overflow-hidden shadow-xl z-30">
@@ -160,11 +160,11 @@
         <div class="bg-vdsa-surface border border-vdsa-border rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in-up">
           <div class="flex items-center gap-3 mb-4 text-vdsa-yellow">
             <BaseIcon name="alert-circle" class="w-6 h-6" />
-            <h3 class="text-xl font-bold text-white">Tham gia lộ trình</h3>
+            <h3 class="text-xl font-bold text-white">Mở khóa lộ trình</h3>
           </div>
           <p class="text-vdsa-secondary mb-6 leading-relaxed">
-            Bạn có muốn tham gia lộ trình <strong class="text-white">{{ course?.title || 'này' }}</strong> để bắt đầu học bài học này không?
-            <br /><span class="text-xs text-rose-400 font-medium inline-block mt-2">Chi phí đăng ký: 1 🤍 (Tim)</span>
+            Bạn có muốn mở khóa lộ trình <strong class="text-white">{{ course?.title || 'này' }}</strong> để bắt đầu học bài học này không?
+            <br /><span class="text-xs text-emerald-400 font-medium inline-block mt-2">Mở khóa vĩnh viễn lộ trình này với 1 🤍 (Học không giới hạn toàn bộ bài học bên trong)</span>
           </p>
           <div class="flex gap-3 justify-end">
             <button
@@ -177,7 +177,7 @@
               @click="confirmLessonEnroll"
               class="px-5 py-2.5 rounded-xl font-semibold bg-vdsa-accent hover:bg-vdsa-accent-light text-white shadow-lg shadow-vdsa-accent transition-all flex items-center gap-2 cursor-pointer"
             >
-              Tham gia ngay
+              Mở khóa ngay (1 🤍)
               <BaseIcon name="check" class="w-4 h-4" />
             </button>
           </div>
@@ -331,12 +331,38 @@ function isLessonLocked(lesson: LessonDto): boolean {
   return !isLessonCompleted(prevLesson);
 }
 
-function goToLesson(id: string) {
+async function enterLessonNode(cId: string | number, lId: string | number): Promise<boolean> {
+  if (!authStore.isAuthenticated) return true;
+  const pathId = Number(cId);
+  const nodeId = Number(lId);
+  if (!pathId || !nodeId) return true;
+  try {
+    const res = await gamificationStore.enterNode(pathId, nodeId);
+    if (typeof res?.heartsLeft === 'number') {
+      gamificationStore.hearts = res.heartsLeft;
+    }
+    return true;
+  } catch (err: any) {
+    const errorCode = err?.response?.data?.code || err?.code || '';
+    if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY') || String(err?.message || '').includes('hết tim')) {
+      uiStore.showToast('Bạn đã hết tim. Hãy chờ hồi phục hoặc nâng cấp Premium để học tiếp!', 'warning');
+      return false;
+    }
+    console.warn('Enter node warning/error:', err);
+    return true;
+  }
+}
+
+async function goToLesson(id: string) {
   const target = course.value?.lessons.find(l => l.id === id);
   if (target && isLessonLocked(target)) return; // node chưa mở khoá — không cho vào
   if (!isEnrolled.value) {
     showEnrollModal.value = true;
     return;
+  }
+  if (courseId.value) {
+    const ok = await enterLessonNode(courseId.value, id);
+    if (!ok) return;
   }
   router.push({ name: 'lesson-study', params: { id }, query: courseId.value ? { courseId: courseId.value } : {} });
 }
@@ -393,43 +419,35 @@ async function onLessonComplete(): Promise<void> {
   void finishLesson();
 }
 
-async function finishLesson(): Promise<void> {
-  await lessonStore.markLessonCompleted(lessonId.value);
-  // Đồng bộ "đã hoàn thành" lên backend NGAY (node pass → mở khoá bài tiếp theo — nghiệp vụ
-  // lộ trình tuần tự); quiz/codelab đã sync riêng, cờ Completed bổ sung cho bài lý thuyết.
-  void lessonStore.syncToServer(true);
-  if (courseId.value) {
-    try {
-      course.value = await courseApi.getCourseById(courseId.value) as unknown as CourseDetailDto;
-    } catch {
-      // refresh course
-    }
-  }
-  nextLessonId.value = await resolveNextLessonId();
-  showCompletionModal.value = true;
-}
-
-/** Tìm bài kế tiếp trong cùng roadmap. API đã trả lessons theo đúng thứ tự
- *  (module → item) nên KHÔNG sort lại — sort theo orderIndex sẽ trộn giữa các chặng. */
-async function resolveNextLessonId(): Promise<string | null> {
-  const courseIdValue = courseId.value;
+function resolveNextLessonId(): string | null {
   const currentId = lessonId.value;
-  if (!courseIdValue || !currentId) return null;
-  try {
-    const data = await courseApi.getCourseById(courseIdValue) as unknown as {
-      lessons?: Array<{ id: string }>;
-    };
-    const lessons = data.lessons ?? [];
-    const currentIdx = lessons.findIndex(l => l.id === currentId);
-    if (currentIdx === -1 || currentIdx >= lessons.length - 1) return null;
-    return lessons[currentIdx + 1].id;
-  } catch (err) {
-    console.warn('Không tải được danh sách bài kế tiếp:', err);
-    return null;
+  const lessons = course.value?.lessons ?? [];
+  const currentIdx = lessons.findIndex(l => String(l.id) === String(currentId));
+  if (currentIdx === -1 || currentIdx >= lessons.length - 1) return null;
+  return String(lessons[currentIdx + 1].id);
+}
+
+async function finishLesson(): Promise<void> {
+  const rewardXp = lessonStore.currentLesson?.xpReward ?? 100;
+  await lessonStore.markLessonCompleted(lessonId.value);
+  void lessonStore.syncToServer(true);
+
+  const nextId = resolveNextLessonId();
+  if (nextId) {
+    uiStore.showToast(`Hoàn thành bài học! +${rewardXp} XP 🚀`, 'success');
+    await goToNextLesson(nextId);
+  } else {
+    uiStore.showToast(`Xuất sắc! Bạn đã hoàn thành toàn bộ lộ trình! +${rewardXp} XP 🏆`, 'success');
+    showCompletionModal.value = false;
+    router.push(courseId.value ? `/path/${courseId.value}` : '/path');
   }
 }
 
-function goToNextLesson(nextId: string): void {
+async function goToNextLesson(nextId: string): Promise<void> {
+  if (courseId.value) {
+    const ok = await enterLessonNode(courseId.value, nextId);
+    if (!ok) return;
+  }
   showCompletionModal.value = false;
   router.push({ name: 'lesson-study', params: { id: nextId }, query: courseId.value ? { courseId: courseId.value } : {} });
 }
@@ -439,7 +457,22 @@ function goBackToCourse(): void {
   router.push(courseId.value ? `/path/${courseId.value}` : '/path');
 }
 
+function autoExpandCurrentModule(currLessonId: string): void {
+  if (!course.value?.lessons) return;
+  const currentMTitle = course.value.lessons.find(l => String(l.id) === String(currLessonId))?.moduleTitle || 'General';
+  const map = new Map<string, boolean>();
+  course.value.lessons.forEach(l => map.set(l.moduleTitle || 'General', true));
+  const uniqueModules = Array.from(map.keys());
+  const moduleIdx = uniqueModules.indexOf(currentMTitle);
+  if (moduleIdx !== -1 && !expandedModules.value.includes(moduleIdx)) {
+    expandedModules.value.push(moduleIdx);
+  }
+}
+
 watch(lessonId, (id) => {
-  if (id) void lessonStore.loadLesson(id);
+  if (id) {
+    void lessonStore.loadLesson(id);
+    autoExpandCurrentModule(id);
+  }
 }, { immediate: true });
 </script>

@@ -1,55 +1,57 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import {
   ArrowLeft,
   BookOpen,
   Check,
-  Code2,
-  Download,
+  CheckCircle2,
+  ChevronDown,
+  Code,
   Eye,
-  FileCode,
-  FileText,
+  ExternalLink,
   HelpCircle,
   Layers,
-  Columns2,
-  Maximize2,
   PenTool,
   Plus,
-  RefreshCw,
+  Puzzle,
   Save,
   Search,
   Settings,
   Sparkles,
-  Table,
   Trash2,
-  Upload,
   X,
   Zap,
 } from 'lucide-vue-next';
 
 import * as lessonsApi from '@/api/lessons';
-import type { Topic, LessonDto, LessonStatusValue } from '@/api/lessons';
+import type { Topic, LessonStatusValue } from '@/api/lessons';
 import * as simulationsApi from '@/api/simulations';
 import type { SimulationMetaDto } from '@/api/simulations';
+import * as exercisesApi from '@/api/exercises';
+import * as classesApi from '@/api/classes';
+import type { ClassDto } from '@/api/types';
+import { courseApi } from '@/services/courseApi';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { parseMarkdownToHtml } from '@/utils/markdownParser';
-import { LESSON_TEMPLATES, type LessonTemplate } from '@/data/lessonTemplates';
-import { formatLessonWithAi, getAiUsageRemaining } from '@/services/aiFormatService';
-import { courseApi } from '@/services/courseApi';
+import { LESSON_TEMPLATES } from '@/data/lessonTemplates';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
-import Input from '@/components/ui/Input.vue';
-import TipTapEditor from '@/components/ui/TipTapEditor.vue';
+import Modal from '@/components/ui/Modal.vue';
+
+// Sub-tabs / Sections
+import TheoryTab from './editor-tabs/TheoryTab.vue';
+import QuizTab, { type InlineQuestionItem } from './editor-tabs/QuizTab.vue';
+import CodeLabTab, { type CodeLabFormState } from './editor-tabs/CodeLabTab.vue';
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
 const auth = useAuthStore();
 
-// ── Trạng thái trang & chế độ ──
+// ── Route & State ──
 const isEdit = computed(() => Boolean(route.params.id));
 const lessonId = computed(() => (route.params.id ? Number(route.params.id) : null));
 
@@ -59,38 +61,22 @@ const isDirty = ref(false);
 const initialSnapshot = ref<string>('');
 const lastSavedDraftTime = ref<string | null>(null);
 const hasRestorableDraft = ref(false);
-const aiFormatting = ref(false);
-const aiRemaining = ref(getAiUsageRemaining(auth.user?.email || 'default'));
+const previewModalOpen = ref(false);
+const simPickerModalOpen = ref(false);
 
-async function handleAiFormat(): Promise<void> {
-  if (!form.markdown.trim()) {
-    ui.showToast('Vui lòng nhập nội dung bài giảng trước khi dùng AI format.', 'warning');
-    return;
-  }
-  aiFormatting.value = true;
-  try {
-    const formatted = await formatLessonWithAi(form.markdown, auth.user?.email || 'default');
-    form.markdown = formatted;
-    aiRemaining.value = getAiUsageRemaining(auth.user?.email || 'default');
-    ui.showToast('Đã định dạng bài giảng thành công bằng AI (DeepSeek)!', 'success');
-  } catch (err: any) {
-    ui.showToast(err.message || 'Lỗi khi định dạng AI.', 'error');
-  } finally {
-    aiFormatting.value = false;
-  }
-}
+const theoryTabRef = ref<InstanceType<typeof TheoryTab> | null>(null);
 
-// View Mode: 'split' | 'editor' | 'preview'
-const viewMode = ref<'split' | 'editor' | 'preview'>('split');
-const editorType = ref<'wysiwyg' | 'markdown'>('wysiwyg');
-
-// Dữ liệu Topics & Simulations
+// Topics, Simulations & Classes Data
 const topics = ref<Topic[]>([]);
 const allSimulations = ref<SimulationMetaDto[]>([]);
-const simSearch = ref('');
-const simCategoryFilter = ref<string>('all');
+const classes = ref<ClassDto[]>([]);
+const simSearchQuery = ref('');
 
-// Form dữ liệu bài học
+// Existing Exercise IDs (if editing existing lesson)
+const existingQuizExerciseId = ref<number | null>(null);
+const existingCodeExerciseId = ref<number | null>(null);
+
+// Form State
 const form = reactive({
   title: '',
   description: '',
@@ -98,25 +84,93 @@ const form = reactive({
   sortOrder: 1,
   status: 'active' as LessonStatusValue,
   isClassOnly: false,
+  selectedClassId: null as number | null,
   markdown: '',
   selectedSimulations: [] as string[],
+  quizQuestions: [] as InlineQuestionItem[],
+  codeLab: {
+    enabled: false,
+    exerciseId: null,
+    title: '',
+    description: '',
+    difficulty: 'Easy' as const,
+    entryFunction: 'solve',
+    durationMinutes: 20,
+    maxScore: 100,
+    starterCode: `/**
+ * @param {any} input
+ * @return {any}
+ */
+function solve(input) {
+  // Viết mã nguồn giải thuật của bạn ở đây
+  return input;
+}`,
+    solutionCode: `function solve(input) {
+  // Code giải mẫu của Giảng viên
+  return input;
+}`,
+    testCases: [
+      { input: '[1, 2, 3]', expected: '[1, 2, 3]', isHidden: false },
+      { input: '[5, 4, 3, 2, 1]', expected: '[5, 4, 3, 2, 1]', isHidden: false },
+      { input: '[]', expected: '[]', isHidden: true },
+    ],
+  } as CodeLabFormState,
 });
-
-const renderedPreviewHtml = computed(() => parseMarkdownToHtml(form.markdown));
 
 // Auto-save storage key
 const draftStorageKey = computed(() => `dsa_lesson_draft_${isEdit.value ? lessonId.value : 'new'}`);
 
-// ── Tải dữ liệu ban đầu ──
+// ── Quality Score & Checklist ──
+const qualityChecklist = computed(() => {
+  const hasTitle = form.title.trim().length >= 3;
+  const hasTheory = form.markdown.trim().length >= 50;
+  const hasSim = form.selectedSimulations.length > 0;
+  const hasQuiz = form.quizQuestions.some((q) => q.content.trim().length > 0);
+  const hasCodeLab = form.codeLab.enabled && form.codeLab.testCases.length > 0;
+
+  let score = 0;
+  if (hasTitle) score += 25;
+  if (hasTheory) score += 35;
+  if (hasSim) score += 15;
+  if (hasQuiz) score += 15;
+  if (hasCodeLab) score += 10;
+
+  return {
+    score: Math.min(100, score),
+    hasTitle,
+    hasTheory,
+    hasSim,
+    hasQuiz,
+    hasCodeLab,
+    isReady: hasTitle && hasTheory,
+  };
+});
+
+// Filtered simulations for sidebar picker
+const filteredSimulations = computed(() => {
+  if (!simSearchQuery.value.trim()) return allSimulations.value;
+  const q = simSearchQuery.value.trim().toLowerCase();
+  return allSimulations.value.filter(
+    (s) =>
+      s.title.toLowerCase().includes(q) ||
+      s.key.toLowerCase().includes(q) ||
+      s.dataStructure?.toLowerCase().includes(q) ||
+      s.tags?.some((t) => t.toLowerCase().includes(q)),
+  );
+});
+
+// ── Initial Data Load ──
 onMounted(async () => {
   loading.value = true;
   try {
-    const [topicList, simPage] = await Promise.all([
+    const [topicList, simPage, classList] = await Promise.all([
       lessonsApi.fetchTopics(),
       simulationsApi.fetchSimulations(),
+      classesApi.fetchClasses().catch(() => []),
     ]);
     topics.value = topicList;
-    allSimulations.value = simPage.items;
+    allSimulations.value = simPage.items || [];
+    classes.value = classList || [];
 
     if (route.query.topicId) {
       form.topicId = Number(route.query.topicId);
@@ -126,12 +180,17 @@ onMounted(async () => {
 
     if (isEdit.value && lessonId.value) {
       try {
-        const lesson = await lessonsApi.fetchLesson(lessonId.value);
+        const [lesson, attachedExercises] = await Promise.all([
+          lessonsApi.fetchLesson(lessonId.value),
+          exercisesApi.fetchExercises({ lessonId: lessonId.value }).catch(() => []),
+        ]);
+
         if (auth.role !== 'ADMIN' && lesson.createdBy && lesson.createdBy !== auth.user?.id) {
-          ui.showToast('Bạn không có quyền chỉnh sửa bài học của giảng viên khác.', 'error');
+          ui.showToast('Bạn không có quyền chỉnh sửa bài học này.', 'error');
           void router.replace('/studio');
           return;
         }
+
         form.title = lesson.title;
         form.description = lesson.description || '';
         form.topicId = lesson.topicId;
@@ -139,27 +198,92 @@ onMounted(async () => {
         form.status = lesson.status;
         form.isClassOnly = lesson.isClassOnly || false;
         form.selectedSimulations = (lesson.simulations || []).map((s) => s.simulationKey);
-
-        // Trích xuất markdown nếu có hoặc hiển thị nội dung
         form.markdown = lesson.contentHtml || '';
+
+        // Parse attached MCQ and CodeLab exercises
+        const mcqEx = attachedExercises.find((e) => e.type?.toUpperCase() === 'MCQ');
+        if (mcqEx) {
+          existingQuizExerciseId.value = mcqEx.id;
+          try {
+            const mcqDetail = await exercisesApi.fetchExercise(mcqEx.id);
+            if (Array.isArray(mcqDetail.questions) && mcqDetail.questions.length > 0) {
+              form.quizQuestions = mcqDetail.questions.map((q: any) => {
+                let correctIdx = 0;
+                if (q.answerJson) {
+                  try {
+                    const arr = JSON.parse(q.answerJson);
+                    if (Array.isArray(arr) && arr.length > 0) correctIdx = Number(arr[0]) || 0;
+                  } catch {
+                    // ignore
+                  }
+                }
+                const opts = Array.isArray(q.options) && q.options.length > 0 ? q.options.map(String) : ['', '', '', ''];
+                while (opts.length < 4) opts.push('');
+                return {
+                  id: q.id,
+                  content: q.content || '',
+                  options: opts,
+                  correctIndex: correctIdx >= 0 && correctIdx < opts.length ? correctIdx : 0,
+                  explanation: q.explanation || '',
+                  points: q.points || 2,
+                };
+              });
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        const codeEx = attachedExercises.find((e) => e.type?.toUpperCase() === 'CODE' || e.stage === 3);
+        if (codeEx) {
+          existingCodeExerciseId.value = codeEx.id;
+          form.codeLab.enabled = true;
+          form.codeLab.exerciseId = codeEx.id;
+          form.codeLab.title = codeEx.title;
+          form.codeLab.description = codeEx.description || '';
+          form.codeLab.durationMinutes = codeEx.durationMinutes || 20;
+          form.codeLab.maxScore = codeEx.maxScore || 100;
+
+          try {
+            const codeDetail = await exercisesApi.fetchExercise(codeEx.id);
+            if ((codeDetail as any).configJson) {
+              const parsed = JSON.parse((codeDetail as any).configJson);
+              if (parsed.starterCode) form.codeLab.starterCode = parsed.starterCode;
+              if (parsed.solutionCode) form.codeLab.solutionCode = parsed.solutionCode;
+              if (parsed.entryFunction) form.codeLab.entryFunction = parsed.entryFunction;
+              if (parsed.difficulty) form.codeLab.difficulty = parsed.difficulty;
+              if (Array.isArray(parsed.testCases) && parsed.testCases.length > 0) {
+                form.codeLab.testCases = parsed.testCases.map((tc: any) => ({
+                  input: tc.input || '',
+                  expected: tc.expected || '',
+                  isHidden: Boolean(tc.isHidden),
+                }));
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
       } catch (err: any) {
-        ui.showToast('Không thể tải thông tin bài học hoặc bạn không có quyền truy cập.', 'error');
+        if (err?.response?.status === 403 || err?.status === 403 || err?.message?.includes('403') || err?.message?.includes('quyền')) {
+          ui.showToast('Bạn không có quyền chỉnh sửa bài học này.', 'error');
+        } else {
+          ui.showToast('Không thể tải thông tin bài học hoặc bạn không có quyền truy cập.', 'error');
+        }
         void router.replace('/studio');
         return;
       }
     } else {
-      // Mặc định nạp mẫu giải thuật chuẩn cho bài mới
       if (!form.markdown) {
-        form.markdown = LESSON_TEMPLATES[0].content;
-        form.title = 'Bài học mới: Giải thuật & Cấu trúc dữ liệu';
-        form.description = 'Nắm vững nguyên lý hoạt động, phân tích độ phức tạp và thực hành trực quan.';
+        form.title = 'Thuật toán & Cấu trúc Dữ liệu';
+        form.description = 'Nắm vững nguyên lý hoạt động, phân tích độ phức tạp thời gian và thực hành trực quan.';
+        form.markdown = parseMarkdownToHtml(LESSON_TEMPLATES[0].content);
       }
     }
 
-    // Kiểm tra bản nháp lưu tạm
     checkForDraft();
-  } catch (err) {
-    ui.showToast('Không thể tải thông tin bài học.', 'error');
+  } catch {
+    ui.showToast('Không thể tải dữ liệu bài học.', 'error');
   } finally {
     loading.value = false;
     initialSnapshot.value = JSON.stringify(form);
@@ -169,19 +293,7 @@ onMounted(async () => {
   }
 });
 
-// Theo dõi thay đổi để kích hoạt Auto-save & Dirty check
-watch(
-  () => [form.title, form.description, form.topicId, form.markdown, form.selectedSimulations],
-  () => {
-    if (!loading.value) {
-      isDirty.value = true;
-      saveDraftDebounced();
-    }
-  },
-  { deep: true },
-);
-
-// ── Auto-save vào LocalStorage ──
+// Auto-save debounced
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function saveDraftDebounced(): void {
   if (saveTimer) clearTimeout(saveTimer);
@@ -195,27 +307,37 @@ function saveDraftDebounced(): void {
         status: form.status,
         markdown: form.markdown,
         selectedSimulations: form.selectedSimulations,
+        quizQuestions: form.quizQuestions,
+        codeLab: form.codeLab,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(draftStorageKey.value, JSON.stringify(payload));
       const d = new Date();
       lastSavedDraftTime.value = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
     } catch {
-      // Bỏ qua nếu quota đầy
+      // ignore
     }
   }, 1000);
 }
+
+watch(
+  () => [form.title, form.description, form.topicId, form.markdown, form.selectedSimulations, form.quizQuestions, form.codeLab],
+  () => {
+    if (!loading.value) {
+      isDirty.value = true;
+      saveDraftDebounced();
+    }
+  },
+  { deep: true },
+);
 
 function checkForDraft(): void {
   try {
     const raw = localStorage.getItem(draftStorageKey.value);
     if (!raw) return;
     const draft = JSON.parse(raw);
-    if (draft && draft.savedAt) {
-      // Nếu có nháp khác với nội dung hiện tại
-      if (draft.markdown && draft.markdown !== form.markdown) {
-        hasRestorableDraft.value = true;
-      }
+    if (draft && draft.savedAt && draft.markdown && draft.markdown !== form.markdown) {
+      hasRestorableDraft.value = true;
     }
   } catch {
     hasRestorableDraft.value = false;
@@ -233,6 +355,8 @@ function restoreDraft(): void {
       if (draft.topicId) form.topicId = draft.topicId;
       if (draft.markdown) form.markdown = draft.markdown;
       if (draft.selectedSimulations) form.selectedSimulations = draft.selectedSimulations;
+      if (Array.isArray(draft.quizQuestions)) form.quizQuestions = draft.quizQuestions;
+      if (draft.codeLab) form.codeLab = draft.codeLab;
       hasRestorableDraft.value = false;
       ui.showToast('Đã khôi phục bản nháp tự lưu!', 'success');
     }
@@ -248,7 +372,6 @@ function discardDraft(): void {
 
 const isNavigatingAwayAfterSave = ref(false);
 
-// ── Cảnh báo rời trang khi có thay đổi chưa lưu ──
 onBeforeRouteLeave((_to, _from, next) => {
   if (isNavigatingAwayAfterSave.value) {
     next();
@@ -256,8 +379,7 @@ onBeforeRouteLeave((_to, _from, next) => {
   }
   const isActuallyDirty = initialSnapshot.value && JSON.stringify(form) !== initialSnapshot.value;
   if (isActuallyDirty) {
-    const answer = window.confirm('Bạn có thay đổi chưa lưu trên bài học. Bạn có chắc chắn muốn rời đi?');
-    if (answer) {
+    if (window.confirm('Bạn có thay đổi chưa lưu trên bài học. Bạn có chắc chắn muốn rời đi?')) {
       next();
     } else {
       next(false);
@@ -267,151 +389,57 @@ onBeforeRouteLeave((_to, _from, next) => {
   }
 });
 
-// ── Thao tác Toolbar Markdown ──
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-
-function insertFormatting(prefix: string, suffix: string = '', defaultPlaceholder: string = ''): void {
-  const el = textareaRef.value;
-  if (!el) {
-    form.markdown += `${prefix}${defaultPlaceholder}${suffix}`;
-    return;
-  }
-
-  const start = el.selectionStart;
-  const end = el.selectionEnd;
-  const text = form.markdown;
-  const selected = text.substring(start, end) || defaultPlaceholder;
-  const replacement = `${prefix}${selected}${suffix}`;
-
-  form.markdown = text.substring(0, start) + replacement + text.substring(end);
-
-  setTimeout(() => {
-    el.focus();
-    el.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-  }, 0);
-}
-
-function applyTemplate(tpl: LessonTemplate): void {
-  if (form.markdown && form.markdown.trim().length > 50) {
-    if (!confirm('Nội dung hiện tại sẽ được thay thế bằng mẫu mới. Bạn có chắc chắn không?')) {
-      return;
-    }
-  }
-  form.markdown = tpl.content;
-  ui.showToast(`Đã áp dụng mẫu: "${tpl.name}"`, 'success');
-}
-
-// ── Import file Markdown (.md) ──
-function triggerFileInput(): void {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.md,.txt,.markdown';
-  input.onchange = (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        form.markdown = content;
-
-        // Tự động tìm Tiêu đề H1 (# ...)
-        const h1Match = content.match(/^#\s+(.+)$/m);
-        if (h1Match && h1Match[1]) {
-          form.title = h1Match[1].trim();
-        }
-
-        // Tự động tìm mô tả tóm tắt
-        const pMatch = content.match(/^(?!#|>|```|\||-|\d+\.)([A-ZÀ-Ỹa-zà-ỹ0-9\s,.\-—–()]{20,200})$/m);
-        if (pMatch && pMatch[1]) {
-          form.description = pMatch[1].trim();
-        }
-
-        ui.showToast(`Đã nhập thành công file "${file.name}"!`, 'success');
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
-
-// ── Bộ lọc danh sách 40+ mô phỏng tương tác ──
-const simulationCategories = [
-  { key: 'all', label: 'Tất cả (40+)' },
-  { key: 'sort', label: 'Sắp xếp (Sorting)' },
-  { key: 'search', label: 'Tìm kiếm (Search)' },
-  { key: 'linear', label: 'CTDL Tuyến tính' },
-  { key: 'tree', label: 'Cây & BST' },
-  { key: 'graph', label: 'Đồ thị (Graph)' },
-  { key: 'hash', label: 'Bảng băm (Hash)' },
-];
-
-const filteredSimulations = computed(() => {
-  let list = allSimulations.value;
-
-  // Lọc theo danh mục
-  if (simCategoryFilter.value === 'sort') {
-    list = list.filter((s) => s.key.startsWith('sort.') || s.tags?.some((t) => t.includes('sort')));
-  } else if (simCategoryFilter.value === 'search') {
-    list = list.filter((s) => s.key.startsWith('search.') || s.tags?.some((t) => t.includes('search')));
-  } else if (simCategoryFilter.value === 'linear') {
-    list = list.filter((s) => s.key.startsWith('list.') || s.key.startsWith('stack.') || s.key.startsWith('queue.'));
-  } else if (simCategoryFilter.value === 'tree') {
-    list = list.filter((s) => s.key.startsWith('tree.') || s.key.startsWith('bst.'));
-  } else if (simCategoryFilter.value === 'graph') {
-    list = list.filter((s) => s.key.startsWith('graph.'));
-  } else if (simCategoryFilter.value === 'hash') {
-    list = list.filter((s) => s.key.startsWith('hash.') || s.key.startsWith('set.'));
-  }
-
-  // Tìm kiếm theo từ khóa
-  if (simSearch.value.trim()) {
-    const q = simSearch.value.trim().toLowerCase();
-    list = list.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        s.key.toLowerCase().includes(q) ||
-        s.dataStructure?.toLowerCase().includes(q) ||
-        s.tags?.some((t) => t.toLowerCase().includes(q)),
-    );
-  }
-
-  return list;
-});
-
+// Simulation Quick Toggle
 function toggleSimulation(key: string): void {
-  const index = form.selectedSimulations.indexOf(key);
-  if (index >= 0) {
-    form.selectedSimulations.splice(index, 1);
+  const idx = form.selectedSimulations.indexOf(key);
+  if (idx >= 0) {
+    form.selectedSimulations.splice(idx, 1);
+    ui.showToast(`Đã gỡ mô phỏng "${key}"`, 'info');
   } else {
     form.selectedSimulations.push(key);
+    ui.showToast(`Đã gắn mô phỏng "${key}" vào bài học!`, 'success');
   }
 }
 
 function removeSimulation(key: string): void {
-  const index = form.selectedSimulations.indexOf(key);
-  if (index >= 0) {
-    form.selectedSimulations.splice(index, 1);
+  form.selectedSimulations = form.selectedSimulations.filter((k) => k !== key);
+}
+
+// ── Smooth Scroll to Section ──
+function scrollToSection(sectionId: string): void {
+  const el = document.getElementById(sectionId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
-// ── Lưu / Xuất bản bài học ──
+// ── Xem trước bài giảng ──
+function handlePreview(): void {
+  if (isEdit.value && lessonId.value) {
+    window.open(`/lessons/${lessonId.value}`, '_blank');
+  } else {
+    previewModalOpen.value = true;
+  }
+}
+
+// ── Lưu & Xuất bản 4-in-1 Transactional Save ──
 async function handleSave(): Promise<void> {
   if (form.title.trim().length < 3) {
     ui.showToast('Vui lòng nhập tiêu đề bài học (tối thiểu 3 ký tự).', 'warning');
+    scrollToSection('section-header');
     return;
   }
   if (!form.markdown.trim()) {
     ui.showToast('Vui lòng soạn thảo nội dung bài học trước khi lưu.', 'warning');
+    scrollToSection('section-theory');
     return;
   }
 
   saving.value = true;
+  let hasSubPartError = false;
   try {
     const htmlContent = parseMarkdownToHtml(form.markdown);
 
-    // Quyền Teacher: nếu chọn nội bộ lớp -> active ngay; nếu chọn công khai toàn hệ thống và đang active -> chuyển pendingreview
     let saveStatus = form.status;
     if (auth.role === 'TEACHER') {
       if (form.isClassOnly) {
@@ -432,40 +460,175 @@ async function handleSave(): Promise<void> {
       simulationKeys: [...form.selectedSimulations],
     };
 
+    let targetLessonId = lessonId.value;
+
+    // 1. Lưu Lesson
     if (isEdit.value && lessonId.value) {
       await lessonsApi.updateLesson(lessonId.value, payload);
-      if (saveStatus === 'pendingreview') {
-        ui.showToast('Đã lưu bài giảng! Yêu cầu xuất bản công khai đang chờ Quản trị viên duyệt.', 'info');
-      } else {
-        ui.showToast('Đã cập nhật bài học thành công!', 'success');
-      }
     } else {
       const created = await lessonsApi.createLesson(payload);
-      if (route.query.courseId && created?.id) {
+      targetLessonId = created?.id || null;
+
+      // Link to course if requested
+      if (route.query.courseId && targetLessonId) {
         try {
           await courseApi.addCourseNode(Number(route.query.courseId), {
             title: created.title,
-            lessonId: created.id,
+            lessonId: targetLessonId,
           });
-        } catch {
-          // Bỏ qua nếu đã gắn
+        } catch (courseErr: any) {
+          hasSubPartError = true;
+          console.error('Lỗi khi gắn bài vào lộ trình:', courseErr);
+          ui.showToast(`Lỗi khi gắn bài vào lộ trình: ${courseErr?.message || 'Không xác định'}`, 'error');
         }
-      }
-      if (saveStatus === 'pendingreview') {
-        ui.showToast('Đã tạo bài học mới! Bài học công khai đang chờ Quản trị viên phê duyệt.', 'info');
-      } else if (form.isClassOnly) {
-        ui.showToast('Đã tạo bài giảng lớp học và kích hoạt ngay cho sinh viên!', 'success');
-      } else {
-        ui.showToast('Đã tạo bài học mới và gắn vào lộ trình thành công!', 'success');
       }
     }
 
-    // Xóa nháp sau khi lưu thành công
+    // 2. Lưu / Đồng bộ Quiz questions (MCQ)
+    if (targetLessonId) {
+      const validQuestions = form.quizQuestions
+        .filter((q) => q.content.trim().length > 0)
+        .map((q, idx) => ({
+          content: q.content.trim(),
+          type: 'Single' as const,
+          options: q.options.map((o) => o.trim()).filter(Boolean),
+          answerJson: JSON.stringify([q.correctIndex]),
+          explanation: q.explanation.trim() || undefined,
+          points: q.points || 2,
+          sortOrder: idx + 1,
+        }));
+
+      if (validQuestions.length > 0) {
+        try {
+          if (!existingQuizExerciseId.value) {
+            const existingList = await exercisesApi.fetchExercises({ lessonId: targetLessonId });
+            const foundMcq = existingList.find((e) => e.type === 'MCQ');
+            if (foundMcq) existingQuizExerciseId.value = foundMcq.id;
+          }
+
+          if (existingQuizExerciseId.value) {
+            await exercisesApi.updateExercise(existingQuizExerciseId.value, {
+              title: `Quiz: ${form.title.trim()}`,
+              description: 'Trắc nghiệm củng cố kiến thức bài học.',
+              type: 'Mcq',
+              durationMinutes: 10,
+              maxScore: validQuestions.reduce((sum, q) => sum + (q.points || 2), 0),
+              status: 'Active',
+              questions: validQuestions,
+            });
+          } else {
+            const createdQuiz = await exercisesApi.createExercise({
+              lessonId: targetLessonId,
+              title: `Quiz: ${form.title.trim()}`,
+              description: 'Trắc nghiệm củng cố kiến thức bài học.',
+              type: 'Mcq',
+              durationMinutes: 10,
+              maxScore: validQuestions.reduce((sum, q) => sum + (q.points || 2), 0),
+              status: 'Active',
+              questions: validQuestions,
+            });
+            if (createdQuiz?.id) existingQuizExerciseId.value = createdQuiz.id;
+          }
+        } catch (quizErr: any) {
+          hasSubPartError = true;
+          console.error('Lỗi khi lưu Quiz:', quizErr);
+          ui.showToast(`Lỗi khi lưu phần Trắc nghiệm: ${quizErr?.message || 'Không xác định'}`, 'error');
+        }
+      } else if (existingQuizExerciseId.value) {
+        // Vô hiệu hóa (deactivate về Draft) khi không có câu hỏi để giữ nguyên data khi bật lại
+        try {
+          await exercisesApi.updateExercise(existingQuizExerciseId.value, { status: 'Draft' });
+        } catch (deactQuizErr) {
+          console.warn('Không thể vô hiệu hóa bài quiz cũ:', deactQuizErr);
+        }
+      }
+    }
+
+    // 3. Lưu / Đồng bộ Code Lab (Code Exercise)
+    if (targetLessonId) {
+      if (form.codeLab.enabled) {
+        const configJson = JSON.stringify({
+          starterCode: form.codeLab.starterCode,
+          solutionCode: form.codeLab.solutionCode,
+          entryFunction: form.codeLab.entryFunction,
+          difficulty: form.codeLab.difficulty,
+          testCases: form.codeLab.testCases,
+        });
+
+        try {
+          if (!existingCodeExerciseId.value) {
+            const existingList = await exercisesApi.fetchExercises({ lessonId: targetLessonId });
+            const foundCode = existingList.find((e) => e.type === 'CODE');
+            if (foundCode) existingCodeExerciseId.value = foundCode.id;
+          }
+
+          if (existingCodeExerciseId.value) {
+            await exercisesApi.updateExercise(existingCodeExerciseId.value, {
+              title: form.codeLab.title.trim() || `Thực hành: ${form.title.trim()}`,
+              description: form.codeLab.description.trim() || undefined,
+              type: 'Code',
+              stage: 3,
+              configJson,
+              durationMinutes: form.codeLab.durationMinutes || 20,
+              maxScore: form.codeLab.maxScore || 100,
+              status: 'Active',
+            });
+          } else {
+            const createdCode = await exercisesApi.createExercise({
+              lessonId: targetLessonId,
+              title: form.codeLab.title.trim() || `Thực hành: ${form.title.trim()}`,
+              description: form.codeLab.description.trim() || undefined,
+              type: 'Code',
+              stage: 3,
+              configJson,
+              durationMinutes: form.codeLab.durationMinutes || 20,
+              maxScore: form.codeLab.maxScore || 100,
+              status: 'Active',
+            });
+            if (createdCode?.id) existingCodeExerciseId.value = createdCode.id;
+          }
+        } catch (codeErr: any) {
+          hasSubPartError = true;
+          console.error('Lỗi khi lưu Code Lab:', codeErr);
+          ui.showToast(`Lỗi khi lưu phần Code Lab: ${codeErr?.message || 'Không xác định'}`, 'error');
+        }
+      } else if (existingCodeExerciseId.value) {
+        // Vô hiệu hóa (deactivate về Draft) khi tắt toggle để bảo tồn dữ liệu
+        try {
+          await exercisesApi.updateExercise(existingCodeExerciseId.value, { status: 'Draft' });
+        } catch (deactCodeErr) {
+          console.warn('Không thể vô hiệu hóa Code Lab cũ:', deactCodeErr);
+        }
+      }
+    }
+
+    // 4. Gán vào lớp học nếu chọn classId
+    if (form.isClassOnly && form.selectedClassId && targetLessonId) {
+      try {
+        await classesApi.createClassAssignment(form.selectedClassId, {
+          lessonId: targetLessonId,
+        });
+        ui.showToast('Đã tự động gán bài giảng vào lớp học được chọn!', 'info');
+      } catch {
+        // ignore
+      }
+    }
+
+    if (hasSubPartError) {
+      ui.showToast('Đã lưu lý thuyết bài học, nhưng có lỗi ở phần Trắc nghiệm/Code Lab. Vui lòng kiểm tra lại trước khi thoát!', 'warning');
+      return;
+    }
+
     localStorage.removeItem(draftStorageKey.value);
     isDirty.value = false;
     isNavigatingAwayAfterSave.value = true;
 
-    // Quay lại trang quản trị nội dung với lộ trình tương ứng
+    if (saveStatus === 'pendingreview') {
+      ui.showToast('Đã lưu bài học! Nội dung công khai đang chờ Quản trị viên duyệt.', 'info');
+    } else {
+      ui.showToast('Đã xuất bản bài học thành công!', 'success');
+    }
+
     if (route.query.courseId) {
       await router.push(`/studio?courseId=${route.query.courseId}`);
     } else {
@@ -488,838 +651,507 @@ function goBack(): void {
 </script>
 
 <template>
-  <div class="admin-lesson-studio">
-    <!-- ═══ TOP NAVBAR: ACTIONS & STATUS ═══ -->
-    <header class="studio-header">
-      <div class="studio-header__left">
-        <Button variant="ghost" size="sm" class="gap-1.5" @click="goBack">
-          <ArrowLeft :size="16" /> Quay lại danh sách
+  <div class="admin-lesson-studio flex flex-col h-[calc(100vh-var(--app-header-h,68px))] bg-[#090d16] text-white overflow-hidden">
+    <!-- ══════════════════════════════════════════════════════════════════
+         TOP HEADER BAR (CLEAN, MINIMAL, MODERN)
+         ══════════════════════════════════════════════════════════════════ -->
+    <header class="h-14 bg-vdsa-surface border-b border-vdsa-border px-4 sm:px-6 flex items-center justify-between shrink-0 gap-4 z-20">
+      <!-- Left: Back & Breadcrumb -->
+      <div class="flex items-center gap-3 min-w-0">
+        <Button variant="ghost" size="sm" class="gap-1.5 text-xs text-slate-300 hover:text-white shrink-0" @click="goBack">
+          <ArrowLeft :size="15" /> Studio
         </Button>
-        <span class="studio-header__divider" />
-        <div class="studio-header__title-badge">
-          <span class="studio-header__mode-tag">
-            {{ isEdit ? `Chỉnh sửa bài học #${lessonId}` : 'Tạo bài học mới' }}
+        <span class="w-px h-5 bg-vdsa-border shrink-0" />
+        <div class="flex items-center gap-2 truncate">
+          <span class="text-xs font-bold text-slate-200 truncate">
+            {{ isEdit ? `Chỉnh sửa bài học #${lessonId}` : 'Soạn bài học mới' }}
           </span>
-          <span v-if="lastSavedDraftTime" class="studio-header__draft-status">
-            <Check :size="12" class="text-emerald-400" /> Tự lưu nháp: {{ lastSavedDraftTime }}
+          <span v-if="lastSavedDraftTime" class="text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
+            <Check :size="12" class="text-emerald-400" /> Nháp: {{ lastSavedDraftTime }}
           </span>
         </div>
       </div>
 
-      <div class="studio-header__right">
-        <!-- Nút import markdown -->
-        <Button variant="secondary" size="sm" class="gap-1.5" @click="triggerFileInput">
-          <Upload :size="14" /> Nhập file .md
+      <!-- Center Jump Links -->
+      <nav class="hidden md:flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 gap-1">
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+          @click="scrollToSection('section-theory')"
+        >
+          <PenTool :size="12" class="text-purple-400" /> Lý thuyết
+        </button>
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+          @click="scrollToSection('section-simulations')"
+        >
+          <Layers :size="12" class="text-sky-400" /> Mô phỏng ({{ form.selectedSimulations.length }})
+        </button>
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5"
+          @click="scrollToSection('section-quiz')"
+        >
+          <Puzzle :size="12" class="text-amber-400" /> Quiz ({{ form.quizQuestions.length }})
+        </button>
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+          :class="form.codeLab.enabled ? 'text-emerald-400 font-bold hover:bg-slate-800' : 'text-slate-400 hover:text-white hover:bg-slate-800'"
+          @click="scrollToSection('section-codelab')"
+        >
+          <Code :size="12" class="text-emerald-400" /> Code Lab {{ form.codeLab.enabled ? '✓' : '' }}
+        </button>
+      </nav>
+
+      <!-- Right Actions: Preview & Save -->
+      <div class="flex items-center gap-2 shrink-0">
+        <Button variant="secondary" size="sm" class="gap-1.5 text-xs" @click="handlePreview">
+          <Eye :size="14" /> Xem trước
         </Button>
-
-        <!-- Dropdown Mẫu bài giảng -->
-        <div class="studio-dropdown">
-          <Button variant="secondary" size="sm" class="gap-1.5">
-            <Sparkles :size="14" /> Mẫu bài giảng ▾
-          </Button>
-          <div class="studio-dropdown__menu">
-            <button
-              v-for="tpl in LESSON_TEMPLATES"
-              :key="tpl.id"
-              type="button"
-              class="studio-dropdown__item"
-              @click="applyTemplate(tpl)"
-            >
-              <span class="font-bold text-white text-xs block">{{ tpl.name }}</span>
-              <span class="text-[11px] text-vdsa-muted block mt-0.5">{{ tpl.description }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- View mode switcher -->
-        <div class="studio-viewmode">
-          <button
-            type="button"
-            class="studio-viewmode__btn"
-            :class="{ 'studio-viewmode__btn--active': viewMode === 'split' }"
-            title="Xem song song Editor & Preview"
-            @click="viewMode = 'split'"
-          >
-            <Columns2 :size="14" /> Song song
-          </button>
-          <button
-            type="button"
-            class="studio-viewmode__btn"
-            :class="{ 'studio-viewmode__btn--active': viewMode === 'editor' }"
-            title="Chỉ mở khung soạn thảo"
-            @click="viewMode = 'editor'"
-          >
-            <PenTool :size="14" /> Soạn thảo
-          </button>
-          <button
-            type="button"
-            class="studio-viewmode__btn"
-            :class="{ 'studio-viewmode__btn--active': viewMode === 'preview' }"
-            title="Chỉ mở khung xem trước"
-            @click="viewMode = 'preview'"
-          >
-            <Eye :size="14" /> Xem trước
-          </button>
-        </div>
-
-        <!-- Primary Save Button -->
-        <Button variant="primary" size="sm" class="gap-1.5" :loading="saving" @click="handleSave">
-          <Save :size="15" /> {{ isEdit ? 'Lưu cập nhật' : 'Xuất bản bài học' }}
+        <Button
+          variant="primary"
+          size="sm"
+          class="gap-1.5 text-xs font-extrabold bg-purple-600 hover:bg-purple-500 shadow-md shadow-purple-900/30"
+          :loading="saving"
+          @click="handleSave"
+        >
+          <Save :size="14" /> {{ isEdit ? 'Lưu cập nhật' : 'Xuất bản bài học' }}
         </Button>
       </div>
     </header>
 
-    <!-- Alert khôi phục nháp nếu có -->
-    <div v-if="hasRestorableDraft" class="studio-draft-alert">
-      <div class="flex items-center gap-2">
-        <Sparkles :size="16" class="text-amber-400" />
-        <span class="text-xs text-amber-200">
-          Phát hiện bản nháp tự lưu gần nhất của bạn. Bạn có muốn khôi phục nội dung đang gõ dở không?
-        </span>
+    <!-- Draft restore alert -->
+    <div v-if="hasRestorableDraft" class="bg-amber-500/10 border-b border-amber-500/30 px-6 py-2 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2 text-xs text-amber-200">
+        <Sparkles :size="14" class="text-amber-400" />
+        <span>Phát hiện bản nháp tự lưu gần nhất của bạn. Khôi phục nội dung đang gõ dở?</span>
       </div>
       <div class="flex items-center gap-2">
-        <Button size="sm" variant="primary" @click="restoreDraft">Khôi phục ngay</Button>
-        <Button size="sm" variant="ghost" @click="discardDraft">Bỏ qua</Button>
+        <Button size="sm" variant="primary" class="text-xs py-1 h-7" @click="restoreDraft">Khôi phục ngay</Button>
+        <Button size="sm" variant="ghost" class="text-xs py-1 h-7 text-slate-400" @click="discardDraft">Bỏ qua</Button>
       </div>
     </div>
 
-    <!-- ═══ MAIN WORKSPACE (2 COLUMNS) ═══ -->
-    <div v-if="loading" class="studio-loading">
-      <Skeleton height="60px" />
-      <div class="grid grid-cols-3 gap-4 mt-4">
-        <Skeleton height="500px" class="col-span-2" />
-        <Skeleton height="500px" />
-      </div>
+    <!-- ══════════════════════════════════════════════════════════════════
+         MAIN 2-COLUMN STUDIO WORKSPACE (CANVAS + SIDEBAR INSPECTOR)
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- ──────────────────────────────────────────────────────────────
+           LEFT / CENTER: MAIN DOCUMENT CANVAS (70% - NOTION STYLE)
+           ────────────────────────────────────────────────────────────── -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-8 space-y-10 custom-scrollbar">
+        <div v-if="loading" class="max-w-4xl mx-auto space-y-6">
+          <Skeleton height="60px" />
+          <Skeleton height="400px" />
+        </div>
+
+        <div v-else class="max-w-4xl mx-auto space-y-10">
+          <!-- ── NOTION-STYLE HERO TITLE & DESCRIPTION ── -->
+          <div id="section-header" class="space-y-3 pb-6 border-b border-slate-800/80">
+            <input
+              v-model="form.title"
+              type="text"
+              placeholder="Nhập tiêu đề bài học (VD: Thuật toán Quick Sort & Phân tích Big-O)..."
+              class="w-full bg-transparent border-none outline-none text-2xl sm:text-4xl font-black text-white placeholder-slate-600 tracking-tight leading-tight"
+            />
+            <textarea
+              v-model="form.description"
+              rows="2"
+              placeholder="Mô tả tóm tắt mục tiêu bài học, kiến thức đạt được và thời lượng dự kiến..."
+              class="w-full bg-transparent border-none outline-none text-sm text-slate-400 placeholder-slate-600 resize-none leading-relaxed italic"
+            ></textarea>
+
+            <!-- Metadata tags -->
+            <div class="flex items-center gap-2 flex-wrap pt-2">
+              <Badge variant="secondary" class="text-xs font-mono">
+                Chương: {{ topics.find(t => t.id === Number(form.topicId))?.name || 'Mặc định' }}
+              </Badge>
+              <Badge v-if="form.isClassOnly" variant="success" class="text-xs font-bold">
+                Nội bộ lớp học
+              </Badge>
+              <Badge v-else variant="primary" class="text-xs">
+                Công khai toàn hệ thống
+              </Badge>
+              <Badge v-if="form.selectedSimulations.length > 0" variant="secondary" class="text-xs text-sky-300">
+                ⚡ {{ form.selectedSimulations.length }} Mô phỏng
+              </Badge>
+              <Badge v-if="form.quizQuestions.length > 0" variant="secondary" class="text-xs text-amber-300">
+                ❓ {{ form.quizQuestions.length }} Câu hỏi Quiz
+              </Badge>
+              <Badge v-if="form.codeLab.enabled" variant="secondary" class="text-xs text-emerald-300">
+                💻 Code Lab ({{ form.codeLab.testCases.length }} testcases)
+              </Badge>
+            </div>
+          </div>
+
+          <!-- ── SECTION 1: LÝ THUYẾT & BÀI GIẢNG ── -->
+          <section id="section-theory" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                <PenTool :size="17" class="text-purple-400" />
+                1. Nội dung Lý thuyết & Bài giảng
+              </h2>
+              <span class="text-xs text-slate-400">Hỗ trợ soạn thảo trực quan & AI Format</span>
+            </div>
+
+            <TheoryTab
+              ref="theoryTabRef"
+              v-model="form.markdown"
+              @template-applied="
+                (tpl) => {
+                  if (tpl.title) form.title = tpl.title;
+                  if (tpl.description) form.description = tpl.description;
+                }
+              "
+            />
+          </section>
+
+          <!-- ── SECTION 2: MÔ PHỎNG TRỰC QUAN ĐÍNH KÈM ── -->
+          <section id="section-simulations" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div>
+                <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                  <Layers :size="17" class="text-sky-400" />
+                  2. Mô phỏng Thuật toán Trực quan ({{ form.selectedSimulations.length }})
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Học viên sẽ được tương tác trực tiếp với mô phỏng chạy từng bước của các thuật toán đính kèm.
+                </p>
+              </div>
+
+              <Button size="sm" variant="secondary" class="text-xs gap-1.5" @click="simPickerModalOpen = true">
+                <Plus :size="13" /> Gắn thêm Mô phỏng
+              </Button>
+            </div>
+
+            <!-- Attached Simulations List -->
+            <div v-if="form.selectedSimulations.length === 0" class="p-6 rounded-2xl bg-vdsa-surface/50 border border-dashed border-slate-800 text-center space-y-2">
+              <Layers :size="28" class="mx-auto text-slate-600" />
+              <p class="text-xs font-semibold text-slate-300">Chưa gắn mô phỏng trực quan nào vào bài học</p>
+              <p class="text-[11px] text-slate-500">
+                Hãy chọn nhanh các thuật toán có sẵn trong thư viện 44+ thuật toán ở cột bên phải hoặc bấm nút bên dưới.
+              </p>
+              <Button size="sm" variant="secondary" class="text-xs mt-2" @click="simPickerModalOpen = true">
+                <Plus :size="13" /> Mở thư viện thuật toán
+              </Button>
+            </div>
+
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div
+                v-for="simKey in form.selectedSimulations"
+                :key="simKey"
+                class="p-3.5 rounded-xl bg-vdsa-surface border border-sky-500/30 flex items-center justify-between gap-3 shadow-md"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                    <Zap :size="18" />
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-xs font-bold text-white block truncate">
+                      {{ allSimulations.find(s => s.key === simKey)?.title || simKey }}
+                    </span>
+                    <span class="text-[11px] font-mono text-sky-300/80">{{ simKey }}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1 shrink-0">
+                  <a
+                    :href="`/simulator/${simKey}`"
+                    target="_blank"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    title="Mở chạy thử mô phỏng"
+                  >
+                    <ExternalLink :size="14" />
+                  </a>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    title="Gỡ mô phỏng này"
+                    @click="removeSimulation(simKey)"
+                  >
+                    <Trash2 :size="14" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── SECTION 3: MINI-QUIZ KIỂM TRA KIẾN THỨC ── -->
+          <section id="section-quiz" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div>
+                <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                  <Puzzle :size="17" class="text-amber-400" />
+                  3. Câu hỏi Trắc nghiệm Củng cố (Mini-Quiz)
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Kiểm tra mức độ hiểu bài của học viên ngay sau phần lý thuyết. Tự động lưu kèm bài học.
+                </p>
+              </div>
+            </div>
+
+            <QuizTab
+              v-model="form.quizQuestions"
+              :lesson-id="lessonId"
+              :lesson-title="form.title"
+            />
+          </section>
+
+          <!-- ── SECTION 4: BÀI TẬP LẬP TRÌNH CODE LAB ── -->
+          <section id="section-codelab" class="space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div>
+                <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                  <Code :size="17" class="text-emerald-400" />
+                  4. Bài tập Lập trình Thực hành (Code Lab)
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Cài đặt thuật toán, chạy thử nghiệm trên Solution Playground và tự động chấm điểm testcases.
+                </p>
+              </div>
+            </div>
+
+            <CodeLabTab
+              v-model="form.codeLab"
+              :lesson-title="form.title"
+            />
+          </section>
+        </div>
+      </main>
+
+      <!-- ──────────────────────────────────────────────────────────────
+           RIGHT SIDEBAR: SETTINGS & QUICK PICKER (30% - INSPECTOR)
+           ────────────────────────────────────────────────────────────── -->
+      <aside class="w-80 bg-[#0c101c] border-l border-vdsa-border p-5 space-y-6 overflow-y-auto shrink-0 hidden xl:block custom-scrollbar">
+        <!-- Quality Score Card -->
+        <div class="p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-white uppercase tracking-wider">Tiến độ hoàn thiện</span>
+            <Badge :variant="qualityChecklist.isReady ? 'success' : 'warning'" class="text-[11px] font-bold">
+              {{ qualityChecklist.score }}% Đạt
+            </Badge>
+          </div>
+
+          <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-300"
+              :class="qualityChecklist.score >= 80 ? 'bg-emerald-500' : 'bg-amber-500'"
+              :style="{ width: `${qualityChecklist.score}%` }"
+            ></div>
+          </div>
+
+          <div class="space-y-1.5 text-xs text-slate-300">
+            <div class="flex items-center gap-2">
+              <CheckCircle2 v-if="qualityChecklist.hasTitle" :size="14" class="text-emerald-400 shrink-0" />
+              <div v-else class="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
+              <span :class="{ 'text-slate-400 line-through': qualityChecklist.hasTitle }">Tiêu đề bài học</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <CheckCircle2 v-if="qualityChecklist.hasTheory" :size="14" class="text-emerald-400 shrink-0" />
+              <div v-else class="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
+              <span :class="{ 'text-slate-400 line-through': qualityChecklist.hasTheory }">Nội dung lý thuyết (≥ 50 từ)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <CheckCircle2 v-if="qualityChecklist.hasSim" :size="14" class="text-emerald-400 shrink-0" />
+              <div v-else class="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
+              <span :class="{ 'text-slate-400 line-through': qualityChecklist.hasSim }">Gắn mô phỏng thuật toán</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <CheckCircle2 v-if="qualityChecklist.hasQuiz" :size="14" class="text-emerald-400 shrink-0" />
+              <div v-else class="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
+              <span :class="{ 'text-slate-400 line-through': qualityChecklist.hasQuiz }">Câu hỏi trắc nghiệm Quiz</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <CheckCircle2 v-if="qualityChecklist.hasCodeLab" :size="14" class="text-emerald-400 shrink-0" />
+              <div v-else class="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
+              <span :class="{ 'text-slate-400 line-through': qualityChecklist.hasCodeLab }">Bài tập Code Lab thực hành</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Settings Form ── -->
+        <div class="p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-4">
+          <h3 class="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Settings :size="14" class="text-purple-400" /> Cấu hình & Phân quyền
+          </h3>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Chương / Chủ đề <span class="text-rose-400">*</span></label>
+            <select
+              v-model="form.topicId"
+              class="w-full h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+            >
+              <option v-for="t in topics" :key="t.id" :value="t.id">
+                {{ t.name }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Thứ tự hiển thị (Sort Order)</label>
+            <input
+              v-model.number="form.sortOrder"
+              type="number"
+              min="1"
+              max="999"
+              class="w-full h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+            />
+          </div>
+
+          <!-- Scope: Public vs Class Only -->
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <label class="block text-xs font-bold text-slate-300">Phạm vi phát hành</label>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 hover:border-slate-700 cursor-pointer text-xs" :class="{ 'bg-purple-950/20 border-purple-500/40': !form.isClassOnly }">
+                <input
+                  v-model="form.isClassOnly"
+                  type="radio"
+                  :value="false"
+                  class="text-purple-600 focus:ring-0"
+                />
+                <span class="text-white font-medium">Toàn hệ thống (Công khai)</span>
+              </label>
+
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 hover:border-slate-700 cursor-pointer text-xs" :class="{ 'bg-purple-950/20 border-purple-500/40': form.isClassOnly }">
+                <input
+                  v-model="form.isClassOnly"
+                  type="radio"
+                  :value="true"
+                  class="text-purple-600 focus:ring-0"
+                />
+                <span class="text-white font-medium">Nội bộ Lớp học</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Select Class if Class Only -->
+          <div v-if="form.isClassOnly" class="space-y-1.5 pt-1">
+            <label class="block text-xs font-bold text-slate-300">Chọn lớp nhận bài học</label>
+            <select
+              v-model="form.selectedClassId"
+              class="w-full h-9 rounded-lg border border-emerald-500/40 bg-slate-900 px-3 text-xs text-white focus:outline-none"
+            >
+              <option :value="null">-- Chọn lớp học --</option>
+              <option v-for="c in classes" :key="c.id" :value="c.id">
+                🎓 {{ c.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── Quick Algorithm Simulator Picker ── -->
+        <div class="p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap :size="14" class="text-sky-400" /> Thư viện Mô phỏng
+            </h3>
+            <span class="text-[11px] text-slate-400 font-mono">{{ form.selectedSimulations.length }} đã gắn</span>
+          </div>
+
+          <div class="relative">
+            <Search :size="13" class="absolute left-2.5 top-2.5 text-slate-500" />
+            <input
+              v-model="simSearchQuery"
+              type="text"
+              placeholder="Tìm thuật toán (Bubble, BST...)"
+              class="w-full h-8 pl-8 pr-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+            />
+          </div>
+
+          <div class="space-y-1 max-h-60 overflow-y-auto pr-1 custom-scrollbar text-xs">
+            <button
+              v-for="sim in filteredSimulations.slice(0, 20)"
+              :key="sim.key"
+              type="button"
+              class="w-full p-2 rounded-lg text-left flex items-center justify-between gap-2 transition-colors"
+              :class="form.selectedSimulations.includes(sim.key) ? 'bg-sky-500/20 border border-sky-500/40 text-sky-200' : 'bg-slate-900/60 hover:bg-slate-800 text-slate-300'"
+              @click="toggleSimulation(sim.key)"
+            >
+              <div class="truncate">
+                <span class="font-bold block truncate">{{ sim.title }}</span>
+                <span class="text-[10px] text-slate-400 font-mono">{{ sim.key }}</span>
+              </div>
+              <Check v-if="form.selectedSimulations.includes(sim.key)" :size="14" class="text-sky-400 shrink-0" />
+              <Plus v-else :size="13" class="text-slate-500 shrink-0" />
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
 
-    <div v-else class="studio-workspace">
-      <!-- CỘT TRÁI (72%): TRÌNH SOẠN THẢO VÀ LIVE PREVIEW -->
-      <main class="studio-main">
-        <!-- Input Tiêu đề bài học -->
-        <div class="studio-title-box">
+    <!-- ═══ MODAL THƯ VIỆN MÔ PHỎNG CHI TIẾT ═══ -->
+    <Modal :open="simPickerModalOpen" title="Kho Mô phỏng Thuật toán Trực quan" size="lg" @close="simPickerModalOpen = false">
+      <div class="space-y-4 max-h-[70vh] overflow-y-auto p-4 bg-[#090d16] rounded-xl text-slate-200">
+        <div class="relative">
+          <Search :size="15" class="absolute left-3 top-3 text-slate-500" />
           <input
-            v-model="form.title"
-            class="studio-title-input"
+            v-model="simSearchQuery"
             type="text"
-            placeholder="Nhập tiêu đề bài học (VD: Thuật toán Quick Sort & Phân tích Big-O)..."
+            placeholder="Tìm kiếm theo tên thuật toán, cấu trúc dữ liệu hoặc tag..."
+            class="w-full h-10 pl-10 pr-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-sky-500"
           />
         </div>
 
-        <!-- Mode Switcher: WYSIWYG Word-like TipTap vs Raw Markdown -->
-        <div class="flex items-center justify-between pb-3">
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              @click="editorType = 'wysiwyg'"
-              :class="editorType === 'wysiwyg' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-surface text-vdsa-secondary hover:text-white'"
-              class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div
+            v-for="sim in filteredSimulations"
+            :key="sim.key"
+            class="p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all"
+            :class="form.selectedSimulations.includes(sim.key) ? 'bg-sky-950/40 border-sky-500/60 ring-1 ring-sky-500/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'"
+            @click="toggleSimulation(sim.key)"
+          >
+            <div class="min-w-0">
+              <span class="text-xs font-bold text-white block truncate">{{ sim.title }}</span>
+              <span class="text-[11px] font-mono text-sky-400">{{ sim.key }}</span>
+              <p class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{{ sim.dataStructure || sim.category }}</p>
+            </div>
+            <Button
+              size="sm"
+              :variant="form.selectedSimulations.includes(sim.key) ? 'primary' : 'secondary'"
+              class="h-7 text-xs shrink-0"
             >
-              <PenTool :size="14" /> Soạn thảo trực quan kiểu Word (TipTap)
-            </button>
-            <button
-              type="button"
-              @click="editorType = 'markdown'"
-              :class="editorType === 'markdown' ? 'bg-vdsa-accent text-white shadow-md' : 'bg-vdsa-surface text-vdsa-secondary hover:text-white'"
-              class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-vdsa-border"
-            >
-              <FileCode :size="14" /> Soạn thảo Markdown (Split View)
-            </button>
-          </div>
-
-          <div v-if="editorType === 'wysiwyg'" class="text-xs text-vdsa-muted flex items-center gap-2">
-            <button
-              type="button"
-              :disabled="aiFormatting || aiRemaining <= 0"
-              class="studio-tool-btn bg-purple-600/30 text-purple-300 border-purple-500/50 hover:bg-purple-600/50 flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-xl"
-              :title="aiRemaining <= 0 ? 'Đã hết lượt dùng AI miễn phí (5/5)' : 'Tự động chuẩn hóa & làm đẹp bài giảng bằng DeepSeek AI'"
-              @click="handleAiFormat"
-            >
-              <Sparkles :size="13" class="text-purple-400" :class="{ 'animate-spin': aiFormatting }" />
-              {{ aiFormatting ? 'AI đang format...' : `✨ Format AI (${aiRemaining}/5)` }}
-            </button>
+              {{ form.selectedSimulations.includes(sim.key) ? 'Đã gắn ✓' : '+ Gắn' }}
+            </Button>
           </div>
         </div>
 
-        <!-- Mode 1: TipTap WYSIWYG Word Editor -->
-        <div v-if="editorType === 'wysiwyg'" class="mb-4">
-          <TipTapEditor v-model="form.markdown" placeholder="Bắt đầu soạn thảo lý thuyết bài giảng trực quan kiểu Word..." />
-        </div>
-
-        <!-- Mode 2: Markdown Formatting Toolbar & Panes -->
-        <div v-else class="space-y-4">
-          <div class="studio-toolbar">
-            <div class="studio-toolbar__group">
-              <button type="button" class="studio-tool-btn" title="Tiêu đề H1" @click="insertFormatting('# ', '', 'Tiêu đề 1')">H1</button>
-              <button type="button" class="studio-tool-btn" title="Tiêu đề H2" @click="insertFormatting('## ', '', 'Tiêu đề 2')">H2</button>
-              <button type="button" class="studio-tool-btn" title="Tiêu đề H3" @click="insertFormatting('### ', '', 'Tiêu đề 3')">H3</button>
-            </div>
-
-            <div class="studio-toolbar__group">
-              <button type="button" class="studio-tool-btn" title="In đậm" @click="insertFormatting('**', '**', 'văn bản đậm')"><b>B</b></button>
-              <button type="button" class="studio-tool-btn" title="In nghiêng" @click="insertFormatting('*', '*', 'văn bản nghiêng')"><i>I</i></button>
-              <button type="button" class="studio-tool-btn" title="Inline code" @click="insertFormatting('`', '`', 'code')">&lt;/&gt;</button>
-            </div>
-
-            <div class="studio-toolbar__group">
-              <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code C++" @click="insertFormatting('```cpp\n// Viết mã C++ ở đây\nvoid example() {\n    \n}\n', '```')">C++</button>
-              <button type="button" class="studio-tool-btn studio-tool-btn--lang" title="Khối Code Python" @click="insertFormatting('```python\n# Viết mã Python ở đây\ndef example():\n    pass\n', '```')">Python</button>
-              <button type="button" class="studio-tool-btn" title="Bảng biểu Markdown" @click="insertFormatting('\n| Cột 1 | Cột 2 | Cột 3 |\n| :--- | :--- | :--- |\n| Giá trị A | Giá trị B | Giá trị C |\n', '')">
-                <Table :size="13" /> Bảng
-              </button>
-            </div>
-
-            <div class="studio-toolbar__group">
-              <button type="button" class="studio-tool-btn studio-tool-btn--note" title="Hộp Ghi chú (Note)" @click="insertFormatting('> [!NOTE]\n> ', '', 'Nội dung ghi chú quan trọng...')">📌 Note</button>
-              <button type="button" class="studio-tool-btn studio-tool-btn--tip" title="Hộp Mẹo hay (Tip)" @click="insertFormatting('> [!TIP]\n> ', '', 'Mẹo hay giúp giải nhanh...')">💡 Tip</button>
-              <button type="button" class="studio-tool-btn studio-tool-btn--warn" title="Hộp Chú ý (Warning)" @click="insertFormatting('> [!WARNING]\n> ', '', 'Lưu ý các trường hợp biên...')">⚠️ Warn</button>
-            </div>
-
-            <div class="studio-toolbar__group ml-auto">
-              <button
-                type="button"
-                :disabled="aiFormatting || aiRemaining <= 0"
-                class="studio-tool-btn bg-purple-600/30 text-purple-300 border-purple-500/50 hover:bg-purple-600/50 flex items-center gap-1.5 font-bold"
-                :title="aiRemaining <= 0 ? 'Đã hết lượt dùng AI miễn phí (5/5)' : 'Tự động chuẩn hóa & làm đẹp bài giảng bằng DeepSeek AI'"
-                @click="handleAiFormat"
-              >
-                <Sparkles :size="13" class="text-purple-400" :class="{ 'animate-spin': aiFormatting }" />
-                {{ aiFormatting ? 'AI đang format...' : `✨ Format AI (${aiRemaining}/5)` }}
-              </button>
-            </div>
-          </div>
-
-        <!-- Khung soạn thảo & Preview (Tùy theo viewMode) -->
-        <div class="studio-editor-panes" :class="`studio-editor-panes--${viewMode}`">
-          <!-- Pane 1: Editor Textarea -->
-          <div v-show="viewMode === 'split' || viewMode === 'editor'" class="studio-pane studio-pane--editor">
-            <div class="studio-pane__header">
-              <span class="studio-pane__title flex items-center gap-1.5">
-                <FileCode :size="13" class="text-vdsa-purple" /> Mã nguồn Markdown
-              </span>
-              <span class="studio-pane__count">{{ form.markdown.length }} ký tự</span>
-            </div>
-            <textarea
-              ref="textareaRef"
-              v-model="form.markdown"
-              class="studio-textarea"
-              placeholder="Bắt đầu viết bài giảng giải thuật bằng Markdown tại đây..."
-              spellcheck="false"
-            />
-          </div>
-
-          <!-- Pane 2: Live HTML Preview -->
-          <div v-show="viewMode === 'split' || viewMode === 'preview'" class="studio-pane studio-pane--preview">
-            <div class="studio-pane__header">
-              <span class="studio-pane__title flex items-center gap-1.5">
-                <Eye :size="13" class="text-emerald-400" /> Kết quả hiển thị bài giảng (Live Preview)
-              </span>
-              <span class="text-[10px] text-vdsa-muted">Tự động đồng bộ</span>
-            </div>
-            <div class="studio-preview-content prose-vdsa" v-html="renderedPreviewHtml" />
-          </div>
+        <div class="flex justify-end pt-2 border-t border-slate-800">
+          <Button variant="primary" size="sm" @click="simPickerModalOpen = false">Hoàn tất</Button>
         </div>
       </div>
-      </main>
+    </Modal>
 
-      <!-- CỘT PHẢI (28%): CÀI ĐẶT BÀI HỌC & GẮN MÔ PHỎNG TƯƠNG TÁC -->
-      <aside class="studio-sidebar">
-        <!-- Khối 1: Thuộc tính bài học -->
-        <section class="studio-card">
-          <h3 class="studio-card__title flex items-center gap-1.5">
-            <Settings :size="14" class="text-vdsa-purple" /> Cấu hình bài giảng
-          </h3>
+    <!-- ═══ MODAL XEM TRƯỚC LIVE PREVIEW ═══ -->
+    <Modal :open="previewModalOpen" :title="`Xem trước: ${form.title}`" size="lg" @close="previewModalOpen = false">
+      <div class="space-y-6 max-h-[75vh] overflow-y-auto p-4 bg-[#090d16] rounded-xl text-slate-200">
+        <div>
+          <h1 class="text-2xl font-black text-white mb-2">{{ form.title }}</h1>
+          <p v-if="form.description" class="text-xs text-slate-400 italic">{{ form.description }}</p>
+        </div>
 
-          <div class="space-y-3.5 mt-3">
-            <div>
-              <label class="studio-label">Chủ đề khóa học (Topic)</label>
-              <select v-model.number="form.topicId" class="studio-select">
-                <option v-for="t in topics" :key="t.id" :value="t.id">
-                  {{ t.name }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="studio-label">Mô tả tóm tắt (1-2 câu ngắn)</label>
-              <textarea
-                v-model="form.description"
-                rows="2"
-                class="studio-input"
-                placeholder="Tóm tắt nội dung trọng tâm của bài giảng..."
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="studio-label">Thứ tự hiển thị</label>
-                <input v-model.number="form.sortOrder" type="number" min="1" class="studio-input" />
-              </div>
-
-              <div>
-                <label class="studio-label">Trạng thái</label>
-                <select v-model="form.status" class="studio-select">
-                  <option value="active">Kích hoạt (Active)</option>
-                  <option value="draft">Bản nháp (Draft)</option>
-                  <option value="hidden">Tạm ẩn (Hidden)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label class="studio-label">Phạm vi phát hành</label>
-              <div class="space-y-2 mt-1">
-                <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-vdsa-border bg-white/5 cursor-pointer hover:border-vdsa-accent/50 transition-colors" :class="{ 'border-vdsa-accent bg-vdsa-accent/10': !form.isClassOnly }">
-                  <input type="radio" :value="false" v-model="form.isClassOnly" class="mt-0.5" />
-                  <div>
-                    <span class="text-xs font-bold text-white block">Công khai toàn hệ thống</span>
-                    <span class="text-[11px] text-vdsa-muted block">Gửi Quản trị viên duyệt trước khi phát hành cho mọi học viên.</span>
-                  </div>
-                </label>
-                <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-vdsa-border bg-white/5 cursor-pointer hover:border-emerald-500/50 transition-colors" :class="{ 'border-emerald-500 bg-emerald-500/10': form.isClassOnly }">
-                  <input type="radio" :value="true" v-model="form.isClassOnly" class="mt-0.5" />
-                  <div>
-                    <span class="text-xs font-bold text-emerald-400 block">Nội bộ lớp học của tôi</span>
-                    <span class="text-[11px] text-vdsa-muted block">Kích hoạt ngay — dùng để gán trực tiếp cho học viên trong lớp.</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Khối 2: Gắn Mô phỏng thuật toán tương tác (40+ thuật toán) -->
-        <section class="studio-card studio-card--simulations">
-          <div class="flex items-center justify-between">
-            <h3 class="studio-card__title flex items-center gap-1.5">
-              <Layers :size="14" class="text-vdsa-accent" /> Mô phỏng tương tác
-            </h3>
-            <span class="text-xs font-bold text-vdsa-purple">
-              Đã gắn: {{ form.selectedSimulations.length }}
+        <div v-if="form.selectedSimulations.length > 0" class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border">
+          <span class="text-xs font-bold text-white block mb-2">⚡ Mô phỏng đính kèm ({{ form.selectedSimulations.length }}):</span>
+          <div class="flex flex-wrap gap-2">
+            <span v-for="k in form.selectedSimulations" :key="k" class="px-2.5 py-1 rounded bg-sky-500/20 text-sky-300 text-xs font-mono">
+              {{ k }}
             </span>
           </div>
+        </div>
 
-          <p class="text-[11px] text-vdsa-muted mt-1">
-            Gắn các animation mô phỏng trực quan giúp học viên vừa đọc lý thuyết vừa thực hành từng bước.
-          </p>
+        <div v-if="form.quizQuestions.length > 0" class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30">
+          <span class="text-xs font-bold text-amber-300 block mb-1">❓ Bài kiểm tra trắc nghiệm đính kèm:</span>
+          <span class="text-xs text-slate-300">{{ form.quizQuestions.length }} câu hỏi kiểm tra kiến thức</span>
+        </div>
 
-          <!-- Danh sách Chip đã chọn -->
-          <div v-if="form.selectedSimulations.length > 0" class="studio-selected-chips">
-            <span v-for="simKey in form.selectedSimulations" :key="simKey" class="studio-chip">
-              <code>{{ simKey }}</code>
-              <button type="button" class="studio-chip__remove" @click="removeSimulation(simKey)">
-                <X :size="11" />
-              </button>
-            </span>
-          </div>
+        <div v-if="form.codeLab.enabled" class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
+          <span class="text-xs font-bold text-emerald-300 block mb-1">💻 Bài thực hành lập trình (Code Lab):</span>
+          <span class="text-xs text-slate-300">{{ form.codeLab.title }} · {{ form.codeLab.testCases.length }} Testcases</span>
+        </div>
 
-          <!-- Thanh tìm kiếm mô phỏng -->
-          <div class="studio-sim-search">
-            <Search :size="13" class="text-vdsa-muted" />
-            <input
-              v-model="simSearch"
-              type="text"
-              placeholder="Tìm thuật toán (quick, tree, sort...)"
-              class="studio-sim-search-input"
-            />
-            <button v-if="simSearch" type="button" class="text-vdsa-muted hover:text-white" @click="simSearch = ''">
-              <X :size="12" />
-            </button>
-          </div>
-
-          <!-- Filter categories -->
-          <div class="studio-sim-categories">
-            <button
-              v-for="cat in simulationCategories"
-              :key="cat.key"
-              type="button"
-              class="studio-sim-cat-btn"
-              :class="{ 'studio-sim-cat-btn--active': simCategoryFilter === cat.key }"
-              @click="simCategoryFilter = cat.key"
-            >
-              {{ cat.label }}
-            </button>
-          </div>
-
-          <!-- Danh sách mô phỏng cuộn mượt -->
-          <div class="studio-sim-list">
-            <div
-              v-for="sim in filteredSimulations"
-              :key="sim.key"
-              class="studio-sim-item"
-              :class="{ 'studio-sim-item--active': form.selectedSimulations.includes(sim.key) }"
-              @click="toggleSimulation(sim.key)"
-            >
-              <div class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  :checked="form.selectedSimulations.includes(sim.key)"
-                  class="rounded text-vdsa-purple"
-                  @click.stop="toggleSimulation(sim.key)"
-                />
-                <div>
-                  <h4 class="text-xs font-bold text-white">{{ sim.title }}</h4>
-                  <span class="text-[10px] text-vdsa-muted font-mono">{{ sim.key }}</span>
-                </div>
-              </div>
-              <Badge variant="muted" class="text-[9px]">{{ sim.category }}</Badge>
-            </div>
-
-            <p v-if="filteredSimulations.length === 0" class="text-xs text-vdsa-muted text-center py-6">
-              Không tìm thấy thuật toán nào khớp từ khóa.
-            </p>
-          </div>
-        </section>
-      </aside>
-    </div>
+        <div class="prose-preview border-t border-slate-800 pt-4" v-html="parseMarkdownToHtml(form.markdown)" />
+      </div>
+    </Modal>
   </div>
 </template>
-
-<style scoped>
-.admin-lesson-studio {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 64px);
-  background: var(--color-background, #0b0f19);
-  overflow: hidden;
-}
-
-/* ── TOP HEADER ── */
-.studio-header {
-  height: 56px;
-  border-bottom: 1px solid var(--color-border, #21262d);
-  background: var(--color-surface, #161b22);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-inline: var(--space-md);
-  flex-shrink: 0;
-  gap: var(--space-md);
-}
-
-.studio-header__left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.studio-header__divider {
-  width: 1px;
-  height: 20px;
-  background: var(--color-border, #30363d);
-}
-
-.studio-header__title-badge {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.studio-header__mode-tag {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary, #ffffff);
-}
-
-.studio-header__draft-status {
-  font-size: 11px;
-  color: #8b949e;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.studio-header__right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-/* Dropdown Menu */
-.studio-dropdown {
-  position: relative;
-}
-
-.studio-dropdown__menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  width: 280px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  padding: 6px;
-  z-index: 50;
-}
-
-.studio-dropdown:hover .studio-dropdown__menu {
-  display: block;
-}
-
-.studio-dropdown__item {
-  width: 100%;
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.studio-dropdown__item:hover {
-  background: rgba(99, 102, 241, 0.15);
-}
-
-/* View Mode Switcher */
-.studio-viewmode {
-  display: inline-flex;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  padding: 2px;
-}
-
-.studio-viewmode__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: #8b949e;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.studio-viewmode__btn--active {
-  background: #21262d;
-  color: #ffffff;
-}
-
-/* Alert khôi phục nháp */
-.studio-draft-alert {
-  background: rgba(245, 158, 11, 0.1);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 8px var(--space-md);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-/* ── WORKSPACE GRID ── */
-.studio-workspace {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  overflow: hidden;
-}
-
-@media (max-width: 1024px) {
-  .studio-workspace {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
-}
-
-.studio-main {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--color-border, #21262d);
-  overflow: hidden;
-}
-
-.studio-title-box {
-  padding: 12px 16px;
-  border-bottom: 1px solid #21262d;
-  background: #0d1117;
-}
-
-.studio-title-input {
-  width: 100%;
-  font-size: 18px;
-  font-weight: 800;
-  color: #ffffff;
-  background: transparent;
-  border: none;
-  outline: none;
-}
-
-.studio-title-input::placeholder {
-  color: #484f58;
-}
-
-/* ── TOOLBAR ── */
-.studio-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: #161b22;
-  border-bottom: 1px solid #21262d;
-  flex-wrap: wrap;
-}
-
-.studio-toolbar__group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-right: 8px;
-  border-right: 1px solid #30363d;
-}
-
-.studio-tool-btn {
-  padding: 4px 8px;
-  background: #21262d;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  color: #c9d1d9;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 150ms ease;
-}
-
-.studio-tool-btn:hover {
-  background: #30363d;
-  color: #ffffff;
-}
-
-.studio-tool-btn--lang { color: #58a6ff; }
-.studio-tool-btn--note { color: #60a5fa; }
-.studio-tool-btn--tip { color: #34d399; }
-.studio-tool-btn--warn { color: #fbbf24; }
-
-/* ── DUAL EDITOR PANES ── */
-.studio-editor-panes {
-  flex: 1;
-  display: grid;
-  overflow: hidden;
-}
-
-.studio-editor-panes--split {
-  grid-template-columns: 1fr 1fr;
-}
-.studio-editor-panes--editor {
-  grid-template-columns: 1fr;
-}
-.studio-editor-panes--preview {
-  grid-template-columns: 1fr;
-}
-
-.studio-pane {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.studio-pane--editor {
-  border-right: 1px solid #21262d;
-}
-
-.studio-pane__header {
-  height: 32px;
-  background: #161b22;
-  border-bottom: 1px solid #21262d;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-inline: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #8b949e;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.studio-textarea {
-  flex: 1;
-  width: 100%;
-  background: #0d1117;
-  color: #e6edf3;
-  font-family: var(--font-mono, 'Fira Code', monospace);
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 16px;
-  border: none;
-  outline: none;
-  resize: none;
-  overflow-y: auto;
-}
-
-.studio-pane--preview {
-  background: #0d1117;
-}
-
-.studio-preview-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  color: #c9d1d9;
-}
-
-/* ── RIGHT SIDEBAR ── */
-.studio-sidebar {
-  background: #161b22;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-}
-
-.studio-card {
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 12px;
-  padding: 14px;
-}
-
-.studio-card__title {
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #ffffff;
-}
-
-.studio-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #8b949e;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-}
-
-.studio-select,
-.studio-input {
-  width: 100%;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: #ffffff;
-  font-size: 12px;
-  outline: none;
-}
-
-.studio-select:focus,
-.studio-input:focus {
-  border-color: #6366f1;
-}
-
-/* Simulation Hub */
-.studio-selected-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.studio-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #c4b5fd;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-
-.studio-chip__remove {
-  background: transparent;
-  border: none;
-  color: #8b949e;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.studio-chip__remove:hover { color: #ef4444; }
-
-.studio-sim-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  padding: 6px 10px;
-  margin-top: 10px;
-}
-
-.studio-sim-search-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 11px;
-  color: #ffffff;
-}
-
-.studio-sim-categories {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  padding-block: 8px;
-}
-
-.studio-sim-cat-btn {
-  white-space: nowrap;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: #21262d;
-  border: none;
-  color: #8b949e;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.studio-sim-cat-btn--active {
-  background: #6366f1;
-  color: #ffffff;
-}
-
-.studio-sim-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.studio-sim-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: #161b22;
-  border: 1px solid #21262d;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.studio-sim-item:hover {
-  border-color: #6366f1;
-}
-
-.studio-sim-item--active {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
-}
-</style>

@@ -3,7 +3,7 @@
 // panel tối canvas-ink chứa 3 block — ô giữa rỗng (dashed) chờ dữ liệu, index mono
 // bên dưới từng block (signature "index mono dưới block") + icon chủ đích.
 // Giữ NGUYÊN API cũ (icon/title/description/actionLabel + emit action) — 57 chỗ gọi.
-import { Button } from '@/components/ui/button';
+import Button from '@/components/ui/Button.vue';
 import BaseIcon from './BaseIcon.vue';
 
 withDefaults(
@@ -54,7 +54,7 @@ const emit = defineEmits<{
 
     <h3 class="text-base font-medium text-foreground">{{ title }}</h3>
     <p v-if="description" class="max-w-md text-sm text-foreground-secondary">{{ description }}</p>
-    <Button v-if="actionLabel" size="default" @click="emit('action')">
+    <Button v-if="actionLabel" size="md" @click="emit('action')">
       {{ actionLabel }}
     </Button>
   </div>

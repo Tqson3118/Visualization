@@ -196,6 +196,79 @@ export const useClassStore = defineStore('classStore', () => {
     await Promise.all([reloadAssignments(classId), fetchCurriculum(classId).catch(() => undefined)]);
   }
 
+  /** Thêm hàng loạt bài học/bài tập vào lớp song song (Phase 0). */
+  async function assignContentBatch(
+    classId: number,
+    items: Array<{
+      lessonId?: number | null;
+      exerciseId?: number | null;
+      dueAt?: string | null;
+      allowLateSubmission?: boolean;
+    }>,
+  ): Promise<void> {
+    if (items.length === 0) return;
+    await Promise.all(
+      items.map((item) =>
+        classesApi.createClassAssignment(classId, {
+          lessonId: item.lessonId ?? null,
+          exerciseId: item.exerciseId ?? null,
+          dueAt: item.dueAt ?? null,
+          allowLateSubmission: item.allowLateSubmission,
+        }),
+      ),
+    );
+    await Promise.all([
+      reloadAssignments(classId),
+      fetchCurriculum(classId).catch(() => undefined),
+    ]);
+  }
+
+  /** Sắp xếp lại lộ trình với optimistic update local trước khi gọi API (Phase 0). */
+  async function reorderCurriculumLocal(
+    classId: number,
+    fromIdx: number,
+    toIdx: number,
+  ): Promise<void> {
+    const list = [...assignments.value];
+    if (
+      fromIdx < 0 ||
+      toIdx < 0 ||
+      fromIdx >= list.length ||
+      toIdx >= list.length ||
+      fromIdx === toIdx
+    ) {
+      return;
+    }
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved!);
+    assignments.value = list;
+    if (currentClass.value && currentClass.value.id === classId) {
+      currentClass.value.assignments = list;
+    }
+
+    const items: ClassCurriculumReorderItem[] = list.map((a, i) => ({
+      assignmentId: a.id,
+      sortOrder: i,
+    }));
+
+    try {
+      await classesApi.reorderClassCurriculum(classId, { items });
+      await fetchCurriculum(classId).catch(() => undefined);
+    } catch (err) {
+      await reloadAssignments(classId);
+      throw err;
+    }
+  }
+
+  async function setLearningPath(classId: number, learningPathId: number | null): Promise<void> {
+    const detail = await classesApi.setClassLearningPath(classId, learningPathId);
+    currentClass.value = detail;
+    await Promise.all([
+      fetchCurriculum(classId).catch(() => undefined),
+      reloadAssignments(classId).catch(() => undefined),
+    ]);
+  }
+
   function reset(): void {
     classes.value = [];
     currentClass.value = null;
@@ -226,6 +299,7 @@ export const useClassStore = defineStore('classStore', () => {
     reloadMembers,
     reloadAssignments,
     assignContent,
+    assignContentBatch,
     updateAssignment,
     removeAssignment,
     addMember,
@@ -234,6 +308,8 @@ export const useClassStore = defineStore('classStore', () => {
     fetchCurriculum,
     updateCurriculumMeta,
     reorderCurriculum,
+    reorderCurriculumLocal,
+    setLearningPath,
     reset,
   };
 });

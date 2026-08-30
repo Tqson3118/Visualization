@@ -87,23 +87,27 @@
   --radius-full: 9999px;
 
   /* ── Z-INDEX ── */
-  --z-base:    0;
-  --z-raised:  10;
-  --z-overlay: 100;
-  --z-modal:   1000;
-  --z-toast:   2000;
-  --z-tooltip: 3000;
+  --z-base:     0;
+  --z-raised:   10;
+  --z-header:   40;
+  --z-popover:  50;
+  --z-dropdown: 50;
+  --z-overlay:  40;
+  --z-drawer:   60;
+  --z-modal:    100;
+  --z-toast:    2000;
+  --z-tooltip:  3000;
 
   /* ── TRANSITION ── */
   --transition-fast:   all 150ms ease;
   --transition-smooth: all 250ms ease;
   --transition-slow:   all 500ms ease;
 
-  /* ── HEADER NỔI (absolute) ──
-     Chiều cao cụm brand+nav+action (logo 72px + padding 30+10 = 112px).
-     App.vue dùng làm padding-top cho app-shell; HomeView bù margin-top -112px
-     để hero tràn đỉnh. Sửa logo → sửa DUY NHẤT ở đây (cả 2 nơi tự đồng bộ). */
-  --app-header-h: 112px;
+  /* ── HEADER NỔI (fixed) ──
+     Chiều cao chuẩn cụm brand+nav+action (logo 44px + padding 12+12 = 68px).
+     App.vue dùng làm padding-top cho app-shell; HomeView bù margin-top -68px. */
+  --app-header-h: 68px;
+  --header-height: 68px;
 }
 
 /* ════════════════════════════════════════════════════════════════

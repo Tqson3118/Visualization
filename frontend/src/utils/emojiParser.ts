@@ -120,7 +120,7 @@ export const EMOJI_TO_ICON: Record<string, string> = {
 export function parseEmojiToSvg(text: string): string {
   if (!text) return text;
   
-  let result = text;
+  let result = escapeHtmlText(text);
   for (const [emoji, iconName] of Object.entries(EMOJI_TO_ICON)) {
     const path = SVG_PATHS[iconName];
     if (path) {

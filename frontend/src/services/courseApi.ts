@@ -125,6 +125,8 @@ export interface CourseUpsertPayload {
   topicId?: number;
   sortOrder?: number;
   isActive?: boolean;
+  scope?: 'draft' | 'class' | 'public';
+  status?: string;
   learningObjectives?: string[];
   keyOutcomes?: string[];
   highlights?: CourseHighlightDto[];
@@ -147,6 +149,8 @@ export const courseApi = {
     getData<CourseDetailDto>({ method: 'PUT', url: `/concepts/courses/${encodeURIComponent(String(id))}`, data: payload }),
   deleteCourse: (id: string | number) =>
     client.delete(`/concepts/courses/${encodeURIComponent(String(id))}`),
+  assignToClasses: (courseId: string | number, classIds: number[]) =>
+    getData<{ message: string }>({ method: 'POST', url: `/concepts/courses/${encodeURIComponent(String(courseId))}/assign-classes`, data: { classIds } }),
   addCourseNode: (courseId: string | number, payload: CourseNodePayload) =>
     getData<unknown>({ method: 'POST', url: `/concepts/courses/${encodeURIComponent(String(courseId))}/nodes`, data: payload }),
   deleteCourseNode: (courseId: string | number, nodeId: number) =>

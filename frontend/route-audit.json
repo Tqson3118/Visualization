@@ -1,0 +1,410 @@
+[
+ {
+  "route": "/",
+  "finalUrl": "/",
+  "redirected": true,
+  "bodyLen": 2115,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/login",
+  "finalUrl": "/login",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/register",
+  "finalUrl": "/register",
+  "redirected": false,
+  "bodyLen": 1183,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/forgot-password",
+  "finalUrl": "/forgot-password",
+  "redirected": false,
+  "bodyLen": 985,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/learn",
+  "finalUrl": "/path",
+  "redirected": true,
+  "bodyLen": 863,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/path",
+  "finalUrl": "/path",
+  "redirected": false,
+  "bodyLen": 863,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/simulations",
+  "finalUrl": "/login?redirect=/simulations",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/simulator/sort.bubble",
+  "finalUrl": "/simulator/sort.bubble",
+  "redirected": false,
+  "bodyLen": 1745,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/simulator/search.binary",
+  "finalUrl": "/simulator/search.binary",
+  "redirected": false,
+  "bodyLen": 1738,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/simulator/graph.bfs",
+  "finalUrl": "/simulator/graph.bfs",
+  "redirected": false,
+  "bodyLen": 1694,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/sorting-sandbox",
+  "finalUrl": "/sorting-sandbox",
+  "redirected": false,
+  "bodyLen": 405,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/searching-sandbox",
+  "finalUrl": "/searching-sandbox",
+  "redirected": false,
+  "bodyLen": 484,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/stack-queue-sandbox",
+  "finalUrl": "/stack-queue-sandbox",
+  "redirected": false,
+  "bodyLen": 703,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/cheatsheet",
+  "finalUrl": "/login?redirect=/cheatsheet",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/dashboard",
+  "finalUrl": "/login?redirect=/profile",
+  "redirected": true,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/profile",
+  "finalUrl": "/login?redirect=/profile",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/leaderboard",
+  "finalUrl": "/login?redirect=/leaderboard",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/quests",
+  "finalUrl": "/login?redirect=/quests",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/shop",
+  "finalUrl": "/login?redirect=/shop",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/premium",
+  "finalUrl": "/login?redirect=/premium",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/account/subscription",
+  "finalUrl": "/login?redirect=/account/subscription",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/classes",
+  "finalUrl": "/login?redirect=/classes",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/studio",
+  "finalUrl": "/login?redirect=/studio",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/teacher",
+  "finalUrl": "/login?redirect=/teacher",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/content",
+  "finalUrl": "/login?redirect=/studio",
+  "redirected": true,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin",
+  "finalUrl": "/login?redirect=/admin/users",
+  "redirected": true,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/users",
+  "finalUrl": "/login?redirect=/admin/users",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/stats",
+  "finalUrl": "/login?redirect=/admin/stats",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/settings",
+  "finalUrl": "/login?redirect=/admin/settings",
+  "redirected": false,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/ladder",
+  "finalUrl": "/login?redirect=/studio?tab=exercises",
+  "redirected": true,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/admin/feedback",
+  "finalUrl": "/login?redirect=/studio?tab=feedback",
+  "redirected": true,
+  "bodyLen": 994,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/help",
+  "finalUrl": "/help",
+  "redirected": false,
+  "bodyLen": 1266,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/privacy",
+  "finalUrl": "/privacy",
+  "redirected": false,
+  "bodyLen": 2121,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ },
+ {
+  "route": "/nonexistent-page-xyz",
+  "finalUrl": "/nonexistent-page-xyz",
+  "redirected": false,
+  "bodyLen": 777,
+  "overX": false,
+  "jsErrors": [],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "badRequests": []
+ }
+]

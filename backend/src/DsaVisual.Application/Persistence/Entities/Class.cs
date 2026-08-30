@@ -12,6 +12,8 @@ public sealed class Class
     public ClassStatus Status { get; set; } = ClassStatus.Open;
 
     // ── Learning Path / Curriculum (per-class) ──
+    /// <summary>FK → LearningPaths.Id — 1 lớp chỉ trỏ tới 1 lộ trình active tại một thời điểm.</summary>
+    public int? LearningPathId { get; set; }
     /// <summary>Tiêu đề lộ trình học được gán cho lớp (teacher-chosen, optional).</summary>
     public string? CurriculumTitle { get; set; }
     /// <summary>Mô tả lộ trình học (optional).</summary>

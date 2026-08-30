@@ -1,4 +1,4 @@
-﻿// engines/generators/linear/linkedList.ts — Danh sách liên kết đơn (SDD §4.7.11, §4.6.3)
+// engines/generators/linear/linkedList.ts — Danh sách liên kết đơn (SDD §4.7.11, §4.6.3)
 // Thao tác: insertHead / insertTail / insertAt / deleteAt / search / traverse
 import type { Element, InputConfig, InputSchema, Link, SimulationGenerator, Structure } from '../../core/types';
 import { buildGenerator, intField, intArrayField, strField, Trace } from '../helpers';
@@ -50,19 +50,19 @@ function listStructure(values: number[], statuses: Record<string, Element['statu
 }
 
 export function createListInsertGenerator(): SimulationGenerator {
-  return buildGenerator('list.insert', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i) });
+  return buildGenerator('list.insert', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i, 'insertHead') });
 }
 
 export function createListDeleteGenerator(): SimulationGenerator {
-  return buildGenerator('list.delete', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i) });
+  return buildGenerator('list.delete', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i, 'deleteAt') });
 }
 
 export function createListSearchGenerator(): SimulationGenerator {
-  return buildGenerator('list.search', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i) });
+  return buildGenerator('list.search', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i, 'search') });
 }
 
 export function createListTraverseGenerator(): SimulationGenerator {
-  return buildGenerator('list.traverse', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i) });
+  return buildGenerator('list.traverse', SCHEMA, PSEUDOCODE, { validate: listValidate, generate: (i) => runListOps(i, 'traverse') });
 }
 
 function listValidate(input: InputConfig): { ok: boolean; errors: string[] } {
@@ -89,10 +89,12 @@ function listValidate(input: InputConfig): { ok: boolean; errors: string[] } {
   return { ok: errors.length === 0, errors };
 }
 
-function runListOps(input: InputConfig): ReturnType<SimulationGenerator['generate']> {
+function runListOps(input: InputConfig, defaultOp: string = 'insertHead'): ReturnType<SimulationGenerator['generate']> {
   const rec = input.data !== null && typeof input.data === 'object' ? (input.data as Record<string, unknown>) : {};
-  const values = intArrayField(rec, 'initialValues', []).slice();
-  const op = strField(rec, 'operation', 'insertHead');
+  const fallbackValues = defaultOp === 'deleteAt' || defaultOp === 'search' || defaultOp === 'traverse' ? [10, 20, 30, 40] : [];
+  const values = intArrayField(rec, 'initialValues', fallbackValues).slice();
+  const rawOp = typeof rec.operation === 'string' ? rec.operation : undefined;
+  const op = rawOp && rawOp !== 'insertHead' ? rawOp : (defaultOp ?? rawOp ?? 'insertHead');
   const value = intField(rec, 'value', 7);
   const position = intField(rec, 'position', 0);
   const trace = new Trace();
@@ -316,19 +318,22 @@ function runListOps(input: InputConfig): ReturnType<SimulationGenerator['generat
     return trace.steps;
   }
   if (k === 0) {
+    const deletedVal = values[0];
     statuses['node:0'] = 'error';
     trace.push({
       line: 4,
-      explanation: `Xóa nút đầu: head ← nút ${values.length > 1 ? 1 : 'null'}, giải phóng nút 0 (${values[0]}).`,
+      explanation: `Xóa nút đầu: head ← nút ${values.length > 1 ? 1 : 'null'}, giải phóng nút 0 (${deletedVal}).`,
       structure: listStructure(values, statuses),
-      annotations: [`xóa nút 0 (${values[0]})`],
+      annotations: [`xóa nút 0 (${deletedVal})`],
     });
     values.shift();
-    statuses['node:0'] = 'muted';
+    delete statuses['node:0'];
+    const st: Record<string, Element['status']> = {};
+    for (let i = 0; i < values.length; i++) st[`node:${i}`] = 'done';
     trace.push({
       line: 4,
-      explanation: `Kết thúc: xóa ${values.length > 0 ? `đầu danh sách → [${values.join(' → ')} → null]` : 'hết (danh sách rỗng)'}.`,
-      structure: listStructure(values, statuses),
+      explanation: `Kết thúc: xóa ${values.length > 0 ? `đầu danh sách (${deletedVal}) → [${values.join(' → ')} → null]` : `nút ${deletedVal} (danh sách rỗng)`}.`,
+      structure: listStructure(values, st),
     });
   } else {
     for (let i = 0; i < k; i++) statuses[`node:${i}`] = i === k - 1 ? 'active' : 'muted';
@@ -339,19 +344,20 @@ function runListOps(input: InputConfig): ReturnType<SimulationGenerator['generat
       annotations: [`current=${k - 1}`],
     });
     statuses[`node:${k}`] = 'error';
+    const deletedVal = values[k];
     trace.push({
       line: 4,
-      explanation: `Xóa nút ${k} (${values[k]}): nút ${k - 1}.next ← nút ${k + 1}.`,
+      explanation: `Xóa nút ${k} (${deletedVal}): nút ${k - 1}.next ← nút ${k + 1 < values.length ? k + 1 : 'null'}.`,
       structure: listStructure(values, statuses),
-      annotations: [`xóa nút ${k} (${values[k]})`],
+      annotations: [`xóa nút ${k} (${deletedVal})`],
     });
     values.splice(k, 1);
-    statuses[`node:${k}`] = 'muted';
+    delete statuses[`node:${k}`];
     const st: Record<string, Element['status']> = {};
     for (let i = 0; i < values.length; i++) st[`node:${i}`] = 'done';
     trace.push({
       line: 4,
-      explanation: `Kết thúc: đã xóa ${k === 0 ? 'nút đầu' : `nút ${k}`} → [${values.join(' → ')} → null].`,
+      explanation: `Kết thúc: đã xóa nút ${k} (${deletedVal}) → [${values.join(' → ')} → null].`,
       structure: listStructure(values, st),
     });
   }

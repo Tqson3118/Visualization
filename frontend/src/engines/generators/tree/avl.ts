@@ -146,24 +146,24 @@ export function createAvlInsertGenerator(): SimulationGenerator {
         annotations: [`x=${value}`],
       });
 
-      const insertAvl = (node: AvlNode | null, x: number): AvlNode => {
+      const insertAvl = (node: AvlNode | null, x: number, parent?: { node: AvlNode; isLeft: boolean }): AvlNode => {
         if (node === null) {
-          trace.push({
-            line: 2,
-            explanation: `Gặp vị trí rỗng → tạo nút mới ${x} (height=1).`,
-            structure: avlStructure(state.root, statuses),
-            annotations: [`newNode(${x}), h=1`],
-          });
-          const created: AvlNode = { key: x, left: null, right: null, height: 1 };
+          const newNode: AvlNode = { key: x, height: 1, left: null, right: null };
+          if (parent) {
+            if (parent.isLeft) parent.node.left = newNode;
+            else parent.node.right = newNode;
+          } else {
+            state.root = newNode;
+          }
           statuses[`node:${x}`] = 'highlight';
           trace.push({
             line: 2,
-            explanation: `Nút ${x} được thêm vào cây.`,
+            explanation: `Gặp vị trí rỗng → tạo nút mới ${x} (h=1, bf=0).`,
             structure: avlStructure(state.root, statuses),
-            annotations: [`chèn ${x}`],
+            annotations: [`newNode(${x})`],
           });
-          statuses[`node:${x}`] = 'done';
-          return created;
+          statuses[`node:${x}`] = 'default';
+          return newNode;
         }
 
         statuses[`node:${node.key}`] = 'active';
@@ -182,7 +182,7 @@ export function createAvlInsertGenerator(): SimulationGenerator {
             annotations: [`${x} < ${node.key} → trái`],
           });
           statuses[`node:${node.key}`] = 'muted';
-          node.left = insertAvl(node.left, x);
+          node.left = insertAvl(node.left, x, { node, isLeft: true });
           statuses[`node:${node.key}`] = 'default';
         } else if (x > node.key) {
           trace.push({
@@ -192,7 +192,7 @@ export function createAvlInsertGenerator(): SimulationGenerator {
             annotations: [`${x} > ${node.key} → phải`],
           });
           statuses[`node:${node.key}`] = 'muted';
-          node.right = insertAvl(node.right, x);
+          node.right = insertAvl(node.right, x, { node, isLeft: false });
           statuses[`node:${node.key}`] = 'default';
         } else {
           statuses[`node:${node.key}`] = 'highlight';
@@ -250,7 +250,12 @@ export function createAvlInsertGenerator(): SimulationGenerator {
               annotations: ['xoay LL (right rotation)'],
             });
             const newRoot = rotateRight(node);
-            state.root = state.root === node ? newRoot : state.root;
+            if (parent) {
+              if (parent.isLeft) parent.node.left = newRoot;
+              else parent.node.right = newRoot;
+            } else {
+              state.root = newRoot;
+            }
             node = newRoot;
           } else if (balance < -1 && x > right.key) {
             rotation = 'RR';
@@ -263,7 +268,12 @@ export function createAvlInsertGenerator(): SimulationGenerator {
               annotations: ['xoay RR (left rotation)'],
             });
             const newRoot = rotateLeft(node);
-            state.root = state.root === node ? newRoot : state.root;
+            if (parent) {
+              if (parent.isLeft) parent.node.left = newRoot;
+              else parent.node.right = newRoot;
+            } else {
+              state.root = newRoot;
+            }
             node = newRoot;
           } else if (balance > 1 && x > left.key) {
             rotation = 'LR';
@@ -276,7 +286,12 @@ export function createAvlInsertGenerator(): SimulationGenerator {
             });
             node.left = rotateLeft(left);
             const newRoot = rotateRight(node);
-            state.root = state.root === node ? newRoot : state.root;
+            if (parent) {
+              if (parent.isLeft) parent.node.left = newRoot;
+              else parent.node.right = newRoot;
+            } else {
+              state.root = newRoot;
+            }
             node = newRoot;
           } else {
             rotation = 'RL';
@@ -289,7 +304,12 @@ export function createAvlInsertGenerator(): SimulationGenerator {
             });
             node.right = rotateRight(right);
             const newRoot = rotateLeft(node);
-            state.root = state.root === node ? newRoot : state.root;
+            if (parent) {
+              if (parent.isLeft) parent.node.left = newRoot;
+              else parent.node.right = newRoot;
+            } else {
+              state.root = newRoot;
+            }
             node = newRoot;
           }
 

@@ -38,7 +38,7 @@ import Modal from '@/components/ui/Modal.vue';
 import Drawer from '@/components/ui/Drawer.vue';
 import Input from '@/components/ui/Input.vue';
 import Tabs from '@/components/ui/Tabs.vue';
-import AdminNav from '@/components/admin/AdminNav.vue';
+import StudioShell from '@/components/studio/StudioShell.vue';
 
 const ui = useUiStore();
 const auth = useAuthStore();
@@ -400,30 +400,29 @@ async function loadDrawerDetail(id: number): Promise<void> {
 </script>
 
 <template>
-  <main class="admin-users container">
-    <!-- Banner: surface band level-2 -->
-    <header class="admin-users__hero">
-      <div class="admin-users__hero-inner">
-        <div class="admin-users__hero-main">
-          <div class="admin-users__hero-badges">
-            <Badge variant="primary">{{ messages.admin.badge }}</Badge>
+  <StudioShell active-tab="users">
+    <div class="space-y-6">
+      <!-- Banner: surface band level-2 -->
+      <header class="admin-users__hero">
+        <div class="admin-users__hero-inner">
+          <div class="admin-users__hero-main">
+            <div class="admin-users__hero-badges">
+              <Badge variant="primary">{{ messages.admin.badge }}</Badge>
+            </div>
+            <h1 class="admin-users__title">{{ messages.admin.users.title }}</h1>
+            <p class="admin-users__sub">{{ messages.admin.users.subtitle }}</p>
           </div>
-          <h1 class="admin-users__title">{{ messages.admin.users.title }}</h1>
-          <p class="admin-users__sub">{{ messages.admin.users.subtitle }}</p>
+
+          <div class="flex items-center gap-3">
+            <Button variant="primary" size="sm" class="gap-1.5" @click="openCreateModal">
+              <UserPlus :size="15" /> + Thêm Người Dùng
+            </Button>
+          </div>
         </div>
+      </header>
 
-        <div class="flex items-center gap-3">
-          <Button variant="primary" size="sm" class="gap-1.5" @click="openCreateModal">
-            <UserPlus :size="15" /> + Thêm Người Dùng
-          </Button>
-        </div>
-      </div>
-    </header>
-
-    <AdminNav active="users" />
-
-    <!-- Tabs: Tất cả / Chờ duyệt Teacher -->
-    <Tabs :tabs="userTabs" :model-value="tab" @change="switchTab" />
+      <!-- Tabs: Tất cả / Chờ duyệt Teacher -->
+      <Tabs :tabs="userTabs" :model-value="tab" @change="switchTab" />
 
     <!-- Filter & Search Toolbar -->
     <div class="admin-users__filters">
@@ -941,7 +940,8 @@ async function loadDrawerDetail(id: number): Promise<void> {
         </section>
       </div>
     </Drawer>
-  </main>
+    </div>
+  </StudioShell>
 </template>
 
 <style scoped>
@@ -1048,10 +1048,12 @@ async function loadDrawerDetail(id: number): Promise<void> {
 
 .admin-users__table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 750px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -1260,5 +1262,46 @@ td {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── Responsive Mobile & Tablet ── */
+@media (max-width: 768px) {
+  .admin-users {
+    padding-inline: var(--space-sm, 12px);
+    gap: var(--space-md, 16px);
+  }
+
+  .admin-users__hero {
+    padding: var(--space-md, 16px);
+  }
+
+  .admin-users__hero-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__search-box {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .admin-users__select {
+    width: 100%;
+  }
+
+  .admin-users__drawer-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-users__drawer-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -79,7 +79,30 @@ public sealed class FavoriteService(
             CreatedAt = clock.UtcNow
         };
         db.Favorites.Add(favorite);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogWarning(ex, "Duplicate favorite insert detected for user {UserId}, simKey {SimKey}", userId, request.SimKey);
+            var existing = await db.Favorites.AsNoTracking()
+                .FirstOrDefaultAsync(f => f.UserId == userId && f.SimulationKey == request.SimKey, ct);
+            if (existing is not null)
+            {
+                var existingMeta = await catalog.GetByKeyAsync(request.SimKey, ct);
+                return Result<FavoriteDto>.Ok(new FavoriteDto
+                {
+                    Id = existing.Id,
+                    SimulationKey = existing.SimulationKey,
+                    Title = existingMeta.IsSuccess ? existingMeta.Value!.Title : null,
+                    DataStructure = existingMeta.IsSuccess ? existingMeta.Value!.DataStructure : null,
+                    Input = existing.InputJson,
+                    CreatedAt = existing.CreatedAt
+                });
+            }
+            throw;
+        }
 
         logger.LogInformation("Favorite {FavoriteId} ({SimKey}) added by user {UserId}", favorite.Id, request.SimKey, userId);
         var meta = await catalog.GetByKeyAsync(request.SimKey, ct);
