@@ -47,4 +47,23 @@ describe('TipTapEditor — Word-like WYSIWYG & Loop Protection', () => {
 
     expect(wrapper.emitted('update:modelValue')).toBeTruthy();
   });
+
+  it('4. Hỗ trợ Table extension: chèn bảng và render thẻ <table>, <th>, <td>', async () => {
+    const wrapper = mount(TipTapEditor, {
+      props: {
+        modelValue: '<p>Trước bảng</p>',
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('button[title*="Chèn bảng"]').exists()).toBe(true);
+
+    wrapper.vm.insertTable();
+    await flushPromises();
+
+    const html = wrapper.vm.editor?.getHTML();
+    expect(html).toContain('<table');
+    expect(html).toContain('<th');
+    expect(html).toContain('<td');
+  });
 });

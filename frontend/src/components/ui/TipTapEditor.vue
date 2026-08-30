@@ -139,6 +139,14 @@
       <div class="flex items-center gap-0.5 px-2 border-r border-vdsa-border/60">
         <button
           type="button"
+          @click="insertTable"
+          class="p-1.5 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
+          title="Chèn bảng (3x3)"
+        >
+          <TableIcon :size="15" />
+        </button>
+        <button
+          type="button"
           @click="addImage"
           class="p-1.5 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
           title="Chèn ảnh (URL)"
@@ -152,6 +160,50 @@
           title="Đường kẻ phân cách"
         >
           <Minus :size="15" />
+        </button>
+      </div>
+
+      <!-- Table Controls (appears when cursor is inside a table) -->
+      <div v-if="editor?.isActive('table')" class="flex items-center gap-0.5 px-2 border-r border-vdsa-border/60 bg-vdsa-surface/50 rounded-lg py-0.5">
+        <button
+          type="button"
+          @click="editor?.chain().focus().addColumnAfter().run()"
+          class="px-1.5 py-1 rounded text-[11px] text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
+          title="Thêm cột bên phải"
+        >
+          +Cột
+        </button>
+        <button
+          type="button"
+          @click="editor?.chain().focus().deleteColumn().run()"
+          class="px-1.5 py-1 rounded text-[11px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+          title="Xóa cột"
+        >
+          -Cột
+        </button>
+        <button
+          type="button"
+          @click="editor?.chain().focus().addRowAfter().run()"
+          class="px-1.5 py-1 rounded text-[11px] text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
+          title="Thêm dòng bên dưới"
+        >
+          +Dòng
+        </button>
+        <button
+          type="button"
+          @click="editor?.chain().focus().deleteRow().run()"
+          class="px-1.5 py-1 rounded text-[11px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+          title="Xóa dòng"
+        >
+          -Dòng
+        </button>
+        <button
+          type="button"
+          @click="editor?.chain().focus().deleteTable().run()"
+          class="px-1.5 py-1 rounded text-[11px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors font-bold"
+          title="Xóa toàn bộ bảng"
+        >
+          Xóa bảng
         </button>
       </div>
 
@@ -200,6 +252,7 @@ import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import {
   Bold,
   Italic,
@@ -210,6 +263,7 @@ import {
   Quote,
   FileCode,
   Image as ImageIcon,
+  Table as TableIcon,
   Minus,
   Undo,
   Redo,
@@ -252,6 +306,12 @@ const editor = useEditor({
     Placeholder.configure({
       placeholder: props.placeholder,
     }),
+    Table.configure({
+      resizable: true,
+    }),
+    TableRow,
+    TableHeader,
+    TableCell,
   ],
   editorProps: {
     attributes: {
@@ -288,6 +348,12 @@ watch(
   },
 );
 
+function insertTable(): void {
+  if (editor.value) {
+    editor.value.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  }
+}
+
 function addImage(): void {
   const url = window.prompt('Nhập đường dẫn hình ảnh (URL):');
   if (url && editor.value) {
@@ -322,6 +388,7 @@ defineExpose({
   editor,
   getText: () => editor.value?.getText() || '',
   getHTML: () => editor.value?.getHTML() || '',
+  insertTable,
 });
 
 onBeforeUnmount(() => {
@@ -411,5 +478,72 @@ onBeforeUnmount(() => {
   border-radius: 0.75rem;
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+/* TipTap Tables Custom Styling */
+.tiptap-content .ProseMirror table {
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  table-layout: fixed;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tiptap-content .ProseMirror table td,
+.tiptap-content .ProseMirror table th {
+  min-width: 1em;
+  padding: 0.625rem 0.75rem;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.85rem;
+}
+
+.tiptap-content .ProseMirror table th {
+  font-weight: bold;
+  text-align: left;
+  background-color: rgba(30, 27, 46, 0.9);
+  color: #c4b5fd;
+}
+
+.tiptap-content .ProseMirror table td {
+  color: #cbd5e1;
+  background-color: rgba(13, 17, 23, 0.5);
+}
+
+.tiptap-content .ProseMirror table tr:hover td {
+  background-color: rgba(168, 85, 247, 0.08);
+}
+
+.tiptap-content .ProseMirror table .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(168, 85, 247, 0.25);
+  pointer-events: none;
+}
+
+.tiptap-content .ProseMirror table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #a855f7;
+  pointer-events: none;
+}
+
+.tiptap-content .tableWrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.tiptap-content .resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
 }
 </style>
