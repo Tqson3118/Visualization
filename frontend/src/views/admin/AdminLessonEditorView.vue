@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import {
   ArrowLeft,
@@ -62,9 +62,12 @@ const initialSnapshot = ref<string>('');
 const lastSavedDraftTime = ref<string | null>(null);
 const hasRestorableDraft = ref(false);
 const previewModalOpen = ref(false);
+const previewTab = ref<'theory' | 'quiz' | 'codelab'>('theory');
+const previewAnswers = reactive<Record<number, number>>({});
 const simPickerModalOpen = ref(false);
 
 const theoryTabRef = ref<InstanceType<typeof TheoryTab> | null>(null);
+
 
 // Topics, Simulations & Classes Data
 const topics = ref<Topic[]>([]);
@@ -291,7 +294,33 @@ onMounted(async () => {
       isDirty.value = false;
     }, 200);
   }
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  window.addEventListener('keydown', onKeydown);
 });
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+  window.removeEventListener('keydown', onKeydown);
+  if (saveTimer) clearTimeout(saveTimer);
+});
+
+function handleBeforeUnload(e: BeforeUnloadEvent): void {
+  const isActuallyDirty = initialSnapshot.value && JSON.stringify(form) !== initialSnapshot.value;
+  if (isActuallyDirty && !isNavigatingAwayAfterSave.value) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (!saving.value) {
+      void handleSave();
+    }
+  }
+}
 
 // Auto-save debounced
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -415,11 +444,8 @@ function scrollToSection(sectionId: string): void {
 
 // ── Xem trước bài giảng ──
 function handlePreview(): void {
-  if (isEdit.value && lessonId.value) {
-    window.open(`/lessons/${lessonId.value}`, '_blank');
-  } else {
-    previewModalOpen.value = true;
-  }
+  previewTab.value = 'theory';
+  previewModalOpen.value = true;
 }
 
 // ── Lưu & Xuất bản 4-in-1 Transactional Save ──
@@ -434,6 +460,32 @@ async function handleSave(): Promise<void> {
     scrollToSection('section-theory');
     return;
   }
+
+  // Validation CodeLab
+  if (form.codeLab.enabled) {
+    if (!form.codeLab.testCases || form.codeLab.testCases.length === 0) {
+      ui.showToast('Phần Code Lab đang bật nhưng chưa có Test case nào. Vui lòng thêm ít nhất 1 Test case hoặc tắt Code Lab.', 'warning');
+      scrollToSection('section-codelab');
+      return;
+    }
+    if (!form.codeLab.starterCode?.trim()) {
+      ui.showToast('Vui lòng nhập Starter Code cho bài tập Code Lab.', 'warning');
+      scrollToSection('section-codelab');
+      return;
+    }
+  }
+
+  // Validation Quiz
+  const activeQuiz = form.quizQuestions.filter((q) => q.content.trim().length > 0);
+  for (let i = 0; i < activeQuiz.length; i++) {
+    const validOpts = activeQuiz[i].options.filter((o) => o.trim().length > 0);
+    if (validOpts.length < 2) {
+      ui.showToast(`Câu hỏi Quiz #${i + 1} cần có ít nhất 2 lựa chọn đáp án.`, 'warning');
+      scrollToSection('section-quiz');
+      return;
+    }
+  }
+
 
   saving.value = true;
   let hasSubPartError = false;
@@ -1123,35 +1175,171 @@ function goBack(): void {
       </div>
     </Modal>
 
-    <!-- ═══ MODAL XEM TRƯỚC LIVE PREVIEW ═══ -->
-    <Modal :open="previewModalOpen" :title="`Xem trước: ${form.title}`" size="lg" @close="previewModalOpen = false">
-      <div class="space-y-6 max-h-[75vh] overflow-y-auto p-4 bg-[#090d16] rounded-xl text-slate-200">
-        <div>
-          <h1 class="text-2xl font-black text-white mb-2">{{ form.title }}</h1>
-          <p v-if="form.description" class="text-xs text-slate-400 italic">{{ form.description }}</p>
+    <!-- ═══ MODAL XEM TRƯỚC LIVE PREVIEW TƯƠNG TÁC ═══ -->
+    <Modal :open="previewModalOpen" :title="`Xem trước: ${form.title || 'Bài học'}`" size="lg" @close="previewModalOpen = false">
+      <div class="space-y-4 max-h-[75vh] overflow-y-auto p-4 bg-[#090d16] rounded-xl text-slate-200 custom-scrollbar">
+        <!-- Interactive Tab Switcher -->
+        <div class="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+          <button
+            type="button"
+            class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="previewTab === 'theory' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+            @click="previewTab = 'theory'"
+          >
+            <PenTool :size="13" /> 1. Lý thuyết ({{ form.selectedSimulations.length }} mô phỏng)
+          </button>
+
+          <button
+            type="button"
+            class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="previewTab === 'quiz' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+            @click="previewTab = 'quiz'"
+          >
+            <Puzzle :size="13" /> 2. Mini-Quiz ({{ form.quizQuestions.filter(q => q.content.trim().length > 0).length }})
+          </button>
+
+          <button
+            v-if="form.codeLab.enabled"
+            type="button"
+            class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="previewTab === 'codelab' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+            @click="previewTab = 'codelab'"
+          >
+            <Code :size="13" /> 3. Code Lab ({{ form.codeLab.testCases.length }})
+          </button>
         </div>
 
-        <div v-if="form.selectedSimulations.length > 0" class="p-4 rounded-xl bg-vdsa-surface border border-vdsa-border">
-          <span class="text-xs font-bold text-white block mb-2">⚡ Mô phỏng đính kèm ({{ form.selectedSimulations.length }}):</span>
-          <div class="flex flex-wrap gap-2">
-            <span v-for="k in form.selectedSimulations" :key="k" class="px-2.5 py-1 rounded bg-sky-500/20 text-sky-300 text-xs font-mono">
-              {{ k }}
+        <!-- ── TAB 1: LÝ THUYẾT & MÔ PHỎNG ── -->
+        <div v-show="previewTab === 'theory'" class="space-y-4">
+          <div class="border-b border-slate-800 pb-3">
+            <h1 class="text-xl sm:text-2xl font-black text-white mb-1.5">{{ form.title }}</h1>
+            <p v-if="form.description" class="text-xs text-slate-400 italic">{{ form.description }}</p>
+          </div>
+
+          <div v-if="form.selectedSimulations.length > 0" class="p-3.5 rounded-xl bg-vdsa-surface border border-sky-500/30 space-y-2">
+            <span class="text-xs font-bold text-sky-300 block flex items-center gap-1.5">
+              <Zap :size="14" class="text-sky-400" /> Mô phỏng thuật toán trực quan gắn kèm:
             </span>
+            <div class="flex flex-wrap gap-2">
+              <a
+                v-for="k in form.selectedSimulations"
+                :key="k"
+                :href="`/simulator/${k}`"
+                target="_blank"
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 text-xs font-mono border border-sky-500/40 transition-colors"
+                title="Bấm để mở trình chạy mô phỏng"
+              >
+                <span>{{ allSimulations.find(s => s.key === k)?.title || k }}</span>
+                <ExternalLink :size="11" />
+              </a>
+            </div>
+          </div>
+
+          <div class="prose-preview pt-2" v-html="parseMarkdownToHtml(form.markdown)" />
+        </div>
+
+        <!-- ── TAB 2: MINI-QUIZ TƯƠNG TÁC ── -->
+        <div v-show="previewTab === 'quiz'" class="space-y-4">
+          <div v-if="form.quizQuestions.filter(q => q.content.trim().length > 0).length === 0" class="p-8 text-center text-slate-400 text-xs">
+            Bài học này chưa có câu hỏi trắc nghiệm nào.
+          </div>
+
+          <div v-else class="space-y-4">
+            <p class="text-xs text-slate-400">
+              Chế độ thử nghiệm: Bạn có thể chọn đáp án để kiểm tra logic hiển thị và giải thích trước khi học viên làm bài.
+            </p>
+
+            <div
+              v-for="(q, qIdx) in form.quizQuestions.filter(q => q.content.trim().length > 0)"
+              :key="qIdx"
+              class="p-4 rounded-xl bg-vdsa-surface border border-slate-800 space-y-3"
+            >
+              <div class="flex items-start gap-2.5">
+                <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center shrink-0">
+                  {{ qIdx + 1 }}
+                </span>
+                <span class="text-xs font-bold text-white">{{ q.content }}</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  v-for="(opt, oIdx) in q.options.filter(o => o.trim().length > 0)"
+                  :key="oIdx"
+                  type="button"
+                  class="p-2.5 rounded-lg border text-left text-xs font-medium transition-all flex items-center justify-between"
+                  :class="
+                    previewAnswers[qIdx] === oIdx
+                      ? (oIdx === q.correctIndex
+                          ? 'bg-emerald-950/40 border-emerald-500 text-emerald-200'
+                          : 'bg-rose-950/40 border-rose-500 text-rose-200')
+                      : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:border-slate-700'
+                  "
+                  @click="previewAnswers[qIdx] = oIdx"
+                >
+                  <span>{{ String.fromCharCode(65 + oIdx) }}. {{ opt }}</span>
+                  <span v-if="previewAnswers[qIdx] === oIdx">
+                    {{ oIdx === q.correctIndex ? '✓ Đúng' : '✗ Sai' }}
+                  </span>
+                </button>
+              </div>
+
+              <div v-if="previewAnswers[qIdx] !== undefined && q.explanation" class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-slate-300">
+                <strong class="text-amber-300">Giải thích:</strong> {{ q.explanation }}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div v-if="form.quizQuestions.length > 0" class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30">
-          <span class="text-xs font-bold text-amber-300 block mb-1">❓ Bài kiểm tra trắc nghiệm đính kèm:</span>
-          <span class="text-xs text-slate-300">{{ form.quizQuestions.length }} câu hỏi kiểm tra kiến thức</span>
+        <!-- ── TAB 3: CODE LAB PREVIEW ── -->
+        <div v-show="previewTab === 'codelab'" class="space-y-4">
+          <div v-if="!form.codeLab.enabled" class="p-8 text-center text-slate-400 text-xs">
+            Bài học này không đính kèm bài tập Code Lab.
+          </div>
+
+          <div v-else class="space-y-4">
+            <div class="p-4 rounded-xl bg-vdsa-surface border border-emerald-500/30 space-y-2">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <h3 class="text-sm font-bold text-white">{{ form.codeLab.title }}</h3>
+                <div class="flex items-center gap-2">
+                  <Badge variant="secondary" class="text-[10px] font-mono">Hàm: {{ form.codeLab.entryFunction }}()</Badge>
+                  <Badge variant="primary" class="text-[10px]">{{ form.codeLab.difficulty }}</Badge>
+                  <Badge variant="secondary" class="text-[10px]">{{ form.codeLab.maxScore }} điểm</Badge>
+                </div>
+              </div>
+              <p v-if="form.codeLab.description" class="text-xs text-slate-300 leading-relaxed">{{ form.codeLab.description }}</p>
+            </div>
+
+            <div class="space-y-1.5">
+              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider block">Starter Code:</span>
+              <pre class="p-3.5 rounded-xl bg-[#060911] border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto"><code>{{ form.codeLab.starterCode }}</code></pre>
+            </div>
+
+            <div class="space-y-2">
+              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider block">Test Cases ({{ form.codeLab.testCases.length }}):</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div
+                  v-for="(tc, tcIdx) in form.codeLab.testCases"
+                  :key="tcIdx"
+                  class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono space-y-1"
+                >
+                  <div class="flex items-center justify-between text-slate-400 text-[11px]">
+                    <span>#Testcase {{ tcIdx + 1 }}</span>
+                    <span v-if="tc.isHidden" class="text-amber-400">Ẩn</span>
+                    <span v-else class="text-slate-500">Công khai</span>
+                  </div>
+                  <div class="text-slate-300 truncate">Input: {{ tc.input }}</div>
+                  <div class="text-emerald-400 truncate">Expected: {{ tc.expected }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div v-if="form.codeLab.enabled" class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
-          <span class="text-xs font-bold text-emerald-300 block mb-1">💻 Bài thực hành lập trình (Code Lab):</span>
-          <span class="text-xs text-slate-300">{{ form.codeLab.title }} · {{ form.codeLab.testCases.length }} Testcases</span>
+        <div class="flex justify-end pt-3 border-t border-slate-800">
+          <Button variant="secondary" size="sm" @click="previewModalOpen = false">Đóng xem trước</Button>
         </div>
-
-        <div class="prose-preview border-t border-slate-800 pt-4" v-html="parseMarkdownToHtml(form.markdown)" />
       </div>
     </Modal>
   </div>
 </template>
+

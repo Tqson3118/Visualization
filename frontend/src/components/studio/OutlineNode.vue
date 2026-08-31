@@ -208,7 +208,7 @@ function onRowClick(): void {
     <div
       class="group relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-1.5 py-1.5 cursor-pointer transition-colors border border-transparent select-none"
       :class="[
-        isSelected ? 'bg-purple-600/20 border-purple-500/40' : 'hover:bg-[#1e1d2c]',
+        isSelected ? 'bg-purple-600/25 border-purple-500/50 border-l-4 border-l-purple-500 shadow-sm' : 'hover:bg-[#1e1d2c]',
         zoneClass,
         isDragging ? 'opacity-40' : '',
       ]"

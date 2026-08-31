@@ -22,7 +22,20 @@ export const useCourseStore = defineStore('course', () => {
       result = result.filter(c => c.category === selectedCategory.value);
     }
     if (selectedDifficulty.value !== 'All') {
-      result = result.filter(c => c.difficulty === selectedDifficulty.value);
+      const target = selectedDifficulty.value.toLowerCase();
+      result = result.filter(c => {
+        const diff = (c.difficulty || '').toLowerCase();
+        if (target === 'beginner' || target === 'cơ bản' || target === 'dễ' || target === 'easy') {
+          return diff.includes('begin') || diff.includes('easy') || diff.includes('cơ bản') || diff.includes('dễ');
+        }
+        if (target === 'intermediate' || target === 'trung cấp' || target === 'trung bình' || target === 'medium') {
+          return diff.includes('inter') || diff.includes('med') || diff.includes('trung');
+        }
+        if (target === 'advanced' || target === 'nâng cao' || target === 'khó' || target === 'hard') {
+          return diff.includes('adv') || diff.includes('hard') || diff.includes('nâng') || diff.includes('khó');
+        }
+        return diff === target;
+      });
     }
     if (searchQuery.value.trim()) {
       const q = normalizeVi(searchQuery.value);
@@ -35,17 +48,27 @@ export const useCourseStore = defineStore('course', () => {
     return result;
   });
 
+  const DIFFICULTY_TERMS = new Set([
+    'easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced',
+    'cơ bản', 'trung cấp', 'nâng cao', 'dễ', 'khó', 'trung bình'
+  ]);
+
   const categories = computed(() => {
-    const cats = new Set(courses.value.map(c => c.category));
+    const cats = new Set<string>();
+    for (const c of courses.value) {
+      if (c.category && !DIFFICULTY_TERMS.has(c.category.trim().toLowerCase())) {
+        cats.add(c.category.trim());
+      }
+    }
+    if (cats.size === 0) {
+      return ['All', 'Cấu trúc dữ liệu', 'Giải thuật', 'Sắp xếp & Tìm kiếm', 'Cây & Bảng băm', 'Đồ thị'];
+    }
     return ['All', ...Array.from(cats)];
   });
 
   const difficulties = computed(() => {
-    const diffs = new Set(courses.value.map(c => c.difficulty));
-    return ['All', ...Array.from(diffs)];
+    return ['All', 'Beginner', 'Intermediate', 'Advanced'];
   });
-
-
 
   async function loadCourses() {
     isLoading.value = true;
@@ -126,27 +149,36 @@ export const useCourseStore = defineStore('course', () => {
     const storedCourseProgress = localStorage.getItem(`course_progress_${courseId}`);
     const storedCompleted = localStorage.getItem(`course_completed_${courseId}`);
 
+    let dsaCompleted: (string | number)[] = [];
+    try {
+      dsaCompleted = JSON.parse(localStorage.getItem('dsa.completedLessons') || '[]');
+    } catch {}
+
     const lessons = course.lessons ?? [];
-    let completedCount = 0;
+    let completedCount = (course as any).completedLessons || 0;
     const completedLessonIds: string[] = [];
     let xpEarned = 0;
 
     if (lessons.length > 0) {
+      completedCount = 0;
       for (const lesson of lessons) {
         const key = `lesson_progress_${lesson.id}`;
         const saved = localStorage.getItem(key);
+        let isDone = dsaCompleted.includes(Number(lesson.id)) || dsaCompleted.includes(String(lesson.id));
         if (saved) {
           try {
             const data = JSON.parse(saved);
-            const isDone = data.completed === true || data.codelabCompleted === true;
-            if (isDone) {
-              completedCount++;
-              completedLessonIds.push(lesson.id);
-              xpEarned += data.xpAwarded ?? 0;
+            if (data.completed === true || data.codelabCompleted === true) {
+              isDone = true;
             }
+            xpEarned += data.xpAwarded ?? 0;
           } catch (e) {
             console.warn(`Không đọc được dữ liệu tiến độ lesson "${lesson.id}" từ localStorage:`, e);
           }
+        }
+        if (isDone) {
+          completedCount++;
+          completedLessonIds.push(lesson.id);
         }
       }
     } else if (storedCourseProgress) {
@@ -156,7 +188,7 @@ export const useCourseStore = defineStore('course', () => {
           courseId,
           completedLessonIds: parsed.completedLessonIds || [],
           totalLessons: course.totalLessons || parsed.totalLessons || 0,
-          progressPercent: parsed.progressPercent || 0,
+          progressPercent: parsed.progressPercent || (course as any).progressPercent || 0,
           xpEarned: parsed.xpEarned || 0,
           isCompleted: parsed.progressPercent === 100 || storedCompleted === 'true',
         };
@@ -165,10 +197,13 @@ export const useCourseStore = defineStore('course', () => {
 
     const total = course.totalLessons > 0 ? course.totalLessons : lessons.length;
     let progressPercent = 0;
-    if (total > 0) {
+    if (total > 0 && completedCount > 0) {
       progressPercent = Math.min(100, Math.round((completedCount / total) * 100));
+    } else if (typeof (course as any).progressPercent === 'number' && (course as any).progressPercent > 0) {
+      progressPercent = (course as any).progressPercent;
     }
-    if (storedCompleted === 'true' || (total > 0 && completedCount >= total)) {
+
+    if (storedCompleted === 'true' || (total > 0 && completedCount >= total && total > 0)) {
       progressPercent = 100;
     }
 

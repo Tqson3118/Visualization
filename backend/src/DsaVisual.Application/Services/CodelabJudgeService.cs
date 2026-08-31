@@ -34,8 +34,8 @@ public sealed class CodelabJudgeService
     private const int MaxStatements = 200_000;
     private const long MaxMemoryBytes = 32 * 1024 * 1024;
 
-    /// <summary>Đọc danh sách task từ ConfigJson — CHỈ khi top-level là JSON ARRAY (định dạng Grokking);
-    /// config kiểu object cũ (signature/testCases — các lộ trình ẩn) → trả null → giữ hành vi client-declared.</summary>
+    /// <summary>Đọc danh sách task từ ConfigJson — hỗ trợ cả JSON ARRAY (Assignment/Grokking)
+    /// và JSON OBJECT (Studio Lab / Single task).</summary>
     public static IReadOnlyList<CodelabTaskSpec>? TryParseTasks(string? configJson)
     {
         if (string.IsNullOrWhiteSpace(configJson))
@@ -46,53 +46,90 @@ public sealed class CodelabJudgeService
         try
         {
             using var doc = JsonDocument.Parse(configJson);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
-                return null;
-            }
-
-            var tasks = new List<CodelabTaskSpec>();
-            foreach (var t in doc.RootElement.EnumerateArray())
-            {
-                if (t.ValueKind != JsonValueKind.Object)
+                var tasks = new List<CodelabTaskSpec>();
+                var idx = 1;
+                foreach (var t in doc.RootElement.EnumerateArray())
                 {
-                    continue;
-                }
-
-                var id = t.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
-                var entry = t.TryGetProperty("entryFunction", out var efProp) && efProp.ValueKind == JsonValueKind.String
-                    ? efProp.GetString()!
-                    : "solution";
-
-                var tests = new List<CodelabTestCaseSpec>();
-                if (t.TryGetProperty("testCases", out var tcProp) && tcProp.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var tc in tcProp.EnumerateArray())
+                    var task = ParseTaskElement(t, $"task-{idx++}");
+                    if (task is not null)
                     {
-                        var input = tc.TryGetProperty("input", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null;
-                        var expected = tc.TryGetProperty("expectedOutput", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
-                        var hidden = tc.TryGetProperty("isHidden", out var h) && h.ValueKind == JsonValueKind.True;
-                        if (input is null || expected is null)
-                        {
-                            continue;
-                        }
-
-                        tests.Add(new CodelabTestCaseSpec(input, expected, hidden));
+                        tasks.Add(task);
                     }
                 }
-
-                if (id is not null && tests.Count > 0)
-                {
-                    tasks.Add(new CodelabTaskSpec(id, entry, tests));
-                }
+                return tasks.Count > 0 ? tasks : null;
             }
 
-            return tasks.Count > 0 ? tasks : null;
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                var singleTask = ParseTaskElement(doc.RootElement, "default");
+                return singleTask is not null ? [singleTask] : null;
+            }
+
+            return null;
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static CodelabTaskSpec? ParseTaskElement(JsonElement t, string defaultId)
+    {
+        if (t.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var id = t.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String
+            ? idProp.GetString()
+            : defaultId;
+
+        var entry = "solve";
+        if (t.TryGetProperty("entryFunction", out var efProp) && efProp.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(efProp.GetString()))
+        {
+            entry = efProp.GetString()!;
+        }
+        else if (t.TryGetProperty("signature", out var sigProp) && sigProp.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(sigProp.GetString()))
+        {
+            entry = sigProp.GetString()!;
+        }
+
+        var tests = new List<CodelabTestCaseSpec>();
+        if (t.TryGetProperty("testCases", out var tcProp) && tcProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var tc in tcProp.EnumerateArray())
+            {
+                if (tc.ValueKind != JsonValueKind.Object) continue;
+
+                string? input = null;
+                if (tc.TryGetProperty("input", out var i))
+                {
+                    input = i.ValueKind == JsonValueKind.String ? i.GetString() : i.GetRawText();
+                }
+
+                string? expected = null;
+                if (tc.TryGetProperty("expectedOutput", out var eo) && eo.ValueKind != JsonValueKind.Null && eo.ValueKind != JsonValueKind.Undefined)
+                {
+                    expected = eo.ValueKind == JsonValueKind.String ? eo.GetString() : eo.GetRawText();
+                }
+                else if (tc.TryGetProperty("expected", out var e) && e.ValueKind != JsonValueKind.Null && e.ValueKind != JsonValueKind.Undefined)
+                {
+                    expected = e.ValueKind == JsonValueKind.String ? e.GetString() : e.GetRawText();
+                }
+
+                var hidden = tc.TryGetProperty("isHidden", out var h) && (h.ValueKind == JsonValueKind.True);
+                if (input is null || expected is null)
+                {
+                    continue;
+                }
+
+                tests.Add(new CodelabTestCaseSpec(input, expected, hidden));
+            }
+        }
+
+        return tests.Count > 0 ? new CodelabTaskSpec(id ?? defaultId, entry, tests) : null;
     }
 
     /// <summary>Bỏ toàn bộ khoảng trắng để so sánh mảng/chuỗi linh hoạt — khớp normalizeOutput của FE.</summary>

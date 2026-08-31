@@ -369,6 +369,10 @@ export interface MockApiOptions {
   /** Số tim ban đầu (GET /me/hearts) — mỗi POST enter trừ 1 (FR-10.1) */
   initialHearts?: number;
   heartsMax?: number;
+  /** Số gems ban đầu (GET /me/hearts / GET /me/gamification) */
+  initialGems?: number;
+  /** Số ngày streak (GET /me/streak) */
+  streakDays?: number;
   /** Vai trò user trong mock (mặc định STUDENT) — spec teacher/admin dùng TEACHER/ADMIN */
   role?: typeof MOCK_USER.role;
   /** Đã đăng nhập sẵn (POST /auth/refresh trả 200 ngay lúc boot) */
@@ -398,6 +402,8 @@ function apiError(route: Route, status: number, code: string, message: string): 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   let hearts = options.initialHearts ?? 10;
   const heartsMax = options.heartsMax ?? 10;
+  let gems = options.initialGems ?? 0;
+  const streakDays = options.streakDays ?? 0;
   // User theo vai trò test (mặc định STUDENT — MOCK_USER).
   const mockUser: UserSummary = options.role ? { ...MOCK_USER, role: options.role } : MOCK_USER;
   // Trạng thái phiên auth trong mock: MỞ ĐẦU chưa đăng nhập (mỗi test tạo page mới).
@@ -723,12 +729,23 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
     if (method === 'GET' && path === '/me/hearts') {
-      const body: HeartsStatusDto = { hearts, heartsMax, lastHeartAt: null, nextHeartAt: null };
+      const body: HeartsStatusDto = { hearts, heartsMax, lastHeartAt: null, nextHeartAt: null, gems };
       await json(route, 200, body);
       return;
     }
+    if (method === 'GET' && path === '/me/gamification') {
+      await json(route, 200, {
+        xp: 100,
+        level: 2,
+        xpIntoLevel: 20,
+        xpForNextLevel: 100,
+        levelProgressPct: 20,
+        gems,
+      });
+      return;
+    }
     if (method === 'GET' && path === '/me/streak') {
-      await json(route, 200, { streakDays: 0, freezeAvailable: 0 });
+      await json(route, 200, { streakDays, freezeAvailable: 0 });
       return;
     }
     if (method === 'GET' && path === '/premium/status') {

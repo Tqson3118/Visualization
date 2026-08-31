@@ -2,6 +2,7 @@ using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using DsaVisual.Application.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DsaVisual.UnitTests;

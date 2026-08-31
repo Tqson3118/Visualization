@@ -21,12 +21,14 @@ export interface LessonMeta {
   orderIndex: number;
 }
 
-function mapBackendQuizQuestions(questions: Array<{ id: string; text: string; options: string[]; correctIndex: number; explanation: string }>): QuizQuestion[] {
+function mapBackendQuizQuestions(questions: Array<{ id: string; text: string; type?: string; options: string[]; correctIndex?: number; correctIndices?: number[]; explanation?: string }>): QuizQuestion[] {
   return questions.map(q => ({
     id: q.id,
     questionText: q.text,
+    type: q.type || 'SINGLE',
     options: q.options,
     correctIndex: q.correctIndex,
+    correctIndices: q.correctIndices ?? (q.correctIndex !== undefined ? [q.correctIndex] : []),
     explanation: q.explanation ?? '',
   }));
 }
@@ -179,6 +181,13 @@ export const useLessonStore = defineStore('lessonStudy', () => {
   window.addEventListener('offline', () => {
     isOnline.value = false;
   });
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'dsa.completedLessons' && e.newValue) {
+      try {
+        completedLessonIds.value = JSON.parse(e.newValue);
+      } catch {}
+    }
+  });
 
   // ── Local storage ──
   function loadFromLocalStorage(lessonId: string) {
@@ -205,7 +214,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       bestScore: bestScore.value,
       codelabCompleted: codelabCompleted.value,
       xpAwarded: xpAwarded.value,
-      completed: isLessonComplete.value,
+      completed: isLessonComplete.value || lessonFinished.value,
     };
     localStorage.setItem(getStorageKey(currentLesson.value.id), JSON.stringify(data));
   }
@@ -334,6 +343,20 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       }
     }
 
+    if (detail.sandboxType === 'codelab' && !codelabTask) {
+      const taskTitle = detail.title || 'Thực hành lập trình';
+      const taskDesc = detail.contentMd || 'Cài đặt và hoàn thành giải thuật theo yêu cầu của bài tập.';
+      codelabTask = {
+        description: `${taskTitle}\n\n${taskDesc}`,
+        initialCode: `function solution() {\n  // Viết mã giải thuật tại đây\n  \n  return true;\n}`,
+        solution: '',
+        entryFunction: 'solution',
+        testCases: [
+          { input: '[]', expectedOutput: 'true' }
+        ],
+      };
+    }
+
     return {
       id: detail.id,
       title: detail.title,
@@ -391,8 +414,28 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         if (detail.sandboxType === 'quiz') {
           activeStep.value = 3;
         }
-      } catch (e) {
-        console.warn('Không tải được bài học từ server, thử tìm từ lộ trình khóa học:', e);
+      } catch (e: any) {
+        const httpStatus = e?.response?.status || e?.status;
+        if (httpStatus === 403) {
+          currentLesson.value = null;
+          error.value = 'Bài học này chưa được mở khóa. Bạn cần hoàn thành các bài học trước đó trong lộ trình để tiếp tục!';
+          isLoading.value = false;
+          return;
+        }
+        if (httpStatus === 401) {
+          currentLesson.value = null;
+          error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục học.';
+          isLoading.value = false;
+          return;
+        }
+        if (httpStatus === 404) {
+          currentLesson.value = null;
+          error.value = 'Không tìm thấy bài học này trong hệ thống.';
+          isLoading.value = false;
+          return;
+        }
+
+        console.warn('Lỗi kết nối máy chủ, thử tìm dữ liệu bài học cục bộ:', e);
         try {
           const urlParams = new URLSearchParams(window.location.search);
           const courseIdParam = urlParams.get('courseId') || '7';
@@ -418,6 +461,21 @@ export const useLessonStore = defineStore('lessonStudy', () => {
             const lesson = await buildLessonFromApi(detail);
             if (requestId !== lessonLoadRequestId) return;
             currentLesson.value = lesson;
+
+            const simKeys: string[] = [];
+            if (Array.isArray((found as any).simulations)) {
+              simKeys.push(...(found as any).simulations.map((s: any) => s.simulationKey || s));
+            } else if (Array.isArray((found as any).simulationKeys)) {
+              simKeys.push(...(found as any).simulationKeys);
+            }
+            if (found.contentMd) {
+              const matches = found.contentMd.matchAll(/\[(?:Mô phỏng|Simulation|mo phong):\s*([a-zA-Z0-9._-]+)\]/gi);
+              for (const m of matches) {
+                if (m[1] && !simKeys.includes(m[1])) simKeys.push(m[1]);
+              }
+            }
+            attachedSimulationKeys.value = simKeys;
+
             lessonMeta.value = {
               courseId: detail.courseId,
               courseTitle: detail.courseTitle,
@@ -485,31 +543,57 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     }
   }
 
-  async function submitQuiz(answers: Record<string, number>) {
+  async function submitQuiz(answers: Record<string, number | number[]>) {
     if (!currentLesson.value) return;
 
     const questions = currentLesson.value.quizQuestions ?? [];
     let correct = 0;
-
-    for (const q of questions) {
-      if (answers[q.id] === q.correctIndex) correct++;
-    }
-
-    quizScore.value = correct;
-    if (correct > bestScore.value) {
-      bestScore.value = correct;
-    }
 
     // Gửi lịch sử làm bài lên server
     try {
       const quizId = lessonMeta.value?.quizId;
       if (quizId) {
         const token = getLessonAuthToken();
-        const answersArray = questions.map(q => answers[q.id] ?? -1);
-        await statelessQuizApi.submitAttempt(quizId, answersArray, token, true);
+        const answersArray = questions.map(q => {
+          const raw = answers[q.id];
+          return raw !== undefined ? raw : -1;
+        });
+        const attemptResult = await statelessQuizApi.submitAttempt(quizId, answersArray, token, true);
+        if (attemptResult) {
+          correct = attemptResult.score;
+          // Gắn lại giải thích và đáp án đúng trả về từ server vào question
+          if (attemptResult.questionResults && attemptResult.questionResults.length > 0) {
+            for (let i = 0; i < questions.length; i++) {
+              const res = attemptResult.questionResults[i];
+              if (res && questions[i]) {
+                questions[i].explanation = res.explanation;
+                if (res.correctIndices && res.correctIndices.length > 0) {
+                  questions[i].correctIndices = res.correctIndices;
+                  questions[i].correctIndex = res.correctIndices[0];
+                } else if (res.correctIndex !== undefined) {
+                  questions[i].correctIndex = res.correctIndex;
+                  questions[i].correctIndices = [res.correctIndex];
+                }
+              }
+            }
+          }
+        }
       }
     } catch (e) {
       console.error('Lỗi khi lưu lịch sử Quiz:', e);
+      // Fallback chấm điểm cục bộ nếu mất mạng
+      for (const q of questions) {
+        const userAns = answers[q.id];
+        const userArr = Array.isArray(userAns) ? userAns : (userAns !== undefined ? [userAns] : []);
+        const correctArr = q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []);
+        const isMatch = userArr.length === correctArr.length && userArr.every(x => correctArr.includes(x));
+        if (isMatch) correct++;
+      }
+    }
+
+    quizScore.value = correct;
+    if (correct > bestScore.value) {
+      bestScore.value = correct;
     }
 
     saveToLocalStorage();

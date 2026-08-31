@@ -9,6 +9,8 @@ import type { Element, ElementStatus, Structure } from '@/engines/core/types';
 import type { Renderer } from '@/engines/renderers/interface';
 import { getRendererForKind } from '@/engines/renderers/rendererRegistry';
 import { useStructureTransition } from '@/composables/useStructureTransition';
+import { useSoundEffects } from '@/composables/useSoundEffects';
+import { Volume2, VolumeX } from 'lucide-vue-next';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
 
 const props = withDefaults(
@@ -327,12 +329,47 @@ function onCanvasClick(event: MouseEvent): void {
   }
 }
 
+// Sound effects integration
+const { isMuted, toggleMute, playCompare, playSwap, playVictory } = useSoundEffects();
+let prevAllDone = false;
+
+function triggerAudioFeedback(next: Structure | null): void {
+  if (!next || isMuted.value) return;
+  const elements = next.elements;
+  if (elements.length === 0) return;
+  const allDone = elements.every((e) => e.status === 'done');
+  if (allDone) {
+    if (!prevAllDone) {
+      playVictory();
+    }
+    prevAllDone = true;
+    return;
+  }
+  prevAllDone = false;
+
+  const hasSwap = elements.some((e) => e.status === 'swap');
+  if (hasSwap) {
+    playSwap();
+    return;
+  }
+  const activeEl = elements.find((e) => e.status === 'active' || e.status === 'highlight');
+  if (activeEl) {
+    const val = Number(activeEl.label);
+    if (Number.isFinite(val)) {
+      playCompare(val);
+    } else {
+      playCompare(50);
+    }
+  }
+}
+
 // Structure đổi → transition (push/pop stack/queue); options đổi → vẽ thẳng.
 let prevStructure: Structure | null = null;
 
 watch(
   () => props.structure,
   (next) => {
+    triggerAudioFeedback(next);
     if (next === null) {
       transition.cancel();
       doRender(null);
@@ -360,9 +397,11 @@ onMounted(() => {
     ctx = canvasRef.value.getContext('2d');
   }
   resize();
-  observer = new ResizeObserver(() => resize());
-  if (canvasRef.value?.parentElement) {
-    observer.observe(canvasRef.value.parentElement);
+  if (typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(() => resize());
+    if (canvasRef.value?.parentElement) {
+      observer.observe(canvasRef.value.parentElement);
+    }
   }
   window.addEventListener('resize', resize);
 });
@@ -400,6 +439,16 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
         />
         <span>Giá trị</span>
       </label>
+      <button
+        type="button"
+        class="canvas-area__sound-btn"
+        :aria-label="isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'"
+        :title="isMuted ? 'Bật hiệu ứng âm thanh' : 'Tắt hiệu ứng âm thanh'"
+        @click="toggleMute"
+      >
+        <component :is="isMuted ? VolumeX : Volume2" :size="14" />
+        <span class="text-[11px]">{{ isMuted ? 'Tắt âm' : 'Âm thanh' }}</span>
+      </button>
       <label class="canvas-area__zoom">
         <BaseIcon name="search" :size="13" />
         <select :value="zoom" aria-label="Zoom" @change="emit('update:zoom', Number(($event.target as HTMLSelectElement).value))">
@@ -416,6 +465,15 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
         @click="onCanvasClick"
       />
       <p v-if="!structure" class="canvas-area__hint">{{ emptyText }}</p>
+
+      <!-- Mini Legend Bar ghim dưới Canvas -->
+      <div v-if="structure" class="canvas-area__mini-legend" aria-label="Chú giải trạng thái">
+        <span class="legend-badge"><span class="legend-dot" style="background:#5EEAD4" /> Chưa xét</span>
+        <span class="legend-badge"><span class="legend-dot" style="background:#FBBF24" /> So sánh</span>
+        <span class="legend-badge"><span class="legend-dot" style="background:#F59E0B" /> Pivot / Khóa</span>
+        <span class="legend-badge"><span class="legend-dot" style="background:#F87171" /> Hoán đổi</span>
+        <span class="legend-badge"><span class="legend-dot" style="background:#34D399" /> Đã chốt</span>
+      </div>
     </div>
   </div>
 </template>
@@ -494,5 +552,62 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
   font-size: var(--text-sm);
   text-align: center;
   padding: var(--space-md);
+}
+
+.canvas-area__sound-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.canvas-area__sound-btn:hover {
+  color: var(--color-foreground);
+  border-color: var(--color-accent-primary, #6b7bff);
+  background: rgba(107, 123, 255, 0.1);
+}
+
+.canvas-area__mini-legend {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: rgba(13, 16, 32, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  font-size: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 10;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 95%;
+}
+
+.legend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 4px currentColor;
 }
 </style>

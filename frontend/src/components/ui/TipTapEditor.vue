@@ -147,9 +147,9 @@
         </button>
         <button
           type="button"
-          @click="addImage"
+          @click="openImageModal"
           class="p-1.5 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
-          title="Chèn ảnh (URL)"
+          title="Chèn ảnh (Tải file hoặc URL)"
         >
           <ImageIcon :size="15" />
         </button>
@@ -161,6 +161,79 @@
         >
           <Minus :size="15" />
         </button>
+      </div>
+
+      <!-- Nhúng Mô phỏng Thuật toán (Visualizer) -->
+      <div class="flex items-center gap-1 px-2 border-r border-vdsa-border/60">
+        <div class="relative flex items-center">
+          <select
+            data-testid="tiptap-simulation-select"
+            class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#231e38] text-purple-200 border border-purple-500/40 hover:bg-purple-500/25 transition-colors cursor-pointer outline-none max-w-[190px] truncate shadow-sm"
+            @change="(e) => {
+              const target = e.target as HTMLSelectElement;
+              if (target.value) {
+                insertSimulation(target.value);
+                target.value = '';
+              }
+            }"
+          >
+            <option value="" disabled selected>🎮 Nhúng Mô phỏng...</option>
+            <optgroup label="📊 Sắp xếp (Sorting)">
+              <option value="sort.bubble">Sắp xếp nổi bọt (Bubble Sort)</option>
+              <option value="sort.selection">Sắp xếp chọn (Selection Sort)</option>
+              <option value="sort.insertion">Sắp xếp chèn (Insertion Sort)</option>
+              <option value="sort.merge">Sắp xếp trộn (Merge Sort)</option>
+              <option value="sort.quick">Sắp xếp nhanh (Quick Sort)</option>
+              <option value="sort.heap">Sắp xếp vun đống (Heap Sort)</option>
+            </optgroup>
+            <optgroup label="🔍 Tìm kiếm (Searching)">
+              <option value="search.linear">Tìm kiếm tuyến tính</option>
+              <option value="search.binary">Tìm kiếm nhị phân (Binary Search)</option>
+            </optgroup>
+            <optgroup label="🥞 Ngăn xếp & Hàng đợi (Stack / Queue)">
+              <option value="structure.stack">Ngăn xếp (Stack)</option>
+              <option value="stack.push">Stack — Push</option>
+              <option value="stack.pop">Stack — Pop</option>
+              <option value="structure.queue">Hàng đợi (Queue)</option>
+              <option value="queue.enqueue">Queue — Enqueue</option>
+              <option value="queue.dequeue">Queue — Dequeue</option>
+            </optgroup>
+            <optgroup label="🔗 Danh sách liên kết (Linked List)">
+              <option value="structure.linkedlist">Danh sách liên kết đơn</option>
+              <option value="list.insert">Linked List — Chèn</option>
+              <option value="list.delete">Linked List — Xóa</option>
+              <option value="list.search">Linked List — Tìm kiếm</option>
+            </optgroup>
+            <optgroup label="🌳 Cây & BST & AVL (Trees)">
+              <option value="structure.bst">Cây BST</option>
+              <option value="tree.bst-insert">BST — Chèn</option>
+              <option value="tree.bst-delete">BST — Xóa</option>
+              <option value="tree.bst-search">BST — Tìm kiếm</option>
+              <option value="tree.bst-inorder">BST — Duyệt Inorder</option>
+              <option value="tree.bst-preorder">BST — Duyệt Preorder</option>
+              <option value="tree.bst-postorder">BST — Duyệt Postorder</option>
+              <option value="tree.avl-insert">Cây AVL — Chèn & Xoay</option>
+            </optgroup>
+            <optgroup label="🏔️ Đống nhị phân (Heap)">
+              <option value="structure.heap">Đống nhị phân (Heap)</option>
+              <option value="heap.insert">Heap — Chèn (Bubble up)</option>
+              <option value="heap.extract">Heap — Trích xuất Max</option>
+              <option value="heap.heapify">Heap — Heapify</option>
+            </optgroup>
+            <optgroup label="🔑 Bảng băm (Hash Table)">
+              <option value="structure.hashtable">Bảng băm (Hash Table)</option>
+              <option value="hash.insert">Hash Table — Chèn</option>
+              <option value="hash.search">Hash Table — Tìm kiếm</option>
+              <option value="hash.delete">Hash Table — Xóa</option>
+            </optgroup>
+            <optgroup label="🕸️ Đồ thị (Graph)">
+              <option value="structure.graph">Đồ thị (Graph)</option>
+              <option value="graph.bfs">Đồ thị — Duyệt BFS</option>
+              <option value="graph.dfs">Đồ thị — Duyệt DFS</option>
+              <option value="graph.dijkstra">Đồ thị — Dijkstra ngắn nhất</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       <!-- Table Controls (appears when cursor is inside a table) -->
@@ -243,6 +316,85 @@
       </div>
       <span class="text-vdsa-muted/70">TipTap WYSIWYG · Auto-sync</span>
     </div>
+    <!-- ═══ MODAL CHÈN ẢNH (Teleport to body) ═══ -->
+    <Teleport to="body">
+      <div v-if="showImageModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        <div class="bg-[#181724] border border-[#2b293d] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div class="flex items-center justify-between border-b border-[#2b293d] pb-3">
+            <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+              <ImageIcon :size="16" class="text-purple-400" />
+              <span>Chèn hình ảnh</span>
+            </h3>
+            <button @click="showImageModal = false" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+              <CloseIcon :size="16" />
+            </button>
+          </div>
+
+          <!-- Tabs: Tải từ máy / Nhập URL -->
+          <div class="flex rounded-xl bg-black/30 p-1 border border-white/5">
+            <button
+              type="button"
+              @click="imageTab = 'file'"
+              class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              :class="imageTab === 'file' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+            >
+              <Upload :size="13" /> Tải từ máy tính
+            </button>
+            <button
+              type="button"
+              @click="imageTab = 'url'"
+              class="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              :class="imageTab === 'url' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'"
+            >
+              <LinkIcon :size="13" /> Nhập link URL
+            </button>
+          </div>
+
+          <!-- Tab Content: File Upload -->
+          <div v-if="imageTab === 'file'" class="space-y-3">
+            <div
+              @click="imageFileInput?.click()"
+              class="border-2 border-dashed border-[#3d3a54] hover:border-purple-500 rounded-xl p-6 text-center cursor-pointer hover:bg-purple-500/5 transition-all space-y-2"
+            >
+              <Upload :size="28" class="mx-auto text-purple-400 opacity-80" />
+              <p class="text-xs font-bold text-white">Bấm để chọn file ảnh</p>
+              <p class="text-[11px] text-slate-400">Hỗ trợ PNG, JPG, GIF, WebP (Tối đa 3MB)</p>
+              <input ref="imageFileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect" />
+            </div>
+          </div>
+
+          <!-- Tab Content: URL Input -->
+          <div v-else class="space-y-3">
+            <label class="block text-xs font-bold text-slate-300">Đường dẫn hình ảnh (URL)</label>
+            <input
+              v-model="imageUrlInput"
+              type="url"
+              placeholder="https://example.com/image.png"
+              @keydown.enter.prevent="insertUrlImage"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-[#2b293d] text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+            />
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                @click="showImageModal = false"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                @click="insertUrlImage"
+                class="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md transition-colors cursor-pointer"
+              >
+                Chèn ảnh
+              </button>
+            </div>
+          </div>
+
+          <p v-if="imageError" class="text-xs text-rose-400 font-semibold">{{ imageError }}</p>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -268,7 +420,11 @@ import {
   Undo,
   Redo,
   FileText,
+  Upload,
+  Link as LinkIcon,
+  X as CloseIcon,
 } from 'lucide-vue-next';
+import { CATALOG } from '@/engines/catalog';
 
 const props = withDefaults(
   defineProps<{
@@ -288,6 +444,11 @@ const emit = defineEmits<{
 }>();
 
 const showRawCode = ref(false);
+const showImageModal = ref(false);
+const imageTab = ref<'file' | 'url'>('file');
+const imageUrlInput = ref('');
+const imageFileInput = ref<HTMLInputElement | null>(null);
+const imageError = ref('');
 let isInternalUpdate = false;
 
 const editor = useEditor({
@@ -348,16 +509,59 @@ watch(
   },
 );
 
+function insertSimulation(simKey: string): void {
+  const sim = CATALOG.find((c) => c.key === simKey);
+  const title = sim ? sim.title : simKey;
+  const content = `<p><strong>🎮 Mô phỏng trực quan: ${title}</strong></p><p>[Mô phỏng: ${simKey}]</p>`;
+  editor.value?.chain().focus().insertContent(content).run();
+}
+
 function insertTable(): void {
   if (editor.value) {
     editor.value.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }
 }
 
+function openImageModal(): void {
+  imageTab.value = 'file';
+  imageUrlInput.value = '';
+  imageError.value = '';
+  showImageModal.value = true;
+}
+
 function addImage(): void {
-  const url = window.prompt('Nhập đường dẫn hình ảnh (URL):');
-  if (url && editor.value) {
+  openImageModal();
+}
+
+function handleFileSelect(e: Event): void {
+  imageError.value = '';
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    imageError.value = 'Kích thước ảnh tối đa là 3MB.';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result as string;
+    if (base64 && editor.value) {
+      editor.value.chain().focus().setImage({ src: base64 }).run();
+      showImageModal.value = false;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function insertUrlImage(): void {
+  imageError.value = '';
+  const url = imageUrlInput.value.trim();
+  if (!url) {
+    imageError.value = 'Vui lòng nhập đường dẫn hình ảnh.';
+    return;
+  }
+  if (editor.value) {
     editor.value.chain().focus().setImage({ src: url }).run();
+    showImageModal.value = false;
   }
 }
 
@@ -545,5 +749,16 @@ onBeforeUnmount(() => {
 .tiptap-content .resize-cursor {
   cursor: ew-resize;
   cursor: col-resize;
+}
+
+select option,
+select optgroup {
+  background-color: #171527 !important;
+  color: #f1f5f9 !important;
+}
+
+select optgroup {
+  color: #c084fc !important;
+  font-weight: 700;
 }
 </style>

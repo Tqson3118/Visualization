@@ -40,15 +40,15 @@
             class="group relative w-8 h-8 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center cursor-pointer overflow-hidden backdrop-blur-md"
             :class="[
               idx === currentIndex ? 'ring-2 ring-vdsa-accent ring-offset-2 ring-offset-vdsa-bg text-white bg-accent/80' : '',
-              idx !== currentIndex && userAnswers[q.id] !== undefined && !isSubmitted ? 'bg-accent/20 text-accent border border-accent/30 hover:bg-vdsa-accent/30' : '',
-              idx !== currentIndex && userAnswers[q.id] !== undefined && isSubmitted && userAnswers[q.id] === q.correctIndex ? 'bg-vdsa-green/20 border-vdsa-green/50 text-vdsa-green' : '',
-              idx !== currentIndex && userAnswers[q.id] !== undefined && isSubmitted && userAnswers[q.id] !== q.correctIndex ? 'bg-vdsa-red/20 border-vdsa-red/50 text-vdsa-red' : '',
-              idx !== currentIndex && userAnswers[q.id] === undefined ? 'bg-white/5 border border-white/10 text-vdsa-muted hover:bg-white/10 hover:text-white' : '',
+              idx !== currentIndex && hasUserAnswered(q.id) && !isSubmitted ? 'bg-accent/20 text-accent border border-accent/30 hover:bg-vdsa-accent/30' : '',
+              idx !== currentIndex && hasUserAnswered(q.id) && isSubmitted && isQuestionCorrect(q) ? 'bg-vdsa-green/20 border-vdsa-green/50 text-vdsa-green' : '',
+              idx !== currentIndex && hasUserAnswered(q.id) && isSubmitted && !isQuestionCorrect(q) ? 'bg-vdsa-red/20 border-vdsa-red/50 text-vdsa-red' : '',
+              idx !== currentIndex && !hasUserAnswered(q.id) ? 'bg-white/5 border border-white/10 text-vdsa-muted hover:bg-white/10 hover:text-white' : '',
               !isSubmitted && unansweredIndices.includes(idx) && showUnansweredWarning ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-vdsa-bg animate-pulse' : '',
             ]"
           >
-            <span v-if="isSubmitted && userAnswers[q.id] === q.correctIndex"><BaseIcon name="check" class="w-4 h-4" /></span>
-            <span v-else-if="isSubmitted && userAnswers[q.id] !== undefined && userAnswers[q.id] !== q.correctIndex"><BaseIcon name="close" class="w-4 h-4" /></span>
+            <span v-if="isSubmitted && isQuestionCorrect(q)"><BaseIcon name="check" class="w-4 h-4" /></span>
+            <span v-else-if="isSubmitted && hasUserAnswered(q.id) && !isQuestionCorrect(q)"><BaseIcon name="close" class="w-4 h-4" /></span>
             <span v-else>{{ idx + 1 }}</span>
           </button>
         </div>
@@ -66,6 +66,15 @@
             <!-- The Question -->
             <div class="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
               <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-vdsa-accent to-purple-500 opacity-50 rounded-t-3xl"></div>
+              <div class="flex items-center justify-between gap-4 mb-3">
+                <span v-if="isQuestionMulti(currentQuestion)" class="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5">
+                  <BaseIcon name="check" class="w-3.5 h-3.5" />
+                  Nhiều đáp án (Chọn tất cả đáp án đúng)
+                </span>
+                <span v-else class="px-3 py-1 rounded-full bg-white/5 text-vdsa-muted border border-white/10 text-xs font-semibold">
+                  1 đáp án duy nhất
+                </span>
+              </div>
               <h3 class="text-xl sm:text-2xl font-bold text-white leading-relaxed">
                 {{ currentQuestion.questionText }}
               </h3>
@@ -88,31 +97,37 @@
                 @click="!isSubmitted && selectAnswer(currentQuestion.id, oIdx)"
                 class="group relative w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-center gap-4 overflow-hidden"
                 :class="[
-                  userAnswers[currentQuestion.id] === oIdx && !isSubmitted ? 'bg-accent/20 border-accent/50 ring-1 ring-vdsa-accent shadow-[0_0_20px_rgba(99,102,241,0.2)] text-white' : '',
-                  !isSubmitted && userAnswers[currentQuestion.id] !== oIdx ? 'bg-white/5 border-white/10 text-vdsa-secondary hover:bg-white/10 hover:border-white/20 hover:text-white cursor-pointer hover:-translate-y-0.5' : '',
-                  isSubmitted && oIdx === currentQuestion.correctIndex ? 'bg-vdsa-green/20 border-vdsa-green/50 ring-1 ring-vdsa-accent-green shadow-[0_0_20px_rgba(16,185,129,0.2)] text-white' : '',
-                  isSubmitted && userAnswers[currentQuestion.id] === oIdx && oIdx !== currentQuestion.correctIndex ? 'bg-vdsa-red/20 border-vdsa-red/50 ring-1 ring-vdsa-accent-red text-white' : '',
-                  isSubmitted && oIdx !== currentQuestion.correctIndex && userAnswers[currentQuestion.id] !== oIdx ? 'bg-black/20 border-transparent text-vdsa-muted opacity-40 cursor-default' : '',
+                  isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-accent/20 border-accent/50 ring-1 ring-vdsa-accent shadow-[0_0_20px_rgba(99,102,241,0.2)] text-white' : '',
+                  !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-white/5 border-white/10 text-vdsa-secondary hover:bg-white/10 hover:border-white/20 hover:text-white cursor-pointer hover:-translate-y-0.5' : '',
+                  isSubmitted && isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-green/20 border-vdsa-green/50 ring-1 ring-vdsa-accent-green shadow-[0_0_20px_rgba(16,185,129,0.2)] text-white' : '',
+                  isSubmitted && isOptionSelected(currentQuestion.id, oIdx) && !isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-red/20 border-vdsa-red/50 ring-1 ring-vdsa-accent-red text-white' : '',
+                  isSubmitted && !isOptionCorrect(currentQuestion, oIdx) && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/20 border-transparent text-vdsa-muted opacity-40 cursor-default' : '',
                 ]"
                 :disabled="isSubmitted"
               >
-                <!-- Option Letter Bubble -->
+                <!-- Option Letter or Checkbox Bubble -->
                 <div
                   class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300"
                   :class="[
-                    userAnswers[currentQuestion.id] === oIdx && !isSubmitted ? 'bg-accent text-white shadow-lg shadow-vdsa-accent/40' : '',
-                    !isSubmitted && userAnswers[currentQuestion.id] !== oIdx ? 'bg-black/30 text-vdsa-muted group-hover:bg-white/10 group-hover:text-white' : '',
-                    isSubmitted && oIdx === currentQuestion.correctIndex ? 'bg-vdsa-green text-white shadow-lg shadow-vdsa-accent-green/40' : '',
-                    isSubmitted && userAnswers[currentQuestion.id] === oIdx && oIdx !== currentQuestion.correctIndex ? 'bg-vdsa-red text-white' : '',
-                    isSubmitted && oIdx !== currentQuestion.correctIndex && userAnswers[currentQuestion.id] !== oIdx ? 'bg-black/40 text-vdsa-disabled' : '',
+                    isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-accent text-white shadow-lg shadow-vdsa-accent/40' : '',
+                    !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/30 text-vdsa-muted group-hover:bg-white/10 group-hover:text-white' : '',
+                    isSubmitted && isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-green text-white shadow-lg shadow-vdsa-accent-green/40' : '',
+                    isSubmitted && isOptionSelected(currentQuestion.id, oIdx) && !isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-red text-white' : '',
+                    isSubmitted && !isOptionCorrect(currentQuestion, oIdx) && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/40 text-vdsa-disabled' : '',
                   ]"
                 >
-                  <span v-if="isSubmitted && oIdx === currentQuestion.correctIndex"><BaseIcon name="check" class="w-5 h-5" /></span>
-                  <span v-else-if="isSubmitted && userAnswers[currentQuestion.id] === oIdx && oIdx !== currentQuestion.correctIndex"><BaseIcon name="close" class="w-5 h-5" /></span>
+                  <span v-if="isSubmitted && isOptionCorrect(currentQuestion, oIdx)"><BaseIcon name="check" class="w-5 h-5" /></span>
+                  <span v-else-if="isSubmitted && isOptionSelected(currentQuestion.id, oIdx) && !isOptionCorrect(currentQuestion, oIdx)"><BaseIcon name="close" class="w-5 h-5" /></span>
                   <span v-else>{{ String.fromCharCode(65 + oIdx) }}</span>
                 </div>
 
                 <span class="text-sm sm:text-base font-medium flex-1">{{ opt }}</span>
+
+                <!-- Multi-choice checkbox indicator when not submitted -->
+                <div v-if="isQuestionMulti(currentQuestion) && !isSubmitted" class="w-5 h-5 rounded-md border flex items-center justify-center transition-all"
+                     :class="isOptionSelected(currentQuestion.id, oIdx) ? 'bg-accent border-accent text-white' : 'border-white/20 bg-black/20'">
+                  <BaseIcon v-if="isOptionSelected(currentQuestion.id, oIdx)" name="check" class="w-3.5 h-3.5" />
+                </div>
               </button>
             </div>
 
@@ -120,19 +135,21 @@
             <Transition name="fade-slide-up">
               <div v-if="isSubmitted"
                    class="mt-2 p-6 rounded-3xl border backdrop-blur-xl shadow-2xl relative overflow-hidden"
-                   :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'border-vdsa-green/30 bg-vdsa-green/10' : 'border-vdsa-red/30 bg-vdsa-red/10'">
-                <div class="absolute top-0 left-0 w-1 h-full" :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'bg-vdsa-green' : 'bg-vdsa-red'"></div>
+                   :class="isQuestionCorrect(currentQuestion) ? 'border-vdsa-green/30 bg-vdsa-green/10' : 'border-vdsa-red/30 bg-vdsa-red/10'">
+                <div class="absolute top-0 left-0 w-1 h-full" :class="isQuestionCorrect(currentQuestion) ? 'bg-vdsa-green' : 'bg-vdsa-red'"></div>
                 <div class="flex items-center gap-3 mb-3">
-                  <div class="p-2 rounded-full" :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'bg-vdsa-green/20 text-vdsa-green' : 'bg-vdsa-red/20 text-vdsa-red'">
-                    <BaseIcon :name="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'check' : 'close'" class="w-5 h-5" />
+                  <div class="p-2 rounded-full" :class="isQuestionCorrect(currentQuestion) ? 'bg-vdsa-green/20 text-vdsa-green' : 'bg-vdsa-red/20 text-vdsa-red'">
+                    <BaseIcon :name="isQuestionCorrect(currentQuestion) ? 'check' : 'close'" class="w-5 h-5" />
                   </div>
-                  <h4 class="text-lg font-bold" :class="userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'text-vdsa-green' : 'text-vdsa-red'">
-                    {{ userAnswers[currentQuestion.id] === currentQuestion.correctIndex ? 'Chính xác!' : 'Chưa chính xác!' }}
+                  <h4 class="text-lg font-bold" :class="isQuestionCorrect(currentQuestion) ? 'text-vdsa-green' : 'text-vdsa-red'">
+                    {{ isQuestionCorrect(currentQuestion) ? 'Chính xác!' : 'Chưa chính xác!' }}
                   </h4>
                 </div>
                 <div class="text-sm text-white/90 leading-relaxed pl-12">
                   <span v-if="currentQuestion.explanation">{{ currentQuestion.explanation }}</span>
-                  <span v-else>Đáp án đúng là: <strong class="text-white">{{ currentQuestion.options[currentQuestion.correctIndex] }}</strong></span>
+                  <span v-else-if="getCorrectAnswerNames(currentQuestion)">
+                    Đáp án đúng: <strong class="text-white">{{ getCorrectAnswerNames(currentQuestion) }}</strong>
+                  </span>
                 </div>
               </div>
             </Transition>
@@ -239,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { QuizQuestion } from '../../../features/lesson/types/lesson.types';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
 
@@ -250,30 +267,69 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
-  (e: 'submit', answers: Record<string, number>): void;
+  (e: 'submit', answers: Record<string, number | number[]>): void;
   (e: 'completeStep'): void;
 }>();
 
 const PASS_THRESHOLD = 0.7;
 
-const userAnswers = ref<Record<string, number>>({});
+// Lưu danh sách index các đáp án đã chọn cho từng câu hỏi
+const userAnswers = ref<Record<string, number[]>>({});
 const isSubmitted = ref(false);
 const currentIndex = ref(0);
 const showUnansweredWarning = ref(false);
 
 const currentQuestion = computed(() => props.questions[currentIndex.value] ?? null);
-const answeredCount = computed(() => Object.keys(userAnswers.value).length);
+
+function isQuestionMulti(q: QuizQuestion | null | undefined): boolean {
+  if (!q) return false;
+  const t = (q.type || '').toUpperCase();
+  return t === 'MULTIPLE' || t === 'MULTI' || (q.correctIndices?.length ?? 0) > 1;
+}
+
+function hasUserAnswered(questionId: string | number): boolean {
+  const ans = userAnswers.value[String(questionId)];
+  return ans !== undefined && ans.length > 0;
+}
+
+function isOptionSelected(questionId: string | number, optionIdx: number): boolean {
+  const ans = userAnswers.value[String(questionId)];
+  return ans ? ans.includes(optionIdx) : false;
+}
+
+function isOptionCorrect(q: QuizQuestion, optionIdx: number): boolean {
+  if (q.correctIndices && q.correctIndices.length > 0) {
+    return q.correctIndices.includes(optionIdx);
+  }
+  return q.correctIndex === optionIdx;
+}
+
+function isQuestionCorrect(q: QuizQuestion): boolean {
+  const selected = userAnswers.value[String(q.id)] ?? [];
+  const correct = q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []);
+  if (selected.length === 0 || correct.length === 0) return false;
+  return selected.length === correct.length && selected.every(idx => correct.includes(idx));
+}
+
+function getCorrectAnswerNames(q: QuizQuestion): string {
+  const correct = q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []);
+  return correct.map(idx => q.options[idx]).filter(Boolean).join(', ');
+}
+
+const answeredCount = computed(() => {
+  return props.questions.filter(q => hasUserAnswered(q.id)).length;
+});
 
 const unansweredIndices = computed(() => {
   return props.questions
-    .map((q, idx) => (userAnswers.value[q.id] === undefined ? idx : -1))
+    .map((q, idx) => (!hasUserAnswered(q.id) ? idx : -1))
     .filter(idx => idx !== -1);
 });
 
 const quizScore = computed(() => {
   let score = 0;
   for (const q of props.questions) {
-    if (userAnswers.value[q.id] === q.correctIndex) score++;
+    if (isQuestionCorrect(q)) score++;
   }
   return score;
 });
@@ -283,8 +339,68 @@ const quizPassed = computed(() => {
   return quizScore.value / props.questions.length >= PASS_THRESHOLD;
 });
 
-function selectAnswer(questionId: string, optionIdx: number): void {
-  userAnswers.value = { ...userAnswers.value, [questionId]: optionIdx };
+const quizStorageKey = computed(() => {
+  if (!props.questions || props.questions.length === 0) return '';
+  const ids = props.questions.map(q => q.id).join('_');
+  return `vdsa_quiz_draft_${ids}`;
+});
+
+function loadDraftAnswers(): void {
+  if (!quizStorageKey.value) return;
+  try {
+    const raw = sessionStorage.getItem(quizStorageKey.value);
+    if (raw) {
+      userAnswers.value = JSON.parse(raw);
+    }
+  } catch {}
+}
+
+function saveDraftAnswers(): void {
+  if (!quizStorageKey.value) return;
+  try {
+    sessionStorage.setItem(quizStorageKey.value, JSON.stringify(userAnswers.value));
+  } catch {}
+}
+
+function clearDraftAnswers(): void {
+  if (!quizStorageKey.value) return;
+  try {
+    sessionStorage.removeItem(quizStorageKey.value);
+  } catch {}
+}
+
+// Khôi phục đáp án nháp khi câu hỏi thay đổi / khởi tạo
+watch(() => props.questions, () => {
+  if (!isSubmitted.value) {
+    loadDraftAnswers();
+  }
+}, { immediate: true });
+
+function selectAnswer(questionId: string | number, optionIdx: number): void {
+  const key = String(questionId);
+  const isMulti = isQuestionMulti(currentQuestion.value);
+  const currentList = userAnswers.value[key] ? [...userAnswers.value[key]] : [];
+
+  if (isMulti) {
+    const foundIdx = currentList.indexOf(optionIdx);
+    if (foundIdx >= 0) {
+      currentList.splice(foundIdx, 1);
+    } else {
+      currentList.push(optionIdx);
+    }
+    if (currentList.length === 0) {
+      const next = { ...userAnswers.value };
+      delete next[key];
+      userAnswers.value = next;
+    } else {
+      userAnswers.value = { ...userAnswers.value, [key]: currentList.sort((a, b) => a - b) };
+    }
+  } else {
+    userAnswers.value = { ...userAnswers.value, [key]: [optionIdx] };
+  }
+
+  saveDraftAnswers();
+
   // Clear warning for this question
   if (showUnansweredWarning.value && unansweredIndices.value.length === 0) {
     showUnansweredWarning.value = false;
@@ -310,7 +426,6 @@ function submitQuiz(): void {
 
   const unanswered = unansweredIndices.value;
   if (unanswered.length > 0 && !showUnansweredWarning.value) {
-    // First click: show warning and navigate to first unanswered
     showUnansweredWarning.value = true;
     if (!unanswered.includes(currentIndex.value)) {
       currentIndex.value = unanswered[0];
@@ -318,18 +433,26 @@ function submitQuiz(): void {
     return;
   }
 
-  // All answered OR second click after warning → submit
-  doSubmit();
-}
-
-function forceSubmit(): void {
   doSubmit();
 }
 
 function doSubmit(): void {
   showUnansweredWarning.value = false;
   isSubmitted.value = true;
-  emit('submit', { ...userAnswers.value });
+  clearDraftAnswers();
+
+  // Chuẩn hóa payload: Single choice gửi number, Multi choice gửi number[]
+  const payload: Record<string, number | number[]> = {};
+  for (const q of props.questions) {
+    const selected = userAnswers.value[String(q.id)] ?? [];
+    if (isQuestionMulti(q)) {
+      payload[String(q.id)] = selected;
+    } else {
+      payload[String(q.id)] = selected.length > 0 ? selected[0] : -1;
+    }
+  }
+
+  emit('submit', payload);
 }
 
 function resetQuiz(): void {
@@ -337,6 +460,7 @@ function resetQuiz(): void {
   showUnansweredWarning.value = false;
   userAnswers.value = {};
   currentIndex.value = 0;
+  clearDraftAnswers();
 }
 
 function completeStep(): void {

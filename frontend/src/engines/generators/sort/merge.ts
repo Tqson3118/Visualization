@@ -166,15 +166,21 @@ export function createMergeGenerator(): SimulationGenerator {
         const isGlobalDone = lo === 0 && hi === n - 1;
         for (let p = lo; p <= hi; p++) {
           a[p] = t[p - lo];
-          if (isGlobalDone) doneMap[p] = 'done';
+          doneMap[p] = 'done';
           trace.stats.writes++;
           trace.push({
             line: 14,
-            explanation: `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]}.`,
-            structure: arrayStructure(a, segMap(lo, hi, { [p]: isGlobalDone ? 'done' : 'highlight' })),
-            annotations: [`a[${p}]=${a[p]}`],
+            explanation: `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]} (đoạn [${lo}..${hi}] đã hợp nhất xong).`,
+            structure: arrayStructure(a, segMap(lo, hi, { [p]: 'highlight' })),
+            annotations: [`a[${p}]=${a[p]}`, `t=[${t.join(', ')}]`],
           });
         }
+        trace.push({
+          line: 14,
+          explanation: `Hoàn tất trộn đoạn a[${lo}..${hi}] = [${a.slice(lo, hi + 1).join(', ')}].`,
+          structure: arrayStructure(a, segMap(lo, hi)),
+          annotations: [`Đoạn [${lo}..${hi}] đã có thứ tự`],
+        });
       };
 
       const mergeSort = (lo: number, hi: number): void => {

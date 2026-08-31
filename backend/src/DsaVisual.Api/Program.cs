@@ -157,7 +157,8 @@ builder.Services.AddAuthorization();
 // EF Core — SQL Server, Service truy vấn DbContext trực tiếp (KHÔNG Repository — SDD §5.1)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default"))
-           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.SqlServerEventId.SavepointsDisabledBecauseOfMARS)));
+           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.SqlServerEventId.SavepointsDisabledBecauseOfMARS)
+                                    .Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 // DI (SDD §5.3.7: Scoped cho DbContext + Service; Singleton cho Settings cache, TokenService (không state), DateTimeProvider)
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
@@ -383,6 +384,7 @@ if (args.Contains("--seed"))
 using (var startupScope = app.Services.CreateScope())
 {
     var startupDb = startupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var startupLogger = startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     if (startupDb.Database.IsRelational())
     {
         try
@@ -414,6 +416,10 @@ using (var startupScope = app.Services.CreateScope())
             Log.Information("Database migrations verified and applied on startup.");
             await SeedRunner.FixMismatchedQuestionsAsync(startupDb);
             Log.Information("DSA quiz questions verified and reconciled.");
+            await SeedRunner.AutoRepairOrphanTheoryNodesAsync(startupDb, startupLogger);
+            Log.Information("Orphan theory nodes verified and auto-repaired.");
+            await SeedTeacherCoursesData.SeedAsync(startupDb, startupLogger);
+            Log.Information("Teacher demo data and courses verified.");
         }
         catch (Exception ex)
         {

@@ -3,17 +3,19 @@
 // Render bằng shadcn-vue Dialog (DialogScrollContent để giữ scroll khi nội dung dài).
 import { messages } from '@/i18n/vi';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
 
 const props = withDefaults(
   defineProps<{
     open: boolean;
     title?: string;
+    description?: string;
     closable?: boolean;
     width?: string;
   }>(),
   {
     title: '',
+    description: '',
     closable: true,
     width: '560px',
   },
@@ -47,6 +49,7 @@ function onPointerDownOutside(event: Event): void {
       <DialogHeader>
         <DialogTitle v-if="title">{{ title }}</DialogTitle>
         <DialogTitle v-else class="sr-only">{{ messages.common.close }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ description || title || messages.common.close }}</DialogDescription>
       </DialogHeader>
       <div>
         <slot />

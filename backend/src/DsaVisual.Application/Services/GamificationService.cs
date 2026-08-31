@@ -130,7 +130,7 @@ public sealed class GamificationService(
 
         var pathIds = paths.Select(p => p.Id).ToList();
         var allNodes = await db.LearningPathNodes.AsNoTracking()
-            .Where(n => pathIds.Contains(n.PathId))
+            .Where(n => pathIds.Contains(n.PathId) && n.ItemType != PathItemType.Folder)
             .Select(n => new { n.Id, n.PathId })
             .ToListAsync(ct);
 
@@ -184,7 +184,10 @@ public sealed class GamificationService(
             .Where(p => p.UserId == userId && nodeIds.Contains(p.NodeId))
             .ToDictionaryAsync(p => p.NodeId, ct);
 
-        var passed = nodes.Count(n => progress.TryGetValue(n.Id, out var p) && p.Status == 2);
+        var studyNodes = nodes.Where(n => n.ItemType != PathItemType.Folder).ToList();
+        var studyPassed = studyNodes.Count(n => progress.TryGetValue(n.Id, out var p) && p.Status == 2);
+        var progressPct = studyNodes.Count == 0 ? 0 : (int)Math.Round(studyPassed * 100.0 / studyNodes.Count);
+
         var nodeDtos = nodes.Select(n =>
         {
             progress.TryGetValue(n.Id, out var p);
@@ -205,17 +208,27 @@ public sealed class GamificationService(
             };
         }).ToList();
 
-        // Node đầu tiên luôn mở (mở khóa tuần tự 1→5 — SDD §7.3.25)
-        if (nodeDtos.Count > 0 && nodeDtos[0].Status == "locked")
+        // Mở khóa tuần tự theo Ladder: Node 1 luôn mở. Các node sau mở nếu node liền trước đã pass.
+        for (var i = 0; i < nodeDtos.Count; i++)
         {
-            nodeDtos[0].Status = "active";
+            if (i == 0)
+            {
+                if (nodeDtos[0].Status == "locked")
+                {
+                    nodeDtos[0].Status = "active";
+                }
+            }
+            else if (nodeDtos[i].Status == "locked" && nodeDtos[i - 1].Status == "passed")
+            {
+                nodeDtos[i].Status = "active";
+            }
         }
 
         return Result<LearningPathMapDto>.Ok(new LearningPathMapDto
         {
             Id = path.Id,
             Title = path.Title,
-            ProgressPct = nodes.Count == 0 ? 0 : (int)Math.Round(passed * 100.0 / nodes.Count),
+            ProgressPct = progressPct,
             Nodes = nodeDtos
         });
     }
@@ -231,7 +244,7 @@ public sealed class GamificationService(
         }
 
         var path = await db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == pathId && p.IsActive, ct);
+            .FirstOrDefaultAsync(p => p.Id == pathId, ct);
         if (path is null)
         {
             return Result<NodeEnterResultDto>.Fail(ErrorCodes.NOT_FOUND, "Lộ trình học không tồn tại");
@@ -775,6 +788,14 @@ public sealed class GamificationService(
             Id = i.Id,
             ItemKey = i.ItemKey,
             Name = i.Name,
+            Description = i.Type == 0 || i.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
+                ? (i.ItemKey.Contains("10") ? "Hồi ngay 10 Tim để tiếp tục học tập và làm bài tập." : "Hồi ngay 5 Tim để tiếp tục học tập và làm bài tập.")
+                : (i.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || i.Type == 2
+                    ? "Khung viền nổi bật hiển thị quanh avatar và bảng xếp hạng."
+                    : "Avatar trang trí đại diện tài khoản học viên."),
+            Slot = i.Type == 0 || i.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
+                ? "item"
+                : (i.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || i.Type == 2 ? "frame" : "avatar"),
             PriceGems = i.PriceGems,
             MaxStack = i.MaxStack,
             Type = i.Type,
@@ -800,6 +821,14 @@ public sealed class GamificationService(
         {
             await tx.RollbackAsync(ct);
             return Result<ShopBuyResultDto>.Fail(ErrorCodes.INSUFFICIENT_GEMS, "Không đủ gems để mua vật phẩm này");
+        }
+
+        // Nếu là vật phẩm hồi tim tiêu hao -> hồi tim ngay cho người dùng
+        if (item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase))
+        {
+            var refillAmount = item.ItemKey.Contains("10") ? 10 : 5;
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE Users SET Hearts = CASE WHEN Hearts + {refillAmount} > 10 THEN 10 ELSE Hearts + {refillAmount} END WHERE Id = {userId}", ct);
         }
 
         // Finding #4: inventory tăng bằng 1 UPDATE atomic DUY NHẤT (Quantity + 1 WHERE Quantity < MaxStack) —
@@ -877,6 +906,14 @@ public sealed class GamificationService(
                 Id = item.Id,
                 ItemKey = item.ItemKey,
                 Name = item.Name,
+                Description = item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
+                    ? (item.ItemKey.Contains("10") ? "Hồi ngay 10 Tim để tiếp tục học tập và làm bài tập." : "Hồi ngay 5 Tim để tiếp tục học tập và làm bài tập.")
+                    : (item.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || item.Type == 2
+                        ? "Khung viền nổi bật hiển thị quanh avatar và bảng xếp hạng."
+                        : "Avatar trang trí đại diện tài khoản học viên."),
+                Slot = item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
+                    ? "item"
+                    : (item.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || item.Type == 2 ? "frame" : "avatar"),
                 PriceGems = item.PriceGems,
                 MaxStack = item.MaxStack,
                 Type = item.Type,
@@ -1129,6 +1166,105 @@ public sealed class GamificationService(
         });
     }
 
+    public async Task<Result<PaymentWebhookResultDto>> ProcessPaymentWebhookAsync(PaymentWebhookRequest request, CancellationToken ct)
+    {
+        var content = request.Content ?? request.Description ?? request.OrderRef ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return Result<PaymentWebhookResultDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Nội dung giao dịch trống");
+        }
+
+        // Tìm mẫu DSV{userId}T{months} (ví dụ DSV1002T1, DSV1002T3, DSV1002T12)
+        var match = System.Text.RegularExpressions.Regex.Match(content, @"DSV(\d+)T(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            logger.LogWarning("Payment webhook content does not match DSV pattern: {Content}", content);
+            return Result<PaymentWebhookResultDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Nội dung không chứa mã định danh DSV{userId}T{months}");
+        }
+
+        var userId = int.Parse(match.Groups[1].Value);
+        var months = int.Parse(match.Groups[2].Value);
+        if (months != 1 && months != 3 && months != 12)
+        {
+            return Result<PaymentWebhookResultDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Gói thời hạn Premium không hợp lệ (chỉ hỗ trợ 1, 3, hoặc 12 tháng)");
+        }
+        var planId = months == 1 ? "1m" : months == 3 ? "3m" : "12m";
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
+        if (user is null)
+        {
+            return Result<PaymentWebhookResultDto>.Fail(ErrorCodes.NOT_FOUND, $"Không tìm thấy người dùng ID {userId}");
+        }
+
+        // Chống replay attack: kiểm tra nếu mã giao dịch ngân hàng đã được ghi nhận trước đó
+        if (!string.IsNullOrWhiteSpace(request.ReferenceCode))
+        {
+            var alreadyProcessed = await db.GemTransactions.AsNoTracking()
+                .AnyAsync(g => g.RefType == "premium_webhook" && g.RefId == request.ReferenceCode, ct);
+            if (alreadyProcessed)
+            {
+                return Result<PaymentWebhookResultDto>.Fail(ErrorCodes.CONFLICT, "Giao dịch thanh toán này đã được xử lý trước đó");
+            }
+        }
+
+        var orderRef = $"DSV{userId}T{months}";
+        var subscription = await db.PremiumSubscriptions
+            .OrderByDescending(s => s.Id)
+            .FirstOrDefaultAsync(s => s.UserId == userId && (s.OrderRef == orderRef || s.Status == 2), ct);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var baseTime = user.PremiumUntil > clock.UtcNow ? user.PremiumUntil.Value : clock.UtcNow;
+        var expiresAt = baseTime.AddMonths(months);
+
+        if (subscription is not null)
+        {
+            subscription.Status = 0; // Active
+            subscription.ExpiresAt = expiresAt;
+            subscription.PlanId = planId;
+        }
+        else
+        {
+            subscription = new PremiumSubscription
+            {
+                UserId = userId,
+                PlanId = planId,
+                StartedAt = clock.UtcNow,
+                ExpiresAt = expiresAt,
+                Status = 0,
+                OrderRef = orderRef,
+                CreatedAt = clock.UtcNow
+            };
+            db.PremiumSubscriptions.Add(subscription);
+        }
+
+        user.PremiumUntil = expiresAt;
+        user.HeartsMax = 30;
+
+        db.GemTransactions.Add(new GemTransaction
+        {
+            UserId = userId,
+            Type = 0,
+            Amount = 0,
+            RefType = "premium_webhook",
+            RefId = request.ReferenceCode ?? orderRef,
+            CreatedAt = clock.UtcNow
+        });
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        logger.LogInformation("Payment webhook processed successfully: User {UserId} upgraded to Premium ({PlanId}) until {ExpiresAt}", userId, planId, expiresAt);
+
+        return Result<PaymentWebhookResultDto>.Ok(new PaymentWebhookResultDto
+        {
+            Success = true,
+            Message = "Kích hoạt gói Premium thành công",
+            UserId = userId,
+            PlanId = planId
+        });
+    }
+
     // ── Cheatsheet ────────────────────────────────────────────
 
     public async Task<Result<List<CheatsheetItemDto>>> GetCheatsheetAsync(string? structure, CancellationToken ct)
@@ -1378,7 +1514,7 @@ public sealed class GamificationService(
         }
     }
 
-    /// <summary>Streak EAGER (FR-10.4 v2.8): LastActivityDate hôm qua → +1; hôm nay → giữ; cũ hơn → dùng freeze hoặc reset.</summary>
+    /// <summary>Streak EAGER (FR-10.4 v2.8): LastActivityDate hôm qua → +1; hôm nay → giữ; nghỉ 1 ngày (diffDays==2) dùng freeze → +1; nghỉ >= 2 ngày → reset về 1.</summary>
     private async Task UpdateStreakEagerAsync(int userId, CancellationToken ct)
     {
         var user = await db.Users.FirstAsync(u => u.Id == userId, ct);
@@ -1400,8 +1536,9 @@ public sealed class GamificationService(
         }
         else
         {
-            // Nghỉ nhiều ngày: dùng freeze (tối đa 1 freeze/ngày) hoặc reset về 1
-            if (user.StreakFreeze > 0)
+            var diffDays = (today - user.LastActivityDate.Value).TotalDays;
+            // 1 lượt Freeze chỉ cứu được tối đa 1 ngày vắng mặt liên tiếp (hôm kia là lần cuối: diffDays == 2)
+            if (diffDays == 2 && user.StreakFreeze > 0)
             {
                 user.StreakFreeze -= 1;
                 user.StreakDays += 1;
@@ -1452,7 +1589,7 @@ public sealed class GamificationService(
         }
     }
 
-    private static DateTime TodayUtc7() => DateTime.UtcNow.AddHours(7).Date;
+    private DateTime TodayUtc7() => clock.UtcNow.AddHours(7).Date;
 
     private static int GetTarget(string conditionJson)
     {

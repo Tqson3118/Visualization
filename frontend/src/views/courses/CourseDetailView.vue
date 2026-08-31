@@ -200,11 +200,11 @@
             </div>
           </section>
 
-          <!-- GÓP Ý CHO GIẢNG VIÊN (tương tác 2 chiều — CHỈ hiện khi hoàn thành 100% lộ trình) -->
-          <section v-if="course.progressPercent >= 100" id="course-feedback" class="scroll-mt-8">
+          <!-- GÓP Ý CHO GIẢNG VIÊN (tương tác 2 chiều) -->
+          <section id="course-feedback" class="scroll-mt-8">
             <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-2">Góp ý cho giảng viên</h2>
             <p class="text-vdsa-muted text-sm mb-6">
-              Đây là lộ trình học có sẵn — hãy gửi đóng góp ý kiến, báo lỗi hoặc đề xuất nội dung, giảng viên sẽ đọc và phản hồi bạn tại đây.
+              Bạn có thắc mắc, đóng góp ý kiến, báo lỗi hoặc đề xuất nội dung? Hãy gửi tại đây — giảng viên sẽ đọc và phản hồi bạn.
             </p>
 
             <form v-if="auth.isAuthenticated" @submit.prevent="submitFeedback" class="p-6 rounded-2xl border border-vdsa-border bg-vdsa-surface">
@@ -340,6 +340,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
+import { useHeartSystem } from '@/composables/useHeartSystem';
 import { useUiStore } from '@/stores/ui';
 import { courseApi, type CourseDetailDto, type CourseFeedbackDto, type CourseLessonDto } from '@/services/courseApi';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
@@ -349,6 +350,7 @@ import { messages } from '@/i18n/vi';
 const courseStore = useCourseStore();
 const auth = useAuthStore();
 const gamification = useGamificationStore();
+const heartSystem = useHeartSystem();
 const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
@@ -423,25 +425,30 @@ const modules = computed<PathModuleGroup[]>(() => {
     if (!map.has(mTitle)) {
       map.set(mTitle, []);
     }
-    map.get(mTitle)!.push({
-      id: l.id,
-      lessonId: Number(l.id),
-      title: l.title,
-      sandboxType: l.sandboxType,
-      quizId: l.quizId ? Number(l.quizId) : undefined,
-      status: l.status,
-      isCompleted: l.status === 'Completed',
-      locked: !!l.locked,
-      xpReward: l.xpReward,
-    });
+    if (l.sandboxType !== 'folder') {
+      map.get(mTitle)!.push({
+        id: l.id,
+        nodeId: typeof l.nodeId === 'number' ? l.nodeId : Number(l.id),
+        lessonId: l.lessonId ? Number(l.lessonId) : undefined,
+        title: l.title,
+        sandboxType: l.sandboxType,
+        quizId: l.quizId ? Number(l.quizId) : undefined,
+        status: l.status,
+        isCompleted: l.status === 'Completed',
+        locked: !!l.locked,
+        xpReward: l.xpReward,
+      });
+    }
   });
-  return Array.from(map.entries()).map(([title, lessons]) => ({ title, lessons }));
+  return Array.from(map.entries())
+    .filter(([, lessons]) => lessons.length > 0)
+    .map(([title, lessons]) => ({ title, lessons }));
 });
 
 /** Adapter: PathModuleLesson → CourseLessonDto gốc rồi gọi startLesson. */
 function onModuleLessonSelect(lesson: PathModuleLesson): void {
   const target = (course.value?.lessons ?? []).find(
-    (l) => String(l.id) === String(lesson.lessonId ?? lesson.id),
+    (l) => String(l.id) === String(lesson.nodeId ?? lesson.id),
   );
   if (target) void startLesson(target);
 }
@@ -526,37 +533,33 @@ async function confirmRegistration() {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
-  try {
-    await gamification.spendHeart();
-    showRegisterModal.value = false;
-    if (course.value) {
-      courseStore.enrollCourse(course.value.id);
-      ui.showToast('Đăng ký lộ trình thành công! (-1 🤍)', 'success');
-      if (targetLessonToStart.value) {
-        const nextTarget = targetLessonToStart.value;
-        targetLessonToStart.value = null;
-        await startLesson(nextTarget);
-      }
-    }
-  } catch (err: any) {
-    if (err?.code === 'HEARTS_EMPTY' || err?.message?.includes('tim')) {
-      ui.showToast('Bạn cần ít nhất 1 tim để đăng ký lộ trình. Hãy chờ hồi hoặc nâng cấp Premium!', 'warning');
-    } else {
-      ui.showToast(err?.message || 'Không thể đăng ký lộ trình', 'error');
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình');
+  if (!ok) return;
+
+  showRegisterModal.value = false;
+  if (course.value) {
+    courseStore.enrollCourse(course.value.id);
+    ui.showToast('Mở khóa lộ trình thành công! (-1 🤍)', 'success');
+    if (targetLessonToStart.value) {
+      const nextTarget = targetLessonToStart.value;
+      targetLessonToStart.value = null;
+      // Bỏ qua trừ tim vì học viên vừa dùng 1 tim để mở khóa toàn bộ lộ trình
+      await startLesson(nextTarget, true);
     }
   }
 }
 
-async function startLesson(lesson: CourseLessonDto) {
-  if (lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
+async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
+  const isTeacherOrAdmin = auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN';
+  if (!isTeacherOrAdmin && lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
 
   if (!auth.isAuthenticated) {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
 
-  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình
-  if (course.value && !courseStore.isEnrolled(course.value.id)) {
+  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình (chỉ với học viên)
+  if (!isTeacherOrAdmin && course.value && !courseStore.isEnrolled(course.value.id)) {
     targetLessonToStart.value = lesson;
     showRegisterModal.value = true;
     return;
@@ -565,20 +568,13 @@ async function startLesson(lesson: CourseLessonDto) {
   const courseId = Number(course.value?.id);
   const nodeId = typeof lesson.nodeId === 'number' ? lesson.nodeId : Number(lesson.id);
 
-  if (courseId && nodeId) {
-    try {
-      const res = await gamification.enterNode(courseId, nodeId);
-      if (typeof res?.heartsLeft === 'number') {
-        gamification.hearts = res.heartsLeft;
-      }
-    } catch (err: any) {
-      const errorCode = err?.response?.data?.code || err?.code || '';
-      if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY') || String(err?.message || '').includes('hết tim')) {
-        ui.showToast('Bạn đã hết tim. Hãy chờ hồi hoặc nâng cấp Premium.', 'warning');
-        return;
-      }
-      console.warn('Enter node warning/error:', err);
-    }
+  // Quy tắc tim: Đăng ký tốn 1 tim, node đầu tiên miễn phí (0 tim), các node sau tốn 1 tim
+  const firstLesson = course.value?.lessons?.[0];
+  const isFirstNode = firstLesson && (String(firstLesson.id) === String(lesson.id) || (firstLesson.nodeId && firstLesson.nodeId === lesson.nodeId));
+  const shouldChargeHeart = !skipHeartCharge && !isFirstNode && !isTeacherOrAdmin;
+
+  if (courseId && nodeId && shouldChargeHeart) {
+    await heartSystem.enterLessonNode(courseId, nodeId);
   }
 
   router.push({ name: 'lesson-study', params: { id: lesson.id }, query: { courseId: course.value?.id } });

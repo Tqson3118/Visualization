@@ -132,6 +132,9 @@ function cleanTitle(title: string): string {
 
       <!-- Module Lesson Items -->
       <div v-show="expandedModules.includes(mIdx)" class="border-t border-[#222033] divide-y divide-[#1e1d2c]">
+        <div v-if="module.lessons.length === 0" class="p-4 text-center text-xs text-slate-500 italic">
+          Chương này chưa có mục bài học nào.
+        </div>
         <div
           v-for="(lesson, idx) in module.lessons"
           :key="lesson.id"
@@ -147,7 +150,7 @@ function cleanTitle(title: string): string {
           <!-- Left: Index/Status Icon + Title + Tags -->
           <div
             class="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
-            @click="!lesson.locked && !lesson.isLocked && emit('selectLesson', lesson)"
+            @click="emit('selectLesson', lesson)"
           >
             <span
               class="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold"
@@ -183,7 +186,7 @@ function cleanTitle(title: string): string {
                     Code Lab
                   </span>
                   <span
-                    v-else-if="lesson.sandboxType === 'quiz' || lesson.quizId"
+                    v-else-if="lesson.sandboxType === 'quiz'"
                     class="font-extrabold uppercase text-[9px] tracking-wider bg-amber-500/10 text-orange-400 px-1.5 py-0.5 rounded border border-amber-500/20"
                   >
                     Quiz

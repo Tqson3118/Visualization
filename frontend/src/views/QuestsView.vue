@@ -39,6 +39,14 @@ onMounted(async () => {
 const doneCount = computed(() => gamification.quests.filter((q) => q.current >= q.target).length);
 const allDone = computed(() => gamification.quests.length > 0 && doneCount.value === gamification.quests.length);
 
+const sortedQuests = computed(() => {
+  return [...gamification.quests].sort((a, b) => {
+    const scoreA = a.claimed ? 2 : (a.current >= a.target ? 0 : 1);
+    const scoreB = b.claimed ? 2 : (b.current >= b.target ? 0 : 1);
+    return scoreA - scoreB;
+  });
+});
+
 const DIFFICULTY: Record<number, { label: string; cls: string }> = {
   0: { label: messages.quests.difficulty[0], cls: 'quests__diff--easy' },
   1: { label: messages.quests.difficulty[1], cls: 'quests__diff--mid' },
@@ -108,7 +116,7 @@ async function claim(quest: QuestDto): Promise<void> {
 
       <div class="quests__list">
         <article
-          v-for="(quest, idx) in gamification.quests"
+          v-for="(quest, idx) in sortedQuests"
           :key="quest.id"
           class="quests__card card"
           :class="{

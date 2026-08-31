@@ -6,6 +6,8 @@ public sealed class ShopItemDto
     public int Id { get; set; }
     public string ItemKey { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Slot { get; set; }
     public int PriceGems { get; set; }
     public int MaxStack { get; set; }
     public int Type { get; set; }            // 0=consumable, 1=permanent, 2=timed

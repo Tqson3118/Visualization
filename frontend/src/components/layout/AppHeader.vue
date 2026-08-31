@@ -22,6 +22,24 @@ const route = useRoute();
 const menuOpen = ref(false);
 const mobileNavOpen = ref(false);
 const headerRef = ref<HTMLElement | null>(null);
+const avatarImgFailed = ref(false);
+
+watch(
+  () => auth.user?.avatarUrl,
+  () => {
+    avatarImgFailed.value = false;
+  },
+);
+
+const avatarInitial = computed(() => {
+  const name = auth.user?.displayName?.trim();
+  return name && name.length > 0 ? name.charAt(0).toUpperCase() : 'U';
+});
+
+const userAriaLabel = computed(() => {
+  const name = auth.user?.displayName?.trim();
+  return name && name.length > 0 ? name : 'Hồ sơ';
+});
 
 // Phase 1: Sticky header scroll tracking — khi cuộn qua 50px → glass blur + border
 const isScrolled = ref(false);
@@ -31,6 +49,13 @@ function onScroll(): void {
 
 function onDocumentClick(e: MouseEvent): void {
   if (headerRef.value && !headerRef.value.contains(e.target as Node)) {
+    menuOpen.value = false;
+    mobileNavOpen.value = false;
+  }
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
     menuOpen.value = false;
     mobileNavOpen.value = false;
   }
@@ -47,6 +72,7 @@ watch(
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });
   document.addEventListener('click', onDocumentClick);
+  window.addEventListener('keydown', onKeydown);
   onScroll(); // khởi tạo ngay
   if (auth.isAuthenticated) {
     void gamification.fetchInventory();
@@ -56,6 +82,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll);
   document.removeEventListener('click', onDocumentClick);
+  window.removeEventListener('keydown', onKeydown);
 });
 
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
@@ -95,7 +122,6 @@ async function onLogout(): Promise<void> {
       <nav class="app-header__nav" aria-label="Điều hướng chính">
         <RouterLink :to="{ name: 'path-list' }" class="app-header__link">{{ messages.nav.path }}</RouterLink>
         <RouterLink :to="{ name: 'simulations' }" class="app-header__link">{{ messages.nav.simulations }}</RouterLink>
-        <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
         <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
@@ -117,7 +143,7 @@ async function onLogout(): Promise<void> {
               type="button"
               class="app-header__user"
               :class="userAvatarClass"
-              :aria-label="auth.user?.displayName ?? 'Hồ sơ'"
+              :aria-label="userAriaLabel"
               @click="menuOpen = !menuOpen"
             >
               <img
@@ -127,13 +153,13 @@ async function onLogout(): Promise<void> {
                 class="app-header__user-avatar-image"
               />
               <img
-                v-else-if="auth.user?.avatarUrl"
+                v-else-if="auth.user?.avatarUrl && !avatarImgFailed"
                 :src="auth.user.avatarUrl"
                 :alt="auth.user.displayName ?? 'Avatar'"
                 class="app-header__user-avatar-image"
-                @error="($event.target as HTMLImageElement).style.display = 'none'"
+                @error="avatarImgFailed = true"
               />
-              <span v-else>{{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}</span>
+              <span v-else>{{ avatarInitial }}</span>
             </button>
           </span>
           <Transition name="app-menu">
@@ -178,9 +204,6 @@ async function onLogout(): Promise<void> {
           </RouterLink>
           <RouterLink :to="{ name: 'simulations' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             {{ messages.nav.simulations }}
-          </RouterLink>
-          <RouterLink :to="{ name: 'classes' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
-            Lớp học
           </RouterLink>
           <RouterLink :to="{ name: 'quests' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Thử thách

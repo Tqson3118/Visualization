@@ -27,10 +27,9 @@ public static partial class SeedDemoActivity
     /// Hearts=HeartsMax=10, LastHeartAt=CreatedAt, Xp=Gems=StreakDays=0 (hoạt động tính lại ở Task 4),
     /// PasswordHash = PasswordHasher.Hash("Student@123") — PBKDF2, pattern V1.
     /// </summary>
-    public static async Task SeedNewStudentsV2Async(AppDbContext db, ILogger logger, CancellationToken ct)
+    public static async Task SeedNewStudentsV2Async(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
-        var now = DateTime.UtcNow.AddHours(7);          // hôm nay UTC+7 (quy ước SeedDemoActivity)
-        now = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMinute));
+        var now = NowUtc7(clock);          // hôm nay UTC+7 (quy ước SeedDemoActivity)
         var added = 0;
         var skipped = 0;
         foreach (var seed in V2Users.All)

@@ -202,6 +202,9 @@ export const useSimulationStore = defineStore('simulation', () => {
   }
 
   function stepForward(): void {
+    if (status.value === 'running') {
+      pause();
+    }
     if (currentIndex.value >= steps.value.length - 1) {
       status.value = 'finished';
       clearPlayback();
@@ -212,11 +215,17 @@ export const useSimulationStore = defineStore('simulation', () => {
   }
 
   function stepBack(): void {
+    if (status.value === 'running') {
+      pause();
+    }
     if (currentIndex.value > 0) currentIndex.value -= 1;
     breakpointHit.value = null;
   }
 
   function jumpTo(index: number): void {
+    if (status.value === 'running') {
+      pause();
+    }
     const clamped = Math.max(0, Math.min(steps.value.length - 1, index));
     currentIndex.value = clamped;
     breakpointHit.value = null;

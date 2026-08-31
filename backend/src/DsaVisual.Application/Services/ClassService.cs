@@ -297,6 +297,11 @@ public sealed class ClassService(
 
     public async Task<Result<ClassDetailDto>> JoinAsync(int userId, string role, int id, JoinClassRequest request, CancellationToken ct)
     {
+        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) || role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ tài khoản Sinh viên mới có thể tham gia lớp học qua mã mời");
+        }
+
         var classRoom = await db.Classes.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
         if (classRoom is null)
@@ -324,8 +329,15 @@ public sealed class ClassService(
                 "Bạn đã tham gia lớp này", new() { ["userId"] = ["Bạn đã tham gia lớp này"] });
         }
 
-        db.ClassMembers.Add(new ClassMember { ClassId = id, UserId = userId, JoinedAt = clock.UtcNow });
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            db.ClassMembers.Add(new ClassMember { ClassId = id, UserId = userId, JoinedAt = clock.UtcNow });
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.CONFLICT, "Bạn đã tham gia lớp này", new() { ["userId"] = ["Bạn đã tham gia lớp này"] });
+        }
 
         logger.LogInformation("User {UserId} joined class {ClassId}", userId, id);
         return await GetByIdAsync(userId, role, id, ct);
@@ -337,6 +349,11 @@ public sealed class ClassService(
     /// </summary>
     public async Task<Result<ClassDetailDto>> JoinByCodeAsync(int userId, string role, JoinClassByCodeRequest request, CancellationToken ct)
     {
+        if (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) || role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN, "Chỉ tài khoản Sinh viên mới có thể tham gia lớp học qua mã mời");
+        }
+
         if (string.IsNullOrWhiteSpace(request.InviteCode))
         {
             return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
@@ -367,8 +384,15 @@ public sealed class ClassService(
                 "Bạn đã tham gia lớp này", new() { ["inviteCode"] = ["Bạn đã tham gia lớp này"] });
         }
 
-        db.ClassMembers.Add(new ClassMember { ClassId = classRoom.Id, UserId = userId, JoinedAt = clock.UtcNow });
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            db.ClassMembers.Add(new ClassMember { ClassId = classRoom.Id, UserId = userId, JoinedAt = clock.UtcNow });
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.CONFLICT, "Bạn đã tham gia lớp này", new() { ["inviteCode"] = ["Bạn đã tham gia lớp này"] });
+        }
 
         logger.LogInformation("User {UserId} joined class {ClassId} by invite code {InviteCode}", userId, classRoom.Id, code);
         return await GetByIdAsync(userId, role, classRoom.Id, ct);
@@ -403,8 +427,15 @@ public sealed class ClassService(
                 "Sinh viên đã trong lớp", new() { ["email"] = ["Sinh viên đã trong lớp"] });
         }
 
-        db.ClassMembers.Add(new ClassMember { ClassId = id, UserId = member.Id, JoinedAt = clock.UtcNow });
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            db.ClassMembers.Add(new ClassMember { ClassId = id, UserId = member.Id, JoinedAt = clock.UtcNow });
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.CONFLICT, "Sinh viên đã trong lớp", new() { ["email"] = ["Sinh viên đã trong lớp"] });
+        }
 
         logger.LogInformation("Member {MemberId} added to class {ClassId} by user {UserId}", member.Id, id, userId);
         return await GetByIdAsync(userId, role, id, ct);

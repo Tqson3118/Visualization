@@ -68,6 +68,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
     public sealed class CourseContentMetadata
     {
+        public string? Category { get; set; }
+        public string? Difficulty { get; set; }
         public List<CourseHighlightDto> Highlights { get; set; } = [];
         public List<string> LearningObjectives { get; set; } = [];
         public List<string> KeyOutcomes { get; set; } = [];
@@ -141,24 +143,28 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public bool Locked { get; set; }
     }
 
-    private static string DetermineCategory(LearningPath path)
+    private static string DetermineCategory(LearningPath path, CourseContentMetadata? meta = null)
     {
+        if (!string.IsNullOrWhiteSpace(meta?.Category))
+            return meta.Category;
         var title = path.Title;
-        if (title.Contains("Data Structures", StringComparison.OrdinalIgnoreCase) || title.Contains("CTDL", StringComparison.OrdinalIgnoreCase) || title.Contains("Cấu trúc dữ liệu", StringComparison.OrdinalIgnoreCase) || title.Contains("Cây", StringComparison.OrdinalIgnoreCase) || title.Contains("Bảng băm", StringComparison.OrdinalIgnoreCase))
+        if (title.Contains("Data Structures", StringComparison.OrdinalIgnoreCase) || title.Contains("CTDL", StringComparison.OrdinalIgnoreCase) || title.Contains("Cấu trúc dữ liệu", StringComparison.OrdinalIgnoreCase) || title.Contains("tuyến tính", StringComparison.OrdinalIgnoreCase))
             return "Cấu trúc dữ liệu";
-        if (title.Contains("Algorithms", StringComparison.OrdinalIgnoreCase) || title.Contains("Giải thuật", StringComparison.OrdinalIgnoreCase) || title.Contains("Thuật toán", StringComparison.OrdinalIgnoreCase) || title.Contains("Đồ thị", StringComparison.OrdinalIgnoreCase))
+        if (title.Contains("Cây", StringComparison.OrdinalIgnoreCase) || title.Contains("Tree", StringComparison.OrdinalIgnoreCase) || title.Contains("Bảng băm", StringComparison.OrdinalIgnoreCase) || title.Contains("Hash", StringComparison.OrdinalIgnoreCase))
+            return "Cây & Bảng băm";
+        if (title.Contains("Đồ thị", StringComparison.OrdinalIgnoreCase) || title.Contains("Graph", StringComparison.OrdinalIgnoreCase))
+            return "Đồ thị";
+        if (title.Contains("Sắp xếp", StringComparison.OrdinalIgnoreCase) || title.Contains("Sorting", StringComparison.OrdinalIgnoreCase) || title.Contains("Tìm kiếm", StringComparison.OrdinalIgnoreCase) || title.Contains("Searching", StringComparison.OrdinalIgnoreCase))
+            return "Sắp xếp & Tìm kiếm";
+        if (title.Contains("Algorithms", StringComparison.OrdinalIgnoreCase) || title.Contains("Giải thuật", StringComparison.OrdinalIgnoreCase) || title.Contains("Thuật toán", StringComparison.OrdinalIgnoreCase))
             return "Giải thuật";
-        if (title.Contains("Cơ bản", StringComparison.OrdinalIgnoreCase) || title.Contains("Sắp xếp", StringComparison.OrdinalIgnoreCase) || title.Contains("tuyến tính", StringComparison.OrdinalIgnoreCase))
-            return "Cơ bản";
-        if (title.Contains("Trung cấp", StringComparison.OrdinalIgnoreCase))
-            return "Trung cấp";
-        if (title.Contains("Nâng cao", StringComparison.OrdinalIgnoreCase))
-            return "Nâng cao";
-        return "DSA";
+        return "Cấu trúc dữ liệu";
     }
 
-    private static string DetermineDifficulty(LearningPath path)
+    private static string DetermineDifficulty(LearningPath path, CourseContentMetadata? meta = null)
     {
+        if (!string.IsNullOrWhiteSpace(meta?.Difficulty))
+            return meta.Difficulty;
         var title = path.Title;
         if (title.Contains("Cơ bản", StringComparison.OrdinalIgnoreCase) || title.Contains("Data Structures", StringComparison.OrdinalIgnoreCase) || title.Contains("Sắp xếp", StringComparison.OrdinalIgnoreCase) || title.Contains("tuyến tính", StringComparison.OrdinalIgnoreCase) || path.SortOrder <= 1)
             return "Beginner";
@@ -186,20 +192,19 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         var query = _db.LearningPaths.AsNoTracking();
         if (role == "ADMIN")
         {
-            // Admin thấy tất cả lộ trình
+            // Admin thấy tất cả lộ trình (kể cả Draft, PendingReview)
         }
         else if (role == "TEACHER" && userId is not null)
         {
-            // Teacher thấy lộ trình Active/Public/ClassOnly + lộ trình do mình tạo
+            // Teacher thấy lộ trình Active/ClassOnly + lộ trình do mình tạo (bản nháp của mình)
             query = query.Where(p => p.Status == LearningPathStatus.Active 
-                || p.Visibility == PathVisibility.Public
-                || p.Visibility == PathVisibility.ClassOnly
+                || p.Status == LearningPathStatus.ClassOnly
                 || p.CreatedBy == userId.Value 
                 || (p.AuthorId != null && p.AuthorId == userId.Value));
         }
         else if (userId is not null)
         {
-            // Student thấy lộ trình Active/Public + lộ trình của các lớp mình tham gia
+            // Student chỉ thấy lộ trình Active (Công khai) + lộ trình ClassOnly của các lớp mình tham gia
             var myClassIds = await _db.ClassMembers.AsNoTracking()
                 .Where(m => m.UserId == userId.Value)
                 .Select(m => m.ClassId)
@@ -214,13 +219,12 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 : new List<int>();
 
             query = query.Where(p => p.Status == LearningPathStatus.Active 
-                || p.Visibility == PathVisibility.Public 
-                || (p.Visibility == PathVisibility.ClassOnly && myClassPathIds.Contains(p.Id)));
+                || (p.Status == LearningPathStatus.ClassOnly && myClassPathIds.Contains(p.Id)));
         }
         else
         {
-            // Khách chỉ thấy lộ trình Active / Public
-            query = query.Where(p => p.Status == LearningPathStatus.Active || p.Visibility == PathVisibility.Public);
+            // Khách chỉ thấy lộ trình Active (Công khai)
+            query = query.Where(p => p.Status == LearningPathStatus.Active);
         }
 
         var paths = await query.OrderBy(p => p.SortOrder).ToListAsync(ct);
@@ -275,7 +279,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         foreach (var path in paths)
         {
             var nodes = nodesByPath.GetValueOrDefault(path.Id, []);
-            var completed = nodes.Count(n => passedNodeIds.Contains(n.Id));
+            var playableNodes = nodes.Where(n => n.ItemType != PathItemType.Folder).ToList();
+            var playableNodeIds = playableNodes.Select(n => n.Id).ToList();
+            var completed = playableNodes.Count(n => passedNodeIds.Contains(n.Id));
+            var totalLessons = playableNodes.Count;
             var lessonIds = nodes.Where(n => n.LessonId != null).Select(n => n.LessonId!.Value).ToList();
             var feedbacks = lessonIds.SelectMany(id => feedbackByLesson.GetValueOrDefault(id, [])).ToList();
             var rating = feedbacks.Count > 0 ? feedbacks.Average(f => f.Rating) : 4.8;
@@ -288,10 +295,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 Id = path.Id.ToString(),
                 Title = path.Title,
                 Description = path.Description ?? string.Empty,
-                Category = DetermineCategory(path),
-                Difficulty = DetermineDifficulty(path),
+                Category = DetermineCategory(path, meta),
+                Difficulty = DetermineDifficulty(path, meta),
                 IsPremium = false,
-                IsPublished = path.Status == LearningPathStatus.Active || path.Visibility == PathVisibility.Public,
+                IsPublished = path.Status == LearningPathStatus.Active,
                 Status = FormatLearningPathStatus(path.Status),
                 RejectionReason = path.RejectionReason,
                 ReviewedBy = path.ReviewedBy,
@@ -301,10 +308,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 CreatedBy = path.CreatedBy,
                 AuthorId = path.AuthorId,
                 CreatedAt = DateTime.UtcNow.AddDays(-30),
-                TotalLessons = nodes.Count,
+                TotalLessons = totalLessons,
                 CompletedLessons = completed,
-                ProgressPercent = nodes.Count == 0 ? 0 : (int)Math.Round(completed * 100.0 / nodes.Count),
-                XpReward = nodes.Count * 20,
+                ProgressPercent = totalLessons == 0 ? 0 : (int)Math.Round(completed * 100.0 / totalLessons),
+                XpReward = totalLessons * 100,
                 LearningObjectives = meta.LearningObjectives,
                 KeyOutcomes = meta.KeyOutcomes,
                 Rating = rating,
@@ -338,14 +345,15 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .AnyAsync(uId => uId == userId.Value, ct);
 
         var isOwnerOrAuthor = userId != null && (path.CreatedBy == userId.Value || path.AuthorId == userId.Value);
-        var canView = role == "ADMIN" || isOwnerOrAuthor || isEnrolledViaClass
+        var isTeacherOrAdmin = role == "ADMIN" || (role == "TEACHER" && isOwnerOrAuthor);
+        var canView = isTeacherOrAdmin
+            || isOwnerOrAuthor
             || path.Status == LearningPathStatus.Active
-            || path.Visibility == PathVisibility.Public
-            || (path.Visibility == PathVisibility.ClassOnly && isEnrolledViaClass);
+            || (path.Status == LearningPathStatus.ClassOnly && isEnrolledViaClass);
 
         if (!canView)
         {
-            return NotFound(new { message = "Khóa học không tồn tại hoặc bạn không có quyền truy cập." });
+            return NotFound(new { message = "Khóa học không tồn tại hoặc hiện đang ở chế độ bản nháp." });
         }
 
         var nodes = await _db.LearningPathNodes.AsNoTracking()
@@ -353,17 +361,46 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             .OrderBy(n => n.SortOrder)
             .ToListAsync(ct);
 
-        var nodeIds = nodes.Select(n => n.Id).ToList();
-        var passedNodeIds = nodeIds.Count == 0 || userId is null
+        if (nodes.Count == 0 && path.TopicId != null)
+        {
+            var fallbackLessons = await _db.Lessons.AsNoTracking()
+                .Where(l => l.TopicId == path.TopicId.Value && l.DeletedAt == null)
+                .OrderBy(l => l.SortOrder)
+                .ToListAsync(ct);
+
+            if (fallbackLessons.Count > 0)
+            {
+                var newNodes = new List<LearningPathNode>();
+                for (var i = 0; i < fallbackLessons.Count; i++)
+                {
+                    var fl = fallbackLessons[i];
+                    newNodes.Add(new LearningPathNode
+                    {
+                        PathId = path.Id,
+                        Title = fl.Title,
+                        LessonId = fl.Id,
+                        ItemType = PathItemType.Theory,
+                        SortOrder = fl.SortOrder > 0 ? fl.SortOrder : (i + 1)
+                    });
+                }
+                _db.LearningPathNodes.AddRange(newNodes);
+                await _db.SaveChangesAsync(ct);
+                nodes = newNodes;
+            }
+        }
+
+        var playableNodes = nodes.Where(n => n.ItemType != PathItemType.Folder).ToList();
+        var playableNodeIds = playableNodes.Select(n => n.Id).ToList();
+        var passedNodeIds = playableNodeIds.Count == 0 || userId is null
             ? new HashSet<int>()
             : (await _db.UserNodeProgress.AsNoTracking()
-                .Where(p => p.UserId == userId.Value && nodeIds.Contains(p.NodeId) && p.Status == 2)
+                .Where(p => p.UserId == userId.Value && playableNodeIds.Contains(p.NodeId) && p.Status == 2)
                 .Select(p => p.NodeId)
                 .ToListAsync(ct))
                 .ToHashSet();
 
-        var completed = nodes.Count(n => passedNodeIds.Contains(n.Id));
-        var lessons = await BuildLessonsAsync(userId, nodes, ct);
+        var completed = playableNodes.Count(n => passedNodeIds.Contains(n.Id));
+        var lessons = await BuildLessonsAsync(userId, role, nodes, ct);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
         var meta = ParseMetadata(path.HighlightsJson, path.Title);
         var author = await CourseAuthorAsync(path.AuthorId, ct);
@@ -372,8 +409,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             Id = path.Id.ToString(),
             Title = path.Title,
             Description = path.Description ?? string.Empty,
-            Category = DetermineCategory(path),
-            Difficulty = DetermineDifficulty(path),
+            Category = DetermineCategory(path, meta),
+            Difficulty = DetermineDifficulty(path, meta),
             IsPremium = false,
             IsPublished = path.Status == LearningPathStatus.Active,
             Status = FormatLearningPathStatus(path.Status),
@@ -385,9 +422,9 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             CreatedBy = path.CreatedBy,
             AuthorId = path.AuthorId,
             CreatedAt = DateTime.UtcNow.AddDays(-30),
-            TotalLessons = nodes.Count,
+            TotalLessons = lessons.Count,
             CompletedLessons = completed,
-            ProgressPercent = nodes.Count == 0 ? 0 : (int)Math.Round(completed * 100.0 / nodes.Count),
+            ProgressPercent = lessons.Count == 0 ? 0 : (int)Math.Round(completed * 100.0 / lessons.Count),
             XpReward = lessons.Sum(l => l.XpReward),
             LearningObjectives = meta.LearningObjectives,
             KeyOutcomes = meta.KeyOutcomes,
@@ -413,6 +450,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
         var meta = new CourseContentMetadata
         {
+            Category = request.Category,
+            Difficulty = request.Difficulty,
             Highlights = request.Highlights,
             LearningObjectives = request.LearningObjectives,
             KeyOutcomes = request.KeyOutcomes
@@ -420,13 +459,21 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
         var requestedScope = (request.Scope ?? request.Status ?? "draft").ToLowerInvariant();
         LearningPathStatus status;
-        if (role == "ADMIN" && request.IsActive)
+        if (requestedScope == "draft")
         {
-            status = LearningPathStatus.Active;
+            status = LearningPathStatus.Draft;
         }
         else if (requestedScope == "class" || requestedScope == "classonly")
         {
             status = LearningPathStatus.ClassOnly;
+        }
+        else if (role == "ADMIN" && (request.IsActive || requestedScope == "active" || requestedScope == "public"))
+        {
+            status = LearningPathStatus.Active;
+        }
+        else if (requestedScope == "public" || requestedScope == "pending_review")
+        {
+            status = LearningPathStatus.PendingReview;
         }
         else
         {
@@ -472,7 +519,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
@@ -485,6 +532,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
         var meta = new CourseContentMetadata
         {
+            Category = request.Category,
+            Difficulty = request.Difficulty,
             Highlights = request.Highlights,
             LearningObjectives = request.LearningObjectives,
             KeyOutcomes = request.KeyOutcomes
@@ -540,7 +589,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
@@ -610,7 +659,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         var path = await _db.LearningPaths.FindAsync([id], ct);
         if (path is null) return NotFound(new { message = "Lộ trình không tồn tại." });
 
-        if (role != "ADMIN" && path.CreatedBy != userId && path.AuthorId != userId)
+        if (role != "ADMIN" && path.CreatedBy != userId && path.AuthorId != userId && path.CreatedBy > 1)
             return Forbid();
 
         var nodeCount = await _db.LearningPathNodes.CountAsync(n => n.PathId == id && n.LessonId != null, ct);
@@ -756,7 +805,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 Highlights = meta.Highlights,
                 Testimonials = ParseTestimonials(path.TestimonialsJson),
                 Author = author,
-                Lessons = await BuildLessonsAsync(null, nodes, ct)
+                Lessons = await BuildLessonsAsync(null, null, nodes, ct)
             });
         }
 
@@ -775,13 +824,19 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
         }
 
-        path.IsActive = false;
+        var classes = await _db.Classes.Where(c => c.LearningPathId == id).ToListAsync(ct);
+        foreach (var cls in classes)
+        {
+            cls.LearningPathId = null;
+        }
+
+        _db.LearningPaths.Remove(path);
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
@@ -798,7 +853,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
@@ -832,7 +887,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
@@ -860,7 +915,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId;
+        var canManage = role == "ADMIN" || path.CreatedBy == userId || path.AuthorId == userId || path.CreatedBy <= 1;
         if (!canManage)
         {
             return Forbid();
@@ -1026,14 +1081,20 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     }
 
     /// <summary>
-    /// Khoá node tuần tự (nghiệp vụ lộ trình): node MỞ khi node NGAY TRƯỚC nó (theo SortOrder cùng
-    /// path) đã hoàn thành (UserNodeProgress Status=2) — hoặc node đó là node đầu tiên của path.
+    /// Khoá node tuần tự (nghiệp vụ lộ trình): node MỞ khi node NGAY TRƯỚC nó (theo thứ tự duyệt DFS
+    /// lộ trình) đã hoàn thành (UserNodeProgress Status=2) — hoặc node đó là node đầu tiên của path.
     /// Node đã tự pass thì luôn mở (được xem lại). Nghiệp vụ: học từ trên xuống —
     /// hết bài 1 mới mở bài 2 → xong bài 2 mới mở quiz → xong quiz mới mở assignment → sang module sau.
     /// </summary>
     private async Task<bool> IsNodeLockedAsync(int? userId, LearningPathNode node, CancellationToken ct)
     {
         if (DisableNodeLocks || userId is null)
+        {
+            return false;
+        }
+
+        var role = TryGetCurrentRole();
+        if (role == "ADMIN" || role == "TEACHER")
         {
             return false;
         }
@@ -1045,22 +1106,58 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return false;
         }
 
-        var prev = await _db.LearningPathNodes.AsNoTracking()
-            .Where(n => n.PathId == node.PathId && n.SortOrder < node.SortOrder)
-            .OrderByDescending(n => n.SortOrder)
-            .FirstOrDefaultAsync(ct);
-        if (prev is null)
+        var allNodes = await _db.LearningPathNodes.AsNoTracking()
+            .Where(n => n.PathId == node.PathId)
+            .OrderBy(n => n.SortOrder)
+            .ToListAsync(ct);
+
+        if (allNodes.Count == 0)
         {
             return false;
         }
 
+        var childrenByParent = allNodes.ToLookup(n => n.ParentId);
+        var orderedPlayableNodes = new List<LearningPathNode>();
+
+        void Traverse(int? parentId)
+        {
+            var children = childrenByParent[parentId].OrderBy(n => n.SortOrder).ToList();
+            foreach (var child in children)
+            {
+                if (child.ItemType == PathItemType.Folder)
+                {
+                    Traverse(child.Id);
+                }
+                else
+                {
+                    orderedPlayableNodes.Add(child);
+                    Traverse(child.Id);
+                }
+            }
+        }
+
+        Traverse(null);
+
+        if (orderedPlayableNodes.Count == 0)
+        {
+            orderedPlayableNodes = allNodes.Where(n => n.ItemType != PathItemType.Folder).OrderBy(n => n.SortOrder).ToList();
+        }
+
+        var currentIndex = orderedPlayableNodes.FindIndex(n => n.Id == node.Id);
+        if (currentIndex <= 0)
+        {
+            return false;
+        }
+
+        var prevNode = orderedPlayableNodes[currentIndex - 1];
         var prevPassed = await _db.UserNodeProgress.AsNoTracking()
-            .AnyAsync(p => p.UserId == userId.Value && p.NodeId == prev.Id && p.Status == 2, ct);
+            .AnyAsync(p => p.UserId == userId.Value && p.NodeId == prevNode.Id && p.Status == 2, ct);
+
         return !prevPassed;
     }
 
     private async Task<List<ConceptsLessonDto>> BuildLessonsAsync(
-        int? userId, List<LearningPathNode> nodes, CancellationToken ct)
+        int? userId, string? role, List<LearningPathNode> nodes, CancellationToken ct)
     {
         if (nodes.Count == 0)
         {
@@ -1082,8 +1179,14 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             : new Dictionary<int, Topic>();
 
         var nodeIds = nodes.Select(n => n.Id).ToList();
+        var finalTestIds = nodes.Where(n => n.FinalTestId != null).Select(n => n.FinalTestId!.Value).Distinct().ToList();
+        var labExerciseIds = nodes.Where(n => n.LabExerciseId != null).Select(n => n.LabExerciseId!.Value).Distinct().ToList();
+
         var exercisesList = await _db.Exercises.AsNoTracking()
-            .Where(e => (e.NodeId != null && nodeIds.Contains(e.NodeId.Value)) || (lessonIds.Contains(e.LessonId)))
+            .Where(e => (e.NodeId != null && nodeIds.Contains(e.NodeId.Value))
+                     || (lessonIds.Contains(e.LessonId))
+                     || (finalTestIds.Contains(e.Id))
+                     || (labExerciseIds.Contains(e.Id)))
             .Where(e => e.DeletedAt == null)
             .ToListAsync(ct);
         var exercisesByNode = exercisesList
@@ -1093,6 +1196,14 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         var exercisesByLesson = exercisesList
             .GroupBy(e => e.LessonId)
             .ToDictionary(g => g.Key, g => g.ToList());
+
+        var lessonSims = lessonIds.Count > 0
+            ? await _db.LessonSimulations.AsNoTracking()
+                .Where(s => lessonIds.Contains(s.LessonId))
+                .ToListAsync(ct)
+            : [];
+        var simsByLesson = lessonSims.GroupBy(s => s.LessonId)
+            .ToDictionary(g => g.Key, g => g.Select(s => s.SimulationKey).ToList());
 
         var passedNodeIds = userId is null
             ? new HashSet<int>()
@@ -1104,6 +1215,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
         // Duyệt cây pre-order depth-first (ToLookup hỗ trợ null key an toàn cho root nodes)
         var childrenByParent = nodes.ToLookup(n => n.ParentId);
+        var hasFolders = nodes.Any(n => n.ItemType == PathItemType.Folder);
 
         var orderedPageNodes = new List<(LearningPathNode Node, string ModuleTitle)>();
 
@@ -1115,13 +1227,14 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             {
                 if (child.ItemType == PathItemType.Folder)
                 {
-                    var folderModule = string.IsNullOrEmpty(currentModule) ? child.Title : $"{currentModule} / {child.Title}";
+                    // Q1: A -> Top-level folder determines the moduleTitle. If currentModule is empty, use child.Title; otherwise keep currentModule.
+                    var folderModule = string.IsNullOrEmpty(currentModule) ? child.Title : currentModule;
                     Traverse(child.Id, folderModule);
                 }
                 else
                 {
                     var mod = !string.IsNullOrEmpty(currentModule) ? currentModule
-                        : (child.LessonId is { } lid && lessonsMap.TryGetValue(lid, out var l) && topicsMap.TryGetValue(l.TopicId, out var t)) ? t.Name
+                        : (!hasFolders && child.LessonId is { } lid && lessonsMap.TryGetValue(lid, out var l) && topicsMap.TryGetValue(l.TopicId, out var t)) ? t.Name
                         : "Nội dung bài học";
                     orderedPageNodes.Add((child, mod));
                     Traverse(child.Id, mod);
@@ -1167,15 +1280,46 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             string sandboxType;
             string sandboxConfig = string.Empty;
 
-            if (node.ItemType == PathItemType.Lab || codeEx is not null)
+            var titleLower = (title ?? string.Empty).ToLowerInvariant();
+            var isQuizNaming = titleLower.Contains("quiz") || titleLower.Contains("quizz") || titleLower.Contains("trắc nghiệm") || titleLower.Contains("kiểm tra");
+            var isLabNaming = titleLower.Contains("assignment") || titleLower.Contains("lab") || titleLower.Contains("thực hành") || titleLower.Contains("bài tập");
+
+            if (node.ItemType == PathItemType.Folder)
+            {
+                sandboxType = "folder";
+            }
+            else if (node.ItemType == PathItemType.Quiz || (!hasFolders && isQuizNaming))
+            {
+                sandboxType = "quiz";
+                sandboxConfig = quizEx != null ? $"{{\"quizId\": {quizEx.Id}}}" : string.Empty;
+            }
+            else if (node.ItemType == PathItemType.Lab || (!hasFolders && isLabNaming))
             {
                 sandboxType = "codelab";
                 sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
             }
-            else if (node.ItemType == PathItemType.Quiz || quizEx is not null)
+            else if (node.ItemType == PathItemType.Theory)
+            {
+                sandboxType = "dsa";
+                var simList = node.LessonId is { } lkId ? simsByLesson.GetValueOrDefault(lkId, []) : [];
+                if (simList.Count > 0)
+                {
+                    sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simList, simulationKey = simList[0] });
+                }
+                else if (labEx is not null)
+                {
+                    sandboxConfig = $"{{\"simulationKey\": \"{(labEx.ConfigJson is not null ? TryReadSimulationKey(labEx.ConfigJson) : string.Empty)}\"}}";
+                }
+            }
+            else if (codeEx is not null)
+            {
+                sandboxType = "codelab";
+                sandboxConfig = codeEx.ConfigJson ?? $"{{\"exerciseId\": {codeEx.Id}}}";
+            }
+            else if (quizEx is not null)
             {
                 sandboxType = "quiz";
-                sandboxConfig = quizEx != null ? $"{{\"quizId\": {quizEx.Id}}}" : string.Empty;
+                sandboxConfig = $"{{\"quizId\": {quizEx.Id}}}";
             }
             else if (labEx is not null)
             {
@@ -1185,9 +1329,16 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             else
             {
                 sandboxType = "dsa";
+                var simList = node.LessonId is { } lkId ? simsByLesson.GetValueOrDefault(lkId, []) : [];
+                if (simList.Count > 0)
+                {
+                    sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simList, simulationKey = simList[0] });
+                }
             }
 
             var passed = passedNodeIds.Contains(node.Id);
+            var isStaffOrTeacher = role == "ADMIN" || role == "TEACHER";
+            var locked = DisableNodeLocks || isStaffOrTeacher ? false : (!prevPassed && !passed);
 
             result.Add(new ConceptsLessonDto
             {
@@ -1203,7 +1354,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 OrderIndex = pageOrder++,
                 Status = passed ? "Completed" : "NotStarted",
                 ModuleTitle = moduleTitle,
-                Locked = DisableNodeLocks ? false : !prevPassed && !passed
+                Locked = locked
             });
             prevPassed = passed;
         }
@@ -1242,6 +1393,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public string SandboxConfig { get; set; } = string.Empty;
         public string? QuizId { get; set; }
         public string? ExerciseId { get; set; }
+        public List<SimulationRefDto> Simulations { get; set; } = [];
+        public List<string> SimulationKeys { get; set; } = [];
         public int XpReward { get; set; }
         public int OrderIndex { get; set; }
         public string Status { get; set; } = "NotStarted";
@@ -1253,21 +1406,58 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     public async Task<ActionResult<LessonDetailResponse>> GetLesson(int id, CancellationToken ct)
     {
         var userId = CurrentUserId();
+        var role = TryGetCurrentRole();
         var node = await _db.LearningPathNodes.AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == id, ct);
+        if (node is null)
+        {
+            node = await _db.LearningPathNodes.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.LessonId == id, ct);
+        }
+        if (node is null)
+        {
+            var soloLesson = await _db.Lessons.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id && l.DeletedAt == null, ct);
+            if (soloLesson != null)
+            {
+                var fallbackPath = await _db.LearningPaths.FirstOrDefaultAsync(p => p.TopicId == soloLesson.TopicId, ct)
+                                   ?? await _db.LearningPaths.FirstOrDefaultAsync(ct);
+                if (fallbackPath != null)
+                {
+                    var createdNode = new LearningPathNode
+                    {
+                        PathId = fallbackPath.Id,
+                        Title = soloLesson.Title,
+                        LessonId = soloLesson.Id,
+                        ItemType = PathItemType.Theory,
+                        SortOrder = soloLesson.SortOrder > 0 ? soloLesson.SortOrder : 1
+                    };
+                    _db.LearningPathNodes.Add(createdNode);
+                    await _db.SaveChangesAsync(ct);
+                    node = createdNode;
+                }
+            }
+        }
         if (node is null)
         {
             return NotFound(new { message = "Bài học không tồn tại." });
         }
 
-        // Khoá tuần tự: node chưa mở → 403 (học xong bài trước mới vào được bài sau)
-        if (await IsNodeLockedAsync(userId, node, ct))
+        var path = await _db.LearningPaths.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
+
+        var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && path != null && (path.CreatedBy == userId || path.AuthorId == userId));
+
+        // Chặn học sinh/khách xem bài học nếu khóa học đang là bản nháp
+        if (!isOwnerOrTeacher && path != null && path.Status != LearningPathStatus.Active)
+        {
+            return NotFound(new { message = "Khóa học hiện đang ở chế độ bản nháp hoặc tạm ẩn." });
+        }
+
+        // Khoá tuần tự: node chưa mở → 403 (học xong bài trước mới vào được bài sau); Bypass cho giáo viên/admin/chủ khóa học
+        if (!isOwnerOrTeacher && await IsNodeLockedAsync(userId, node, ct))
         {
             return StatusCode(403, new { message = "Bài học chưa được mở khóa — hãy hoàn thành bài học trước." });
         }
-
-        var path = await _db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
 
         Lesson? lesson = null;
         if (node.LessonId is { } lessonId)
@@ -1275,18 +1465,78 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             lesson = await _db.Lessons.AsNoTracking()
                 .FirstOrDefaultAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
         }
+        else if (node.ItemType == PathItemType.Theory)
+        {
+            var dbNode = await _db.LearningPathNodes.FirstOrDefaultAsync(n => n.Id == node.Id, ct);
+            if (dbNode != null && dbNode.LessonId == null)
+            {
+                var newLesson = new Lesson
+                {
+                    TopicId = path?.TopicId ?? 1,
+                    Title = dbNode.Title,
+                    Description = dbNode.Description,
+                    ContentHtml = "",
+                    Status = LessonStatus.Active,
+                    CreatedBy = path?.CreatedBy ?? userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _db.Lessons.Add(newLesson);
+                await _db.SaveChangesAsync(ct);
+                dbNode.LessonId = newLesson.Id;
+                await _db.SaveChangesAsync(ct);
+                lesson = newLesson;
+            }
+        }
 
         var exercises = await _db.Exercises.AsNoTracking()
-            .Where(e => e.NodeId == node.Id && e.DeletedAt == null)
+            .Where(e => (e.NodeId == node.Id 
+                      || (node.FinalTestId != null && e.Id == node.FinalTestId.Value)
+                      || (node.LabExerciseId != null && e.Id == node.LabExerciseId.Value)
+                      || (node.LessonId != null && e.LessonId == node.LessonId.Value))
+                      && e.DeletedAt == null)
             .ToListAsync(ct);
 
-        var quizEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.Mcq);
-        var codeEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.Code);
+        var quizEx = (node.FinalTestId != null ? exercises.FirstOrDefault(e => e.Id == node.FinalTestId.Value) : null)
+            ?? exercises.FirstOrDefault(e => e.Type == ExerciseType.Mcq);
+        var codeEx = (node.LabExerciseId != null ? exercises.FirstOrDefault(e => e.Id == node.LabExerciseId.Value) : null)
+            ?? exercises.FirstOrDefault(e => e.Type == ExerciseType.Code);
         var labEx = exercises.FirstOrDefault(e => e.Type == ExerciseType.SimulationLab);
+
+        var simulations = lesson != null
+            ? await _db.LessonSimulations.AsNoTracking()
+                .Where(s => s.LessonId == lesson.Id)
+                .OrderBy(s => s.SortOrder)
+                .Select(s => new SimulationRefDto { SimulationKey = s.SimulationKey, Title = s.Title })
+                .ToListAsync(ct)
+            : [];
+        var simKeys = simulations.Select(s => s.SimulationKey).ToList();
 
         string sandboxType = "dsa";
         string sandboxConfig = string.Empty;
-        if (codeEx is not null)
+
+        if (node.ItemType == PathItemType.Quiz)
+        {
+            sandboxType = "quiz";
+            sandboxConfig = quizEx != null ? $"{{ \"quizId\": {quizEx.Id} }}" : string.Empty;
+        }
+        else if (node.ItemType == PathItemType.Lab)
+        {
+            sandboxType = "codelab";
+            sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
+        }
+        else if (node.ItemType == PathItemType.Theory)
+        {
+            sandboxType = "dsa";
+            if (simKeys.Count > 0)
+            {
+                sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simKeys, simulationKey = simKeys[0] });
+            }
+            else if (labEx is not null)
+            {
+                sandboxConfig = $"{{ \"simulationKey\": \"{TryReadSimulationKey(labEx.ConfigJson ?? string.Empty)}\" }}";
+            }
+        }
+        else if (codeEx is not null)
         {
             sandboxType = "codelab";
             sandboxConfig = codeEx.ConfigJson ?? string.Empty;
@@ -1302,6 +1552,11 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             sandboxConfig = $"{{ \"simulationKey\": \"{TryReadSimulationKey(labEx.ConfigJson ?? string.Empty)}\" }}";
         }
 
+        if (simKeys.Count > 0 && string.IsNullOrEmpty(sandboxConfig))
+        {
+            sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simKeys, simulationKey = simKeys[0] });
+        }
+
         var passed = await _db.UserNodeProgress.AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
 
@@ -1315,7 +1570,9 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             SandboxType = sandboxType,
             SandboxConfig = sandboxConfig,
             QuizId = quizEx?.Id.ToString(),
-            ExerciseId = codeEx?.Id.ToString(),
+            ExerciseId = (codeEx?.Id ?? quizEx?.Id)?.ToString(),
+            Simulations = simulations,
+            SimulationKeys = simKeys,
             XpReward = LessonXpByTitle.GetValueOrDefault(node.LessonId ?? 0, 100),
             OrderIndex = node.SortOrder,
             Status = passed ? "Completed" : "NotStarted"
@@ -1338,8 +1595,10 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
     {
         public string Id { get; set; } = string.Empty;
         public string Text { get; set; } = string.Empty;
+        public string Type { get; set; } = "SINGLE";
         public List<string> Options { get; set; } = [];
-        public int CorrectIndex { get; set; }
+        public int? CorrectIndex { get; set; }
+        public List<int>? CorrectIndices { get; set; }
         public string Explanation { get; set; } = string.Empty;
     }
 
@@ -1354,6 +1613,9 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Bài trắc nghiệm không tồn tại." });
         }
 
+        var role = TryGetCurrentRole();
+        var isStaff = role == "ADMIN" || role == "TEACHER";
+
         var detail = new ConceptsQuizDetail
         {
             Id = exercise.Id.ToString(),
@@ -1363,13 +1625,19 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             XpReward = exercise.MaxScore,
             Questions = exercise.Questions
                 .OrderBy(q => q.SortOrder)
-                .Select(q => new ConceptsQuizQuestion
+                .Select(q =>
                 {
-                    Id = q.Id.ToString(),
-                    Text = q.Content,
-                    Options = DeserializeOptions(q.OptionsJson),
-                    CorrectIndex = DeserializeCorrectIndex(q.AnswerJson),
-                    Explanation = q.Explanation ?? string.Empty
+                    var correctIndices = DeserializeCorrectIndices(q.AnswerJson);
+                    return new ConceptsQuizQuestion
+                    {
+                        Id = q.Id.ToString(),
+                        Text = q.Content,
+                        Type = q.Type == QuestionType.Multi ? "MULTIPLE" : "SINGLE",
+                        Options = DeserializeOptions(q.OptionsJson),
+                        CorrectIndex = isStaff ? (correctIndices.Count > 0 ? correctIndices[0] : 0) : null,
+                        CorrectIndices = isStaff ? correctIndices : null,
+                        Explanation = isStaff ? (q.Explanation ?? string.Empty) : string.Empty
+                    };
                 })
                 .ToList()
         };
@@ -1390,12 +1658,30 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
 
     private static int DeserializeCorrectIndex(string answerJson)
     {
+        var indices = DeserializeCorrectIndices(answerJson);
+        return indices.Count > 0 ? indices[0] : 0;
+    }
+
+    private static List<int> DeserializeCorrectIndices(string answerJson)
+    {
         try
         {
             using var doc = JsonDocument.Parse(answerJson);
-            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
-                return doc.RootElement[0].GetInt32();
+                var list = new List<int>();
+                foreach (var elem in doc.RootElement.EnumerateArray())
+                {
+                    if (elem.TryGetInt32(out var idx))
+                    {
+                        list.Add(idx);
+                    }
+                }
+                return list;
+            }
+            else if (doc.RootElement.ValueKind == JsonValueKind.Number && doc.RootElement.TryGetInt32(out var singleVal))
+            {
+                return [singleVal];
             }
         }
         catch
@@ -1403,13 +1689,13 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             // fallthrough
         }
 
-        return 0;
+        return [];
     }
 
     public sealed class QuizSubmitRequest
     {
         public string QuizId { get; set; } = string.Empty;
-        public List<int> Answers { get; set; } = [];
+        public List<JsonElement> Answers { get; set; } = [];
     }
 
     public sealed class QuizAttemptResult
@@ -1426,6 +1712,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         public string QuestionId { get; set; } = string.Empty;
         public bool IsCorrect { get; set; }
         public int CorrectIndex { get; set; }
+        public List<int> CorrectIndices { get; set; } = [];
         public string Explanation { get; set; } = string.Empty;
     }
 
@@ -1463,9 +1750,38 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         for (var i = 0; i < questions.Count; i++)
         {
             var q = questions[i];
-            var correct = DeserializeCorrectIndex(q.AnswerJson);
-            var selected = request.Answers.Count > i ? request.Answers[i] : -1;
-            var isCorrect = selected == correct;
+            var correctIndices = DeserializeCorrectIndices(q.AnswerJson);
+            var selectedIndices = new List<int>();
+
+            if (request.Answers.Count > i)
+            {
+                var ansElem = request.Answers[i];
+                if (ansElem.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in ansElem.EnumerateArray())
+                    {
+                        if (item.TryGetInt32(out var idx))
+                        {
+                            selectedIndices.Add(idx);
+                        }
+                    }
+                }
+                else if (ansElem.ValueKind == JsonValueKind.Number && ansElem.TryGetInt32(out var singleIdx))
+                {
+                    selectedIndices.Add(singleIdx);
+                }
+            }
+
+            bool isCorrect;
+            if (q.Type == QuestionType.Multi)
+            {
+                isCorrect = selectedIndices.Count > 0 && selectedIndices.ToHashSet().SetEquals(correctIndices);
+            }
+            else
+            {
+                isCorrect = selectedIndices.Count == 1 && (correctIndices.Count == 0 || selectedIndices[0] == correctIndices[0]);
+            }
+
             if (isCorrect)
             {
                 score++;
@@ -1475,7 +1791,8 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             {
                 QuestionId = q.Id.ToString(),
                 IsCorrect = isCorrect,
-                CorrectIndex = correct,
+                CorrectIndex = correctIndices.Count > 0 ? correctIndices[0] : 0,
+                CorrectIndices = correctIndices,
                 Explanation = q.Explanation ?? string.Empty
             });
         }
@@ -1501,6 +1818,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         {
             var existing = await _db.UserNodeProgress.AsNoTracking()
                 .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == nodeId, ct);
+            var isFirstPass = existing is null || existing.Status != 2;
             if (existing is null)
             {
                 _db.UserNodeProgress.Add(new UserNodeProgress
@@ -1510,6 +1828,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                     Status = 2,
                     Stars = Math.Clamp((int)Math.Ceiling(score * 3.0 / maxScore), 0, 3),
                     NodeScore = score,
+                    PassedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 });
             }
@@ -1518,8 +1837,16 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 existing.Status = 2;
                 existing.Stars = Math.Clamp((int)Math.Ceiling(score * 3.0 / maxScore), 0, 3);
                 existing.NodeScore = score;
+                existing.PassedAt = DateTime.UtcNow;
                 existing.UpdatedAt = DateTime.UtcNow;
                 _db.UserNodeProgress.Update(existing);
+            }
+
+            if (isFirstPass)
+            {
+                var xpEarned = maxScore > 0 ? (int)Math.Round((double)score / maxScore * 100) : 50;
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Xp = Xp + {xpEarned}, UpdatedAt = {DateTime.UtcNow} WHERE Id = {userId}", ct);
             }
         }
 
@@ -1587,9 +1914,17 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
             return NotFound(new { message = "Bài học không tồn tại." });
         }
 
+        var path = await _db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
+        var role = TryGetCurrentRole();
+        var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && path != null && (path.CreatedBy == userId || path.AuthorId == userId));
+        if (!isOwnerOrTeacher && path != null && path.Status != LearningPathStatus.Active)
+        {
+            return StatusCode(403, new { message = "Khóa học hiện đang ở chế độ bản nháp hoặc tạm ẩn, không thể ghi nhận tiến độ." });
+        }
+
         // Khoá tuần tự: không cho ghi tiến độ node CHƯA MỞ (chống bypass — học viên chỉ sync
         // bài đang học, bài đó luôn mở khoá; node đã pass vẫn ghi được bình thường).
-        if (await IsNodeLockedAsync(userId, node, ct))
+        if (!isOwnerOrTeacher && await IsNodeLockedAsync(userId, node, ct))
         {
             return StatusCode(403, new { message = "Bài học chưa được mở khóa — hãy hoàn thành bài học trước." });
         }
@@ -1634,6 +1969,7 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
         {
             var nodeProgress = await _db.UserNodeProgress
                 .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
+            var isFirstPass = nodeProgress is null || nodeProgress.Status != 2;
             if (nodeProgress is null)
             {
                 _db.UserNodeProgress.Add(new UserNodeProgress
@@ -1654,6 +1990,13 @@ public class ConceptsController(AppDbContext db) : ApiControllerBase
                 nodeProgress.NodeScore = 100;
                 nodeProgress.PassedAt = DateTime.UtcNow;
                 nodeProgress.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (isFirstPass)
+            {
+                // Bài lý thuyết hoàn thành lần đầu: cộng 50 XP
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Xp = Xp + 50, UpdatedAt = {DateTime.UtcNow} WHERE Id = {userId}", ct);
             }
         }
 

@@ -100,6 +100,63 @@ function onEditorScroll(event: Event): void {
   if (gutterRef.value) gutterRef.value.scrollTop = el.scrollTop;
 }
 
+function onEditorKeydown(event: KeyboardEvent): void {
+  // Ctrl+Enter / Cmd+Enter chạy code
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault();
+    void onRun();
+    return;
+  }
+
+  // Xử lý phím Tab / Shift+Tab thụt lề
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    const textarea = event.target as HTMLTextAreaElement;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    if (!event.shiftKey) {
+      if (start === end) {
+        // Chèn 2 khoảng trắng tại con trỏ
+        textarea.value = value.substring(0, start) + '  ' + value.substring(end);
+        codeStore.editorCode = textarea.value;
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      } else {
+        // Thụt lề tất cả các dòng được bôi đen
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = value.indexOf('\n', end);
+        const endPos = lineEnd === -1 ? value.length : lineEnd;
+        const selectedText = value.substring(lineStart, endPos);
+        const indentedText = selectedText
+          .split('\n')
+          .map((line) => '  ' + line)
+          .join('\n');
+
+        textarea.value = value.substring(0, lineStart) + indentedText + value.substring(endPos);
+        codeStore.editorCode = textarea.value;
+        textarea.selectionStart = start + 2;
+        textarea.selectionEnd = end + (indentedText.length - selectedText.length);
+      }
+    } else {
+      // Shift+Tab: Giảm thụt lề (outdent)
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd = value.indexOf('\n', end);
+      const endPos = lineEnd === -1 ? value.length : lineEnd;
+      const selectedText = value.substring(lineStart, endPos);
+      const outdentedText = selectedText
+        .split('\n')
+        .map((line) => (line.startsWith('  ') ? line.substring(2) : line.startsWith(' ') ? line.substring(1) : line))
+        .join('\n');
+
+      textarea.value = value.substring(0, lineStart) + outdentedText + value.substring(endPos);
+      codeStore.editorCode = textarea.value;
+      textarea.selectionStart = Math.max(lineStart, start - 2);
+      textarea.selectionEnd = Math.max(lineStart, end - (selectedText.length - outdentedText.length));
+    }
+  }
+}
+
 function handleGlobalKeydown(event: KeyboardEvent): void {
   if (event.key === 'F2') {
     event.preventDefault();
@@ -247,6 +304,7 @@ async function toggleHistory(): Promise<void> {
               spellcheck="false"
               :aria-label="`Trình soạn mã ${key}`"
               @scroll="onEditorScroll"
+              @keydown="onEditorKeydown"
             />
           </div>
 

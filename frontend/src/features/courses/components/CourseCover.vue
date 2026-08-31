@@ -172,5 +172,5 @@ const badgeLabel = computed(() => {
   return upper.slice(0, 20);
 });
 
-const gradId = computed(() => `cover-grad-${props.course.id.replace(/[^a-zA-Z0-9_-]/g, '') || 'default'}`);
+const gradId = computed(() => `cover-grad-${String(props.course.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'default'}`);
 </script>

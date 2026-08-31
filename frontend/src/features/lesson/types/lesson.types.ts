@@ -1,9 +1,11 @@
 export interface QuizQuestion {
   id: string;
   questionText: string;
+  type?: 'SINGLE' | 'MULTIPLE' | 'MULTI' | string;
   options: string[];
-  correctIndex: number;
-  explanation: string;
+  correctIndex?: number;
+  correctIndices?: number[];
+  explanation?: string;
 }
 
 export interface TestCase {

@@ -220,6 +220,38 @@ public class GamificationController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [AllowAnonymous]
+    [HttpPost("premium/webhook")]
+    public async Task<ActionResult<PaymentWebhookResultDto>> ProcessPaymentWebhook([FromBody] PaymentWebhookRequest request, CancellationToken ct)
+    {
+        var configuredSecret = config["DSA:Premium:WebhookSecret"];
+        if (!string.IsNullOrWhiteSpace(configuredSecret))
+        {
+            var headerSecret = Request.Headers["X-Webhook-Secret"].FirstOrDefault()
+                ?? Request.Headers["Authorization"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(headerSecret))
+            {
+                return StatusCode(StatusCodes.Status401Unauthorized, ErrorResponseDto.Create(
+                    ErrorCodes.UNAUTHORIZED, "Thiếu khóa bí mật xác thực Webhook thanh toán"));
+            }
+
+            if (headerSecret.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                headerSecret = headerSecret[7..].Trim();
+            }
+
+            if (!string.Equals(headerSecret, configuredSecret, StringComparison.Ordinal))
+            {
+                return StatusCode(StatusCodes.Status401Unauthorized, ErrorResponseDto.Create(
+                    ErrorCodes.UNAUTHORIZED, "Khóa bí mật Webhook không hợp lệ"));
+            }
+        }
+
+        var result = await _service.ProcessPaymentWebhookAsync(request, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     // ── Cheatsheet / benchmark ──
     [HttpGet("cheatsheet")]
     public async Task<ActionResult<List<CheatsheetItemDto>>> GetCheatsheet([FromQuery] string? structure, CancellationToken ct)

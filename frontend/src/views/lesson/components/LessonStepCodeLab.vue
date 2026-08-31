@@ -423,8 +423,37 @@ function currentCode(): string {
   return editorInstance.value?.getValue() ?? '';
 }
 
+function getDraftKey(): string {
+  const taskId = activeTask.value?.id || `task_${currentTaskIndex.value}`;
+  return `vdsa_codelab_draft_${taskId}`;
+}
+
+function saveDraftCode(code: string): void {
+  try {
+    const key = getDraftKey();
+    localStorage.setItem(key, code);
+  } catch {}
+}
+
+function loadDraftCode(): string | null {
+  try {
+    const key = getDraftKey();
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function clearDraftCode(): void {
+  try {
+    const key = getDraftKey();
+    localStorage.removeItem(key);
+  } catch {}
+}
+
 function resetCode(): void {
   if (!activeTask.value) return;
+  clearDraftCode();
   const starter = getStarterCodeForLanguage(selectedLanguage.value, activeTask.value.initialCode, activeTask.value.entryFunction ?? 'solution');
   editorInstance.value?.setValue(starter);
   caseResults.value = [];
@@ -436,6 +465,15 @@ function toggleHint(i: number): void {
   const idx = shownHints.value.indexOf(i);
   if (idx >= 0) shownHints.value.splice(idx, 1);
   else shownHints.value.push(i);
+}
+
+let draftSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+function debouncedSaveDraft(code: string) {
+  if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
+  draftSaveTimeout = setTimeout(() => {
+    saveDraftCode(code);
+    draftSaveTimeout = null;
+  }, 500);
 }
 
 async function runTestcases(): Promise<void> {
@@ -500,7 +538,6 @@ async function submitSolution(): Promise<void> {
   isSubmitting.value = true;
   try {
     // Nghiệp vụ 15/08: bài ASM ưu tiên MÁY CHỦ chấm code chạy (Jint).
-    // Nếu máy chủ trả 403 (phân quyền) / 400 / lỗi mạng → fallback sang bộ test runner client-side.
     if (props.exerciseId && Array.isArray(props.codelabTask)) {
       try {
         const serverResult = await submitCodelab(props.exerciseId, currentCode(), activeTask.value?.id ?? '');
@@ -550,10 +587,8 @@ async function submitSolution(): Promise<void> {
       if (completedTasks.value.size === props.codelabTask.length) {
         emit('completeLesson');
       } else {
-        // Automatically switch to the next uncompleted task if any
         const nextIncomplete = props.codelabTask.findIndex((_, idx) => !completedTasks.value.has(idx));
         if (nextIncomplete !== -1) {
-          // Optional: Delay slightly before auto-switching
           setTimeout(() => {
             currentTaskIndex.value = nextIncomplete;
           }, 1500);
@@ -569,21 +604,36 @@ async function submitSolution(): Promise<void> {
   }
 }
 
+watch([isConsoleExpanded, activeConsoleTab], () => {
+  setTimeout(() => {
+    if (editorInstance.value) {
+      editorInstance.value.layout();
+    }
+  }, 100);
+});
+
 watch(activeTask, (newTask) => {
-  if (newTask) {
-    editorInstance.value?.setValue(newTask.initialCode);
+  if (newTask && editorInstance.value) {
+    const savedDraft = loadDraftCode();
+    const initial = savedDraft || getStarterCodeForLanguage(selectedLanguage.value, newTask.initialCode, newTask.entryFunction ?? 'solution');
+    editorInstance.value.setValue(initial);
   }
   caseResults.value = [];
   runError.value = null;
 });
+
+let resizeObserver: ResizeObserver | null = null;
 
 onMounted(async () => {
   if (!activeTask.value) return;
   try {
     const monacoInstance = await loader.init();
     if (editorContainer.value) {
-      editorInstance.value = monacoInstance.editor.create(editorContainer.value, {
-        value: activeTask.value.initialCode,
+      const savedDraft = loadDraftCode();
+      const initialCode = savedDraft || activeTask.value.initialCode;
+
+      const createdEditor = monacoInstance.editor.create(editorContainer.value, {
+        value: initialCode,
         language: 'javascript',
         theme: 'vs-dark',
         automaticLayout: true,
@@ -600,6 +650,15 @@ onMounted(async () => {
         cursorSmoothCaretAnimation: 'on',
         smoothScrolling: true,
       });
+
+      editorInstance.value = createdEditor;
+
+      // Lắng nghe thay đổi nội dung code để lưu nháp
+      createdEditor.onDidChangeModelContent(() => {
+        const val = createdEditor.getValue();
+        debouncedSaveDraft(val);
+      });
+
       monacoInstance.editor.defineTheme('dsa-dark', {
         base: 'vs-dark',
         inherit: true,
@@ -610,6 +669,12 @@ onMounted(async () => {
         }
       });
       monacoInstance.editor.setTheme('dsa-dark');
+
+      // Gắn ResizeObserver để đảm bảo Editor tự động re-layout khi co giãn
+      resizeObserver = new ResizeObserver(() => {
+        editorInstance.value?.layout();
+      });
+      resizeObserver.observe(editorContainer.value);
     }
   } catch (error) {
     console.error('Failed to initialize Monaco editor', error);
@@ -618,6 +683,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   playback.dispose();
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   editorInstance.value?.dispose();
   editorInstance.value = null;
 });

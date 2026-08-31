@@ -5,7 +5,7 @@
  */
 import { client } from '@/api/client';
 
-const MAX_AI_USES = 5;
+const MAX_AI_USES = 50;
 const STORAGE_KEY_PREFIX = 'vdsa_ai_format_uses_';
 
 export function getAiUsageRemaining(userEmailOrId: string = 'default'): number {
@@ -15,6 +15,15 @@ export function getAiUsageRemaining(userEmailOrId: string = 'default'): number {
     return Math.max(0, MAX_AI_USES - used);
   } catch {
     return MAX_AI_USES;
+  }
+}
+
+export function resetAiUsage(userEmailOrId: string = 'default'): void {
+  try {
+    const key = `${STORAGE_KEY_PREFIX}${userEmailOrId}`;
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore error in restricted storage
   }
 }
 

@@ -23,8 +23,8 @@ public sealed class PathItemService(
             return Result<List<PathItemDto>>.Fail(ErrorCodes.NOT_FOUND, "Lộ trình học không tồn tại");
         }
 
-        // Phân quyền đọc cây: chặn TEACHER khác xem cây Private/Draft của lộ trình người khác (finding security#1)
-        if (!CanManagePath(userId, role, path))
+        // Phân quyền đọc cây: cho phép nếu là Admin/Author hoặc lộ trình đã Active/Published
+        if (!CanViewPath(userId, role, path))
         {
             return Result<List<PathItemDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem lộ trình này");
         }
@@ -54,8 +54,8 @@ public sealed class PathItemService(
             return Result<PathItemDto>.Fail(ErrorCodes.NOT_FOUND, "Lộ trình học không tồn tại");
         }
 
-        // Phân quyền đọc chi tiết mục: chặn TEACHER khác / STUDENT xem mục của lộ trình người khác
-        if (!CanManagePath(userId, role, path))
+        // Phân quyền đọc chi tiết mục
+        if (!CanViewPath(userId, role, path))
         {
             return Result<PathItemDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem mục lộ trình này");
         }
@@ -373,6 +373,21 @@ public sealed class PathItemService(
             node.Description = request.Description.Trim();
         }
 
+        if (request.LessonId.HasValue)
+        {
+            node.LessonId = request.LessonId.Value;
+        }
+
+        if (request.FinalTestId.HasValue)
+        {
+            node.FinalTestId = request.FinalTestId.Value;
+        }
+
+        if (request.LabExerciseId.HasValue)
+        {
+            node.LabExerciseId = request.LabExerciseId.Value;
+        }
+
         await db.SaveChangesAsync(ct);
         return Result<PathItemDto>.Ok(MapToDto(node));
     }
@@ -511,6 +526,30 @@ public sealed class PathItemService(
         return Result.Ok();
     }
 
+    public async Task<Result<PathItemDto>> FindByLessonIdAsync(int userId, string role, int lessonId, CancellationToken ct)
+    {
+        var node = await db.LearningPathNodes.AsNoTracking()
+            .FirstOrDefaultAsync(n => n.LessonId == lessonId, ct);
+        if (node is null)
+        {
+            return Result<PathItemDto>.Fail(ErrorCodes.NOT_FOUND, "Không tìm thấy mục lộ trình chứa bài học này");
+        }
+
+        var path = await db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
+        if (path is null)
+        {
+            return Result<PathItemDto>.Fail(ErrorCodes.NOT_FOUND, "Lộ trình học không tồn tại");
+        }
+
+        if (!CanViewPath(userId, role, path))
+        {
+            return Result<PathItemDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem lộ trình này");
+        }
+
+        var dto = MapToDto(node);
+        return Result<PathItemDto>.Ok(dto);
+    }
+
     private static PathItemDto MapToDto(LearningPathNode node) => new()
     {
         Id = node.Id,
@@ -581,5 +620,12 @@ public sealed class PathItemService(
     }
 
     private static bool CanManagePath(int userId, string role, LearningPath path) =>
-        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) || path.CreatedBy == userId || path.AuthorId == userId;
+        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase)
+        || path.CreatedBy == userId
+        || path.AuthorId == userId;
+
+    private static bool CanViewPath(int userId, string role, LearningPath path) =>
+        CanManagePath(userId, role, path)
+        || path.Status == LearningPathStatus.Active
+        || path.Visibility == PathVisibility.Public;
 }

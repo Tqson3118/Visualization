@@ -310,7 +310,19 @@ async function runSolutionTest(): Promise<void> {
     isTesting.value = false;
   }
 }
+
+
+function isValidJson(str: string): boolean {
+  if (!str || !str.trim()) return true;
+  try {
+    JSON.parse(str);
+    return true;
+  } catch {
+    return false;
+  }
+}
 </script>
+
 
 <template>
   <div class="codelab-tab flex flex-col h-full p-6 overflow-y-auto max-w-7xl mx-auto space-y-6">
@@ -484,8 +496,10 @@ async function runSolutionTest(): Promise<void> {
                     v-model="tc.input"
                     type="text"
                     placeholder="VD: [[5, 2, 9, 1]]"
-                    class="w-full h-8 rounded bg-slate-900 border border-slate-800 px-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    class="w-full h-8 rounded bg-slate-900 border px-2 text-xs text-white focus:outline-none"
+                    :class="!isValidJson(tc.input) ? 'border-amber-500/80 bg-amber-950/10' : 'border-slate-800 focus:border-emerald-500'"
                   />
+                  <span v-if="!isValidJson(tc.input)" class="text-[10px] text-amber-400 block mt-0.5">⚠️ Cú pháp JSON chưa đúng</span>
                 </div>
                 <div>
                   <span class="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">Expected Output (JSON)</span>
@@ -493,8 +507,10 @@ async function runSolutionTest(): Promise<void> {
                     v-model="tc.expected"
                     type="text"
                     placeholder="VD: [1, 2, 5, 9]"
-                    class="w-full h-8 rounded bg-slate-900 border border-slate-800 px-2 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500"
+                    class="w-full h-8 rounded bg-slate-900 border px-2 text-xs text-emerald-300 focus:outline-none"
+                    :class="!isValidJson(tc.expected) ? 'border-amber-500/80 bg-amber-950/10' : 'border-slate-800 focus:border-emerald-500'"
                   />
+                  <span v-if="!isValidJson(tc.expected)" class="text-[10px] text-amber-400 block mt-0.5">⚠️ Cú pháp JSON chưa đúng</span>
                 </div>
               </div>
             </div>
@@ -512,7 +528,7 @@ async function runSolutionTest(): Promise<void> {
             <h3 class="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5">
               <FileCode :size="14" class="text-sky-400" /> Starter Code (Học viên nhận được)
             </h3>
-            <span class="text-[11px] text-slate-400">JavaScript ES6</span>
+            <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">JavaScript (ES6)</span>
           </div>
           <textarea
             v-model="localState.starterCode"

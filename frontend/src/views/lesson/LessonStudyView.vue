@@ -1,11 +1,51 @@
 <template>
-  <div class="lesson-study-view flex h-[calc(100vh-var(--app-header-h,68px))] w-full overflow-hidden bg-vdsa-bg-secondary font-sans">
+  <div class="lesson-study-view flex h-[calc(100vh-var(--app-header-h,68px))] w-full overflow-hidden bg-vdsa-bg-secondary font-sans relative">
+
+    <!-- Floating Sidebar Open Button (when sidebar is collapsed) -->
+    <button
+      v-if="isSidebarCollapsed"
+      @click="isSidebarCollapsed = false"
+      type="button"
+      class="absolute top-4 left-4 z-40 p-2.5 rounded-xl bg-[#1a182c] hover:bg-[#25223e] border border-purple-500/30 text-purple-300 shadow-xl shadow-purple-900/20 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+      title="Mở danh sách bài học"
+    >
+      <BaseIcon name="list" class="w-4 h-4" />
+      <span class="hidden sm:inline">Mục lục</span>
+    </button>
 
     <!-- LEFT SIDEBAR: Course Mini Map -->
-    <aside class="w-72 lg:w-80 shrink-0 bg-vdsa-surface border-r border-vdsa-border flex flex-col h-full overflow-hidden shadow-xl z-30">
-       <!-- Course Title & Search -->
+    <aside
+      class="shrink-0 bg-vdsa-surface border-r border-vdsa-border flex flex-col h-full overflow-hidden shadow-xl z-30 transition-all duration-300"
+      :class="isSidebarCollapsed ? '-ml-72 lg:-ml-80 w-72 lg:w-80 pointer-events-none' : 'w-72 lg:w-80'"
+    >
+       <!-- Course Title, Progress & Search -->
        <div class="p-4 lg:p-5 border-b border-vdsa-border shrink-0">
-         <h2 class="text-sm font-extrabold text-white mb-4 line-clamp-2">{{ course?.title || 'Đang tải lộ trình...' }}</h2>
+         <div class="flex items-center justify-between gap-2 mb-3">
+           <h2 class="text-xs font-extrabold text-white line-clamp-1 uppercase tracking-wider">{{ course?.title || 'Lộ trình DSA' }}</h2>
+           <button
+             type="button"
+             @click="isSidebarCollapsed = true"
+             class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+             title="Thu gọn mục lục"
+           >
+             <BaseIcon name="chevron-left" class="w-4 h-4" />
+           </button>
+         </div>
+
+         <!-- Course Overall Progress Bar -->
+         <div class="mb-4 bg-[#141320] p-2.5 rounded-xl border border-vdsa-border">
+           <div class="flex justify-between items-center text-[11px] mb-1.5">
+             <span class="text-slate-400 font-semibold">Tiến độ khóa</span>
+             <span class="text-purple-300 font-bold font-mono">{{ completedLessonsCount }}/{{ totalLessonsCount }} ({{ courseProgressPercent }}%)</span>
+           </div>
+           <div class="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+             <div
+               class="h-full rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 transition-all duration-500"
+               :style="{ width: `${courseProgressPercent}%` }"
+             ></div>
+           </div>
+         </div>
+
          <!-- Search Box -->
          <div class="relative">
            <BaseIcon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vdsa-muted" />
@@ -54,23 +94,42 @@
 
     <!-- RIGHT CONTENT: Lesson Content -->
     <div class="flex-1 flex flex-col h-full min-w-0">
-      <header class="px-6 py-3 border-b border-vdsa-border bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-between shrink-0 shadow-lg z-20 flex-wrap gap-2">
-        <div class="flex items-center gap-3 min-w-0">
+      <header class="px-4 lg:px-6 py-2.5 border-b border-vdsa-border bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-between shrink-0 shadow-lg z-20 flex-wrap gap-2">
+        <div class="flex items-center gap-3 min-w-0 flex-1">
           <router-link :to="courseId ? `/path/${courseId}` : '/path'" class="text-xs font-semibold text-vdsa-muted hover:text-white transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap">
-            <BaseIcon name="arrow-left" class="w-3.5 h-3.5" /> Thoát lộ trình
+            <BaseIcon name="arrow-left" class="w-3.5 h-3.5" /> Thoát
           </router-link>
           <span class="text-vdsa-disabled shrink-0">|</span>
-          <h2 class="text-sm font-extrabold text-white line-clamp-1" v-if="lessonStore.currentLesson">
+          <h2 class="text-xs sm:text-sm font-extrabold text-white truncate" v-if="lessonStore.currentLesson">
             {{ cleanTitle(lessonStore.currentLesson.title) }}
           </h2>
-          <h2 class="text-sm font-extrabold text-vdsa-muted line-clamp-1" v-else-if="lessonStore.isLoading">Đang tải bài học...</h2>
+          <h2 class="text-xs sm:text-sm font-extrabold text-vdsa-muted truncate" v-else-if="lessonStore.isLoading">Đang tải bài học...</h2>
         </div>
 
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Previous / Next Navigation in Header -->
+          <div class="flex items-center gap-1 mr-1">
+            <button
+              v-if="prevLessonId"
+              @click="goToLesson(prevLessonId)"
+              class="px-2.5 py-1 rounded-lg bg-vdsa-surface hover:bg-vdsa-hover border border-vdsa-border text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Bài trước"
+            >
+              <BaseIcon name="chevron-left" class="w-3.5 h-3.5" />
+              <span class="hidden md:inline">Trước</span>
+            </button>
+            <button
+              v-if="nextLessonIdNav"
+              @click="goToLesson(nextLessonIdNav)"
+              class="px-2.5 py-1 rounded-lg bg-vdsa-surface hover:bg-vdsa-hover border border-vdsa-border text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="Bài tiếp theo"
+            >
+              <span class="hidden md:inline">Sau</span>
+              <BaseIcon name="chevron-right" class="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-
-
-        <div class="flex items-center gap-2 font-mono text-xs shrink-0">
-          <span class="px-2.5 py-1 rounded-lg bg-vdsa-yellow/50 text-vdsa-yellow border border-vdsa-yellow/30 font-bold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+          <span class="px-2.5 py-1 rounded-lg bg-vdsa-yellow/20 text-vdsa-yellow border border-vdsa-yellow/30 font-bold font-mono text-xs flex items-center gap-1.5 whitespace-nowrap shrink-0">
             <svg class="w-3.5 h-3.5 text-vdsa-yellow" fill="currentColor" viewBox="0 0 24 24">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
@@ -144,7 +203,7 @@
           />
 
           <LessonStepCodeLab
-            v-else-if="lessonStore.lessonMeta?.sandboxType === 'codelab' && lessonStore.currentLesson.codelabTask"
+            v-else-if="lessonStore.lessonMeta?.sandboxType === 'codelab'"
             :problem-title="`Thực hành: ${lessonStore.currentLesson.title}`"
             :codelab-task="lessonStore.currentLesson.codelabTask"
             :exercise-id="lessonStore.lessonMeta?.exerciseId ?? null"
@@ -193,6 +252,15 @@
       @go-next="goToNextLesson"
       @close="goBackToCourse"
     />
+
+    <!-- Modal Vinh danh Tốt nghiệp / Hoàn thành Lộ trình -->
+    <CourseCompletionModal
+      :show="showCourseCompletedModal"
+      :course-title="course?.title || 'Lộ trình DSA'"
+      :total-xp="totalRoadmapXp"
+      @close="goBackToCourse"
+      @explore-more="onExploreMoreCourses"
+    />
   </div>
 </template>
 
@@ -203,11 +271,14 @@ import LessonStepTheory from './components/LessonStepTheory.vue';
 import LessonStepQuiz from './components/LessonStepQuiz.vue';
 import LessonStepCodeLab from './components/LessonStepCodeLab.vue';
 import LessonCompletionModal from './LessonCompletionModal.vue';
+import CourseCompletionModal from './CourseCompletionModal.vue';
 import { useLessonStore } from '@/features/lesson/store/useLessonStore';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
+import { useHeartSystem } from '@/composables/useHeartSystem';
 import { useUiStore } from '@/stores/ui';
+import { fireConfetti } from '@/composables/useConfetti';
 import { courseApi } from '@/services/courseApi';
 import { normalizeVi } from '@/utils/searchNormalize';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
@@ -216,6 +287,7 @@ interface LessonDto {
   id: string;
   title: string;
   moduleTitle?: string;
+  sandboxType?: string;
   status?: string;
   locked?: boolean;
 }
@@ -223,6 +295,7 @@ interface LessonDto {
 interface CourseDetailDto {
   id: string;
   title: string;
+  xpReward?: number;
   lessons: LessonDto[];
 }
 
@@ -232,9 +305,12 @@ const lessonStore = useLessonStore();
 const courseStore = useCourseStore();
 const authStore = useAuthStore();
 const gamificationStore = useGamificationStore();
+const heartSystem = useHeartSystem();
 const uiStore = useUiStore();
 
+const isSidebarCollapsed = ref(false);
 const showCompletionModal = ref(false);
+const showCourseCompletedModal = ref(false);
 const showEnrollModal = ref(false);
 const nextLessonId = ref<string | null>(null);
 
@@ -250,7 +326,9 @@ const courseId = computed(() => {
   return lessonStore.lessonMeta?.courseId ?? null;
 });
 
+const isTeacherOrAdmin = computed(() => authStore.user?.role === 'TEACHER' || authStore.user?.role === 'ADMIN');
 const isEnrolled = computed(() => {
+  if (isTeacherOrAdmin.value) return true;
   const cId = courseId.value;
   if (!cId) return true; // Standalone lesson hoặc không gắn roadmap
   return courseStore.isEnrolled(String(cId));
@@ -263,18 +341,12 @@ async function confirmLessonEnroll() {
   }
   const cId = courseId.value;
   if (!cId) return;
-  try {
-    await gamificationStore.spendHeart();
-    courseStore.enrollCourse(String(cId));
-    showEnrollModal.value = false;
-    uiStore.showToast('Đăng ký lộ trình thành công! (-1 🤍)', 'success');
-  } catch (err: any) {
-    if (err?.code === 'HEARTS_EMPTY' || err?.message?.includes('tim')) {
-      uiStore.showToast('Bạn cần ít nhất 1 tim để đăng ký lộ trình. Hãy chờ hồi hoặc nâng cấp Premium!', 'warning');
-    } else {
-      uiStore.showToast(err?.message || 'Không thể đăng ký lộ trình', 'error');
-    }
-  }
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình');
+  if (!ok) return;
+
+  courseStore.enrollCourse(String(cId));
+  showEnrollModal.value = false;
+  uiStore.showToast('Mở khóa lộ trình thành công! (-1 🤍)', 'success');
 }
 
 const course = ref<CourseDetailDto | null>(null);
@@ -288,6 +360,7 @@ const groupedModules = computed(() => {
   const map = new Map<string, { title: string, lessons: LessonDto[] }>();
 
   course.value.lessons.forEach(l => {
+    if (l.sandboxType === 'folder') return;
     const normTitle = normalizeVi(l.title);
     const normModuleTitle = normalizeVi(l.moduleTitle || '');
     if (q && !normTitle.includes(q) && !normModuleTitle.includes(q)) return;
@@ -320,6 +393,24 @@ const isCurrentLessonCompleted = computed(() => {
   return lessonStore.completedLessonIds.includes(lessonId.value) || (course.value?.lessons.some(l => l.id === lessonId.value && l.status === 'Completed') ?? false);
 });
 
+// Thống kê tiến độ toàn khóa học
+const totalLessonsCount = computed(() => {
+  return (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder').length;
+});
+
+const completedLessonsCount = computed(() => {
+  return (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder' && isLessonCompleted(l)).length;
+});
+
+const courseProgressPercent = computed(() => {
+  if (totalLessonsCount.value === 0) return 0;
+  return Math.round((completedLessonsCount.value / totalLessonsCount.value) * 100);
+});
+
+const totalRoadmapXp = computed(() => {
+  return course.value?.xpReward || (totalLessonsCount.value * 100);
+});
+
 function isLessonLocked(lesson: LessonDto): boolean {
   if (!course.value?.lessons || course.value.lessons.length === 0) return lesson.locked ?? false;
   const lessons = course.value.lessons;
@@ -331,26 +422,38 @@ function isLessonLocked(lesson: LessonDto): boolean {
   return !isLessonCompleted(prevLesson);
 }
 
+// Điều hướng Previous / Next trên Header
+const currentLessonIndex = computed(() => {
+  const lessons = course.value?.lessons ?? [];
+  return lessons.findIndex(l => String(l.id) === String(lessonId.value));
+});
+
+const prevLessonId = computed(() => {
+  const lessons = course.value?.lessons ?? [];
+  const idx = currentLessonIndex.value;
+  if (idx > 0) return String(lessons[idx - 1].id);
+  return null;
+});
+
+const nextLessonIdNav = computed(() => {
+  const lessons = course.value?.lessons ?? [];
+  const idx = currentLessonIndex.value;
+  if (idx >= 0 && idx < lessons.length - 1) {
+    const next = lessons[idx + 1];
+    if (!isLessonLocked(next)) return String(next.id);
+  }
+  return null;
+});
+
 async function enterLessonNode(cId: string | number, lId: string | number): Promise<boolean> {
-  if (!authStore.isAuthenticated) return true;
   const pathId = Number(cId);
   const nodeId = Number(lId);
   if (!pathId || !nodeId) return true;
-  try {
-    const res = await gamificationStore.enterNode(pathId, nodeId);
-    if (typeof res?.heartsLeft === 'number') {
-      gamificationStore.hearts = res.heartsLeft;
-    }
-    return true;
-  } catch (err: any) {
-    const errorCode = err?.response?.data?.code || err?.code || '';
-    if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY') || String(err?.message || '').includes('hết tim')) {
-      uiStore.showToast('Bạn đã hết tim. Hãy chờ hồi phục hoặc nâng cấp Premium để học tiếp!', 'warning');
-      return false;
-    }
-    console.warn('Enter node warning/error:', err);
-    return true;
-  }
+  // Node 1 (bài học đầu tiên) luôn Miễn phí (0 tim)
+  const firstLesson = course.value?.lessons?.[0];
+  const isFirstNode = firstLesson && (String(firstLesson.id) === String(lId) || ((firstLesson as any).nodeId && (firstLesson as any).nodeId === nodeId));
+  if (isFirstNode) return true;
+  return heartSystem.enterLessonNode(pathId, nodeId);
 }
 
 async function goToLesson(id: string) {
@@ -402,7 +505,7 @@ const steps = computed(() => {
   return hasCodelab ? FULL_STEPS : FULL_STEPS.slice(0, 2);
 });
 
-async function onQuizSubmit(answers: Record<string, number>): Promise<void> {
+async function onQuizSubmit(answers: Record<string, number | number[]>): Promise<void> {
   await lessonStore.submitQuiz(answers);
 }
 
@@ -433,13 +536,14 @@ async function finishLesson(): Promise<void> {
   void lessonStore.syncToServer(true);
 
   const nextId = resolveNextLessonId();
+  nextLessonId.value = nextId;
+
   if (nextId) {
-    uiStore.showToast(`Hoàn thành bài học! +${rewardXp} XP 🚀`, 'success');
-    await goToNextLesson(nextId);
+    fireConfetti('node-pass');
+    showCompletionModal.value = true;
   } else {
-    uiStore.showToast(`Xuất sắc! Bạn đã hoàn thành toàn bộ lộ trình! +${rewardXp} XP 🏆`, 'success');
-    showCompletionModal.value = false;
-    router.push(courseId.value ? `/path/${courseId.value}` : '/path');
+    fireConfetti('levelup');
+    showCourseCompletedModal.value = true;
   }
 }
 
@@ -454,7 +558,13 @@ async function goToNextLesson(nextId: string): Promise<void> {
 
 function goBackToCourse(): void {
   showCompletionModal.value = false;
+  showCourseCompletedModal.value = false;
   router.push(courseId.value ? `/path/${courseId.value}` : '/path');
+}
+
+function onExploreMoreCourses(): void {
+  showCourseCompletedModal.value = false;
+  router.push('/path');
 }
 
 function autoExpandCurrentModule(currLessonId: string): void {

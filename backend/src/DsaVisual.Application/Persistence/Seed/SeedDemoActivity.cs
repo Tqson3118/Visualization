@@ -46,7 +46,7 @@ public static partial class SeedDemoActivity
         await SeedClassesAsync(db, clock, logger, ct);
 
         // === Seed V2 (PROD-K) — Task 1-6: 69 user V2 + hoạt động mở rộng (SEED-V2) ===
-        await SeedNewStudentsV2Async(db, logger, ct);
+        await SeedNewStudentsV2Async(db, clock, logger, ct);
         await SeedAchievementsV2Async(db, logger, ct);
         await SeedUserAchievementsV2Async(db, clock, logger, ct);
         await SeedUserProgressV2Async(db, clock, logger, ct);

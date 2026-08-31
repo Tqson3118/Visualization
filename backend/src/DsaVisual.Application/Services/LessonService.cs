@@ -645,7 +645,7 @@ public sealed class LessonService(
 
     private static bool CanManage(int userId, string role, Lesson lesson) =>
         role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) ||
-        lesson.CreatedBy == userId;
+        (role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) && (lesson.CreatedBy == userId || lesson.CreatedBy == 0));
 
     private static Dictionary<string, string[]> ToFieldErrors(ValidationResult result) =>
         result.Errors

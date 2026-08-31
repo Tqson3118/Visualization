@@ -20,12 +20,6 @@
         >
           {{ difficultyLabel }}
         </span>
-        <span
-          v-if="course.category && course.category !== difficultyLabel"
-          class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-vdsa-surface/90 text-vdsa-secondary whitespace-nowrap shrink-0"
-        >
-          {{ course.category }}
-        </span>
       </div>
     </div>
 
@@ -102,29 +96,24 @@ const isEnrolled = computed(() => {
 });
 
 const difficultyLabel = computed(() => {
-  const map: Record<string, string> = {
-    Easy: 'Cơ bản',
-    Beginner: 'Cơ bản',
-    Medium: 'Trung cấp',
-    Intermediate: 'Trung cấp',
-    Hard: 'Nâng cao',
-    Advanced: 'Nâng cao',
-  };
-  return map[props.course.difficulty] ?? props.course.difficulty;
+  const diff = props.course.difficulty || '';
+  const lower = diff.trim().toLowerCase();
+  if (lower === 'easy' || lower === 'beginner' || lower === 'cơ bản' || lower === 'dễ') return 'Cơ bản';
+  if (lower === 'medium' || lower === 'intermediate' || lower === 'trung cấp' || lower === 'trung bình') return 'Trung cấp';
+  if (lower === 'hard' || lower === 'advanced' || lower === 'nâng cao' || lower === 'khó') return 'Nâng cao';
+  return diff || 'Cơ bản';
 });
 
 const difficultyBadgeClass = computed(() => {
-  switch (props.course.difficulty) {
-    case 'Easy':
-    case 'Beginner':
-      return 'bg-vdsa-green/20 text-vdsa-green border border-vdsa-green/30';
-    case 'Medium':
-    case 'Intermediate':
-      return 'bg-vdsa-yellow/20 text-vdsa-yellow border border-vdsa-yellow/30';
-    case 'Hard':
-    case 'Advanced':
-      return 'bg-vdsa-red/20 text-vdsa-red border border-vdsa-red/30';
-    default: return 'bg-slate-500/20 text-vdsa-muted';
+  switch (difficultyLabel.value) {
+    case 'Cơ bản':
+      return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    case 'Trung cấp':
+      return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    case 'Nâng cao':
+      return 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
+    default:
+      return 'bg-slate-500/20 text-slate-300 border border-slate-500/30';
   }
 });
 </script>

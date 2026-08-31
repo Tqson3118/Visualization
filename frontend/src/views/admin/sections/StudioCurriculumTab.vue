@@ -2,8 +2,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
+  BookOpen,
   Check,
+  Code,
+  Edit3,
+  Folder,
   FolderPlus,
+  HelpCircle,
   Layers,
   Lock,
   MoreVertical,
@@ -11,13 +16,18 @@ import {
   Pencil,
   School,
   Send,
+  Settings,
+  Save,
   Trash2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-vue-next';
 import { courseApi, type CourseListDto } from '@/services/courseApi';
 import {
   createPathItem,
   deletePathItem,
   fetchPathTree,
+  findPathItemByLesson,
   movePathItem,
   updatePathItem,
   type PathItemDto,
@@ -53,7 +63,7 @@ async function loadPaths(): Promise<void> {
     const all = await courseApi.getCourses();
     const myId = auth.user?.id;
     paths.value = all.filter(
-      (p) => auth.role === 'ADMIN' || p.createdBy == null || myId == null || p.createdBy === myId,
+      (p) => auth.role === 'ADMIN' || p.createdBy == null || p.createdBy <= 1 || myId == null || p.createdBy === myId || p.authorId === myId,
     );
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể tải danh sách lộ trình.', 'error');
@@ -63,18 +73,18 @@ async function loadPaths(): Promise<void> {
 }
 
 // ── Lộ trình đang chọn (đồng bộ query ?courseId=) ──
-const selectedPathId = ref<number | null>(null);
+const selectedPathId = ref<string | number | null>(null);
 const selectedPath = computed(
-  () => paths.value.find((p) => Number(p.id) === selectedPathId.value) ?? null,
+  () => paths.value.find((p) => String(p.id) === String(selectedPathId.value ?? '')) ?? null,
 );
 
 function syncFromRoute(): void {
   const q = route.query.courseId;
-  const id = Array.isArray(q) ? Number(q[0]) : Number(q);
-  selectedPathId.value = Number.isFinite(id) && id > 0 ? id : null;
+  const id = Array.isArray(q) ? q[0] : q;
+  selectedPathId.value = id != null && String(id).length > 0 ? (Number.isNaN(Number(id)) ? String(id) : Number(id)) : null;
 }
 
-function selectPath(id: number | null): void {
+function selectPath(id: string | number | null): void {
   selectedPathId.value = id;
   void router.replace({ query: { ...route.query, courseId: id != null ? String(id) : undefined } });
   if (id != null) void loadTree();
@@ -105,9 +115,14 @@ async function loadTree(): Promise<void> {
     tree.value = [];
     return;
   }
+  const numericId = Number(selectedPathId.value);
+  if (!Number.isFinite(numericId)) {
+    tree.value = [];
+    return;
+  }
   loadingTree.value = true;
   try {
-    tree.value = await fetchPathTree(selectedPathId.value);
+    tree.value = await fetchPathTree(numericId);
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể nạp cây nội dung.', 'error');
     tree.value = [];
@@ -128,6 +143,7 @@ function findTreeItem(list: PathItemDto[], id: number): PathItemDto | null {
 }
 
 // ── Panel soạn (D8) ──
+const treeCollapsed = ref(false);
 const selectedItemId = ref<number | null>(null);
 const editorOpen = ref(false);
 const editedItem = computed<PathItemDto | null>(() =>
@@ -175,7 +191,7 @@ async function handleAddItem(type: PathItemType, parentId: number | null): Promi
   if (selectedPathId.value == null || busy.value) return;
   busy.value = true;
   try {
-    const created = await createPathItem(selectedPathId.value, {
+    const created = await createPathItem(Number(selectedPathId.value), {
       itemType: type,
       title: DEFAULT_TITLES[type],
       parentId,
@@ -261,36 +277,69 @@ function handleDocClick(e: MouseEvent): void {
   }
 }
 
+// Cài đặt / Sửa thông tin lộ trình
+const editPathModalOpen = ref(false);
+const savingPath = ref(false);
+const editPathForm = ref({
+  title: '',
+  description: '',
+  category: 'Cấu trúc dữ liệu',
+  difficulty: 'Beginner',
+  learningObjectives: [] as string[],
+  keyOutcomes: [] as string[],
+});
+
+function openEditPathModal(): void {
+  if (!selectedPath.value) return;
+  pathMenuOpen.value = false;
+  editPathForm.value = {
+    title: selectedPath.value.title || '',
+    description: selectedPath.value.description || '',
+    category: (selectedPath.value as any).category || 'Cấu trúc dữ liệu',
+    difficulty: (selectedPath.value as any).difficulty || 'Beginner',
+    learningObjectives: [...((selectedPath.value as any).learningObjectives || [])],
+    keyOutcomes: [...((selectedPath.value as any).keyOutcomes || [])],
+  };
+  editPathModalOpen.value = true;
+}
+
+async function handleSavePath(): Promise<void> {
+  if (!selectedPath.value) return;
+  if (!editPathForm.value.title.trim()) {
+    ui.showToast('Tên lộ trình không được để trống.', 'warning');
+    return;
+  }
+  savingPath.value = true;
+  try {
+    await courseApi.updateCourse(selectedPath.value.id, {
+      title: editPathForm.value.title.trim(),
+      description: editPathForm.value.description.trim(),
+      category: editPathForm.value.category,
+      difficulty: editPathForm.value.difficulty,
+      learningObjectives: editPathForm.value.learningObjectives,
+      keyOutcomes: editPathForm.value.keyOutcomes,
+    });
+    await loadPaths();
+    editPathModalOpen.value = false;
+    ui.showToast('Đã lưu thông tin lộ trình thành công!', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể lưu lộ trình.', 'error');
+  } finally {
+    savingPath.value = false;
+  }
+}
+
 // Đổi tên lộ trình
 const renameModalOpen = ref(false);
 const renamePathTitle = ref('');
 const renamingPath = ref(false);
 
 function openRenamePath(): void {
-  if (!selectedPath.value) return;
-  pathMenuOpen.value = false;
-  renamePathTitle.value = selectedPath.value.title;
-  renameModalOpen.value = true;
+  openEditPathModal();
 }
 
 async function handleRenamePath(): Promise<void> {
-  if (!selectedPath.value) return;
-  const next = renamePathTitle.value.trim();
-  if (!next || next === selectedPath.value.title) {
-    renameModalOpen.value = false;
-    return;
-  }
-  renamingPath.value = true;
-  try {
-    await courseApi.updateCourse(selectedPath.value.id, { title: next });
-    await loadPaths();
-    renameModalOpen.value = false;
-    ui.showToast('Đã đổi tên lộ trình.', 'success');
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Không thể đổi tên lộ trình.', 'error');
-  } finally {
-    renamingPath.value = false;
-  }
+  await handleSavePath();
 }
 
 // Chế độ hiển thị (D6)
@@ -339,6 +388,31 @@ async function handleDeletePath(): Promise<void> {
   }
 }
 
+async function handleLessonIdQuery(): Promise<void> {
+  const qLessonId = route.query.lessonId;
+  if (!qLessonId) return;
+  const numLessonId = Number(Array.isArray(qLessonId) ? qLessonId[0] : qLessonId);
+  if (!numLessonId) return;
+
+  try {
+    const item = await findPathItemByLesson(numLessonId);
+    if (item && item.pathId) {
+      if (String(selectedPathId.value) !== String(item.pathId)) {
+        selectedPathId.value = item.pathId;
+        await loadTree();
+      }
+      const found = findTreeItem(tree.value, item.id);
+      if (found) {
+        openEditor(found);
+      } else {
+        openEditor(item);
+      }
+    }
+  } catch (err) {
+    console.warn('Không tìm thấy mục lộ trình theo lessonId:', err);
+  }
+}
+
 // ── Khởi động ──
 onMounted(async () => {
   document.addEventListener('click', handleDocClick);
@@ -347,6 +421,7 @@ onMounted(async () => {
   // Query trỏ tới lộ trình không còn trong danh sách → bỏ chọn.
   if (selectedPathId.value != null && !selectedPath.value) selectPath(null);
   if (selectedPathId.value != null) await loadTree();
+  await handleLessonIdQuery();
 });
 
 onUnmounted(() => {
@@ -354,10 +429,11 @@ onUnmounted(() => {
 });
 
 watch(
-  () => route.query.courseId,
-  () => {
+  () => [route.query.courseId, route.query.lessonId],
+  async () => {
     syncFromRoute();
-    if (selectedPathId.value != null && !tree.value.length) void loadTree();
+    if (selectedPathId.value != null && !tree.value.length) await loadTree();
+    await handleLessonIdQuery();
   },
 );
 </script>
@@ -374,14 +450,14 @@ watch(
         <select
           id="studio-path-select"
           data-testid="path-select"
-          :value="selectedPathId ?? ''"
+          :value="selectedPathId != null ? String(selectedPathId) : ''"
           :disabled="loadingPaths"
           class="min-w-0 max-w-full flex-1 sm:flex-none sm:w-72 px-2.5 py-1.5 text-xs font-bold bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 cursor-pointer"
           aria-label="Chọn lộ trình để chỉnh sửa"
-          @change="selectPath(($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+          @change="selectPath(($event.target as HTMLSelectElement).value || null)"
         >
           <option value="" disabled>— Chọn lộ trình —</option>
-          <option v-for="p in paths" :key="p.id" :value="Number(p.id)">{{ p.title }}</option>
+          <option v-for="p in paths" :key="p.id" :value="String(p.id)">{{ p.title }}</option>
         </select>
 
         <span
@@ -395,13 +471,34 @@ watch(
 
       <div class="flex items-center gap-2 shrink-0">
         <Button
+          v-if="selectedPath"
           size="sm"
           variant="primary"
+          data-testid="save-path-btn"
+          :loading="savingPath"
+          @click="handleSavePath"
+        >
+          <Save :size="13" aria-hidden="true" /> Lưu lộ trình
+        </Button>
+
+        <Button
+          v-if="selectedPath"
+          size="sm"
+          variant="secondary"
+          data-testid="edit-path-btn"
+          @click="openEditPathModal"
+        >
+          <Settings :size="13" aria-hidden="true" /> Cài đặt lộ trình
+        </Button>
+
+        <Button
+          size="sm"
+          variant="secondary"
           data-testid="create-path"
           :loading="creatingPath"
           @click="handleCreatePath"
         >
-          <FolderPlus :size="14" aria-hidden="true" /> Tạo lộ trình
+          <FolderPlus :size="14" aria-hidden="true" /> Tạo lộ trình mới
         </Button>
 
         <div v-if="selectedPath" ref="pathMenuRef" class="relative">
@@ -440,15 +537,6 @@ watch(
               @click="handleSetVisibility('draft')"
             >
               <Lock :size="13" /> Nháp — chỉ tôi thấy
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="path-visibility-class"
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-white/5 text-left cursor-pointer"
-              @click="handleSetVisibility('class')"
-            >
-              <School :size="13" /> Mở cho lớp học
             </button>
             <button
               type="button"
@@ -499,67 +587,234 @@ watch(
       <p class="text-xs text-slate-500">Chọn lộ trình ở dropdown phía trên, hoặc tạo lộ trình mới.</p>
     </div>
 
-    <!-- Cây + panel soạn (D7 + D8) -->
-    <div v-else class="grid gap-4" :class="editorOpen ? 'lg:grid-cols-[minmax(0,1fr)_460px]' : 'grid-cols-1'">
-      <div class="relative min-w-0">
-        <div
-          v-if="loadingTree"
-          class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-[#12111a]/70"
-          role="status"
-          aria-label="Đang tải cây nội dung"
+    <!-- Teacher Workbench: Cây (fixed width / collapsible) + Editor (flex-1) -->
+    <div v-else class="flex flex-col lg:flex-row gap-3.5 items-start min-h-[calc(100vh-210px)]">
+      <!-- Cột cây thu gọn (Focus Mode) -->
+      <div
+        v-if="treeCollapsed"
+        class="hidden lg:flex flex-col items-center py-3 px-1.5 rounded-2xl border border-[#262438] bg-[#12111a] shrink-0 h-[calc(100vh-var(--app-header-h,68px)-32px)] w-12 sticky top-[calc(var(--app-header-h,68px)+16px)] justify-between transition-all"
+      >
+        <button
+          type="button"
+          class="p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white transition-colors cursor-pointer"
+          title="Mở rộng Cây nội dung"
+          aria-label="Mở rộng Cây nội dung"
+          @click="treeCollapsed = false"
         >
-          <span class="text-xs font-bold text-slate-400">Đang tải cây nội dung…</span>
-        </div>
-        <OutlineTree
-          :items="tree"
-          :selected-item-id="selectedItemId"
-          @select="openEditor"
-          @add="handleAddItem"
-          @rename="handleRenameItem"
-          @move-item="handleMoveItem"
-          @delete="handleDeleteItem"
-        />
+          <PanelLeftOpen class="w-4 h-4" />
+        </button>
+
+        <span class="text-[11px] font-black text-slate-500 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 select-none py-4">
+          Cây nội dung ({{ tree.length }})
+        </span>
+
+        <Layers class="w-4 h-4 text-slate-600 mb-1" />
       </div>
 
-      <ItemEditorSlideOver
-        v-if="editorOpen"
-        :open="editorOpen"
-        :item="editedItem"
-        :path-id="selectedPathId ?? 0"
-        @close="closeEditor"
-        @saved="handleItemSaved"
-      />
-    </div>
+      <!-- Cột cây nội dung đầy đủ (320px - 384px) -->
+      <div
+        v-else
+        class="w-full lg:w-80 xl:w-96 shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-[420px] transition-all"
+      >
+        <div class="relative min-w-0 flex-1 flex flex-col h-full">
+          <div
+            v-if="loadingTree"
+            class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-[#12111a]/70"
+            role="status"
+            aria-label="Đang tải cây nội dung"
+          >
+            <span class="text-xs font-bold text-slate-400">Đang tải cây nội dung…</span>
+          </div>
 
-    <!-- Modal đổi tên lộ trình -->
-    <Modal :open="renameModalOpen" title="Đổi tên lộ trình" @close="renameModalOpen = false">
-      <div class="space-y-3 pt-1">
-        <div>
-          <label for="rename-path-input" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-            Tên lộ trình <span class="text-rose-400">*</span>
-          </label>
-          <input
-            id="rename-path-input"
-            v-model="renamePathTitle"
-            type="text"
-            data-testid="rename-path-input"
-            placeholder="Ví dụ: Cấu trúc dữ liệu & Thuật toán — Nhập môn"
-            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
-            @keydown.enter="handleRenamePath"
+          <!-- Nút thu gọn thanh cây nhanh (Desktop Focus Mode) -->
+          <div class="hidden lg:flex items-center justify-end pb-1.5">
+            <button
+              type="button"
+              class="text-[10px] font-bold text-slate-400 hover:text-purple-300 flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+              title="Thu gọn cây để mở rộng tối đa khu vực soạn thảo"
+              @click="treeCollapsed = true"
+            >
+              <PanelLeftClose class="w-3 h-3" />
+              <span>Chế độ tập trung (Ẩn cây)</span>
+            </button>
+          </div>
+
+          <OutlineTree
+            :items="tree"
+            :selected-item-id="selectedItemId"
+            @select="openEditor"
+            @add="handleAddItem"
+            @rename="handleRenameItem"
+            @move-item="handleMoveItem"
+            @delete="handleDeleteItem"
           />
         </div>
       </div>
+
+      <!-- Cột Editor / Workbench Right Side -->
+      <div class="flex-1 min-w-0 w-full flex flex-col h-auto lg:h-[calc(100vh-200px)] min-h-[480px]">
+        <ItemEditorSlideOver
+          v-if="editorOpen && editedItem"
+          :open="editorOpen"
+          :item="editedItem"
+          :path-id="Number(selectedPathId) || 0"
+          @close="closeEditor"
+          @saved="handleItemSaved"
+          @add-child="handleAddItem"
+          @select-item="openEditor"
+        />
+
+        <!-- Empty State khi chưa chọn item nào -->
+        <div
+          v-else
+          class="h-full rounded-2xl border border-dashed border-[#262438] bg-[#12111a]/70 p-6 md:p-8 flex flex-col justify-center items-center text-center space-y-5"
+          data-testid="workbench-empty-guide"
+        >
+          <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-600/20 to-sky-600/20 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-950/40">
+            <Edit3 class="w-8 h-8 text-purple-400" />
+          </div>
+
+          <div class="space-y-1.5 max-w-md">
+            <h3 class="text-sm md:text-base font-black text-white uppercase tracking-wider">
+              Bàn làm việc Giảng viên
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Chọn một mục trên <strong class="text-slate-200">Cây nội dung</strong> bên trái để bắt đầu chỉnh sửa, hoặc tạo bài học mới ngay bên dưới.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full max-w-xl pt-2">
+            <button
+              type="button"
+              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-amber-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
+              @click="handleAddItem('folder', null)"
+            >
+              <Folder class="w-5 h-5 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
+              <span>+ Chương</span>
+              <span class="text-[9px] text-slate-500 font-normal">Module mới</span>
+            </button>
+
+            <button
+              type="button"
+              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-sky-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
+              @click="handleAddItem('theory', null)"
+            >
+              <BookOpen class="w-5 h-5 text-sky-400 mb-1.5 group-hover:scale-110 transition-transform" />
+              <span>+ Lý thuyết</span>
+              <span class="text-[9px] text-slate-500 font-normal">Kèm mô phỏng</span>
+            </button>
+
+            <button
+              type="button"
+              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-orange-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
+              @click="handleAddItem('quiz', null)"
+            >
+              <HelpCircle class="w-5 h-5 text-orange-400 mb-1.5 group-hover:scale-110 transition-transform" />
+              <span>+ Quiz</span>
+              <span class="text-[9px] text-slate-500 font-normal">Trắc nghiệm</span>
+            </button>
+
+            <button
+              type="button"
+              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-emerald-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
+              @click="handleAddItem('lab', null)"
+            >
+              <Code class="w-5 h-5 text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
+              <span>+ Codelab</span>
+              <span class="text-[9px] text-slate-500 font-normal">Test cases</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-[#262438]/80">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Kéo thả sắp xếp
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-400" /> Tự động lưu bản nháp
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-400" /> Nhúng 44 mô phỏng
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Cài đặt & Lưu Lộ trình -->
+    <Modal :open="editPathModalOpen" title="Cài đặt & Lưu thông tin Lộ trình" @close="editPathModalOpen = false">
+      <div class="space-y-4 pt-1 max-h-[70vh] overflow-y-auto pr-1">
+        <div>
+          <label for="edit-path-title" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Tên lộ trình <span class="text-rose-400">*</span>
+          </label>
+          <input
+            id="edit-path-title"
+            v-model="editPathForm.title"
+            type="text"
+            placeholder="Ví dụ: Cấu trúc dữ liệu & Thuật toán — Nhập môn"
+            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+          />
+        </div>
+
+        <div>
+          <label for="edit-path-desc" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Mô tả tóm tắt lộ trình
+          </label>
+          <textarea
+            id="edit-path-desc"
+            v-model="editPathForm.description"
+            rows="3"
+            placeholder="Mô tả ngắn gọn về mục tiêu và nội dung cốt lõi của khóa học..."
+            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 resize-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="edit-path-cat" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Danh mục / Chủ đề DSA
+            </label>
+            <select
+              id="edit-path-cat"
+              v-model="editPathForm.category"
+              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            >
+              <option value="Cấu trúc dữ liệu">Cấu trúc dữ liệu</option>
+              <option value="Giải thuật">Giải thuật</option>
+              <option value="Sắp xếp & Tìm kiếm">Sắp xếp & Tìm kiếm</option>
+              <option value="Cây & Bảng băm">Cây & Bảng băm</option>
+              <option value="Đồ thị">Đồ thị</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="edit-path-diff" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Độ khó / Cấp độ
+            </label>
+            <select
+              id="edit-path-diff"
+              v-model="editPathForm.difficulty"
+              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            >
+              <option value="Beginner">Cơ bản (Beginner / Dễ)</option>
+              <option value="Intermediate">Trung cấp (Intermediate / TB)</option>
+              <option value="Advanced">Nâng cao (Advanced / Khó)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <template #footer>
-        <Button variant="ghost" size="sm" @click="renameModalOpen = false">Hủy</Button>
+        <Button variant="ghost" size="sm" @click="editPathModalOpen = false">Hủy</Button>
         <Button
           variant="primary"
           size="sm"
-          data-testid="rename-path-confirm"
-          :loading="renamingPath"
-          :disabled="!renamePathTitle.trim()"
-          @click="handleRenamePath"
+          data-testid="edit-path-confirm"
+          :loading="savingPath"
+          :disabled="!editPathForm.title.trim()"
+          @click="handleSavePath"
         >
-          <Check :size="13" aria-hidden="true" /> Lưu tên mới
+          <Check :size="13" aria-hidden="true" /> Lưu lộ trình
         </Button>
       </template>
     </Modal>

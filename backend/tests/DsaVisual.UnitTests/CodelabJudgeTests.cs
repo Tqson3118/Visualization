@@ -128,11 +128,37 @@ public class CodelabJudgeTests
     }
 
     [Fact]
-    public void ParseTasks_ObjectConfig_ReturnsNull()
+    public void ParseTasks_ObjectConfig_ReturnsSingleTask()
     {
-        var config = """{ "signature": "old", "language": "javascript", "testCases": [] }""";
-        Assert.Null(CodelabJudgeService.TryParseTasks(config));
+        var config = """
+            {
+              "entryFunction": "solve",
+              "starterCode": "function solve(input) { return input; }",
+              "testCases": [
+                { "input": "[1, 2, 3]", "expected": "[3, 2, 1]", "isHidden": false },
+                { "input": "[]", "expectedOutput": "[]", "isHidden": true }
+              ]
+            }
+            """;
+        var tasks = CodelabJudgeService.TryParseTasks(config);
+        Assert.NotNull(tasks);
+        Assert.Single(tasks!);
+        Assert.Equal("default", tasks[0].Id);
+        Assert.Equal("solve", tasks[0].EntryFunction);
+        Assert.Equal(2, tasks[0].TestCases.Count);
+        Assert.Equal("[1, 2, 3]", tasks[0].TestCases[0].Input);
+        Assert.Equal("[3, 2, 1]", tasks[0].TestCases[0].ExpectedOutput);
+        Assert.False(tasks[0].TestCases[0].IsHidden);
+        Assert.True(tasks[0].TestCases[1].IsHidden);
+    }
+
+    [Fact]
+    public void ParseTasks_EmptyOrInvalidConfig_ReturnsNull()
+    {
+        var emptyCasesConfig = """{ "signature": "old", "language": "javascript", "testCases": [] }""";
+        Assert.Null(CodelabJudgeService.TryParseTasks(emptyCasesConfig));
         Assert.Null(CodelabJudgeService.TryParseTasks(null));
+        Assert.Null(CodelabJudgeService.TryParseTasks("not a json"));
     }
 
     // ── 2. SubmitCodeAsync: chấm server + node pass ─────────────
@@ -143,6 +169,19 @@ public class CodelabJudgeTests
             "testCases": [
               { "name": "c1", "input": "[\"()\"]", "expectedOutput": "true", "isHidden": false },
               { "name": "c2", "input": "[\"(]\"]", "expectedOutput": "false", "isHidden": true }
+            ] }
+        ]
+        """;
+
+    private static string BuildMultiTasksConfig() => """
+        [
+          { "id": "asm-1-a", "title": "Bài 1", "entryFunction": "isValid",
+            "testCases": [
+              { "name": "c1", "input": "[\"()\"]", "expectedOutput": "true", "isHidden": false }
+            ] },
+          { "id": "asm-1-b", "title": "Bài 2", "entryFunction": "solve2",
+            "testCases": [
+              { "name": "c2", "input": "[1]", "expectedOutput": "1", "isHidden": false }
             ] }
         ]
         """;
@@ -163,7 +202,7 @@ public class CodelabJudgeTests
         function isValid(s) { return false; }
         """;
 
-    private async Task<(AppDbContext Db, ExerciseService Service, int ExerciseId, int NodeId)> SeedAsmExerciseAsync(string dbName)
+    private async Task<(AppDbContext Db, ExerciseService Service, int ExerciseId, int NodeId)> SeedAsmExerciseAsync(string dbName, string? configJson = null)
     {
         var db = TestServices.CreateInMemoryDb(dbName);
         var now = Clock.UtcNow;
@@ -188,7 +227,7 @@ public class CodelabJudgeTests
             Type = ExerciseType.Code,
             MaxScore = 100,
             Status = ExerciseStatus.Active,
-            ConfigJson = BuildTasksConfig()
+            ConfigJson = configJson ?? BuildTasksConfig()
         }, CancellationToken.None);
         Assert.True(created.IsSuccess, created.ErrorMessage);
         return (db, service, created.Value!.Id, node.Id);
@@ -221,6 +260,44 @@ public class CodelabJudgeTests
     }
 
     [Fact]
+    public async Task SubmitCode_ServerJudge_SingleTask_MissingTaskId_AutoJudged()
+    {
+        var (db, service, exerciseId, nodeId) = await SeedAsmExerciseAsync(nameof(SubmitCode_ServerJudge_SingleTask_MissingTaskId_AutoJudged));
+
+        // TaskId = null nhưng bài chỉ có 1 task -> tự động chấm server thành công
+        var result = await service.SubmitCodeAsync(1, exerciseId, SubmitRequest(CorrectCode, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(2, result.Value!.Passed);
+        Assert.Equal(2, result.Value.Total);
+        var submission = await db.CodeSubmissions.AsNoTracking().FirstAsync(s => s.ExerciseId == exerciseId);
+        Assert.False(submission.IsClientDeclared);
+    }
+
+    [Fact]
+    public async Task SubmitCode_ServerJudge_StudioObjectConfig_AutoJudged()
+    {
+        var studioConfig = """
+            {
+              "entryFunction": "isValid",
+              "starterCode": "function isValid(s) { return false; }",
+              "testCases": [
+                { "input": "[\"()\"]", "expected": "true", "isHidden": false }
+              ]
+            }
+            """;
+        var (db, service, exerciseId, nodeId) = await SeedAsmExerciseAsync(nameof(SubmitCode_ServerJudge_StudioObjectConfig_AutoJudged), studioConfig);
+
+        var result = await service.SubmitCodeAsync(1, exerciseId, SubmitRequest(CorrectCode, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Equal(1, result.Value!.Passed);
+        Assert.Equal(1, result.Value.Total);
+        var submission = await db.CodeSubmissions.AsNoTracking().FirstAsync(s => s.ExerciseId == exerciseId);
+        Assert.False(submission.IsClientDeclared);
+    }
+
+    [Fact]
     public async Task SubmitCode_ServerJudge_WrongCode_DoesNotPassNode()
     {
         var (db, service, exerciseId, nodeId) = await SeedAsmExerciseAsync(nameof(SubmitCode_ServerJudge_WrongCode_DoesNotPassNode));
@@ -250,9 +327,9 @@ public class CodelabJudgeTests
     }
 
     [Fact]
-    public async Task SubmitCode_ServerJudge_MissingTaskId_Rejected()
+    public async Task SubmitCode_ServerJudge_MultiTask_MissingTaskId_Rejected()
     {
-        var (_, service, exerciseId, _) = await SeedAsmExerciseAsync(nameof(SubmitCode_ServerJudge_MissingTaskId_Rejected));
+        var (_, service, exerciseId, _) = await SeedAsmExerciseAsync(nameof(SubmitCode_ServerJudge_MultiTask_MissingTaskId_Rejected), BuildMultiTasksConfig());
 
         var result = await service.SubmitCodeAsync(1, exerciseId, SubmitRequest(CorrectCode, null), CancellationToken.None);
 

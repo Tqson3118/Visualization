@@ -43,6 +43,9 @@ public sealed class PathItemUpdateRequest
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public int? LessonId { get; set; }
+    public int? FinalTestId { get; set; }
+    public int? LabExerciseId { get; set; }
 }
 
 public sealed class PathItemMoveRequest

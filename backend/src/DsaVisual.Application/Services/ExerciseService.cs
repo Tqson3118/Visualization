@@ -208,9 +208,10 @@ public sealed class ExerciseService(
             return Result<ExerciseDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền tạo bài tập trong bài học này");
         }
 
+        LearningPathNode? node = null;
         if (request.NodeId is { } nodeId)
         {
-            var node = await db.LearningPathNodes.AsNoTracking()
+            node = await db.LearningPathNodes
                 .FirstOrDefaultAsync(n => n.Id == nodeId, ct);
             if (node is null)
             {
@@ -241,6 +242,20 @@ public sealed class ExerciseService(
 
         db.Exercises.Add(exercise);
         await db.SaveChangesAsync(ct);
+
+        if (node is not null)
+        {
+            if (request.Type == ExerciseType.Mcq && node.FinalTestId == null)
+            {
+                node.FinalTestId = exercise.Id;
+                await db.SaveChangesAsync(ct);
+            }
+            else if (request.Type == ExerciseType.Code && node.LabExerciseId == null)
+            {
+                node.LabExerciseId = exercise.Id;
+                await db.SaveChangesAsync(ct);
+            }
+        }
 
         logger.LogInformation("Exercise {ExerciseId} created by user {UserId}", exercise.Id, userId);
         return Result<ExerciseDto>.Ok(ToDto(exercise));
@@ -369,6 +384,11 @@ public sealed class ExerciseService(
             if (classRoom.Status != ClassStatus.Open)
             {
                 return Result<SubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lớp đã đóng, không nhận bài nộp");
+            }
+
+            if (classRoom.LearningPathId != null && !classRoom.CurriculumPublished)
+            {
+                return Result<SubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lộ trình học của lớp đang ở trạng thái bản nháp, chưa mở nộp bài");
             }
 
             // v2.15 (Vấn đề 14): AllowLateSubmission == false → chặn nộp sau deadline (ASSIGNMENT_OVERDUE)
@@ -547,6 +567,22 @@ public sealed class ExerciseService(
         if (passed && nodeJustPassed && exercise.NodeId is { })
         {
             await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+            var xpEarned = maxScore > 0 ? (int)Math.Round((double)score / maxScore * 100) : 50;
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Xp = Xp + {xpEarned}, UpdatedAt = {now} WHERE Id = {userId}", ct);
+            }
+            else
+            {
+                var user = await db.Users.FindAsync([userId], ct);
+                if (user is not null)
+                {
+                    user.Xp += xpEarned;
+                    user.UpdatedAt = now;
+                    await db.SaveChangesAsync(ct);
+                }
+            }
         }
 
         await tx.CommitAsync(ct);
@@ -827,6 +863,11 @@ public sealed class ExerciseService(
                 return Result<CodeSubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lớp đã đóng, không nhận bài nộp");
             }
 
+            if (classRoom.LearningPathId != null && !classRoom.CurriculumPublished)
+            {
+                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.FORBIDDEN, "Lộ trình học của lớp đang ở trạng thái bản nháp, chưa mở nộp bài");
+            }
+
             // v2.15 (Vấn đề 14): AllowLateSubmission == false → chặn nộp sau deadline (ASSIGNMENT_OVERDUE)
             if (!assignment.AllowLateSubmission && assignment.DueAt is { } dueAt && clock.UtcNow > dueAt)
             {
@@ -853,18 +894,25 @@ public sealed class ExerciseService(
         var judgeError = (string?)null;
         if (tasks is not null)
         {
-            if (string.IsNullOrWhiteSpace(request.TaskId))
+            CodelabTaskSpec? task = null;
+            if (!string.IsNullOrWhiteSpace(request.TaskId))
+            {
+                task = tasks.FirstOrDefault(t => t.Id == request.TaskId)
+                       ?? tasks.FirstOrDefault(t => t.EntryFunction == request.TaskId);
+                if (task is null)
+                {
+                    return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                        "TaskId không tồn tại trong đề bài");
+                }
+            }
+            else if (tasks.Count == 1)
+            {
+                task = tasks[0];
+            }
+            else
             {
                 return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
                     "Bài tập này yêu cầu chấm code phía máy chủ — thiếu TaskId của bài con");
-            }
-
-            var task = tasks.FirstOrDefault(t => t.Id == request.TaskId)
-                       ?? tasks.FirstOrDefault(t => t.EntryFunction == request.TaskId);
-            if (task is null)
-            {
-                return Result<CodeSubmitResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
-                    "TaskId không tồn tại trong đề bài");
             }
 
             var judged = _judge.Judge(request.Code, task);
@@ -1013,6 +1061,22 @@ public sealed class ExerciseService(
         if (passed && nodeJustPassed && exercise.NodeId is { })
         {
             await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
+            var xpEarned = maxScore > 0 ? maxScore : 100;
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Xp = Xp + {xpEarned}, UpdatedAt = {now} WHERE Id = {userId}", ct);
+            }
+            else
+            {
+                var user = await db.Users.FindAsync([userId], ct);
+                if (user is not null)
+                {
+                    user.Xp += xpEarned;
+                    user.UpdatedAt = now;
+                    await db.SaveChangesAsync(ct);
+                }
+            }
         }
 
         await tx.CommitAsync(ct);
@@ -1104,12 +1168,16 @@ public sealed class ExerciseService(
             ? labAnswer.MaxSteps
             : (answerElement.TryGetProperty("maxSteps", out var ms) && ms.TryGetInt32(out var m) ? m : int.MaxValue);
 
-        // Quyết định G-5: số bước ≤ chuẩn × 1.5 (API_REFERENCE.md §4.16)
-        var stepLimit = (int)Math.Ceiling(maxSteps * 1.5);
+        // Quyết định G-5: số bước ≤ chuẩn × 1.5 (API_REFERENCE.md §4.16) — chống tràn số khi maxSteps không giới hạn
+        var stepLimit = maxSteps > 0 && maxSteps < int.MaxValue / 2
+            ? (int)Math.Ceiling(maxSteps * 1.5)
+            : int.MaxValue;
         var stepsOk = labAnswer.StepsUsed <= stepLimit;
 
         explanation = stateMatch && stepsOk
-            ? $"Trạng thái cuối khớp chuẩn; {labAnswer.StepsUsed} bước ≤ giới hạn {stepLimit} (chuẩn {maxSteps} × 1.5)"
+            ? (stepLimit == int.MaxValue
+                ? $"Trạng thái cuối khớp chuẩn ({labAnswer.StepsUsed} bước)"
+                : $"Trạng thái cuối khớp chuẩn; {labAnswer.StepsUsed} bước ≤ giới hạn {stepLimit} (chuẩn {maxSteps} × 1.5)")
             : stateMatch
                 ? $"Trạng thái cuối khớp nhưng {labAnswer.StepsUsed} bước > giới hạn {stepLimit} (chuẩn {maxSteps} × 1.5)"
                 : "Trạng thái cuối không khớp chuẩn StepExecutor";
@@ -1123,6 +1191,10 @@ public sealed class ExerciseService(
         {
             return value;
         }
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var numValue))
+        {
+            return numValue;
+        }
 
         return fallback;
     }
@@ -1130,6 +1202,12 @@ public sealed class ExerciseService(
     private static List<int> GetAnswerIndices(JsonElement element)
     {
         var result = new List<int>();
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var singleNum))
+        {
+            result.Add(singleNum);
+            return result;
+        }
+
         if (element.ValueKind != JsonValueKind.Array)
         {
             return result;

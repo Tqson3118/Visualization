@@ -6,6 +6,7 @@ import type { CodeRunSummary, CodeSubmitResult } from '@/api/codeRunner';
 import { getCatalogMeta } from '@/engines/catalog';
 import { runCode } from '@/engines/core/stepExecutor';
 import type { RunResult } from '@/engines/core/stepExecutor';
+import { useSimulationStore } from '@/stores/simulation';
 
 /** Store codeRunner theo SDD §3.2 — Module I (Code Runner, ADR-012: sandbox Web Worker client) */
 export type RunState = 'idle' | 'running' | 'passed' | 'failed' | 'error';
@@ -94,7 +95,7 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
   }
 
   /** Chạy code trong sandbox client (SDD §4.0.3 — runCode; giới hạn 50.000 event). */
-  async function run(): Promise<RunResult | null> {
+  async function run(customArray?: number[]): Promise<RunResult | null> {
     if (!editorCode.value.trim()) {
       runError.value = 'Hãy nhập code trước khi chạy.';
       return null;
@@ -105,9 +106,19 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
     lastStats.value = null;
 
     try {
-      const defaultArray = [5, 3, 8, 1, 9, 2, 7];
+      let targetArray = customArray;
+      if (!targetArray || targetArray.length === 0) {
+        const sim = useSimulationStore();
+        const cfgArray = sim.inputConfig?.data && (sim.inputConfig.data as Record<string, unknown>).array;
+        if (Array.isArray(cfgArray) && cfgArray.length > 0 && typeof cfgArray[0] === 'number') {
+          targetArray = cfgArray as number[];
+        } else {
+          targetArray = [5, 3, 8, 1, 9, 2, 7];
+        }
+      }
+
       const result = await Promise.resolve(
-        runCode({ code: editorCode.value, entry: 'solve', bindings: [] }, defaultArray),
+        runCode({ code: editorCode.value, entry: 'solve', bindings: [] }, targetArray),
       );
       if (result.error) {
         runState.value = 'error';
@@ -141,7 +152,7 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
         const saved = await codeRunnerApi.saveCodeRun({
           key: key.value,
           code: editorCode.value,
-          input: JSON.stringify(defaultArray),
+          input: JSON.stringify(targetArray),
           status: 'Success',
           durationMs: result.stats?.durationMs ?? 0,
           output: result.output !== undefined ? JSON.stringify(result.output) : null,

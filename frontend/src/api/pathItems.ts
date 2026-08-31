@@ -33,6 +33,9 @@ export interface PathItemCreateRequest {
 export interface PathItemUpdateRequest {
   title: string;
   description?: string;
+  lessonId?: number | null;
+  finalTestId?: number | null;
+  labExerciseId?: number | null;
 }
 
 export interface PathItemMoveRequest {
@@ -58,6 +61,13 @@ export async function fetchPathTree(pathId: number): Promise<PathItemDto[]> {
   return getData<PathItemDto[]>({
     method: 'GET',
     url: `/paths/${pathId}/items`,
+  });
+}
+
+export async function findPathItemByLesson(lessonId: number): Promise<PathItemDto> {
+  return getData<PathItemDto>({
+    method: 'GET',
+    url: `/paths/find-by-lesson/${lessonId}`,
   });
 }
 

@@ -1,5 +1,7 @@
+using System.Text.Json;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence.Entities;
+using DsaVisual.Application.Services;
 using FluentValidation;
 
 namespace DsaVisual.Application.Validators;
@@ -48,5 +50,22 @@ public sealed class ExerciseUpsertRequestValidator : AbstractValidator<ExerciseU
             question.RuleFor(q => q.Type)
                 .IsInEnum().WithMessage("Loại câu hỏi không hợp lệ");
         });
+
+        RuleFor(x => x.ConfigJson)
+            .NotEmpty().When(x => x.Type == ExerciseType.Code)
+            .WithMessage("Cấu hình bài tập lập trình (ConfigJson) không được để trống");
+
+        RuleFor(x => x.ConfigJson)
+            .Must(BeValidCodeLabConfig).When(x => x.Type == ExerciseType.Code && !string.IsNullOrWhiteSpace(x.ConfigJson))
+            .WithMessage("Cấu hình CodeLab không đúng định dạng JSON hoặc thiếu Testcases");
+    }
+
+    private static bool BeValidCodeLabConfig(string? configJson)
+    {
+        if (string.IsNullOrWhiteSpace(configJson)) return false;
+        var tasks = CodelabJudgeService.TryParseTasks(configJson);
+        if (tasks == null || tasks.Count == 0) return false;
+        return tasks.Any(t => t.TestCases.Count > 0);
     }
 }
+

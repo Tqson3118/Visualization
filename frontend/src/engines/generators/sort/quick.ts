@@ -210,6 +210,14 @@ export function createQuickGenerator(): SimulationGenerator {
           structure: arrayStructure(a, segMap(lo, hi)),
         });
         quickSort(p + 1, hi);
+
+        for (let k = lo; k <= hi; k++) doneMap[k] = 'done';
+        trace.push({
+          line: 1,
+          explanation: `Hoàn tất phân đoạn [${lo}..${hi}]: các phần tử trong đoạn đã có thứ tự.`,
+          structure: arrayStructure(a, segMap(lo, hi)),
+          annotations: [`Đoạn [${lo}..${hi}] xong`],
+        });
       };
 
       quickSort(0, n - 1);

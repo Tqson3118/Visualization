@@ -92,12 +92,20 @@ export const useGamificationStore = defineStore('gamification', () => {
     }
   }
 
+  const claimingQuestIds = new Set<number>();
+
   async function claimQuest(id: number): Promise<void> {
-    const reward = await gamificationApi.claimQuest(id);
     const quest = quests.value.find((q) => q.id === id);
-    if (quest) quest.claimed = true;
-    gems.value += reward.gems;
-    xp.value += reward.xp;
+    if (!quest || quest.claimed || claimingQuestIds.has(id)) return;
+    claimingQuestIds.add(id);
+    try {
+      const reward = await gamificationApi.claimQuest(id);
+      if (quest) quest.claimed = true;
+      gems.value += reward.gems;
+      xp.value += reward.xp;
+    } finally {
+      claimingQuestIds.delete(id);
+    }
   }
 
   async function fetchInventory(): Promise<void> {

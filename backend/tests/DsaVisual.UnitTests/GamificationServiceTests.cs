@@ -1,4 +1,4 @@
-﻿using DsaVisual.Application.Common;
+using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
@@ -421,5 +421,106 @@ public class GamificationServiceTests
 
         var order = await db.PremiumSubscriptions.AsNoTracking().FirstAsync(s => s.Id == result.Value.OrderId);
         Assert.Equal(expectedRef, order.OrderRef);
+    }
+
+    [Fact]
+    public async Task Webhook_InvalidMonths_ReturnsValidationFailed()
+    {
+        var (service, _) = await SetupAsync(nameof(Webhook_InvalidMonths_ReturnsValidationFailed));
+
+        var request = new PaymentWebhookRequest
+        {
+            Content = "DSV1T9999",
+            ReferenceCode = "TX_TEST_001"
+        };
+
+        var result = await service.ProcessPaymentWebhookAsync(request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Webhook_ReplayAttack_ReturnsConflict()
+    {
+        var (service, db) = await SetupAsync(nameof(Webhook_ReplayAttack_ReturnsConflict));
+
+        var request = new PaymentWebhookRequest
+        {
+            Content = "DSV1T3",
+            ReferenceCode = "TX_REPLAY_123"
+        };
+
+        var firstResult = await service.ProcessPaymentWebhookAsync(request, CancellationToken.None);
+        Assert.True(firstResult.IsSuccess, firstResult.ErrorMessage);
+
+        var secondResult = await service.ProcessPaymentWebhookAsync(request, CancellationToken.None);
+        Assert.False(secondResult.IsSuccess);
+        Assert.Equal(ErrorCodes.CONFLICT, secondResult.ErrorCode);
+    }
+
+    [Fact]
+    public async Task StreakFreeze_MissedOneDay_ConsumesFreezeAndIncrementsStreak()
+    {
+        var (service, db) = await SetupAsync(nameof(StreakFreeze_MissedOneDay_ConsumesFreezeAndIncrementsStreak));
+
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        user.StreakDays = 5;
+        user.StreakFreeze = 1;
+        user.LastActivityDate = _clock.UtcNow.AddHours(7).Date.AddDays(-2);
+        await db.SaveChangesAsync();
+
+        var enterResult = await service.EnterNodeAsync(1, 1, 10, null, CancellationToken.None);
+        Assert.True(enterResult.IsSuccess, enterResult.ErrorMessage);
+
+        var updatedUser = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(6, updatedUser.StreakDays);
+        Assert.Equal(0, updatedUser.StreakFreeze);
+        Assert.Equal(_clock.UtcNow.AddHours(7).Date, updatedUser.LastActivityDate);
+    }
+
+    [Fact]
+    public async Task StreakFreeze_MissedThreeDays_ResetsStreakToOne()
+    {
+        var (service, db) = await SetupAsync(nameof(StreakFreeze_MissedThreeDays_ResetsStreakToOne));
+
+        var user = await db.Users.FirstAsync(u => u.Id == 1);
+        user.StreakDays = 10;
+        user.StreakFreeze = 1;
+        user.LastActivityDate = _clock.UtcNow.AddHours(7).Date.AddDays(-3);
+        await db.SaveChangesAsync();
+
+        var enterResult = await service.EnterNodeAsync(1, 1, 10, null, CancellationToken.None);
+        Assert.True(enterResult.IsSuccess, enterResult.ErrorMessage);
+
+        var updatedUser = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 1);
+        Assert.Equal(1, updatedUser.StreakDays);
+    }
+
+    [Fact]
+    public async Task ProgressPct_LearningPathWithFolders_CalculatesAccurately()
+    {
+        var (service, db) = await SetupAsync(nameof(ProgressPct_LearningPathWithFolders_CalculatesAccurately));
+
+        db.LearningPaths.Add(new LearningPath { Id = 2, Title = "DSA Core", IsActive = true, CreatedBy = 1 });
+        db.LearningPathNodes.Add(new LearningPathNode { Id = 21, PathId = 2, ItemType = PathItemType.Folder, SortOrder = 1, Title = "Chương 1" });
+        db.LearningPathNodes.Add(new LearningPathNode { Id = 22, PathId = 2, ItemType = PathItemType.Theory, SortOrder = 2, Title = "Bài 1.1", ParentId = 21 });
+        db.LearningPathNodes.Add(new LearningPathNode { Id = 23, PathId = 2, ItemType = PathItemType.Folder, SortOrder = 3, Title = "Chương 2" });
+        db.LearningPathNodes.Add(new LearningPathNode { Id = 24, PathId = 2, ItemType = PathItemType.Theory, SortOrder = 4, Title = "Bài 2.1", ParentId = 23 });
+        await db.SaveChangesAsync();
+
+        db.UserNodeProgress.Add(new UserNodeProgress { UserId = 1, NodeId = 22, Status = 2, PassedAt = _clock.UtcNow });
+        db.UserNodeProgress.Add(new UserNodeProgress { UserId = 1, NodeId = 24, Status = 2, PassedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var pathsResult = await service.GetLearningPathsAsync(1, CancellationToken.None);
+        Assert.True(pathsResult.IsSuccess);
+        var pathSummary = pathsResult.Value!.First(p => p.Id == 2);
+        Assert.Equal(2, pathSummary.NodeCount);
+        Assert.Equal(100, pathSummary.ProgressPct);
+
+        var detailResult = await service.GetLearningPathAsync(1, 2, CancellationToken.None);
+        Assert.True(detailResult.IsSuccess);
+        Assert.Equal(100, detailResult.Value!.ProgressPct);
     }
 }

@@ -15,7 +15,7 @@ test.describe('TC-29~34: Trang chủ', () => {
     // đăng nhập thì router guard tự chuyển /login kèm redirect.
     await mockApi(page);
     await page.goto('/');
-    for (const name of ['Lộ trình', 'Mô phỏng', 'Lớp học', 'Thử thách', 'Cửa hàng']) {
+    for (const name of ['Lộ trình', 'Mô phỏng', 'Thử thách', 'Cửa hàng']) {
       await expect(page.getByRole('link', { name, exact: true }).first()).toBeVisible();
     }
     expect(await page.getByRole('button', { name: /Hồ sơ|Đăng xuất/i }).count()).toBe(0);

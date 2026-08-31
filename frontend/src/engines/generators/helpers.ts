@@ -415,6 +415,17 @@ export function buildGraphEdges(g: GraphParams): Edge[] {
     case 'custom':
     default: {
       const seen = new Set<string>();
+      // Đảm bảo đồ thị liên thông từ đỉnh 0 bằng cây khung trước
+      for (let i = 1; i < n && pairs.length < g.edges; i++) {
+        const p = Math.floor(rng() * i);
+        const u = g.directed ? p : (p < i ? p : i);
+        const v = g.directed ? i : (p < i ? i : p);
+        const key = `${u}-${v}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          pairs.push([u, v]);
+        }
+      }
       let guard = 0;
       while (pairs.length < g.edges && guard < g.edges * 50 + 100) {
         guard++;
