@@ -30,6 +30,7 @@ import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { compressImage, setCustomShopAsset, avatarImageUrl } from '@/utils/equipment';
 
 const ui = useUiStore();
 
@@ -114,29 +115,34 @@ function openEditModal(item: AdminShopItemDto): void {
   form.type = item.type;
   form.maxStack = item.maxStack;
   form.durationHours = item.durationHours;
-  try {
-    const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
-    form.imageUrl = custom[item.itemKey] || '';
-  } catch {
-    form.imageUrl = '';
-  }
+  form.imageUrl = item.imageUrl || avatarImageUrl(item.itemKey) || '';
   editModalOpen.value = true;
 }
 
-function handleFileUpload(e: Event): void {
+async function handleFileUpload(e: Event): Promise<void> {
   const target = e.target as HTMLInputElement;
   const file = target.files?.[0];
   if (!file) return;
-  if (file.size > 3 * 1024 * 1024) {
-    ui.showToast('Vui lòng chọn ảnh có kích thước dưới 3MB.', 'warning');
-    return;
+
+  try {
+    // 1. Nén ảnh tự động về kích thước tối đa 256x256 (~20-35KB), preview tức thì
+    const compressedBase64 = await compressImage(file, 256, 0.85);
+    form.imageUrl = compressedBase64;
+
+    // 2. Tải lên server để nhận link tĩnh /uploads/shop/...
+    try {
+      const res = await adminApi.uploadShopAsset({ image: compressedBase64, name: file.name });
+      if (res?.url) {
+        form.imageUrl = res.url;
+      }
+    } catch {
+      // Backend offline hoặc chưa có endpoint -> dùng base64 đã nén siêu nhẹ
+    }
+
+    ui.showToast('Đã tải và xử lý ảnh thành công!', 'success');
+  } catch (err: any) {
+    ui.showToast(err.message || 'Không thể xử lý ảnh.', 'error');
   }
-  const reader = new FileReader();
-  reader.onload = (loadEvent) => {
-    form.imageUrl = (loadEvent.target?.result as string) || '';
-    ui.showToast('Đã tải ảnh lên thành công!', 'success');
-  };
-  reader.readAsDataURL(file);
 }
 
 async function handleCreateItem(): Promise<void> {
@@ -146,21 +152,24 @@ async function handleCreateItem(): Promise<void> {
   }
   saving.value = true;
   try {
+    const normKey = form.itemKey.trim().toLowerCase();
     await adminApi.createAdminShopItem({
-      itemKey: form.itemKey.trim(),
+      itemKey: normKey,
       name: form.name.trim(),
       priceGems: Number(form.priceGems),
       type: Number(form.type),
       maxStack: Number(form.type === 1 || form.type === 2 ? 1 : form.maxStack),
       durationHours: form.durationHours,
     });
+
     if (form.imageUrl && form.imageUrl.trim()) {
+      const imgUrl = form.imageUrl.trim();
+      setCustomShopAsset(normKey, imgUrl);
       try {
-        const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
-        custom[form.itemKey.trim()] = form.imageUrl.trim();
-        localStorage.setItem('custom_shop_assets', JSON.stringify(custom));
+        await adminApi.saveCustomShopAsset(normKey, imgUrl);
       } catch {}
     }
+
     ui.showToast('Đã thêm vật phẩm mới thành công!', 'success');
     createModalOpen.value = false;
     await loadData();
@@ -175,6 +184,7 @@ async function handleUpdateItem(): Promise<void> {
   if (!editingItem.value || !form.name.trim()) return;
   saving.value = true;
   try {
+    const normKey = editingItem.value.itemKey.trim().toLowerCase();
     await adminApi.updateAdminShopItem(editingItem.value.id, {
       name: form.name.trim(),
       priceGems: Number(form.priceGems),
@@ -182,6 +192,15 @@ async function handleUpdateItem(): Promise<void> {
       maxStack: Number(form.type === 1 || form.type === 2 ? 1 : form.maxStack),
       durationHours: form.durationHours,
     });
+
+    if (form.imageUrl && form.imageUrl.trim()) {
+      const imgUrl = form.imageUrl.trim();
+      setCustomShopAsset(normKey, imgUrl);
+      try {
+        await adminApi.saveCustomShopAsset(normKey, imgUrl);
+      } catch {}
+    }
+
     ui.showToast('Đã cập nhật vật phẩm thành công!', 'success');
     editModalOpen.value = false;
     await loadData();
@@ -366,9 +385,17 @@ function formatDate(dateStr: string): string {
                   <span class="text-purple-400 font-bold mr-1">#{{ item.id }}</span>
                   <span class="text-slate-300 font-medium">{{ item.itemKey }}</span>
                 </td>
-                <td class="p-3 font-bold text-white flex items-center gap-2">
-                  <component :is="item.type === 1 ? Image : item.type === 2 ? Frame : Heart" :size="15" class="text-purple-400 shrink-0" />
-                  {{ item.name }}
+                <td class="p-3 font-bold text-white flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                    <img
+                      v-if="item.imageUrl || avatarImageUrl(item.itemKey)"
+                      :src="item.imageUrl || avatarImageUrl(item.itemKey)"
+                      :alt="item.name"
+                      class="w-full h-full object-cover"
+                    />
+                    <component :is="item.type === 1 ? Image : item.type === 2 ? Frame : Heart" v-else :size="15" class="text-purple-400" />
+                  </div>
+                  <span>{{ item.name }}</span>
                 </td>
                 <td class="p-3">
                   <Badge :variant="typeBadge(item.type).variant">{{ typeBadge(item.type).label }}</Badge>

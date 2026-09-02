@@ -6,7 +6,7 @@ import { Flame, Pencil } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useProgressStore } from '@/stores/progress';
-import { avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
+import { avatarImageUrl, avatarVariant, equippedItem, frameVariant } from '@/utils/equipment';
 import { messages } from '@/i18n/vi';
 import Tabs from '@/components/ui/Tabs.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -105,7 +105,13 @@ onMounted(async () => {
       <div class="profile__user">
         <span class="profile__avatar-frame" :class="frameThemeClass">
           <img
-            v-if="auth.user?.avatarUrl && !avatarImgFailed"
+            v-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
+            :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
+            :alt="auth.user?.displayName ?? 'Avatar'"
+            class="profile__avatar profile__avatar-image"
+          />
+          <img
+            v-else-if="auth.user?.avatarUrl && !avatarImgFailed"
             :src="auth.user.avatarUrl"
             :alt="auth.user?.displayName ?? 'Avatar'"
             class="profile__avatar profile__avatar-image"
@@ -114,6 +120,14 @@ onMounted(async () => {
           <span v-else class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
             {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
           </span>
+
+          <img
+            v-if="equippedFrame && (equippedFrame.imageUrl || avatarImageUrl(equippedFrame.itemKey))"
+            :src="equippedFrame.imageUrl || avatarImageUrl(equippedFrame.itemKey)"
+            class="profile__avatar-frame-overlay"
+            alt=""
+            aria-hidden="true"
+          />
         </span>
         <div class="profile__identity">
           <h1 class="profile__name">{{ auth.user?.displayName ?? 'Người dùng' }}</h1>
@@ -263,6 +277,25 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.profile__avatar-frame--neon    { padding: 3px; background: linear-gradient(135deg, #ec4899, #22d3ee); box-shadow: 0 0 16px rgba(236, 72, 153, 0.45); }
+.profile__avatar-frame--gold    { padding: 3px; background: linear-gradient(135deg, #f59e0b, #fde68a, #f59e0b); box-shadow: 0 0 18px rgba(250, 204, 21, 0.5); }
+.profile__avatar-frame--cyber   { padding: 3px; background: linear-gradient(135deg, #22d3ee, #6366f1); box-shadow: 0 0 16px rgba(34, 211, 238, 0.45); }
+.profile__avatar-frame--fire    { padding: 3px; background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 0 16px rgba(239, 68, 68, 0.5); }
+.profile__avatar-frame--ice     { padding: 3px; background: linear-gradient(135deg, #7dd3fc, #93c5fd); box-shadow: 0 0 14px rgba(125, 211, 252, 0.5); }
+.profile__avatar-frame--default { padding: 3px; background: linear-gradient(135deg, #a855f7, #6366f1); box-shadow: 0 0 14px rgba(168, 85, 247, 0.4); }
+
+.profile__avatar-frame-overlay {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  pointer-events: none;
+  object-fit: contain;
+  z-index: 2;
 }
 
 .profile__avatar {

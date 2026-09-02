@@ -76,6 +76,9 @@ export interface ShopItemDto {
   priceGems: number;
   slot: string | null;
   maxStack?: number;
+  itemKey?: string;
+  type?: number;
+  imageUrl?: string | null;
 }
 
 export interface PremiumStatusDto {
@@ -122,6 +125,7 @@ export interface InventoryItemDto {
   type: number;            // 0=consumable / 1=avatar / 2=frame (fallback — ưu tiên itemKey prefix)
   isEquipped: boolean;
   expiresAt: string | null;
+  imageUrl?: string | null;
 }
 
 export interface AchievementDto {
@@ -258,6 +262,14 @@ export async function fetchShopItems(): Promise<ShopItemDto[]> {
     ...item,
     priceGems: item.priceGems ?? item.price ?? item.cost ?? 0,
   }));
+}
+
+export async function fetchShopCustomAssets(): Promise<Record<string, string>> {
+  try {
+    return await getData<Record<string, string>>({ method: 'GET', url: '/shop/custom-assets' });
+  } catch {
+    return {};
+  }
 }
 
 export async function buyItem(itemId: number): Promise<{ gemsLeft: number }> {

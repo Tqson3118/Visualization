@@ -24,6 +24,8 @@ import * as gamificationApi from '@/api/gamification';
 import type { ShopItemDto, InventoryItemDto } from '@/api/gamification';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
+import { avatarImageUrl, initCustomShopAssets } from '@/utils/equipment';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
@@ -34,6 +36,7 @@ import { messages } from '@/i18n/vi';
 
 const gamification = useGamificationStore();
 const ui = useUiStore();
+const auth = useAuthStore();
 
 const items = ref<ShopItemDto[]>([]);
 const loading = ref(true);
@@ -43,11 +46,15 @@ const activeCategory = ref<'all' | 'item' | 'avatar' | 'frame'>('all');
 
 onMounted(async () => {
   try {
-    const [fetchedItems] = await Promise.all([
+    const [fetchedItems, customAssets] = await Promise.all([
       gamificationApi.fetchShopItems(),
+      gamificationApi.fetchShopCustomAssets(),
       gamification.fetchAll(),
       gamification.fetchInventory(),
     ]);
+    if (customAssets) {
+      initCustomShopAssets(customAssets);
+    }
     items.value = fetchedItems;
   } catch {
     ui.showToast(messages.shop.loadError, 'error');
@@ -122,6 +129,7 @@ async function toggleEquipFromShop(item: ShopItemDto): Promise<void> {
   equippingId.value = item.id;
   try {
     await gamification.equipItem(item.id, !inv.isEquipped);
+    await auth.fetchMe();
     ui.showToast(inv.isEquipped ? 'Đã gỡ trang bị.' : `Đã trang bị "${item.name}".`, 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể trang bị vật phẩm.', 'error');
@@ -433,8 +441,14 @@ const slotLabel = (slot: string | null): string => {
                 }"
               >
                 <div class="shop__top">
-                  <span class="shop__icon" aria-hidden="true">
-                    <component :is="itemIcon(getItemSlot(item))" :size="20" />
+                  <span class="shop__icon overflow-hidden" aria-hidden="true">
+                    <img
+                      v-if="item.imageUrl || avatarImageUrl((item as any).itemKey || item.name)"
+                      :src="item.imageUrl || avatarImageUrl((item as any).itemKey || item.name)"
+                      :alt="item.name"
+                      class="w-full h-full object-cover"
+                    />
+                    <component :is="itemIcon(getItemSlot(item))" v-else :size="20" />
                   </span>
                   <div class="flex items-center gap-1.5">
                     <Badge v-if="isItemEquipped(item)" variant="success" class="text-[10px]">✨ Đang dùng</Badge>

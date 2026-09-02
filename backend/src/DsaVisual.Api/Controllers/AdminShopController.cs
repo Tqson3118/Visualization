@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,37 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
         int Type,
         int MaxStack,
         int? DurationHours,
-        int OwnersCount);
+        int OwnersCount,
+        string? ImageUrl = null);
+
+    private static readonly Dictionary<string, string> DefaultAvatarUrls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["avatar-cyber-hacker"] = "/assets/avatars/cyber-hacker.svg",
+        ["avatar-gold-knight"] = "/assets/avatars/gold-knight.svg",
+        ["avatar-neon-ninja"] = "/assets/avatars/neon-ninja.svg",
+        ["avatar-wizard"] = "/assets/avatars/wizard.svg",
+        ["avatar-ai-bot"] = "/assets/avatars/ai-bot.svg",
+        ["avatar-dragon"] = "/assets/avatars/dragon.svg",
+    };
+
+    private async Task<Dictionary<string, string>> GetCustomAssetsMapAsync(CancellationToken ct)
+    {
+        var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "shop.custom_assets", ct);
+        if (setting == null || string.IsNullOrWhiteSpace(setting.Value))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            var map = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(setting.Value);
+            return map != null ? new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
 
     public sealed record CreateShopItemRequest(
         string ItemKey,
@@ -57,16 +87,26 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
             .Select(g => new { ItemId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.ItemId, g => g.Count, ct);
 
-        var result = items.Select(i => new AdminShopItemDto(
-            i.Id,
-            i.ItemKey,
-            i.Name,
-            i.PriceGems,
-            i.Type,
-            i.MaxStack,
-            i.DurationHours,
-            ownershipCounts.GetValueOrDefault(i.Id, 0)
-        )).ToList();
+        var customAssets = await GetCustomAssetsMapAsync(ct);
+
+        var result = items.Select(i => {
+            string? img = null;
+            if (customAssets.TryGetValue(i.ItemKey, out var cUrl)) img = cUrl;
+            else if (DefaultAvatarUrls.TryGetValue(i.ItemKey, out var dUrl)) img = dUrl;
+            else if (i.ItemKey.Contains("dragon", StringComparison.OrdinalIgnoreCase)) img = "/assets/avatars/dragon.svg";
+
+            return new AdminShopItemDto(
+                i.Id,
+                i.ItemKey,
+                i.Name,
+                i.PriceGems,
+                i.Type,
+                i.MaxStack,
+                i.DurationHours,
+                ownershipCounts.GetValueOrDefault(i.Id, 0),
+                img
+            );
+        }).ToList();
 
         return Ok(result);
     }
@@ -79,7 +119,8 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
             return BadRequest(new { message = "ItemKey và Tên vật phẩm không được để trống" });
         }
 
-        var exists = await db.ShopItems.AnyAsync(i => i.ItemKey == req.ItemKey, ct);
+        var key = req.ItemKey.Trim().ToLowerInvariant();
+        var exists = await db.ShopItems.AnyAsync(i => i.ItemKey == key, ct);
         if (exists)
         {
             return Conflict(new { message = $"ItemKey '{req.ItemKey}' đã tồn tại trong hệ thống" });
@@ -87,7 +128,7 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
 
         var item = new ShopItem
         {
-            ItemKey = req.ItemKey.Trim().ToLowerInvariant(),
+            ItemKey = key,
             Name = req.Name.Trim(),
             PriceGems = Math.Max(0, req.PriceGems),
             Type = req.Type,
@@ -98,7 +139,10 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
         db.ShopItems.Add(item);
         await db.SaveChangesAsync(ct);
 
-        return Ok(new AdminShopItemDto(item.Id, item.ItemKey, item.Name, item.PriceGems, item.Type, item.MaxStack, item.DurationHours, 0));
+        var customAssets = await GetCustomAssetsMapAsync(ct);
+        string? img = customAssets.TryGetValue(item.ItemKey, out var cUrl) ? cUrl : (DefaultAvatarUrls.TryGetValue(item.ItemKey, out var dUrl) ? dUrl : null);
+
+        return Ok(new AdminShopItemDto(item.Id, item.ItemKey, item.Name, item.PriceGems, item.Type, item.MaxStack, item.DurationHours, 0, img));
     }
 
     [HttpPut("items/{id:int}")]
@@ -123,8 +167,103 @@ public sealed class AdminShopController(AppDbContext db) : ApiControllerBase
 
         await db.SaveChangesAsync(ct);
 
+        var customAssets = await GetCustomAssetsMapAsync(ct);
+        string? img = customAssets.TryGetValue(item.ItemKey, out var cUrl) ? cUrl : (DefaultAvatarUrls.TryGetValue(item.ItemKey, out var dUrl) ? dUrl : null);
+
         var owners = await db.UserInventory.CountAsync(i => i.ItemId == item.Id, ct);
-        return Ok(new AdminShopItemDto(item.Id, item.ItemKey, item.Name, item.PriceGems, item.Type, item.MaxStack, item.DurationHours, owners));
+        return Ok(new AdminShopItemDto(item.Id, item.ItemKey, item.Name, item.PriceGems, item.Type, item.MaxStack, item.DurationHours, owners, img));
+    }
+
+    public sealed record UploadAssetRequest(string Image, string? Name);
+
+    [HttpPost("upload-asset")]
+    public async Task<ActionResult> UploadAsset(
+        [FromBody] UploadAssetRequest req,
+        [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Image))
+        {
+            return BadRequest(new { error = "Dữ liệu ảnh không được để trống" });
+        }
+
+        try
+        {
+            var rawBase64 = req.Image;
+            var extension = ".png";
+            if (rawBase64.Contains(','))
+            {
+                var prefix = rawBase64[..rawBase64.IndexOf(',')];
+                rawBase64 = rawBase64[(rawBase64.IndexOf(',') + 1)..];
+                if (prefix.Contains("image/jpeg") || prefix.Contains("image/jpg")) extension = ".jpg";
+                else if (prefix.Contains("image/webp")) extension = ".webp";
+                else if (prefix.Contains("image/svg")) extension = ".svg";
+            }
+
+            var bytes = Convert.FromBase64String(rawBase64);
+            if (bytes.Length > 5 * 1024 * 1024)
+            {
+                return BadRequest(new { error = "Kích thước ảnh không được vượt quá 5MB" });
+            }
+
+            var webRoot = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadDir = Path.Combine(webRoot, "uploads", "shop");
+            Directory.CreateDirectory(uploadDir);
+
+            var fileName = $"shop_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{extension}";
+            var filePath = Path.Combine(uploadDir, fileName);
+            await System.IO.File.WriteAllBytesAsync(filePath, bytes, ct);
+
+            var assetUrl = $"/uploads/shop/{fileName}";
+            return Ok(new { url = assetUrl });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = $"Lỗi xử lý file ảnh: {ex.Message}" });
+        }
+    }
+
+    public sealed record SaveCustomAssetRequest(string ItemKey, string ImageUrl);
+
+    [HttpGet("custom-assets")]
+    public async Task<ActionResult<Dictionary<string, string>>> GetCustomAssets(CancellationToken ct)
+    {
+        var map = await GetCustomAssetsMapAsync(ct);
+        return Ok(map);
+    }
+
+    [HttpPost("custom-assets")]
+    public async Task<ActionResult> SaveCustomAsset([FromBody] SaveCustomAssetRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.ItemKey) || string.IsNullOrWhiteSpace(req.ImageUrl))
+        {
+            return BadRequest(new { message = "ItemKey và ImageUrl không được để trống" });
+        }
+
+        var map = await GetCustomAssetsMapAsync(ct);
+        map[req.ItemKey.Trim().ToLowerInvariant()] = req.ImageUrl.Trim();
+
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Key == "shop.custom_assets", ct);
+        var json = System.Text.Json.JsonSerializer.Serialize(map);
+        if (setting == null)
+        {
+            db.Settings.Add(new Setting
+            {
+                Key = "shop.custom_assets",
+                Value = json,
+                Description = "Custom assets for shop items (avatars, frames)",
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = 1
+            });
+        }
+        else
+        {
+            setting.Value = json;
+            setting.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Ok(new { success = true, assets = map });
     }
 
     [HttpDelete("items/{id:int}")]

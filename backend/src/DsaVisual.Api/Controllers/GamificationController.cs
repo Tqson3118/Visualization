@@ -148,6 +148,26 @@ public class GamificationController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpGet("shop/custom-assets")]
+    public async Task<ActionResult<Dictionary<string, string>>> GetShopCustomAssets(CancellationToken ct)
+    {
+        var setting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "shop.custom_assets", ct);
+        if (setting == null || string.IsNullOrWhiteSpace(setting.Value))
+        {
+            return Ok(new Dictionary<string, string>());
+        }
+
+        try
+        {
+            var map = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(setting.Value);
+            return Ok(map ?? new Dictionary<string, string>());
+        }
+        catch
+        {
+            return Ok(new Dictionary<string, string>());
+        }
+    }
+
     [HttpPost("shop/buy")]
     public async Task<ActionResult<ShopBuyResultDto>> Buy([FromBody] ShopBuyRequest request, CancellationToken ct)
     {

@@ -149,8 +149,8 @@ async function onLogout(): Promise<void> {
               @click="menuOpen = !menuOpen"
             >
               <img
-                v-if="equippedAvatar && avatarImageUrl(equippedAvatar.itemKey)"
-                :src="avatarImageUrl(equippedAvatar.itemKey)"
+                v-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
+                :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
                 :alt="equippedAvatar.name"
                 class="app-header__user-avatar-image"
               />
@@ -162,6 +162,13 @@ async function onLogout(): Promise<void> {
                 @error="avatarImgFailed = true"
               />
               <span v-else>{{ avatarInitial }}</span>
+              <img
+                v-if="equippedFrame && (equippedFrame.imageUrl || avatarImageUrl(equippedFrame.itemKey))"
+                :src="equippedFrame.imageUrl || avatarImageUrl(equippedFrame.itemKey)"
+                class="app-header__user-frame-overlay"
+                alt=""
+                aria-hidden="true"
+              />
               <span v-if="gamification.isPremium" class="app-header__pro-badge" title="Tài khoản PRO">PRO</span>
             </button>
           </span>
@@ -491,6 +498,17 @@ html.light .app-header {
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+.app-header__user-frame-overlay {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  pointer-events: none;
+  object-fit: contain;
+  z-index: 2;
 }
 
 .app-header__pro-badge {

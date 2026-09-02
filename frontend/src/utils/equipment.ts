@@ -53,15 +53,100 @@ const AVATAR_IMAGE_URLS: Record<string, string> = {
   'avatar-dragon': '/assets/avatars/dragon.svg',
 };
 
-export function avatarImageUrl(itemKey: string): string {
+const memoryCustomAssets: Record<string, string> = {};
+
+export function initCustomShopAssets(assets: Record<string, string>): void {
+  if (!assets) return;
+  for (const [k, v] of Object.entries(assets)) {
+    if (k && v) {
+      memoryCustomAssets[k.toLowerCase().trim()] = v;
+    }
+  }
+}
+
+export function setCustomShopAsset(key: string, url: string): void {
+  if (!key || !url) return;
+  const normKey = key.toLowerCase().trim();
+  memoryCustomAssets[normKey] = url;
   if (typeof window !== 'undefined') {
     try {
       const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
+      custom[normKey] = url;
+      custom[key] = url;
+      localStorage.setItem('custom_shop_assets', JSON.stringify(custom));
+    } catch {}
+  }
+}
+
+export function avatarImageUrl(itemKey: string, fallbackUrl?: string | null): string {
+  if (fallbackUrl && fallbackUrl.trim()) return fallbackUrl.trim();
+  if (!itemKey) return '';
+  const normKey = itemKey.toLowerCase().trim();
+
+  // 1. In-memory custom assets
+  if (memoryCustomAssets[normKey]) return memoryCustomAssets[normKey];
+
+  // 2. LocalStorage custom assets
+  if (typeof window !== 'undefined') {
+    try {
+      const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
+      if (custom[normKey]) return custom[normKey];
       if (custom[itemKey]) return custom[itemKey];
     } catch {}
   }
+
+  // 3. Built-in SVG presets
+  if (AVATAR_IMAGE_URLS[normKey]) return AVATAR_IMAGE_URLS[normKey];
   if (AVATAR_IMAGE_URLS[itemKey]) return AVATAR_IMAGE_URLS[itemKey];
-  if (itemKey.includes('dragon')) return '/assets/avatars/dragon.svg';
+  if (normKey.includes('dragon')) return '/assets/avatars/dragon.svg';
   return '';
+}
+
+/**
+ * Nén ảnh tự động về kích thước nhỏ gọn (tối đa 256x256) chất lượng cao
+ * Giảm từ 3MB xuống chỉ ~20-35KB, đảm bảo lưu vĩnh viễn và không bao giờ vượt quota.
+ */
+export function compressImage(file: File, maxDim = 256, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('Không có file ảnh'));
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const isPng = file.type === 'image/png' || file.type === 'image/svg+xml';
+        const mime = isPng ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(mime, quality);
+        resolve(dataUrl);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 

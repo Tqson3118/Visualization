@@ -807,6 +807,35 @@ public sealed class GamificationService(
         await db.SaveChangesAsync(ct);
     }
 
+    private static readonly Dictionary<string, string> DefaultAvatarUrls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["avatar-cyber-hacker"] = "/assets/avatars/cyber-hacker.svg",
+        ["avatar-gold-knight"] = "/assets/avatars/gold-knight.svg",
+        ["avatar-neon-ninja"] = "/assets/avatars/neon-ninja.svg",
+        ["avatar-wizard"] = "/assets/avatars/wizard.svg",
+        ["avatar-ai-bot"] = "/assets/avatars/ai-bot.svg",
+        ["avatar-dragon"] = "/assets/avatars/dragon.svg",
+    };
+
+    private async Task<Dictionary<string, string>> GetCustomAssetsMapInternalAsync(CancellationToken ct)
+    {
+        var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "shop.custom_assets", ct);
+        if (setting == null || string.IsNullOrWhiteSpace(setting.Value))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            var map = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(setting.Value);
+            return map != null ? new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     public async Task<Result<List<ShopItemDto>>> GetShopItemsAsync(int userId, CancellationToken ct)
     {
         var items = await db.ShopItems.AsNoTracking()
@@ -818,15 +847,35 @@ public sealed class GamificationService(
             .Where(iv => iv.UserId == userId)
             .ToDictionaryAsync(iv => iv.ItemId, iv => iv.Quantity, ct);
 
-        return Result<List<ShopItemDto>>.Ok(items.Select(i => new ShopItemDto
-        {
-            Id = i.Id,
-            ItemKey = i.ItemKey,
-            Name = i.Name,
-            PriceGems = i.PriceGems,
-            MaxStack = i.MaxStack,
-            Type = i.Type,
-            Owned = inventory.TryGetValue(i.Id, out var q) ? q : 0,
+        var customAssets = await GetCustomAssetsMapInternalAsync(ct);
+
+        return Result<List<ShopItemDto>>.Ok(items.Select(i => {
+            string? img = null;
+            if (customAssets.TryGetValue(i.ItemKey, out var cUrl)) img = cUrl;
+            else if (DefaultAvatarUrls.TryGetValue(i.ItemKey, out var dUrl)) img = dUrl;
+            else if (i.ItemKey.Contains("dragon", StringComparison.OrdinalIgnoreCase)) img = "/assets/avatars/dragon.svg";
+
+            var isConsumable = i.Type == 0 || i.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || i.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase);
+            var isFrame = i.Type == 2 || i.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase);
+
+            var slot = isConsumable ? "item" : (isFrame ? "frame" : "avatar");
+            var desc = isConsumable
+                ? (i.ItemKey.Contains("10") ? "Hồi ngay 10 Tim để tiếp tục học tập và làm bài tập." : "Hồi ngay 5 Tim để tiếp tục học tập và làm bài tập.")
+                : (isFrame ? "Khung viền nổi bật hiển thị quanh avatar và bảng xếp hạng." : "Avatar trang trí đại diện tài khoản học viên.");
+
+            return new ShopItemDto
+            {
+                Id = i.Id,
+                ItemKey = i.ItemKey,
+                Name = i.Name,
+                Description = desc,
+                Slot = slot,
+                PriceGems = i.PriceGems,
+                MaxStack = i.MaxStack,
+                Type = i.Type,
+                Owned = inventory.TryGetValue(i.Id, out var q) ? q : 0,
+                ImageUrl = img
+            };
         }).ToList());
     }
 
@@ -980,24 +1029,46 @@ public sealed class GamificationService(
 
     public async Task<Result<List<InventoryItemDto>>> GetInventoryAsync(int userId, CancellationToken ct)
     {
+        var customAssets = await GetCustomAssetsMapInternalAsync(ct);
+
         var rows = await db.UserInventory.AsNoTracking()
             .Where(i => i.UserId == userId)
             .Join(db.ShopItems.AsNoTracking(), inv => inv.ItemId, item => item.Id,
-                (inv, item) => new InventoryItemDto
+                (inv, item) => new
                 {
-                    Id = inv.Id,
-                    ItemId = item.Id,
-                    ItemKey = item.ItemKey,
-                    Name = item.Name,
-                    Quantity = inv.Quantity,
-                    Type = item.Type,
-                    IsEquipped = inv.IsEquipped,
-                    ExpiresAt = inv.ExpiresAt
+                    inv.Id,
+                    inv.ItemId,
+                    item.ItemKey,
+                    item.Name,
+                    inv.Quantity,
+                    item.Type,
+                    inv.IsEquipped,
+                    inv.ExpiresAt
                 })
             .OrderBy(i => i.Type).ThenBy(i => i.Name)
             .ToListAsync(ct);
 
-        return Result<List<InventoryItemDto>>.Ok(rows);
+        var result = rows.Select(i => {
+            string? img = null;
+            if (customAssets.TryGetValue(i.ItemKey, out var cUrl)) img = cUrl;
+            else if (DefaultAvatarUrls.TryGetValue(i.ItemKey, out var dUrl)) img = dUrl;
+            else if (i.ItemKey.Contains("dragon", StringComparison.OrdinalIgnoreCase)) img = "/assets/avatars/dragon.svg";
+
+            return new InventoryItemDto
+            {
+                Id = i.Id,
+                ItemId = i.ItemId,
+                ItemKey = i.ItemKey,
+                Name = i.Name,
+                Quantity = i.Quantity,
+                Type = i.Type,
+                IsEquipped = i.IsEquipped,
+                ExpiresAt = i.ExpiresAt,
+                ImageUrl = img
+            };
+        }).ToList();
+
+        return Result<List<InventoryItemDto>>.Ok(result);
     }
 
     public async Task<Result> EquipItemAsync(int userId, EquipRequest request, CancellationToken ct)
@@ -1044,6 +1115,33 @@ public sealed class GamificationService(
         foreach (var ownedRow in owned)
         {
             ownedRow.IsEquipped = willEquip && (ownedRow.ItemId == request.ItemId);
+        }
+
+        // Cập nhật AvatarUrl trong bảng Users khi trang bị/gỡ trang bị Avatar
+        if (targetType == 1)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            if (user != null)
+            {
+                if (willEquip)
+                {
+                    var customAssets = await GetCustomAssetsMapInternalAsync(ct);
+                    string? avatarUrl = null;
+                    if (customAssets.TryGetValue(item.ItemKey, out var cUrl)) avatarUrl = cUrl;
+                    else if (DefaultAvatarUrls.TryGetValue(item.ItemKey, out var dUrl)) avatarUrl = dUrl;
+                    else if (item.ItemKey.Contains("dragon", StringComparison.OrdinalIgnoreCase)) avatarUrl = "/assets/avatars/dragon.svg";
+
+                    if (!string.IsNullOrEmpty(avatarUrl))
+                    {
+                        user.AvatarUrl = avatarUrl;
+                    }
+                }
+                else
+                {
+                    // Khi gỡ trang bị avatar, xóa avatarUrl để quay lại avatar mặc định/chữ cái
+                    user.AvatarUrl = null;
+                }
+            }
         }
 
         try

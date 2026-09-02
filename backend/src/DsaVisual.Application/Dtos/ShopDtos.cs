@@ -12,6 +12,7 @@ public sealed class ShopItemDto
     public int MaxStack { get; set; }
     public int Type { get; set; }            // 0=consumable, 1=permanent, 2=timed
     public int Owned { get; set; }
+    public string? ImageUrl { get; set; }
 }
 
 /// <summary>Mua vật phẩm — POST /shop/buy {itemId}.</summary>
@@ -39,6 +40,7 @@ public sealed class InventoryItemDto
     public int Type { get; set; }
     public bool IsEquipped { get; set; }
     public DateTime? ExpiresAt { get; set; }
+    public string? ImageUrl { get; set; }
 }
 
 /// <summary>Trang bị vật phẩm — PUT /me/inventory/equip {itemId, slot?} (v2.9).</summary>

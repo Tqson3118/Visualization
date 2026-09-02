@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { Frame, Image as ImageIcon, Package } from 'lucide-vue-next';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import type { InventoryItemDto } from '@/api/gamification';
 import { avatarImageUrl, equipGroup } from '@/utils/equipment';
 import Button from '@/components/ui/Button.vue';
@@ -13,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 const router = useRouter();
 const gamification = useGamificationStore();
 const ui = useUiStore();
+const auth = useAuthStore();
 
 const equippingId = ref<number | null>(null);
 
@@ -31,6 +33,7 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
   equippingId.value = item.itemId;
   try {
     await gamification.equipItem(item.itemId, !item.isEquipped);
+    await auth.fetchMe();
     ui.showToast(item.isEquipped ? 'Đã gỡ trang bị.' : `Đã trang bị "${item.name}".`, 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể trang bị vật phẩm.', 'error');
@@ -54,8 +57,8 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
           >
             <span class="profile__inv-icon" aria-hidden="true">
               <img
-                v-if="avatarImageUrl(item.itemKey)"
-                :src="avatarImageUrl(item.itemKey)"
+                v-if="item.imageUrl || avatarImageUrl(item.itemKey)"
+                :src="item.imageUrl || avatarImageUrl(item.itemKey)"
                 :alt="item.name"
                 class="w-10 h-10 rounded-full object-cover shadow-sm"
               />

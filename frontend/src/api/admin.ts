@@ -184,6 +184,7 @@ export interface AdminShopItemDto {
   maxStack: number;
   durationHours: number | null;
   ownersCount: number;
+  imageUrl?: string | null;
 }
 
 export interface AdminGemTransactionDto {
@@ -200,6 +201,18 @@ export interface AdminGemTransactionDto {
 
 export async function fetchAdminShopItems(): Promise<AdminShopItemDto[]> {
   return getData<AdminShopItemDto[]>({ method: 'GET', url: '/admin/shop/items' });
+}
+
+export async function uploadShopAsset(payload: { image: string; name?: string }): Promise<{ url: string }> {
+  return getData<{ url: string }>({ method: 'POST', url: '/admin/shop/upload-asset', data: payload });
+}
+
+export async function saveCustomShopAsset(itemKey: string, imageUrl: string): Promise<void> {
+  await client.post('/admin/shop/custom-assets', { itemKey, imageUrl });
+}
+
+export async function fetchAdminCustomShopAssets(): Promise<Record<string, string>> {
+  return getData<Record<string, string>>({ method: 'GET', url: '/admin/shop/custom-assets' });
 }
 
 export async function createAdminShopItem(payload: {
