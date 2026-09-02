@@ -12,9 +12,11 @@ export interface StatelessQuizSummary {
 export interface StatelessQuestion {
   id: string;
   text: string;
+  type?: string;
   options: string[];
-  correctIndex: number;
-  explanation: string;
+  correctIndex?: number;
+  correctIndices?: number[];
+  explanation?: string;
 }
 
 export interface StatelessQuizDetail {
@@ -34,8 +36,9 @@ export interface StatelessAttemptResult {
   questionResults: Array<{
     questionId: string;
     isCorrect: boolean;
-    correctIndex: number;
-    explanation: string;
+    correctIndex?: number;
+    correctIndices?: number[];
+    explanation?: string;
   }>;
 }
 
@@ -60,7 +63,7 @@ export const statelessQuizApi = {
     return res.data;
   },
 
-  async submitAttempt(quizId: string, answers: number[], token?: string | null, skipXp: boolean = false): Promise<StatelessAttemptResult> {
+  async submitAttempt(quizId: string, answers: Array<number | number[]>, token?: string | null, skipXp: boolean = false): Promise<StatelessAttemptResult> {
     const params = skipXp ? { skipXp: 'true' } : undefined;
     const res = await client.post<StatelessAttemptResult>(
       '/concepts/quiz/submit',

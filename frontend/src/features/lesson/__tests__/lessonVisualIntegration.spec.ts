@@ -95,8 +95,8 @@ describe('Lesson flow — simulationKey + "Chạy thử thuật toán" (B3)', ()
       await wrapper.find('[data-testid="run-simulation-btn"]').trigger('click');
       expect(wrapper.find('[data-testid="embedded-visualizer"]').exists()).toBe(true);
 
-      // Mô phỏng đóng shell (stub emit close) — quay về Lý thuyết, content giữ nguyên
-      await wrapper.findComponent({ name: 'SharedVisualizerShell' }).vm.$emit('close');
+      // Mô phỏng đóng shell (bấm nút đóng) — quay về Lý thuyết, content giữ nguyên
+      await wrapper.find('[data-testid="shell-close"]').trigger('click');
       await wrapper.vm.$nextTick();
       expect(wrapper.find('[data-testid="embedded-visualizer"]').exists()).toBe(false);
       // Content Lý thuyết (render markdown h1) vẫn còn sau khi đóng shell

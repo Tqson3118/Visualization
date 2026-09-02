@@ -3,6 +3,7 @@
 // Dữ liệu từ gamificationStore (fetchHearts → GET /api/v1/me/hearts). Đếm ngược tới tim kế
 // theo gói: Free 30 phút/tim (max ≤ 10), Premium 10 phút/tim (max 30) — khớp HeartConfig backend.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { useGamificationStore } from '@/stores/gamification';
 import BaseIcon from '@/components/ui/BaseIcon.vue';
@@ -11,6 +12,36 @@ import { formatDuration } from '@/utils/format';
 
 const gamification = useGamificationStore();
 const popoverOpen = ref(false);
+let route: ReturnType<typeof useRoute> | null = null;
+try {
+  route = useRoute();
+} catch {
+  route = null;
+}
+
+function onDocumentClick(e: MouseEvent): void {
+  if (!popoverOpen.value) return;
+  const target = e.target as HTMLElement | null;
+  if (target?.closest('.hearts-gems') || target?.closest('.hearts-gems__pop')) {
+    return;
+  }
+  popoverOpen.value = false;
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape' && popoverOpen.value) {
+    popoverOpen.value = false;
+  }
+}
+
+if (route) {
+  watch(
+    () => route.fullPath,
+    () => {
+      popoverOpen.value = false;
+    },
+  );
+}
 
 /** Mốc thời gian hiện tại — tick mỗi giây để đếm ngược chạy (không cần re-render nguồn khác). */
 const nowMs = ref(Date.now());
@@ -24,14 +55,19 @@ const regenMinutes = computed(() =>
 );
 
 onMounted(() => {
-  // Đồng bộ hearts/heartsMax/lastHeartAt từ backend (store chỉ fetch theo view cụ thể).
+  // Đồng bộ hearts/heartsMax/lastHeartAt/streak từ backend (store chỉ fetch theo view cụ thể).
   void gamification.fetchHearts();
+  void gamification.fetchStreak();
+  document.addEventListener('click', onDocumentClick);
+  window.addEventListener('keydown', onKeydown);
   tickTimer = setInterval(() => {
     nowMs.value = Date.now();
   }, 1000);
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick);
+  window.removeEventListener('keydown', onKeydown);
   if (tickTimer !== null) clearInterval(tickTimer);
   if (syncTimer !== null) clearTimeout(syncTimer);
 });
@@ -56,9 +92,17 @@ const nextHeartIn = computed(() => {
   return diff <= 0 ? null : formatDuration(Math.ceil(diff / 1000));
 });
 
-// Vừa hết đếm ngược (tim đã hồi) → fetch lại để đồng bộ hearts với backend.
-watch(nextHeartIn, (value, prev) => {
-  if (prev !== null && value === null && gamification.hearts < gamification.heartsMax) {
+const periodIndex = computed(() => {
+  if (!gamification.lastHeartAt || gamification.hearts >= gamification.heartsMax) return 0;
+  const intervalMs = regenMinutes.value * 60 * 1000;
+  const base = new Date(gamification.lastHeartAt).getTime();
+  const elapsed = Math.max(0, nowMs.value - base);
+  return Math.floor(elapsed / intervalMs);
+});
+
+// Khi vừa bước qua chu kỳ hồi tim mới (periodIndex tăng) → gọi fetchHearts ngay
+watch(periodIndex, (newIdx, oldIdx) => {
+  if (newIdx > oldIdx && gamification.hearts < gamification.heartsMax) {
     if (syncTimer !== null) clearTimeout(syncTimer);
     syncTimer = setTimeout(() => {
       void gamification.fetchHearts();

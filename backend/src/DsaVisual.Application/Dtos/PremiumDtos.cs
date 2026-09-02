@@ -33,3 +33,22 @@ public sealed class PremiumMockPayRequest
 {
     public int OrderId { get; set; }
 }
+
+/// <summary>Webhook nhận biến động số dư từ SePay / Casso / Bank Gateway</summary>
+public sealed class PaymentWebhookRequest
+{
+    public string? Content { get; set; }
+    public string? Description { get; set; }
+    public decimal? TransferAmount { get; set; }
+    public decimal? Amount { get; set; }
+    public string? ReferenceCode { get; set; }
+    public string? OrderRef { get; set; }
+}
+
+public sealed class PaymentWebhookResultDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public int? UserId { get; set; }
+    public string? PlanId { get; set; }
+}

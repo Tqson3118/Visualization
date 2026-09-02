@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { BookOpen, ChevronsDownUp, ChevronsUpDown, Code, Folder, HelpCircle, Layers, Network, Plus } from 'lucide-vue-next';
+import { BookOpen, ChevronsDownUp, ChevronsUpDown, Code, Folder, HelpCircle, Layers, Network, Plus, Search, X } from 'lucide-vue-next';
 import { type PathItemDto, type PathItemType, normalizeItemType } from '@/api/pathItems';
+import { normalizeVi } from '@/utils/searchNormalize';
 import OutlineNode from './OutlineNode.vue';
 import {
   provideOutlineTreeContext,
@@ -69,6 +70,34 @@ function contains(item: PathItemDto, id: number): boolean {
 
 const flat = computed(() => flattenTree(props.items));
 const totalCount = computed(() => flat.value.length);
+
+// ── Tìm kiếm / lọc bài học trên cây ──
+const searchQuery = ref('');
+
+const filteredItems = computed(() => {
+  const q = normalizeVi(searchQuery.value);
+  if (!q) return props.items;
+
+  function filterNode(node: PathItemDto): PathItemDto | null {
+    const matchSelf = normalizeVi(node.title || '').includes(q);
+    const children = (node.children || []).map(filterNode).filter(Boolean) as PathItemDto[];
+    if (matchSelf || children.length > 0) {
+      return {
+        ...node,
+        children,
+      };
+    }
+    return null;
+  }
+
+  return props.items.map(filterNode).filter(Boolean) as PathItemDto[];
+});
+
+watch(searchQuery, (val) => {
+  if (val.trim()) {
+    expandAll();
+  }
+});
 
 // ── Đánh số thứ tự theo cây (pre-order): "1", "1.1", "1.2", "2"… ──
 const numbering = computed(() => {
@@ -354,9 +383,36 @@ provideOutlineTreeContext(context);
       </div>
     </div>
 
+    <!-- Thanh tìm kiếm nhanh -->
+    <div v-if="items.length > 0" class="px-2.5 py-1.5 border-b border-[#262438] bg-[#14131f]">
+      <div class="relative">
+        <Search class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Tìm bài học, quiz, lab..."
+          class="w-full pl-8 pr-7 py-1 text-xs bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+        />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 cursor-pointer"
+          title="Xóa tìm kiếm"
+          @click="searchQuery = ''"
+        >
+          <X class="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+
     <!-- Cây -->
-    <div class="p-2 space-y-1 overflow-y-auto max-h-[560px] min-h-[140px] rounded-b-2xl" role="tree" aria-label="Cây nội dung lộ trình">
-      <OutlineNode v-for="rootItem in items" :key="rootItem.id" :item="rootItem" :depth="0" />
+    <div class="p-2 space-y-1 overflow-y-auto overflow-x-auto min-w-0 flex-1 min-h-[140px] rounded-b-2xl" role="tree" aria-label="Cây nội dung lộ trình">
+      <OutlineNode v-for="rootItem in filteredItems" :key="rootItem.id" :item="rootItem" :depth="0" />
+
+      <div v-if="items.length > 0 && filteredItems.length === 0" class="py-6 px-3 text-center space-y-1">
+        <p class="text-xs font-bold text-slate-400">Không tìm thấy bài học phù hợp</p>
+        <p class="text-[11px] text-slate-500">Thử tìm với từ khóa khác</p>
+      </div>
 
       <div v-if="items.length === 0" class="py-8 px-4 text-center space-y-3">
         <Network class="w-8 h-8 text-slate-600 mx-auto" aria-hidden="true" />
@@ -364,7 +420,7 @@ provideOutlineTreeContext(context);
         <template v-if="!readonly">
           <ol class="text-xs text-slate-400 space-y-1 text-left max-w-xs mx-auto list-none">
             <li class="flex gap-2"><span class="font-black text-emerald-400">✓</span> Đặt tên lộ trình (đã xong)</li>
-            <li class="flex gap-2"><span class="font-black text-purple-400">②</span> Thêm <b class="text-slate-200">Chương (Module)</b> — ví dụ: "Module 1: Cấu trúc dữ liệu tuyến tính"</li>
+            <li class="flex gap-2"><span class="font-black text-purple-400">②</span> Thêm <b class="text-slate-200">Chương</b> — ví dụ: "Cấu trúc dữ liệu tuyến tính"</li>
             <li class="flex gap-2"><span class="font-black text-sky-400">③</span> Thêm <b class="text-slate-200">bài học / quiz / lab</b> vào từng chương (bấm + trên dòng chương)</li>
           </ol>
           <button

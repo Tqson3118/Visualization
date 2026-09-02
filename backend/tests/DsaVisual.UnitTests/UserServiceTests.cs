@@ -100,4 +100,28 @@ public class UserServiceTests
         var saved = await db.Users.AsNoTracking().SingleAsync(u => u.Id == 1);
         Assert.Equal(UserRole.TeacherPending, saved.Role);
     }
+
+    [Fact]
+    public async Task SetRole_PrimaryAdmin_CanAssignAdmin_NonPrimaryCannot()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(SetRole_PrimaryAdmin_CanAssignAdmin_NonPrimaryCannot));
+        db.Users.Add(new User { Id = 1, Email = "primary@admin.com", Role = UserRole.Admin, IsPrimaryAdmin = true, DisplayName = "Primary Admin", CreatedAt = _clock.UtcNow });
+        db.Users.Add(new User { Id = 2, Email = "sub@admin.com", Role = UserRole.Admin, IsPrimaryAdmin = false, DisplayName = "Sub Admin", CreatedAt = _clock.UtcNow });
+        db.Users.Add(new User { Id = 3, Email = "target@user.com", Role = UserRole.Student, DisplayName = "Target User", CreatedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var service = TestServices.CreateUserService(db, _clock);
+
+        // Sub Admin cố gán quyền Admin cho user 3 → FORBIDDEN
+        var nonPrimaryResult = await service.SetRoleAsync(2, false, 3, "ADMIN", CancellationToken.None);
+        Assert.False(nonPrimaryResult.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, nonPrimaryResult.ErrorCode);
+
+        // Primary Admin gán quyền Admin cho user 3 → OK
+        var primaryResult = await service.SetRoleAsync(1, true, 3, "ADMIN", CancellationToken.None);
+        Assert.True(primaryResult.IsSuccess, primaryResult.ErrorMessage);
+
+        var updatedUser = await db.Users.AsNoTracking().FirstAsync(u => u.Id == 3);
+        Assert.Equal(UserRole.Admin, updatedUser.Role);
+    }
 }

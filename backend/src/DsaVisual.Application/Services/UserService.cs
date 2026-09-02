@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Net.Mail;
+using System.Text;
 using DsaVisual.Application.Common;
 using DsaVisual.Application.Dtos;
 using DsaVisual.Application.Persistence;
@@ -39,8 +41,40 @@ public sealed class UserService(
 
         if (!string.IsNullOrWhiteSpace(q))
         {
-            var keyword = q.Trim();
-            query = query.Where(u => u.Email.Contains(keyword) || u.DisplayName.Contains(keyword));
+            // B6 fix: tìm kiếm thân thiện — không phân biệt hoa/thường và dấu tiếng Việt
+            // ("tuan" vẫn ra "Tuấn Anh"). SQL collation vẫn phân biệt dấu nên lọc in-memory
+            // (user base nhỏ, có cap) rồi phân trang sau.
+            var normalized = NormalizeVi(q);
+            var candidates = await query
+                .Select(u => new AdminUserDto
+                {
+                    Id = u.Id,
+                    DisplayName = u.DisplayName,
+                    Email = u.Email,
+                    Role = RoleNames.ToApi(u.Role),
+                    IsActive = u.IsActive,
+                    AvatarUrl = u.AvatarUrl,
+                    Department = u.Department,
+                    StaffCode = u.StaffCode,
+                    TeacherBio = u.TeacherBio,
+                    CreatedAt = u.CreatedAt
+                })
+                .Take(5000)
+                .ToListAsync(ct);
+
+            var filtered = candidates
+                .Where(u => NormalizeVi(u.DisplayName).Contains(normalized, StringComparison.Ordinal)
+                         || NormalizeVi(u.Email).Contains(normalized, StringComparison.Ordinal))
+                .ToList();
+
+            var totalFiltered = filtered.Count;
+            var filteredItems = filtered
+                .OrderBy(u => u.Id)
+                .Skip((safePage - 1) * safeSize).Take(safeSize)
+                .ToList();
+
+            return Result<PagedResponse<AdminUserDto>>.Ok(
+                PagedResponse<AdminUserDto>.Create(filteredItems, safePage, safeSize, totalFiltered, Pagination.TotalPages(totalFiltered, safeSize)));
         }
 
         var total = await query.CountAsync(ct);
@@ -64,6 +98,20 @@ public sealed class UserService(
 
         return Result<PagedResponse<AdminUserDto>>.Ok(
             PagedResponse<AdminUserDto>.Create(items, safePage, safeSize, total, Pagination.TotalPages(total, safeSize)));
+    }
+
+    /// <summary>B6: hạ chữ thường + bỏ dấu tiếng Việt để so khớp tìm kiếm.</summary>
+    private static string NormalizeVi(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        var formD = input.Trim().Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(formD.Length);
+        foreach (var ch in formD)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark) continue;
+            sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 
     public async Task<Result<AdminUserDto>> GetByIdAsync(int id, CancellationToken ct)
@@ -291,13 +339,17 @@ public sealed class UserService(
             return Result.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
         }
 
-        if (!RoleNames.TryParse(role, out var newRole) || newRole == UserRole.Admin)
+        if (!RoleNames.TryParse(role, out var newRole))
         {
-            // Cấm gán ADMIN qua API (SDD §5.4 — chỉ seed/script tạo Admin)
-            return Result.Fail(ErrorCodes.FORBIDDEN, "Không thể gán vai trò ADMIN qua API");
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Vai trò không hợp lệ");
         }
 
-        if (user.Role == UserRole.Admin && !actorIsPrimaryAdmin)
+        if (newRole == UserRole.Admin && !actorIsPrimaryAdmin)
+        {
+            return Result.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính mới có quyền gán vai trò Admin");
+        }
+
+        if (user.Role == UserRole.Admin && newRole != UserRole.Admin && !actorIsPrimaryAdmin)
         {
             return Result.Fail(ErrorCodes.FORBIDDEN, "Chỉ Admin chính được đổi vai trò Admin khác");
         }

@@ -110,7 +110,7 @@ onUnmounted(() => {
           </RouterLink>
         </div>
         <div v-else class="home__cta">
-          <RouterLink :to="{ name: 'path-list' }" class="home__cta-primary">
+          <RouterLink :to="{ name: 'simulations' }" class="home__cta-primary">
             {{ messages.home.ctaExplore }}
             <ArrowRight class="home__cta-arrow" aria-hidden="true" />
           </RouterLink>

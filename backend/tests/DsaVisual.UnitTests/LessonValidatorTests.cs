@@ -102,3 +102,89 @@ public class LessonValidatorTests
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(LessonUpsertRequest.SortOrder));
     }
 }
+
+public class ExerciseUpsertRequestValidatorTests
+{
+    private readonly ExerciseUpsertRequestValidator _validator = new();
+
+    private static ExerciseUpsertRequest ValidMcqRequest() => new()
+    {
+        LessonId = 1,
+        Title = "Quiz Kiểm tra Bubble Sort",
+        Description = "Củng cố kiến thức",
+        Type = ExerciseType.Mcq,
+        Status = ExerciseStatus.Active,
+        MaxScore = 10,
+        Questions =
+        [
+            new QuestionUpsertDto
+            {
+                Content = "Độ phức tạp thời gian tốt nhất của Bubble Sort là gì?",
+                Type = QuestionType.Single,
+                Points = 2,
+                Options = ["O(N)", "O(N^2)", "O(log N)", "O(1)"],
+                AnswerJson = "[0]"
+            }
+        ]
+    };
+
+    private static ExerciseUpsertRequest ValidCodeRequest() => new()
+    {
+        LessonId = 1,
+        Title = "Thực hành: Cài đặt Bubble Sort",
+        Description = "Cài đặt thuật toán",
+        Type = ExerciseType.Code,
+        Status = ExerciseStatus.Active,
+        MaxScore = 100,
+        ConfigJson = "{\"entryFunction\":\"bubbleSort\",\"starterCode\":\"function bubbleSort(arr) { return arr; }\",\"testCases\":[{\"input\":\"[[3, 2, 1]]\",\"expected\":\"[1, 2, 3]\",\"isHidden\":false}]}",
+        Questions = []
+    };
+
+    [Fact]
+    public async Task ValidMcqRequest_Passes()
+    {
+        var result = await _validator.ValidateAsync(ValidMcqRequest());
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task ValidCodeRequest_Passes()
+    {
+        var result = await _validator.ValidateAsync(ValidCodeRequest());
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task CodeRequest_EmptyConfigJson_Fails()
+    {
+        var request = ValidCodeRequest();
+        request.ConfigJson = "";
+
+        var result = await _validator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(ExerciseUpsertRequest.ConfigJson));
+    }
+
+    [Fact]
+    public async Task CodeRequest_InvalidJsonConfig_Fails()
+    {
+        var request = ValidCodeRequest();
+        request.ConfigJson = "not a valid json {";
+
+        var result = await _validator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(ExerciseUpsertRequest.ConfigJson));
+    }
+
+    [Fact]
+    public async Task CodeRequest_MissingTestCases_Fails()
+    {
+        var request = ValidCodeRequest();
+        request.ConfigJson = "{\"entryFunction\":\"solve\",\"starterCode\":\"function solve() {}\",\"testCases\":[]}";
+
+        var result = await _validator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(ExerciseUpsertRequest.ConfigJson));
+    }
+}
+

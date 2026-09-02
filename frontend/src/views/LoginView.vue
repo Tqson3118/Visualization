@@ -59,6 +59,10 @@ const submitError = ref('');
 const submitting = ref(false);
 
 async function finishRedirect(): Promise<void> {
+  if (auth.user?.role === 'TEACHER_PENDING') {
+    await router.replace('/pending-teacher');
+    return;
+  }
   let redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/path';
   if (!redirect || redirect.startsWith('/login') || redirect.startsWith('/register')) {
     redirect = '/path';

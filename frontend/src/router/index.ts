@@ -248,6 +248,7 @@ const router = createRouter({
     // Màn 27 — Quản lý gói Premium
     {
       path: '/account/subscription',
+      alias: '/subscription',
       name: 'subscription',
       component: SubscriptionView,
       meta: { requiresAuth: true },
@@ -309,6 +310,18 @@ const router = createRouter({
       name: 'admin-classes',
       component: () => import('@/views/admin/AdminClassesView.vue'),
       meta: { requiresAuth: true, roles: ['TEACHER', 'ADMIN'] },
+    },
+    {
+      path: '/admin/shop',
+      name: 'admin-shop',
+      component: () => import('@/views/admin/AdminShopView.vue'),
+      meta: { requiresAuth: true, roles: ['ADMIN'] },
+    },
+    {
+      path: '/admin/transactions',
+      name: 'admin-transactions',
+      component: () => import('@/views/admin/AdminTransactionsView.vue'),
+      meta: { requiresAuth: true, roles: ['ADMIN'] },
     },
     {
       path: '/admin/users',

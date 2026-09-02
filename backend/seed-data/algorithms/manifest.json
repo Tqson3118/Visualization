@@ -3,14 +3,14 @@
   "pathDescription": "Khóa học Thuật toán từ con số 0 đến trình độ trung cấp: khái niệm cơ bản, Big-O, tìm kiếm, sắp xếp, đệ quy & chia để trị, heap, đồ thị, tham lam và giới thiệu quy hoạch động — lý thuyết trực quan bằng hình ảnh động, mini-quizz, assignment lập trình và kiểm tra cuối.",
   "pathSortOrder": 2,
   "modules": [
-    { "order": 1000, "name": "Module 1: Nhập môn Thuật toán", "description": "Thuật toán là gì, tính chất cơ bản và ứng dụng trong đời sống." },
-    { "order": 2000, "name": "Module 2: Độ phức tạp Big-O", "description": "Đo lường và so sánh tốc độ thuật toán bằng ký hiệu Big-O." },
-    { "order": 3000, "name": "Module 3: Tìm kiếm", "description": "Tìm kiếm tuyến tính và tìm kiếm nhị phân." },
-    { "order": 4000, "name": "Module 4: Sắp xếp cơ bản", "description": "Bubble Sort, Selection Sort và Insertion Sort." },
-    { "order": 5000, "name": "Module 5: Đệ quy & Chia để trị", "description": "Tư duy đệ quy, Merge Sort và Quick Sort." },
-    { "order": 6000, "name": "Module 6: Heap & Hàng đợi ưu tiên", "description": "Đống nhị phân, Heapify và ứng dụng Top-K." },
-    { "order": 7000, "name": "Module 7: Đồ thị", "description": "BFS, DFS và thuật toán Dijkstra." },
-    { "order": 8000, "name": "Module 8: Tham lam & Quy hoạch động", "description": "Thuật toán tham lam và giới thiệu quy hoạch động." }
+    { "order": 1000, "name": "Nhập môn Thuật toán", "description": "Thuật toán là gì, tính chất cơ bản và ứng dụng trong đời sống." },
+    { "order": 2000, "name": "Độ phức tạp Big-O", "description": "Đo lường và so sánh tốc độ thuật toán bằng ký hiệu Big-O." },
+    { "order": 3000, "name": "Tìm kiếm", "description": "Tìm kiếm tuyến tính và tìm kiếm nhị phân." },
+    { "order": 4000, "name": "Sắp xếp cơ bản", "description": "Bubble Sort, Selection Sort và Insertion Sort." },
+    { "order": 5000, "name": "Đệ quy & Chia để trị", "description": "Tư duy đệ quy, Merge Sort và Quick Sort." },
+    { "order": 6000, "name": "Heap & Hàng đợi ưu tiên", "description": "Đống nhị phân, Heapify và ứng dụng Top-K." },
+    { "order": 7000, "name": "Đồ thị", "description": "BFS, DFS và thuật toán Dijkstra." },
+    { "order": 8000, "name": "Tham lam & Quy hoạch động", "description": "Thuật toán tham lam và giới thiệu quy hoạch động." }
   ],
   "lessons": [
     { "key": "b1-algorithm-concept", "title": "Bài 1: Thuật toán là gì?", "module": 1000, "order": 1, "sandboxType": "dsa", "xpReward": 100, "file": "lessons/b1-algorithm-concept.md" },

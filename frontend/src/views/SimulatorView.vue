@@ -14,6 +14,7 @@ import StatsBar from '@/components/simulator/StatsBar.vue';
 import InputModal from '@/components/simulator/InputModal.vue';
 import CallStackPanel from '@/components/simulator/CallStackPanel.vue';
 import DemoBanner from '@/components/simulator/DemoBanner.vue';
+import AiStepExplainerModal from '@/components/simulator/AiStepExplainerModal.vue';
 import { useSimulation } from '@/composables/useSimulation';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
@@ -37,9 +38,21 @@ const key = computed(() => String(route.params.key ?? ''));
 const isDemoKey = computed(() => getCatalogMeta(key.value)?.demoAllowed === true);
 const isDemo = computed(() => !auth.isAuthenticated);
 
+function checkGuestAccess(): void {
+  if (!auth.isAuthenticated && !isDemoKey.value) {
+    ui.showToast('Vui lòng đăng nhập để trải nghiệm toàn bộ thư viện thuật toán.', 'warning');
+    void router.replace({ name: 'login', query: { redirect: route.fullPath } });
+  }
+}
+
 onMounted(() => {
+  checkGuestAccess();
   window.addEventListener('keydown', onKeydown);
   checkFavorite();
+});
+
+watch(key, () => {
+  checkGuestAccess();
 });
 
 const initialInput = computed<InputConfig | undefined>(() => {
@@ -99,6 +112,7 @@ const showCallStack = ref(false);
 const theoryOpen = ref(false);
 const pseudocodeCollapsed = ref(false);
 const focusMode = ref(false);
+const aiModalOpen = ref(false);
 const mobileActiveTab = ref<'canvas' | 'code' | 'explain'>('canvas');
 const renderOptions = ref({ showIndex: true, showValues: true, zoom: 1 });
 
@@ -474,6 +488,7 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
           :explanation="currentStep?.explanation ?? ''"
           :kind="currentStep?.structure?.kind"
           :frame-key="currentIndex"
+          @ask-ai="aiModalOpen = true"
         />
 
         <div v-if="currentStep && currentStep.annotations.length > 0" class="p-3 bg-vdsa-surface rounded-xl border border-vdsa-border text-xs text-vdsa-muted">
@@ -543,6 +558,14 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
       :validate="generator?.validate"
       @close="configOpen = false"
       @apply="(input) => { configureInput(input); configOpen = false; }"
+    />
+
+    <!-- Modal AI Giải thích từng bước -->
+    <AiStepExplainerModal
+      :open="aiModalOpen"
+      :step="currentStep"
+      :algorithm-title="currentSim?.title ?? key"
+      @close="aiModalOpen = false"
     />
   </div>
 </template>
@@ -778,11 +801,25 @@ const theoryHtml = computed(() => buildSimOverviewHtml(getCatalogMeta(key.value)
     flex-direction: column;
     overflow: visible;
   }
+  .simulator-col {
+    animation: fadeInTab 0.18s ease-out;
+  }
   .simulator-col--right {
     overflow-y: visible;
   }
   .simulator-canvas-card {
     min-height: 360px;
+  }
+}
+
+@keyframes fadeInTab {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

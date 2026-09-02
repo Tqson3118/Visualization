@@ -204,3 +204,15 @@ export interface SystemSettingsDto {
   sandboxSeconds: number;
   sandboxMemoryMb: number;
 }
+
+export interface GamificationSettingsDto {
+  theoryBaseXp: number;
+  quizBaseXp: number;
+  codelabBaseXp: number;
+  streakBonusXp: number;
+  heartsMaxFree: number;
+  heartsMaxPremium: number;
+  heartRegenMinutes: number;
+  sessionHours: number;
+}
+

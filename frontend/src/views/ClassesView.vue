@@ -287,7 +287,12 @@ async function createClass(): Promise<void> {
     </Modal>
 
     <!-- Modal tạo lớp -->
-    <Modal :open="createOpen" :title="messages.classes.createTitle" @close="createOpen = false">
+    <Modal
+      :open="createOpen"
+      :title="messages.classes.createTitle"
+      :is-dirty="Boolean(newClassName.trim() || newClassDesc.trim())"
+      @close="createOpen = false"
+    >
       <form class="classes__create" novalidate @submit.prevent="createClass">
         <Input
           v-model="newClassName"

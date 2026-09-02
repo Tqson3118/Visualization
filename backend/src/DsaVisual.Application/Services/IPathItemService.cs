@@ -13,5 +13,6 @@ public interface IPathItemService
     Task<Result<PathItemDto>> CreateItemAsync(int userId, string role, int pathId, PathItemCreateRequest request, CancellationToken ct);
     Task<Result<PathItemDto>> UpdateItemAsync(int userId, string role, int itemId, PathItemUpdateRequest request, CancellationToken ct);
     Task<Result<PathItemDto>> MoveItemAsync(int userId, string role, int itemId, PathItemMoveRequest request, CancellationToken ct);
+    Task<Result<PathItemDto>> FindByLessonIdAsync(int userId, string role, int lessonId, CancellationToken ct);
     Task<Result> DeleteItemAsync(int userId, string role, int itemId, CancellationToken ct);
 }

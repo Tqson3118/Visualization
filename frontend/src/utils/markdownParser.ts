@@ -137,6 +137,9 @@ export function parseMarkdownToHtml(markdown: string): string {
   // Step 5: Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="bg-[#1a1826] text-vdsa-purple-light px-1.5 py-0.5 rounded font-mono text-xs border border-vdsa-border/60 font-semibold">$1</code>');
 
+  // Step 5.5: LaTeX Math inline ($...$)
+  html = html.replace(/\$([^$\n]+)\$/g, '<code class="bg-[#1e1b2e] text-purple-300 px-1.5 py-0.5 rounded font-mono text-xs border border-purple-500/30">$1</code>');
+
   // Step 6: Bold, Italic, Strikethrough
   html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');

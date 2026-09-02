@@ -131,8 +131,9 @@ export function createSelectionGenerator(): SimulationGenerator {
         } else {
           trace.push({
             line: 7,
-            explanation: `minIdx=${i} = i → không cần hoán đổi.`,
-            structure: arrayStructure(a, statuses),
+            explanation: `minIdx=${i} = i → a[${i}]=${a[i]} đã là phần tử nhỏ nhất trong đoạn, không cần hoán đổi.`,
+            structure: arrayStructure(a, { ...statuses, [i]: 'highlight' }),
+            annotations: [`a[${i}]=${a[i]} đã là min`],
           });
         }
 

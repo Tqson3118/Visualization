@@ -52,17 +52,30 @@ watch(
 const boolFields = computed(() => props.schema?.fields.filter((f) => f.type === 'bool') ?? []);
 
 function parseArrayInput(raw: string, type: 'int[]' | 'string[]'): unknown {
+  const cleaned = raw.replace(/[\[\]\(\)]/g, ' ').trim();
   if (type === 'int[]') {
-    return raw
-      .split(/[,\s]+/)
+    return cleaned
+      .split(/[,;\s]+/)
       .filter((part) => part.trim() !== '')
-      .map((part) => Number(part.trim()));
+      .map((part) => Number(part.trim()))
+      .filter((num) => Number.isFinite(num));
   }
-  return raw.split(',').map((part) => part.trim());
+  return cleaned
+    .split(/[,;\n]+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
 }
 
 function arrayPlaceholder(type: 'int[]' | 'string[]'): string {
-  return type === 'int[]' ? '5, 3, 8, 1, 9 (phân cách dấu phẩy)' : 'a, b, c (phân cách dấu phẩy)';
+  return type === 'int[]' ? 'VD: 5, 3, 8, 1, 9 hoặc [5, 3, 8]' : 'VD: a, b, c (phân cách dấu phẩy)';
+}
+
+function onArrayInput(fieldName: string, event: Event): void {
+  form[fieldName] = (event.target as HTMLInputElement).value;
+  // Tự động chuyển inputSource sang 'manual' nếu form có trường này và học viên nhập dãy số
+  if (fieldName === 'values' && form.inputSource === 'random') {
+    form.inputSource = 'manual';
+  }
 }
 
 function onSubmit(): void {
@@ -76,12 +89,46 @@ function onSubmit(): void {
       if (field.type === 'int') {
         const num = Number(value);
         if (value === '' || !Number.isFinite(num)) {
-          nextErrors[field.name] = `Vui lòng nhập số nguyên cho "${field.label}"`;
+          nextErrors[field.name] = `Vui lòng nhập số nguyên hợp lệ cho "${field.label}".`;
           continue;
         }
         value = Math.round(num);
       } else if (field.type === 'int[]' || field.type === 'string[]') {
-        value = parseArrayInput(String(value), field.type);
+        const rawStr = String(value).trim();
+        if (field.type === 'int[]') {
+          if (rawStr !== '') {
+            const cleaned = rawStr.replace(/[\[\]\(\)]/g, ' ').trim();
+            const parts = cleaned.split(/[,;\s]+/).filter((p) => p.trim() !== '');
+            const invalidTokens = parts.filter((p) => isNaN(Number(p)));
+            if (invalidTokens.length > 0) {
+              nextErrors[field.name] = `"${field.label}" chứa ký tự không phải số: "${invalidTokens.join(', ')}". Vui lòng chỉ nhập các số nguyên (VD: 5, 3, 8, 1).`;
+              continue;
+            }
+            if (parts.length === 0 && (form.inputSource === 'manual' || !('inputSource' in form))) {
+              nextErrors[field.name] = `Vui lòng nhập ít nhất 1 phần tử cho "${field.label}".`;
+              continue;
+            }
+            value = parts.map((p) => Math.round(Number(p)));
+          } else {
+            if (form.inputSource === 'manual' || !('inputSource' in form)) {
+              nextErrors[field.name] = `Vui lòng nhập dãy số cho "${field.label}".`;
+              continue;
+            }
+            value = [];
+          }
+        } else {
+          value = parseArrayInput(rawStr, field.type);
+        }
+      } else if (field.type === 'select') {
+        const hasNumberOptions = field.options?.some((opt) => typeof opt.value === 'number') || typeof field.default === 'number';
+        if (hasNumberOptions && value !== '' && !isNaN(Number(value))) {
+          value = Number(value);
+        }
+      }
+    } else if (Array.isArray(value) && field.type === 'int[]') {
+      if (value.length === 0 && (form.inputSource === 'manual' || !('inputSource' in form))) {
+        nextErrors[field.name] = `Vui lòng nhập ít nhất 1 phần tử cho "${field.label}".`;
+        continue;
       }
     }
     data[field.name] = value;
@@ -120,6 +167,7 @@ function onSubmit(): void {
             :id="`inp-${field.name}`"
             v-model="form[field.name]"
             class="input"
+            :class="{ 'border-destructive ring-1 ring-destructive': errors[field.name] }"
           >
             <option
               v-for="opt in field.options ?? []"
@@ -130,6 +178,7 @@ function onSubmit(): void {
             </option>
           </select>
           <p v-if="field.description" class="input-modal__desc">{{ field.description }}</p>
+          <p v-if="errors[field.name]" class="input-modal__error" role="alert">{{ errors[field.name] }}</p>
         </div>
 
         <div v-else-if="field.type === 'bool'" class="input-modal__field">
@@ -149,9 +198,10 @@ function onSubmit(): void {
           <input
             :id="`inp-${field.name}`"
             class="input"
+            :class="{ 'border-destructive ring-1 ring-destructive': errors[field.name] }"
             :value="Array.isArray(form[field.name]) ? (form[field.name] as unknown[]).join(', ') : (form[field.name] !== undefined && form[field.name] !== null ? String(form[field.name]) : '')"
             :placeholder="arrayPlaceholder(field.type)"
-            @input="form[field.name] = ($event.target as HTMLInputElement).value"
+            @input="onArrayInput(field.name, $event)"
           />
           <p v-if="field.description" class="input-modal__desc">{{ field.description }}</p>
           <p v-if="errors[field.name]" class="input-modal__error" role="alert">{{ errors[field.name] }}</p>
@@ -162,6 +212,7 @@ function onSubmit(): void {
           <input
             :id="`inp-${field.name}`"
             class="input"
+            :class="{ 'border-destructive ring-1 ring-destructive': errors[field.name] }"
             type="number"
             :value="form[field.name] === undefined ? '' : String(form[field.name])"
             :min="field.min"

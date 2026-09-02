@@ -256,10 +256,8 @@ public class GamificationServiceRegressionTests
             .SingleOrDefault(p => p.UserId == 1 && p.NodeId == 10);
         Assert.NotNull(nodeProgress);   // EnterNode phải mở khóa node
         nodeProgress!.Status = 2;       // mô phỏng ExerciseService.UpsertNodeProgressAsync khi pass node
-        // PassedAt dùng REAL UTC now (không phải FixedClock): quest hôm nay được tạo theo TodayUtc7()
-        // = real clock (service dùng DateTime.UtcNow), FixedClock lệch ngày so với real clock → pass
-        // không nằm trong cửa sổ "hôm nay" của quest. Giữ nguyên ý nghĩa: pass node → Progress +1.
-        nodeProgress.PassedAt = DateTime.UtcNow;
+        // PassedAt dùng _clock.UtcNow đồng bộ với TodayUtc7() của service
+        nodeProgress.PassedAt = _clock.UtcNow;
         await db.SaveChangesAsync();    // mô phỏng SaveChanges trong SubmitAsync (production persist pass node)
 
         var after = await service.GetQuestsAsync(1, CancellationToken.None);

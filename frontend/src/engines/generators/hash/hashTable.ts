@@ -35,6 +35,7 @@ const SCHEMA: InputSchema = {
       { label: 'Tìm kiếm', value: 'search' },
       { label: 'Xóa', value: 'delete' },
     ], default: 'insert', description: 'Thao tác trên bảng băm' },
+    { name: 'targetValue', type: 'int', label: 'Giá trị tìm/xóa', min: -999, max: 999, default: 41, description: 'Chỉ dùng cho Tìm kiếm hoặc Xóa' },
   ],
 };
 
@@ -66,6 +67,8 @@ function hashValidate(input: InputConfig): { ok: boolean; errors: string[] } {
   if (mode !== 'modulo' && mode !== 'multiplication') errors.push(`hashMode: phải là 'modulo' hoặc 'multiplication' (hiện tại '${mode}')`);
   const op = strField(rec, 'operation', 'insert');
   if (!OPERATIONS.includes(op)) errors.push(`operation: phải là một trong ${OPERATIONS.join(', ')} (hiện tại '${op}')`);
+  const target = intField(rec, 'targetValue', 41);
+  if (target < -999 || target > 999) errors.push(`targetValue: phải trong khoảng -999..999`);
   return { ok: errors.length === 0, errors };
 }
 
@@ -175,63 +178,63 @@ function runHash(input: InputConfig, _preferred: 'insert' | 'search' | 'delete')
   }
 
   if (op === 'search') {
-    for (const key of keys) {
-      const idx = hashStep(key);
-      if (buckets[idx].length === 0) {
-        bucketStatuses[idx] = 'muted';
-        trace.push({
-          line: 11,
-          explanation: `Bucket ${idx} rỗng → không tìm thấy ${key}.`,
-          structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
-          annotations: [`Không tìm thấy ${key}`],
-        });
-        continue;
-      }
-      let found = false;
-      let chain = '';
-      for (const existing of buckets[idx]) {
-        chain += `${existing} → `;
-        statuses[`node:${existing}`] = 'active';
-        trace.stats.comparisons++;
+    const key = intField(rec, 'targetValue', 41);
+    const idx = hashStep(key);
+    if (buckets[idx].length === 0) {
+      bucketStatuses[idx] = 'muted';
+      trace.push({
+        line: 11,
+        explanation: `Bucket ${idx} rỗng → không tìm thấy ${key}.`,
+        structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
+        annotations: [`Không tìm thấy ${key}`],
+      });
+      return trace.steps;
+    }
+    let found = false;
+    let chain = '';
+    for (const existing of buckets[idx]) {
+      chain += `${existing} → `;
+      statuses[`node:${existing}`] = 'active';
+      trace.stats.comparisons++;
+      trace.push({
+        line: 10,
+        explanation: `Tìm ${key}: duyệt chuỗi bucket ${idx}, so sánh ${existing}.`,
+        structure: hashStructure(tableSize, buckets, statuses, { ...bucketStatuses, [idx]: 'active' }, meta),
+        annotations: [`chuỗi bucket ${idx}: ${chain}null`],
+      });
+      if (existing === key) {
+        statuses[`node:${existing}`] = 'done';
+        found = true;
         trace.push({
           line: 10,
-          explanation: `Tìm ${key}: duyệt chuỗi bucket ${idx}, so sánh ${existing}.`,
-          structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'active' }, meta),
-          annotations: [`chuỗi bucket ${idx}: ${chain}null`],
+          explanation: `${existing} = ${key} → Tìm thấy trong bucket ${idx}.`,
+          structure: hashStructure(tableSize, buckets, statuses, { ...bucketStatuses, [idx]: 'active' }, meta),
+          annotations: [`Tìm thấy ${key} ở bucket ${idx}`],
         });
-        if (existing === key) {
-          statuses[`node:${existing}`] = 'done';
-          found = true;
-          trace.push({
-            line: 10,
-            explanation: `${existing} = ${key} → Tìm thấy trong bucket ${idx}.`,
-            structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'active' }, meta),
-            annotations: [`Tìm thấy ${key} ở bucket ${idx}`],
-          });
-          break;
-        }
-        statuses[`node:${existing}`] = 'default';
+        break;
       }
-      if (!found) {
-        bucketStatuses[idx] = 'muted';
-        trace.push({
-          line: 11,
-          explanation: `Duyệt hết chuỗi bucket ${idx} → không tìm thấy ${key}.`,
-          structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
-          annotations: [`Không tìm thấy ${key}`],
-        });
-      }
+      statuses[`node:${existing}`] = 'default';
+    }
+    if (!found) {
+      bucketStatuses[idx] = 'muted';
+      trace.push({
+        line: 11,
+        explanation: `Duyệt hết chuỗi bucket ${idx} → không tìm thấy ${key}.`,
+        structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
+        annotations: [`Không tìm thấy ${key}`],
+      });
     }
     trace.push({
       line: 11,
-      explanation: 'Kết thúc: hoàn tất tìm kiếm các khóa.',
+      explanation: `Kết thúc: hoàn tất tìm kiếm khóa ${key}.`,
       structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
     });
     return trace.steps;
   }
 
   // delete
-  for (const key of keys) {
+  if (op === 'delete') {
+    const key = intField(rec, 'targetValue', 41);
     const idx = hashStep(key);
     const chain = buckets[idx];
     const pos = chain.indexOf(key);
@@ -243,7 +246,7 @@ function runHash(input: InputConfig, _preferred: 'insert' | 'search' | 'delete')
         structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
         annotations: [`Không tìm thấy ${key}`],
       });
-      continue;
+      return trace.steps;
     }
     for (let i = 0; i < pos; i++) {
       statuses[`node:${chain[i]}`] = 'active';
@@ -251,7 +254,7 @@ function runHash(input: InputConfig, _preferred: 'insert' | 'search' | 'delete')
       trace.push({
         line: 14,
         explanation: `Tìm ${key}: duyệt chuỗi bucket ${idx}, gặp nút ${chain[i]}.`,
-        structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'active' }, meta),
+        structure: hashStructure(tableSize, buckets, statuses, { ...bucketStatuses, [idx]: 'active' }, meta),
         annotations: [`prev=${i > 0 ? chain[i - 1] : 'null'}`],
       });
       statuses[`node:${chain[i]}`] = 'default';
@@ -260,7 +263,7 @@ function runHash(input: InputConfig, _preferred: 'insert' | 'search' | 'delete')
     trace.push({
       line: 14,
       explanation: `Tìm thấy ${key} tại vị trí ${pos} trong bucket ${idx}.`,
-      structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'active' }, meta),
+      structure: hashStructure(tableSize, buckets, statuses, { ...bucketStatuses, [idx]: 'active' }, meta),
       annotations: [`xóa ${key}`],
     });
     buckets[idx].splice(pos, 1);
@@ -268,15 +271,18 @@ function runHash(input: InputConfig, _preferred: 'insert' | 'search' | 'delete')
     trace.push({
       line: 16,
       explanation: `Xóa ${key}: ${pos === 0 ? 'bucket đầu' : `nút ${chain[pos - 1] ?? ''}.next bỏ qua ${key}`} — nối chuỗi lại.`,
-      structure: hashStructure(tableSize, buckets, statuses, { [idx]: 'active' }, meta),
+      structure: hashStructure(tableSize, buckets, statuses, { ...bucketStatuses, [idx]: 'active' }, meta),
       annotations: [`đã xóa ${key}`],
     });
     delete statuses[`node:${key}`];
+    
+    trace.push({
+      line: 16,
+      explanation: `Kết thúc: hoàn tất xóa khóa ${key}.`,
+      structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
+    });
+    return trace.steps;
   }
-  trace.push({
-    line: 16,
-    explanation: 'Kết thúc: hoàn tất xóa các khóa.',
-    structure: hashStructure(tableSize, buckets, statuses, bucketStatuses, meta),
-  });
+  
   return trace.steps;
 }

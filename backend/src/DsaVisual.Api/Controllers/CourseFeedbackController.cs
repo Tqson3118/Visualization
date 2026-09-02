@@ -2,6 +2,7 @@ using System.Text.Json;
 using Asp.Versioning;
 using DsaVisual.Application.Persistence;
 using DsaVisual.Application.Persistence.Entities;
+using Ganss.Xss;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,9 +16,10 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/courses")]
 [Authorize]
-public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
+public class CourseFeedbackController(AppDbContext db, IHtmlSanitizer htmlSanitizer) : ApiControllerBase
 {
     private readonly AppDbContext _db = db;
+    private readonly IHtmlSanitizer _htmlSanitizer = htmlSanitizer;
 
     public sealed class CourseFeedbackRequest
     {
@@ -47,7 +49,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
     public async Task<ActionResult<CourseFeedbackDto>> Submit([FromBody] CourseFeedbackRequest request, CancellationToken ct)
     {
         var course = await _db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == request.CourseId && p.IsActive, ct);
+            .FirstOrDefaultAsync(p => p.Id == request.CourseId, ct);
         if (course is null)
         {
             return NotFound(new { message = "Khóa học không tồn tại." });
@@ -60,13 +62,15 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
             return BadRequest(new { message = "Nội dung ý kiến phải từ 1 đến 1000 ký tự." });
         }
 
+        var sanitizedContent = _htmlSanitizer.Sanitize(content);
+
         var now = DateTime.UtcNow;
         var feedback = new CourseFeedback
         {
             CourseId = course.Id,
             UserId = CurrentUserId(),
             Type = type,
-            Content = content,
+            Content = sanitizedContent,
             Status = CourseFeedbackStatus.New,
             CreatedAt = now
         };
@@ -102,7 +106,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
     public async Task<ActionResult<List<CourseFeedbackDto>>> GetAll([FromQuery] int courseId, [FromQuery] string? status, CancellationToken ct)
     {
         var course = await _db.LearningPaths.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == courseId && p.IsActive, ct);
+            .FirstOrDefaultAsync(p => p.Id == courseId, ct);
         if (course is null)
         {
             return NotFound(new { message = "Khóa học không tồn tại." });
@@ -209,7 +213,7 @@ public class CourseFeedbackController(AppDbContext db) : ApiControllerBase
 
         if (request.ReplyText is not null)
         {
-            feedback.ReplyText = request.ReplyText;
+            feedback.ReplyText = _htmlSanitizer.Sanitize(request.ReplyText.Trim());
             feedback.RepliedById = userId;
             feedback.RepliedAt = now;
         }

@@ -1,5 +1,5 @@
 import { client, getData } from './client';
-import type { PagedResponse, SystemSettingsDto } from './types';
+import type { PagedResponse, SystemSettingsDto, GamificationSettingsDto } from './types';
 
 /** Endpoint theo API_REFERENCE §4.10 (admin) + §4.8 (users) */
 export const ADMIN_ENDPOINTS = {
@@ -172,3 +172,114 @@ export async function fetchSettings(): Promise<SystemSettingsDto> {
 export async function updateSettings(payload: Partial<SystemSettingsDto>): Promise<SystemSettingsDto> {
   return getData<SystemSettingsDto>({ method: 'PUT', url: ADMIN_ENDPOINTS.settings, data: payload });
 }
+
+// ── ADMIN SHOP & GAMIFICATION (V2) ──
+
+export interface AdminShopItemDto {
+  id: number;
+  itemKey: string;
+  name: string;
+  priceGems: number;
+  type: number; // 0=Consumable, 1=Avatar, 2=Frame, 3=Theme
+  maxStack: number;
+  durationHours: number | null;
+  ownersCount: number;
+}
+
+export interface AdminGemTransactionDto {
+  id: number;
+  userId: number;
+  userEmail: string;
+  userDisplayName: string;
+  type: number;
+  amount: number;
+  refType: string | null;
+  refId: string | null;
+  createdAt: string;
+}
+
+export async function fetchAdminShopItems(): Promise<AdminShopItemDto[]> {
+  return getData<AdminShopItemDto[]>({ method: 'GET', url: '/admin/shop/items' });
+}
+
+export async function createAdminShopItem(payload: {
+  itemKey: string;
+  name: string;
+  priceGems: number;
+  type: number;
+  maxStack?: number;
+  durationHours?: number | null;
+}): Promise<AdminShopItemDto> {
+  return getData<AdminShopItemDto>({ method: 'POST', url: '/admin/shop/items', data: payload });
+}
+
+export async function updateAdminShopItem(
+  id: number,
+  payload: {
+    name: string;
+    priceGems: number;
+    type: number;
+    maxStack?: number;
+    durationHours?: number | null;
+  },
+): Promise<AdminShopItemDto> {
+  return getData<AdminShopItemDto>({ method: 'PUT', url: `/admin/shop/items/${id}`, data: payload });
+}
+
+export async function deleteAdminShopItem(id: number): Promise<{ message: string }> {
+  return getData<{ message: string }>({ method: 'DELETE', url: `/admin/shop/items/${id}` });
+}
+
+export async function fetchAdminGemTransactions(limit = 50): Promise<AdminGemTransactionDto[]> {
+  return getData<AdminGemTransactionDto[]>({ method: 'GET', url: '/admin/shop/gem-transactions', params: { limit } });
+}
+
+// ── ADMIN SUBSCRIPTIONS & TRANSACTIONS (V2) ──
+
+export interface AdminSubscriptionDto {
+  id: number;
+  userId: number;
+  userEmail: string;
+  userDisplayName: string;
+  avatarUrl: string | null;
+  planId: string | null;
+  startedAt: string;
+  expiresAt: string | null;
+  status: number;
+  isActive: boolean;
+  orderRef: string | null;
+  createdAt: string;
+}
+
+export async function fetchAdminSubscriptions(status?: 'active' | 'expired'): Promise<AdminSubscriptionDto[]> {
+  return getData<AdminSubscriptionDto[]>({ method: 'GET', url: '/admin/subscriptions', params: status ? { status } : {} });
+}
+
+export async function grantAdminPro(payload: {
+  email?: string;
+  userId?: number;
+  planId?: string;
+  durationDays: number;
+}): Promise<AdminSubscriptionDto> {
+  return getData<AdminSubscriptionDto>({ method: 'POST', url: '/admin/subscriptions/grant', data: payload });
+}
+
+export async function revokeAdminPro(id: number): Promise<AdminSubscriptionDto> {
+  return getData<AdminSubscriptionDto>({ method: 'POST', url: `/admin/subscriptions/${id}/revoke` });
+}
+
+// ── ADMIN GAMIFICATION SETTINGS (0 DB MIGRATION) ──
+
+export async function fetchGamificationSettings(): Promise<GamificationSettingsDto> {
+  return getData<GamificationSettingsDto>({ method: 'GET', url: '/admin/gamification/settings' });
+}
+
+export async function updateGamificationSettings(data: GamificationSettingsDto): Promise<GamificationSettingsDto> {
+  return getData<GamificationSettingsDto>({ method: 'PUT', url: '/admin/gamification/settings', data });
+}
+
+export async function resetGamificationSettings(): Promise<GamificationSettingsDto> {
+  return getData<GamificationSettingsDto>({ method: 'POST', url: '/admin/gamification/settings/reset' });
+}
+
+

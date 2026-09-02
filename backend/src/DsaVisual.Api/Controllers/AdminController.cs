@@ -37,7 +37,7 @@ public class AdminController(AppDbContext db, IDateTimeProvider clock) : ApiCont
                 (SELECT COUNT(*) FROM Users WHERE Role = 1 AND DeletedAt IS NULL) AS TotalTeachers,
                 (SELECT COUNT(*) FROM Users WHERE Role = 3 AND DeletedAt IS NULL) AS TotalAdmins,
                 (SELECT COUNT(*) FROM Topics WHERE DeletedAt IS NULL) AS TotalTopics,
-                (SELECT COUNT(*) FROM Lessons WHERE DeletedAt IS NULL) AS TotalLessons,
+                ((SELECT COUNT(*) FROM Lessons WHERE DeletedAt IS NULL) + (SELECT COUNT(*) FROM LearningPathNodes WHERE DeletedAt IS NULL AND ItemType != 0 AND LessonId IS NULL)) AS TotalLessons,
                 (SELECT COUNT(*) FROM Exercises WHERE DeletedAt IS NULL) AS TotalExercises,
                 (SELECT COUNT(*) FROM ExerciseSubmissions) AS TotalSubmissions,
                 (SELECT COUNT(*) FROM CodeSubmissions) AS TotalCodeSubmissions,

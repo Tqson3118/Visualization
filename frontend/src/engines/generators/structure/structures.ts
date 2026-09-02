@@ -231,13 +231,14 @@ function stackStruct(values: number[], capacity: number, statuses: Record<number
   return { kind: 'stack', elements, links: [] };
 }
 
-function queueStruct(values: number[], capacity: number, statuses: Record<number, string> = {}): Structure {
+function queueStruct(values: (number|null)[], capacity: number, statuses: Record<number, string> = {}): Structure {
   const elements: Element[] = [];
   for (let i = 0; i < capacity; i++) {
-    const filled = i < values.length;
+    const val = values[i];
+    const filled = i < values.length && val !== null && val !== undefined;
     elements.push({
       id: `cell:${i}`,
-      label: filled ? String(values[i]) : '—',
+      label: filled ? String(val) : '—',
       status: (statuses[i] as ElementStatus) ?? (filled ? 'default' : 'muted'),
       group: 'queue',
       meta: { empty: !filled },
@@ -370,9 +371,13 @@ export function createStructureQueueGenerator(): SimulationGenerator {
       const enqueued = [...values, 21];
       trace.push({ line: 2, explanation: `enqueue(21): ghi q[rear+1] = q[${values.length}] ← 21 → O(1).`, structure: queueStruct(enqueued, capacity, { [values.length]: 'swap' }), annotations: [`rear: ${values.length - 1} → ${values.length}`] });
 
-      trace.push({ line: 3, explanation: `dequeue(): lấy q[front] = ${enqueued[0]} ra, front++ → O(1).`, structure: queueStruct(enqueued.slice(1), capacity, { [0]: 'muted', [1]: 'swap' }), annotations: [`x=${enqueued[0]}`] });
+      const dequeued = [...enqueued];
+      dequeued[0] = null as any; // Trick to show empty cell
+      
+      const newValues = enqueued.map((v, i) => i === 0 ? null : v) as unknown as number[];
+      trace.push({ line: 3, explanation: `dequeue(): lấy q[front] = ${enqueued[0]} ra, front++ → O(1).`, structure: queueStruct(newValues, capacity, { [0]: 'muted', [1]: 'swap' }), annotations: [`x=${enqueued[0]}`] });
 
-      trace.push({ line: 3, explanation: 'Kết thúc: hàng đợi — enqueue/dequeue đều O(1), bộ nhớ O(n).', structure: queueStruct(enqueued.slice(1), capacity, { [0]: 'done' }), annotations: ['toàn bộ thao tác O(1)'] });
+      trace.push({ line: 3, explanation: 'Kết thúc: hàng đợi — enqueue/dequeue đều O(1), bộ nhớ O(n).', structure: queueStruct(newValues, capacity, { [1]: 'done' }), annotations: ['toàn bộ thao tác O(1)'] });
       return trace.steps;
     },
   });
@@ -565,9 +570,30 @@ export function createStructureHeapGenerator(): SimulationGenerator {
   return buildGenerator('structure.heap', KEY_SCHEMA('heap', 'Dãy khóa', [10, 7, 9, 4, 6, 8]), pseudo, {
     validate: (input) => wrapValidate(input, 1, 31),
     generate(input) {
-      const keys = readValues(input, [10, 7, 9, 4, 6, 8]);
+      const rawKeys = readValues(input, [10, 7, 9, 4, 6, 8]);
+      const keys = [...rawKeys];
+      // Chuẩn hóa mảng thành max-heap hợp lệ nếu người dùng tự nhập dãy bất kỳ
+      for (let i = Math.floor(keys.length / 2) - 1; i >= 0; i--) {
+        let cur = i;
+        while (cur * 2 + 1 < keys.length) {
+          let largest = cur;
+          const l = cur * 2 + 1;
+          const r = cur * 2 + 2;
+          if (l < keys.length && keys[l] > keys[largest]) largest = l;
+          if (r < keys.length && keys[r] > keys[largest]) largest = r;
+          if (largest !== cur) {
+            const tmp = keys[cur];
+            keys[cur] = keys[largest];
+            keys[largest] = tmp;
+            cur = largest;
+          } else {
+            break;
+          }
+        }
+      }
       const trace = new Trace();
-      trace.push({ line: 1, explanation: `Bắt đầu: max-heap [${keys.join(', ')}] — a[0] = ${keys[0]} là phần tử lớn nhất.`, structure: heapStructure(keys), annotations: [`max=${keys[0]}`] });
+      const autoNote = rawKeys.some((v, idx) => v !== keys[idx]) ? ' (đã tự động heapify)' : '';
+      trace.push({ line: 1, explanation: `Bắt đầu: max-heap [${keys.join(', ')}]${autoNote} — a[0] = ${keys[0]} là phần tử lớn nhất.`, structure: heapStructure(keys), annotations: [`max=${keys[0]}`] });
 
       trace.push({ line: 2, explanation: `Cấu trúc cha-con: phần tử tại chỉ số i có con trái tại 2i+1, con phải tại 2i+2.`, structure: markAll(heapStructure(keys), ['node:0', 'node:1', 'node:2'], 'highlight'), annotations: ['cha ≥ con'] });
 
@@ -633,7 +659,7 @@ export function createStructureGraphGenerator(): SimulationGenerator {
     'có hướng / vô hướng; có trọng số / không trọng số',
     'biểu diễn: ma trận kề O(V²) hoặc danh sách kề O(V+E)',
     'duyệt: BFS (hàng đợi) / DFS (ngăn xếp) → O(V+E)',
-    'đường đi ngắn nhất: Dijkstra O((V+E) log V)',
+    'đường đi ngắn nhất: Dijkstra O(V²)',
   ];
   return buildGenerator('structure.graph', GRAPH_SCHEMA, pseudo, {
     validate: (input) => {
@@ -676,7 +702,7 @@ export function createStructureGraphGenerator(): SimulationGenerator {
       const graph: Structure = { kind: 'graph', elements: nodes, links };
 
       const trace = new Trace();
-      trace.push({ line: 1, explanation: `Bắt đầu: đồ thị ${vertices} đỉnh, cạnh ${vertices - 1}, ${directed ? 'có hướng' : 'vô hướng'}${weighted ? ', có trọng số' : ''}.`, structure: graph, annotations: [`V=${vertices}, E=${vertices - 1}`] });
+      trace.push({ line: 1, explanation: `Bắt đầu: đồ thị ${vertices} đỉnh, cạnh ${edges.length}, ${directed ? 'có hướng' : 'vô hướng'}${weighted ? ', có trọng số' : ''}.`, structure: graph, annotations: [`V=${vertices}, E=${edges.length}`] });
 
       trace.push({ line: 2, explanation: 'Cạnh nối 2 đỉnh; có hướng thì cạnh (u → v) chỉ đi 1 chiều, có trọng số thì mang nhãn w.', structure: setStatuses(graph, { 'node:0': 'highlight', 'node:1': 'highlight' }), annotations: ['cạnh (0,1)'] });
 

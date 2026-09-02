@@ -1434,7 +1434,7 @@ public sealed class AuthService(
         DisplayName = user.DisplayName,
         Email = maskEmail ? EmailMasker.Mask(user.Email) : user.Email,
         Role = RoleNames.ToApi(user.Role),
-        AvatarUrl = user.AvatarUrl,
+        AvatarUrl = (user.AvatarUrl != null && user.AvatarUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)) ? "/assets/avatars/ai-bot.svg" : user.AvatarUrl,
         CreatedAt = user.CreatedAt,
         Xp = user.Xp,
         Level = 1 + (int)Math.Floor(Math.Sqrt(user.Xp / 100.0)),

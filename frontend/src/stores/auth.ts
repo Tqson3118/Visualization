@@ -124,9 +124,15 @@ export const useAuthStore = defineStore('auth', () => {
     if (refreshPromise) return refreshPromise;
     refreshPromise = authApi
       .refresh()
-      .then((response) => {
+      .then(async (response) => {
         accessToken.value = response.accessToken;
         status.value = 'authenticated';
+        try {
+          const me = await authApi.fetchMe();
+          user.value = me;
+        } catch {
+          // fetchMe lỗi mạng nhưng token hợp lệ
+        }
         return response.accessToken;
       })
       .catch(() => {

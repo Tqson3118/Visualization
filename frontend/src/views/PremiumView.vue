@@ -34,8 +34,8 @@ const MB_BENEFICIARY = {
 const ACCOUNT_DISPLAY = (import.meta.env.VITE_BANK_NUMBER_DISPLAY as string) || '8386 3112 0883 86';
 
 
-// ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược ──
-const COUNTDOWN_SECONDS = 60;
+// ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược (DEV/Demo = 0s) ──
+const COUNTDOWN_SECONDS = import.meta.env.DEV ? 0 : Number(import.meta.env.VITE_PAYMENT_COUNTDOWN_SECONDS ?? 60);
 
 const gamification = useGamificationStore();
 const ui = useUiStore();
@@ -65,6 +65,7 @@ const qrCanvas = ref<HTMLCanvasElement | null>(null);
 const qrError = ref(false);
 const countdown = ref(COUNTDOWN_SECONDS);
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 let redirectTimer: ReturnType<typeof setTimeout> | null = null;
 
 const userId = computed(() => auth.user?.id ?? null);
@@ -92,6 +93,37 @@ const countdownText = computed(() => {
 });
 const confirmEnabled = computed(() => countdown.value <= 0 && !paying.value);
 
+function devSkipCountdown(): void {
+  countdown.value = 0;
+  stopCountdown();
+}
+
+function startPollingPayment(): void {
+  stopPollingPayment();
+  pollTimer = setInterval(async () => {
+    try {
+      await gamification.fetchPremium();
+      if (gamification.isPremium) {
+        stopPollingPayment();
+        stopCountdown();
+        ui.showToast('Thanh toán thành công! Gói Premium đã được kích hoạt.', 'success');
+        fireConfetti('success');
+        success.value = true;
+        redirectTimer = setTimeout(() => void router.replace({ name: 'home' }), 3000);
+      }
+    } catch {
+      // Bỏ qua lỗi polling mạng tạm thời
+    }
+  }, 3000);
+}
+
+function stopPollingPayment(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
 onMounted(() => {
   void gamification.fetchPremium();
   const planQuery = route.query.plan;
@@ -107,16 +139,19 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopCountdown();
+  stopPollingPayment();
   if (redirectTimer) clearTimeout(redirectTimer);
 });
 
-// Vào bước 2 → render QR + chạy đếm ngược; rời bước 2 / đóng modal → dừng đếm ngược
+// Vào bước 2 → render QR + chạy đếm ngược + bắt đầu polling thanh toán tự động; rời bước 2 / đóng modal → dừng
 watch([step, checkoutPlan, transferContent], () => {
   if (step.value === 2 && checkoutPlan.value && transferContent.value) {
     startCountdown();
+    startPollingPayment();
     void nextTick(renderQr);
   } else {
     stopCountdown();
+    stopPollingPayment();
   }
 });
 
@@ -415,7 +450,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
             <span>{{ messages.premium.note }}</span>
           </p>
 
-          <p v-if="!confirmEnabled" class="premium__countdown" role="status">
+          <p v-if="!confirmEnabled" class="premium__countdown cursor-pointer select-none" role="status" title="Bấm để bỏ qua chờ" @click="devSkipCountdown">
             {{ messages.premium.countdownLabel }} <strong class="premium__countdown-value">{{ countdownText }}</strong>
           </p>
 

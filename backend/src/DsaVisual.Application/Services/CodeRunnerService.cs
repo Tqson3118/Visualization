@@ -47,6 +47,25 @@ public sealed class CodeRunnerService(
         db.CodeRuns.Add(run);
         await db.SaveChangesAsync(ct);
 
+        // Cập nhật ngày hoạt động & chuỗi học tập
+        var actToday = clock.UtcNow.AddHours(7).Date;
+        var actYesterday = actToday.AddDays(-1);
+        var actUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (actUser is not null)
+        {
+            if (actUser.LastActivityDate == actYesterday)
+            {
+                actUser.StreakDays += 1;
+            }
+            else if (actUser.LastActivityDate != actToday)
+            {
+                actUser.StreakDays = 1;
+            }
+            actUser.LastActivityDate = actToday;
+            actUser.StreakLastProcessed ??= actToday;
+            await db.SaveChangesAsync(ct);
+        }
+
         logger.LogInformation("CodeRun {RunId} saved by user {UserId} ({Key}, {Status}, {DurationMs}ms)",
             run.Id, userId, request.Key, status, request.DurationMs);
 

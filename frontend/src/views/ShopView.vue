@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Shield,
   HelpCircle,
+  Heart,
 } from 'lucide-vue-next';
 
 import * as gamificationApi from '@/api/gamification';
@@ -39,7 +40,7 @@ const items = ref<ShopItemDto[]>([]);
 const loading = ref(true);
 const buyingId = ref<number | null>(null);
 const equippingId = ref<number | null>(null);
-const activeCategory = ref<'all' | 'support' | 'avatar' | 'frame' | 'boost'>('all');
+const activeCategory = ref<'all' | 'item' | 'avatar' | 'frame'>('all');
 
 onMounted(async () => {
   try {
@@ -81,8 +82,18 @@ function ownedQuantity(item: ShopItemDto): number {
   return inv ? inv.quantity : 0;
 }
 
+function getItemSlot(item: ShopItemDto): string {
+  const key = ((item as any).itemKey || item.name || '').toLowerCase();
+  const type = (item as any).type;
+  if (key.includes('heart') || key.includes('refill') || key.includes('tim') || type === 0) return 'item';
+  if (key.startsWith('frame') || key.includes('border') || key.includes('frame') || type === 2 || item.slot?.toLowerCase() === 'frame') return 'frame';
+  if (item.slot && item.slot.toLowerCase() !== 'avatar') return item.slot.toLowerCase();
+  return 'avatar';
+}
+
 function isCosmeticItem(item: ShopItemDto): boolean {
-  return item.slot === 'avatar' || item.slot === 'frame';
+  const slot = getItemSlot(item);
+  return slot === 'avatar' || slot === 'frame';
 }
 
 async function buy(item: ShopItemDto): Promise<void> {
@@ -90,6 +101,14 @@ async function buy(item: ShopItemDto): Promise<void> {
   buyingId.value = item.id;
   try {
     await gamification.buyItem(item.id);
+    const key = ((item as any).itemKey || item.name || '').toLowerCase();
+    if (key.includes('heart-refill-10')) {
+      gamification.hearts = Math.min(gamification.heartsMax || 10, gamification.hearts + 10);
+      void gamification.fetchHearts();
+    } else if (key.includes('heart-refill-5') || key.includes('heart')) {
+      gamification.hearts = Math.min(gamification.heartsMax || 5, gamification.hearts + 5);
+      void gamification.fetchHearts();
+    }
     ui.showToast(messages.shop.bought(item.name), 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không đủ gems hoặc đã đạt tối đa.', 'error');
@@ -112,12 +131,11 @@ async function toggleEquipFromShop(item: ShopItemDto): Promise<void> {
   }
 }
 
-const CATEGORY_TABS: Array<{ id: 'all' | 'support' | 'avatar' | 'frame' | 'boost'; label: string }> = [
+const CATEGORY_TABS: Array<{ id: 'all' | 'item' | 'avatar' | 'frame'; label: string }> = [
   { id: 'all', label: 'Tất cả' },
-  { id: 'support', label: 'Hỗ trợ' },
+  { id: 'item', label: 'Vật phẩm' },
   { id: 'avatar', label: 'Avatar' },
   { id: 'frame', label: 'Khung viền' },
-  { id: 'boost', label: 'Tăng tốc' },
 ];
 
 const categoryTabItems = computed(() =>
@@ -129,11 +147,8 @@ const categoryTabItems = computed(() =>
 
 function isItemInCategory(item: ShopItemDto, cat: string): boolean {
   if (cat === 'all') return true;
-  if (cat === 'support') return item.slot === 'hint' || item.slot === 'freeze' || item.slot === 'support';
-  if (cat === 'avatar') return item.slot === 'avatar';
-  if (cat === 'frame') return item.slot === 'frame';
-  if (cat === 'boost') return item.slot === 'boost' || item.slot === 'xp_boost';
-  return item.slot === cat;
+  const slot = getItemSlot(item);
+  return slot === cat;
 }
 
 const filteredItems = computed(() => {
@@ -158,6 +173,7 @@ const fillCount = computed(() => {
 
 // Icon lucide theo slot
 const SLOT_ICON: Record<string, Component> = {
+  item: Heart,
   hint: Lightbulb,
   freeze: Snowflake,
   avatar: Image,
@@ -165,8 +181,17 @@ const SLOT_ICON: Record<string, Component> = {
   frame: Frame,
   boost: Zap,
 };
-const itemIcon = (slot: string | null): Component => SLOT_ICON[slot ?? ''] ?? Package;
-const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[slot as keyof typeof messages.shop.slot] ?? '') : '');
+const itemIcon = (slot: string | null): Component => {
+  const normalized = (slot || '').toLowerCase();
+  return SLOT_ICON[normalized] ?? (normalized === 'frame' ? Frame : (normalized === 'item' ? Heart : Image));
+};
+const slotLabel = (slot: string | null): string => {
+  const normalized = (slot || '').toLowerCase();
+  if (normalized === 'item') return 'Vật phẩm';
+  if (normalized === 'frame') return 'Khung viền';
+  if (normalized === 'avatar') return 'Avatar';
+  return slot ? (messages.shop.slot[slot as keyof typeof messages.shop.slot] ?? slot) : 'Vật phẩm';
+};
 </script>
 
 <template>
@@ -397,12 +422,12 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
               >
                 <div class="shop__top">
                   <span class="shop__icon" aria-hidden="true">
-                    <component :is="itemIcon(item.slot)" :size="20" />
+                    <component :is="itemIcon(getItemSlot(item))" :size="20" />
                   </span>
                   <div class="flex items-center gap-1.5">
                     <Badge v-if="isItemEquipped(item)" variant="success" class="text-[10px]">✨ Đang dùng</Badge>
                     <Badge v-else-if="isItemOwned(item) && isCosmeticItem(item)" variant="primary" class="text-[10px]">✓ Đã sở hữu</Badge>
-                    <Badge v-if="slotLabel(item.slot)" variant="muted">{{ slotLabel(item.slot) }}</Badge>
+                    <Badge v-if="slotLabel(getItemSlot(item))" variant="muted">{{ slotLabel(getItemSlot(item)) }}</Badge>
                   </div>
                 </div>
 
@@ -431,16 +456,26 @@ const slotLabel = (slot: string | null): string => (slot ? (messages.shop.slot[s
 
                   <!-- Case 2: Standard Buy Action -->
                   <template v-else>
-                    <span class="shop__price" aria-label="Giá">
-                      <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
-                    </span>
-                    <Button
-                      :disabled="!canAfford(item.priceGems) || buyingId !== null || isMaxStacked(item)"
-                      :loading="buyingId === item.id"
-                      @click="buy(item)"
+                    <div class="flex items-center justify-between w-full">
+                      <span class="shop__price" aria-label="Giá">
+                        <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
+                      </span>
+                      <Button
+                        :disabled="!canAfford(item.priceGems) || buyingId !== null || isMaxStacked(item)"
+                        :loading="buyingId === item.id"
+                        :title="!canAfford(item.priceGems) ? `Bạn còn thiếu ${formatNumber(item.priceGems - gamification.gems)} Gems` : undefined"
+                        @click="buy(item)"
+                      >
+                        {{ isMaxStacked(item) ? 'Đã đạt tối đa' : messages.shop.buy }}
+                      </Button>
+                    </div>
+                    <RouterLink
+                      v-if="!canAfford(item.priceGems) && !isMaxStacked(item)"
+                      to="/quests"
+                      class="text-[10px] text-purple-300 hover:text-white hover:underline flex items-center justify-center gap-1 w-full pt-1 transition-colors"
                     >
-                      {{ isMaxStacked(item) ? 'Đã đạt tối đa' : messages.shop.buy }}
-                    </Button>
+                      <Sparkles :size="11" class="text-purple-400" /> Thiếu {{ formatNumber(item.priceGems - gamification.gems) }} Gems · Kiếm tại Thử thách
+                    </RouterLink>
                   </template>
                 </footer>
               </article>

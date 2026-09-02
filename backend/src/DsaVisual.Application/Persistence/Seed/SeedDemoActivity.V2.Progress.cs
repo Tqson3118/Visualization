@@ -259,7 +259,6 @@ public static partial class SeedDemoActivity
             return [];
         }
 
-        var rng = new Random(PlanSeedV2);
         var exercisesById = exercises.ToDictionary(e => e.Id);
         var byPath = nodes
             .GroupBy(n => n.PathId)
@@ -299,6 +298,8 @@ public static partial class SeedDemoActivity
             {
                 continue;
             }
+
+            var rng = new Random(PlanSeedV2 + seed.Index * 37);
 
             var passNodes = exercisable.Take(PassCountV2(seed.Persona, seed.Index)).ToList();
             var passedIds = passNodes.Select(n => n.Id).ToHashSet();
@@ -398,16 +399,14 @@ public static partial class SeedDemoActivity
             var includedLessonIds = new HashSet<int>();
             var studiedLessonIds = submissions
                 .Select(s => s.Exercise.LessonId)
+                .Where(id => id > 0)
                 .Distinct()
                 .OrderBy(id => id)
                 .ToList();
-            var lessonCount = Math.Min(lessons.Count, ProgressCountV2(seed.Persona, seed.Index));
+            var targetCount = ProgressCountV2(seed.Persona, seed.Index);
+            var lessonCount = Math.Min(lessons.Count, Math.Max(targetCount, studiedLessonIds.Count));
             foreach (var lessonId in studiedLessonIds)
             {
-                if (lessonRows.Count >= lessonCount)
-                {
-                    break;
-                }
 
                 var lesson = lessons.FirstOrDefault(l => l.Id == lessonId);
                 if (lesson is null)
@@ -431,15 +430,18 @@ public static partial class SeedDemoActivity
                 .Where(l => !includedLessonIds.Contains(l.Id))
                 .OrderBy(l => l.Id)
                 .ToList();
-            for (var k = 0; lessonRows.Count < lessonCount && remainingLessons.Count > 0; k++)
+            while (lessonRows.Count < lessonCount && remainingLessons.Count > 0)
             {
-                var lesson = remainingLessons[(seed.Index + k) % remainingLessons.Count];
+                var pickIdx = seed.Index % remainingLessons.Count;
+                var lesson = remainingLessons[pickIdx];
+                remainingLessons.RemoveAt(pickIdx);
                 lessonRows.Add(new PlannedLessonRow(
                     lesson,
                     rng.Next(1, 7),
                     null,
                     null,
                     ClampAfter(now.AddDays(-rng.Next(1, 4)).AddHours(-rng.Next(0, 12)), user.CreatedAt.AddHours(1))));
+                includedLessonIds.Add(lesson.Id);
             }
 
             plan.Add(new PlannedStudent(user, submissions, lessonRows, nodeRows));

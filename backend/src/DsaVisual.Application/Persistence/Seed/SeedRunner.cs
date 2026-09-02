@@ -62,35 +62,29 @@ public static class SeedRunner
         // H-FINAL1: seed LearningPaths/Nodes TRƯỚC exercises → exercise lesson được gán NodeId/Stage
         // (Ladder filter GET /exercises?nodeId&stage — Exercise.NodeId/Stage, SDD §7.3.9).
         await SeedLearningPathsAsync(db, topics, lessons, adminId, now, logger, ct);
+        await SeedExercisesAsync(db, lessons, adminId, now, logger, ct);
         // SeedGrokking: import khóa "Grokking Data Structures" (backend/seed-data/grokking-course.json) —
         // 4 topics + 16 lessons + path lớn + exercises; Ẩn 5 path cũ (IsActive=false).
         await SeedGrokkingData.SeedAsync(db, adminId, now, logger, ct);
         // SeedGrokkingAlgorithms: import khóa "Grokking Algorithms" (backend/seed-data/grokking-algorithms.json) —
         // 8 topics + 32 lessons + path lớn + exercises + final test (lộ trình thứ 2, SortOrder=2).
         await SeedGrokkingAlgorithmsData.SeedAsync(db, adminId, now, logger, ct);
-        await SeedExercisesAsync(db, lessons, adminId, now, logger, ct);
         await SeedQuestsAsync(db, logger, ct);
         await SeedShopItemsAsync(db, logger, ct);
         await SeedSettingsAsync(db, adminId, now, logger, ct);
 
-        // Seed hoạt động người dùng demo (SDD §7.5): 8 student @university.edu.vn + achievements/progress/submissions + quest/gems/inventory/favorites/feedback + 2 lớp học (chỉ khi bảng trống).
-        await SeedDemoActivity.SeedAsync(db, clock, logger, ct);
-
-        // Đảm bảo teacher@demo.local luôn có đủ 1000 Gems và 10 Hearts để demo Studio/Shop
-        var teacher = await db.Users.FirstOrDefaultAsync(u => u.Email == "teacher@demo.local", ct);
-        if (teacher is not null)
-        {
-            teacher.Gems = 1000;
-            teacher.Hearts = 10;
-            teacher.HeartsMax = 10;
-            teacher.AvatarUrl ??= "/assets/avatars/cyber-hacker.svg";
-            teacher.IsActive = true;
-            teacher.DeletedAt = null;
-            await db.SaveChangesAsync(ct);
-        }
-
-        // Reconcile tree and class assignments
+        // Reconcile tree and class assignments trước khi seed activity
         await MigratePathTreeAndClassAssignmentsAsync(db, logger, ct);
+
+        // Seed hoạt động người dùng demo (nếu có lỗi dữ liệu cũ thì bỏ qua an toàn)
+        try
+        {
+            await SeedDemoActivity.SeedAsync(db, clock, logger, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SeedDemoActivity: Bỏ qua hoạt động giả lập học sinh cũ");
+        }
 
         if (tx is not null)
         {
@@ -138,7 +132,100 @@ public static class SeedRunner
                 }
             }
         }
+
+        // Repair Final Test exercises if they have AVL questions or duplicate questions
+        var finalTestExercises = await db.Exercises.Where(e => e.Title.StartsWith("Kiểm tra cuối:") && e.DeletedAt == null).ToListAsync(ct);
+        foreach (var finalEx in finalTestExercises)
+        {
+            var curQuestions = await db.Questions.Where(q => q.ExerciseId == finalEx.Id).ToListAsync(ct);
+            var hasDuplicateOrAvlMismatch = false;
+            if (!finalEx.Title.Contains("Cây", StringComparison.OrdinalIgnoreCase))
+            {
+                hasDuplicateOrAvlMismatch = curQuestions.Any(q => q.Content.Contains("AVL", StringComparison.OrdinalIgnoreCase));
+            }
+            if (!hasDuplicateOrAvlMismatch && curQuestions.Count > 1)
+            {
+                var distinctCount = curQuestions.Select(q => q.Content).Distinct().Count();
+                if (distinctCount < curQuestions.Count)
+                {
+                    hasDuplicateOrAvlMismatch = true;
+                }
+            }
+
+            if (hasDuplicateOrAvlMismatch || curQuestions.Count == 0)
+            {
+                db.Questions.RemoveRange(curQuestions);
+
+                string[] lessonTitles = finalEx.Title switch
+                {
+                    var t when t.Contains("Sắp xếp & Tìm kiếm") => ["Bubble Sort", "Binary Search"],
+                    var t when t.Contains("CTDL tuyến tính") => ["Stack", "Linked List"],
+                    var t when t.Contains("Cây") => ["BST", "AVL"],
+                    var t when t.Contains("Bảng băm") => ["Hash Table"],
+                    var t when t.Contains("Đồ thị") => ["BFS"],
+                    _ => ["Bubble Sort", "Binary Search"]
+                };
+
+                var sourceByTitle = SeedData.Lessons.ToDictionary(l => l.Title, l => l.SourceLesson);
+                var questions = new List<Question>();
+                var qSort = 1;
+                foreach (var lessonTitle in lessonTitles)
+                {
+                    var source = sourceByTitle.TryGetValue(lessonTitle, out var s) ? s : null;
+                    foreach (var q in LoadQuizQuestions(lessonTitle, source, takeFirst: 2))
+                    {
+                        q.ExerciseId = finalEx.Id;
+                        q.SortOrder = qSort++;
+                        questions.Add(q);
+                        if (questions.Count >= 5) break;
+                    }
+                    if (questions.Count >= 5) break;
+                }
+
+                foreach (var q in questions)
+                {
+                    db.Questions.Add(q);
+                }
+                finalEx.MaxScore = questions.Sum(q => q.Points);
+                finalEx.Description = $"Kiểm tra cuối lộ trình — {questions.Count} câu trộn từ các bài học trong path.";
+            }
+        }
+
         await db.SaveChangesAsync(ct);
+    }
+
+    public static async Task AutoRepairOrphanTheoryNodesAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        var orphanNodes = await db.LearningPathNodes
+            .Where(n => n.ItemType == PathItemType.Theory && n.LessonId == null)
+            .ToListAsync(ct);
+
+        if (orphanNodes.Count > 0)
+        {
+            var defaultTopicId = await db.Topics.Select(t => t.Id).FirstOrDefaultAsync(ct);
+            if (defaultTopicId == 0) defaultTopicId = 1;
+
+            foreach (var node in orphanNodes)
+            {
+                var path = await db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
+                var lesson = new Lesson
+                {
+                    TopicId = path?.TopicId ?? defaultTopicId,
+                    Title = !string.IsNullOrWhiteSpace(node.Title) ? node.Title : "Bài học mới",
+                    Description = node.Description,
+                    ContentHtml = "",
+                    Status = LessonStatus.Active,
+                    CreatedBy = path?.CreatedBy ?? 1,
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.Lessons.Add(lesson);
+                await db.SaveChangesAsync(ct);
+
+                node.LessonId = lesson.Id;
+                logger.LogInformation("Auto-repaired orphan theory node {NodeId} -> created Lesson {LessonId}", node.Id, lesson.Id);
+            }
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     public static async Task MigratePathTreeAndClassAssignmentsAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
@@ -165,11 +252,11 @@ public static class SeedRunner
             {
                 node.ItemType = PathItemType.Theory;
             }
-            else if (node.FinalTestId != null && node.ItemType == PathItemType.Folder)
+            else if ((node.FinalTestId != null || node.Title.Contains("Kiểm tra") || node.Title.Contains("Quiz")) && node.ItemType == PathItemType.Folder)
             {
                 node.ItemType = PathItemType.Quiz;
             }
-            else if (node.LabExerciseId != null && node.ItemType == PathItemType.Folder)
+            else if ((node.LabExerciseId != null || node.Title.Contains("Lab") || node.Title.Contains("Thực hành")) && node.ItemType == PathItemType.Folder)
             {
                 node.ItemType = PathItemType.Lab;
             }
@@ -211,6 +298,11 @@ public static class SeedRunner
 
     private static async Task<int> SeedUsersAsync(AppDbContext db, DateTime now, ILogger logger, CancellationToken ct)
     {
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE Users SET AvatarUrl = '/assets/avatars/ai-bot.svg' WHERE AvatarUrl LIKE '%pngtree%' OR AvatarUrl LIKE 'http%'", ct);
+        }
+
         var adminId = 0;
         foreach (var seed in SeedData.Users)
         {
@@ -227,11 +319,19 @@ public static class SeedRunner
                     adminId = user.Id;
                 }
 
-                // Teacher demo luôn có đủ dữ liệu để trình diễn Teacher Studio/Shop trên máy dev.
+                // Teacher & Student demo avatar cục bộ
+                if (user.AvatarUrl != null && (user.AvatarUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || user.AvatarUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    user.AvatarUrl = email == "teacher@demo.local" ? "/assets/avatars/cyber-hacker.svg" : "/assets/avatars/ai-bot.svg";
+                }
                 if (email == "teacher@demo.local")
                 {
                     user.Gems = Math.Max(user.Gems, 1000);
                     user.AvatarUrl ??= "/assets/avatars/cyber-hacker.svg";
+                }
+                if (email == "student@demo.local")
+                {
+                    user.AvatarUrl ??= "/assets/avatars/ai-bot.svg";
                 }
                 user.UpdatedAt = now;
                 await db.SaveChangesAsync(ct);
@@ -408,7 +508,7 @@ public static class SeedRunner
 
             // H-FINAL1: node "Học: {lesson}" của learning path — mọi exercise lesson gắn NodeId + Stage
             // để GET /exercises?nodeId&stage (Ladder) trả đúng item (trước đây NodeId=null → stage rỗng).
-            var node = await db.LearningPathNodes.FirstOrDefaultAsync(n => n.LessonId == lesson.Id, ct);
+            var node = await db.LearningPathNodes.OrderBy(n => n.Id).FirstOrDefaultAsync(n => n.LessonId == lesson.Id, ct);
             if (node is null)
             {
                 logger.LogWarning(

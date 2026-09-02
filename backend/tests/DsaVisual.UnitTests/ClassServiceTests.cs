@@ -237,4 +237,19 @@ public class ClassServiceTests
         Assert.Equal(ErrorCodes.VALIDATION_FAILED, result.ErrorCode);
         Assert.Equal(1, await db.ClassMembers.CountAsync(m => m.UserId == 1));
     }
+
+    [Fact]
+    public async Task JoinClass_TeacherRole_ReturnsForbidden()
+    {
+        var (service, db) = await SetupAsync(nameof(JoinClass_TeacherRole_ReturnsForbidden));
+
+        // Teacher cố gắng join lớp qua mã mời
+        var result = await service.JoinAsync(2, "TEACHER", 1, new JoinClassRequest { InviteCode = "ABC123" }, CancellationToken.None);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
+
+        var resultByCode = await service.JoinByCodeAsync(2, "TEACHER", new JoinClassByCodeRequest { InviteCode = "ABC123" }, CancellationToken.None);
+        Assert.False(resultByCode.IsSuccess);
+        Assert.Equal(ErrorCodes.FORBIDDEN, resultByCode.ErrorCode);
+    }
 }

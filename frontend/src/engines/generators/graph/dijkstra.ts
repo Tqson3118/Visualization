@@ -5,12 +5,12 @@ import { adjacency, buildGenerator, buildGraphEdges, graphStructure, parseGraphP
 const PSEUDOCODE = [
   'procedure Dijkstra(G, s)',
   '  d[s] ← 0; với mọi v ≠ s: d[v] ← ∞',
-  '  PQ ← {(0, s)}',
-  '  while PQ ≠ rỗng do',
-  '    u ← extract-min',
+  '  Tập chưa chốt ← V (hoặc PQ ← {(0, s)})',
+  '  while còn đỉnh chưa chốt do',
+  '    u ← extract-min (chọn u có d[u] nhỏ nhất)',
   '    for cạnh (u, v, w) do',
   '      if d[u] + w < d[v] then',
-  '        d[v] ← d[u] + w; parent[v] ← u; decrease-key',
+  '        d[v] ← d[u] + w; parent[v] ← u    // relax',
   '  end procedure',
 ];
 
@@ -27,8 +27,8 @@ const SCHEMA: InputSchema = {
     ], default: 'custom', description: 'Mẫu đồ thị' },
     { name: 'directed', type: 'bool', label: 'Có hướng', default: true, description: 'Đồ thị có hướng hay vô hướng' },
     { name: 'weighted', type: 'bool', label: 'Có trọng số', default: true, description: 'Các cạnh có trọng số hay không' },
-    { name: 'vertices', type: 'int', label: 'Số đỉnh', min: 2, max: 50, default: 6, description: 'Số đỉnh của đồ thị' },
-    { name: 'edges', type: 'int', label: 'Số cạnh', min: 1, max: 200, default: 8, description: 'Số cạnh khi dùng preset custom' },
+    { name: 'vertices', type: 'int', label: 'Số đỉnh', min: 2, max: 50, default: 7, description: 'Số đỉnh của đồ thị' },
+    { name: 'edges', type: 'int', label: 'Số cạnh', min: 1, max: 200, default: 10, description: 'Số cạnh khi dùng preset custom' },
     { name: 'source', type: 'int', label: 'Đỉnh nguồn', min: 0, max: 49, default: 0, description: 'Đỉnh bắt đầu' },
     { name: 'target', type: 'int', label: 'Đỉnh đích (tùy chọn)', min: 0, max: 49, default: null, description: 'null = tính đến mọi đỉnh' },
   ],
@@ -96,7 +96,7 @@ export function createDijkstraGenerator(): SimulationGenerator {
         statuses.nodes[u] = 'done';
         trace.push({
           line: 5,
-          explanation: `extract-min: chọn u = ${u} có d[${u}] = ${dist[u]} nhỏ nhất trong các đỉnh chưa thăm.`,
+          explanation: `extract-min: chọn u = ${u} có d[${u}] = ${dist[u]} nhỏ nhất trong các đỉnh chưa chốt (quét bảng O(V); với Min-Heap đạt O((V+E)log V)).`,
           structure: graphStructure(g, edges, statuses, dist),
           annotations: [`d[${u}]=${dist[u]} → đã chốt`],
         });

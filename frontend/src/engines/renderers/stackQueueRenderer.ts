@@ -98,13 +98,13 @@ export class StackQueueRenderer implements Renderer {
       
       if (options.showValues) {
         if (frontEl && rearEl && frontEl.id === rearEl.id && el.id === frontEl.id) {
-          this.painter.label('front / rear', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.compare, 11);
+          this.painter.label('↑ front / rear', cx, cy + cellSize / 2 + 16, CANVAS_COLORS.compare, 11);
         } else {
           if (frontEl && el.id === frontEl.id) {
-            this.painter.label('front', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.compare, 11);
+            this.painter.label('↑ front', cx, cy + cellSize / 2 + 16, '#38bdf8', 11);
           }
           if (rearEl && el.id === rearEl.id) {
-            this.painter.label('rear', cx, cy + cellSize / 2 + 14, CANVAS_COLORS.muted, 11);
+            this.painter.label('↑ rear', cx, cy + cellSize / 2 + 16, '#fb923c', 11);
           }
         }
       }
@@ -149,14 +149,14 @@ export class StackQueueRenderer implements Renderer {
         color: empty ? CANVAS_COLORS.muted : CANVAS_COLORS.text,
       });
     }
-    // Index: bên trái cho stack (tránh đè 'top' bên phải), hoặc dưới đáy cho queue.
+    // Index: bên trái cho stack (tránh đè 'top' bên phải), hoặc trên đỉnh cho queue (tránh đè 'front/rear' dưới đáy).
     if (options.showIndex) {
       const idx = CanvasPainter.indexFromId(el.id);
       if (idx !== null) {
         if (kind === 'stack') {
           this.painter.label(String(idx), x - 10, cy, CANVAS_COLORS.muted, 10);
         } else {
-          this.painter.label(String(idx), cx, y + h + 12, CANVAS_COLORS.muted, 10);
+          this.painter.label(`[${idx}]`, cx, y - 10, CANVAS_COLORS.muted, 10);
         }
       }
     }

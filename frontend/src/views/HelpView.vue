@@ -6,14 +6,21 @@
 // buttonVariants ghost + aria-controls; chevron/FAQ transition easing chuẩn; submit size lg.
 // GIá»® NGUYÊN logic FAQ/contact + aria-expanded.
 import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 
-import { CheckCircle2, ChevronDown, LifeBuoy, Mail, User } from 'lucide-vue-next';
+import { CheckCircle2, ChevronDown, LifeBuoy, Lock, Mail, User } from 'lucide-vue-next';
 
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import { messages } from '@/i18n/vi';
+import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
+import { createBugReport } from '@/api/bugReports';
+
+const auth = useAuthStore();
+const ui = useUiStore();
+const router = useRouter();
 
 const openIndex = ref<number | null>(0);
 
@@ -29,18 +36,42 @@ const FAQS = [
 const contact = ref({ name: '', email: '', message: '' });
 const contactError = ref('');
 const contactSent = ref(false);
+const contactSending = ref(false);
 
-function submitContact(): void {
+/** C7 fix: form /help trước đây chỉ validate client và không lưu đâu cả —
+ * giờ gửi thật vào POST /bug-reports (yêu cầu đăng nhập, admin xử lý ở
+ * Cài đặt nền tảng → Báo cáo & Ý kiến). */
+async function submitContact(): Promise<void> {
   contactError.value = '';
-  if (contact.value.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.value.email)) {
-    contactError.value = 'Vui lòng điền tên và email hợp lệ.';
-    return;
-  }
   if (contact.value.message.trim().length < 10) {
     contactError.value = 'Nội dung phải từ 10 ký tự.';
     return;
   }
-  contactSent.value = true;
+  if (contact.value.name.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.value.email)) {
+    contactError.value = 'Vui lòng điền tên và email hợp lệ.';
+    return;
+  }
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/help' } });
+    return;
+  }
+  contactSending.value = true;
+  try {
+    await createBugReport({
+      description: contact.value.message.trim(),
+      context: JSON.stringify({
+        source: 'help',
+        name: contact.value.name.trim(),
+        email: contact.value.email.trim(),
+      }),
+    });
+    contactSent.value = true;
+    ui.showToast('Đã gửi phản hồi — admin sẽ xử lý và phản hồi bạn!', 'success');
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Gửi phản hồi thất bại, thử lại sau.', 'error');
+  } finally {
+    contactSending.value = false;
+  }
 }
 
 function toggle(idx: number): void {
@@ -117,6 +148,18 @@ function toggle(idx: number): void {
           </div>
         </div>
 
+        <!-- C7: bắt buộc đăng nhập mới gửi được phản hồi -->
+        <div v-else-if="!auth.isAuthenticated" class="help__sent" role="status">
+          <Lock :size="22" class="help__sent-icon" aria-hidden="true" />
+          <div>
+            <p class="help__sent-title">Cần đăng nhập để gửi phản hồi</p>
+            <p class="help__sent-desc">Đăng nhập để chúng tôi ghi nhận và phản hồi bạn qua tài khoản.</p>
+            <Button size="sm" variant="primary" class="mt-2" @click="router.push({ name: 'login', query: { redirect: '/help' } })">
+              Đăng nhập ngay
+            </Button>
+          </div>
+        </div>
+
         <form v-else class="help__form" novalidate @submit.prevent="submitContact">
           <Input
             v-model="contact.name"
@@ -151,8 +194,8 @@ function toggle(idx: number): void {
             />
           </div>
           <p v-if="contactError" class="help__error" role="alert">{{ contactError }}</p>
-          <Button type="submit" size="lg" class="help__submit">
-            {{ messages.help.submit }}
+          <Button type="submit" size="lg" class="help__submit" :disabled="contactSending">
+            {{ contactSending ? 'Đang gửi...' : messages.help.submit }}
           </Button>
         </form>
       </section>

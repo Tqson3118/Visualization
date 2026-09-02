@@ -36,7 +36,11 @@ export interface PathModuleLesson {
 }
 
 export interface PathModuleGroup {
+  id?: number | string;
+  pathItemId?: number;
   title: string;
+  dueAt?: string | null;
+  allowLateSubmission?: boolean;
   lessons: PathModuleLesson[];
 }
 
@@ -46,17 +50,19 @@ const props = withDefaults(
     showDeadlines?: boolean;
     readonly?: boolean;
     isTeacher?: boolean;
+    deadlineLevel?: 'folder' | 'lesson' | 'both' | 'none';
   }>(),
   {
     showDeadlines: false,
     readonly: false,
     isTeacher: false,
+    deadlineLevel: 'lesson',
   },
 );
 
 const emit = defineEmits<{
   (e: 'selectLesson', lesson: PathModuleLesson): void;
-  (e: 'editDeadline', lesson: PathModuleLesson): void;
+  (e: 'editDeadline', item: PathModuleLesson | PathModuleGroup): void;
 }>();
 
 const expandedModules = ref<number[]>([0]);
@@ -108,30 +114,67 @@ function cleanTitle(title: string): string {
       class="module-group rounded-2xl border border-[#262438] bg-[#12111a] overflow-hidden shadow-lg"
     >
       <!-- Module Header Row -->
-      <button
-        type="button"
-        class="w-full flex items-center gap-4 p-4 text-left hover:bg-[#171624] transition-colors group cursor-pointer"
+      <div
+        class="w-full flex items-center justify-between gap-4 p-4 text-left hover:bg-[#171624] transition-colors group cursor-pointer"
         @click="toggleModule(mIdx)"
       >
-        <span class="shrink-0 text-xl font-black text-slate-600 group-hover:text-purple-400 transition-colors w-9 text-center font-mono">
-          {{ pad(mIdx + 1) }}
-        </span>
-        <div class="flex-1 min-w-0">
-          <h3 class="text-sm md:text-base font-bold text-white leading-snug group-hover:text-purple-300 transition-colors">
-            {{ module.title }}
-          </h3>
-          <p class="text-xs text-slate-400 mt-0.5">{{ module.lessons.length }} mục bài học & bài tập</p>
+        <div class="flex items-center gap-4 min-w-0 flex-1">
+          <span class="shrink-0 text-xl font-black text-slate-600 group-hover:text-purple-400 transition-colors w-9 text-center font-mono">
+            {{ pad(mIdx + 1) }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-sm md:text-base font-bold text-white leading-snug group-hover:text-purple-300 transition-colors">
+              {{ module.title }}
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">{{ module.lessons.length }} mục bài học & bài tập</p>
+          </div>
         </div>
-        <div
-          class="w-8 h-8 rounded-full bg-[#181724] border border-[#2c2a40] flex items-center justify-center shrink-0 transition-transform duration-300"
-          :class="expandedModules.includes(mIdx) ? 'rotate-180' : ''"
-        >
-          <ChevronDown class="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+
+        <div class="flex items-center gap-2.5 shrink-0">
+          <!-- Folder Deadline badge if showDeadlines -->
+          <div v-if="showDeadlines" class="text-right">
+            <span
+              v-if="module.dueAt"
+              class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg"
+              :class="
+                new Date(module.dueAt).getTime() < Date.now()
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+              "
+            >
+              <Clock class="w-3 h-3" />
+              <span>Hạn: {{ formatDate(module.dueAt) }}</span>
+            </span>
+          </div>
+
+          <!-- Teacher Folder Deadline Edit Action -->
+          <button
+            v-if="isTeacher && (deadlineLevel === 'folder' || deadlineLevel === 'both')"
+            type="button"
+            class="p-1.5 rounded-lg bg-[#1a1928] hover:bg-[#242238] border border-[#302e48] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+            title="Thiết lập deadline cho module"
+            :data-testid="'deadline-edit-module-' + (module.pathItemId ?? mIdx)"
+            @click.stop="emit('editDeadline', module)"
+          >
+            <CalendarClock class="w-3.5 h-3.5 text-purple-400" />
+            <span class="hidden sm:inline">Hạn chót module</span>
+          </button>
+
+          <!-- Expand / Collapse chevron -->
+          <div
+            class="w-8 h-8 rounded-full bg-[#181724] border border-[#2c2a40] flex items-center justify-center shrink-0 transition-transform duration-300"
+            :class="expandedModules.includes(mIdx) ? 'rotate-180' : ''"
+          >
+            <ChevronDown class="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+          </div>
         </div>
-      </button>
+      </div>
 
       <!-- Module Lesson Items -->
       <div v-show="expandedModules.includes(mIdx)" class="border-t border-[#222033] divide-y divide-[#1e1d2c]">
+        <div v-if="module.lessons.length === 0" class="p-4 text-center text-xs text-slate-500 italic">
+          Chương này chưa có mục bài học nào.
+        </div>
         <div
           v-for="(lesson, idx) in module.lessons"
           :key="lesson.id"
@@ -147,7 +190,7 @@ function cleanTitle(title: string): string {
           <!-- Left: Index/Status Icon + Title + Tags -->
           <div
             class="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
-            @click="!lesson.locked && !lesson.isLocked && emit('selectLesson', lesson)"
+            @click="emit('selectLesson', lesson)"
           >
             <span
               class="shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold"
@@ -183,7 +226,7 @@ function cleanTitle(title: string): string {
                     Code Lab
                   </span>
                   <span
-                    v-else-if="lesson.sandboxType === 'quiz' || lesson.quizId"
+                    v-else-if="lesson.sandboxType === 'quiz'"
                     class="font-extrabold uppercase text-[9px] tracking-wider bg-amber-500/10 text-orange-400 px-1.5 py-0.5 rounded border border-amber-500/20"
                   >
                     Quiz
@@ -230,7 +273,7 @@ function cleanTitle(title: string): string {
 
             <!-- Teacher Edit Deadline Action -->
             <button
-              v-if="isTeacher"
+              v-if="isTeacher && (deadlineLevel === 'lesson' || deadlineLevel === 'both')"
               type="button"
               class="p-1.5 rounded-lg bg-[#1a1928] hover:bg-[#242238] border border-[#302e48] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
               title="Thiết lập deadline"

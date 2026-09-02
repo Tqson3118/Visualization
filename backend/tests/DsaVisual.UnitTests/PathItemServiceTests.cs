@@ -82,7 +82,7 @@ public sealed class PathItemServiceTests
         var createdLesson = await db.Lessons.FirstOrDefaultAsync(l => l.Id == result.Value.LessonId);
         Assert.NotNull(createdLesson);
         Assert.Equal("Bài 1: Giới thiệu mảng", createdLesson.Title);
-        Assert.Equal(LessonStatus.Active, createdLesson.Status);
+        Assert.Equal(LessonStatus.Draft, createdLesson.Status);
     }
 
     [Fact]

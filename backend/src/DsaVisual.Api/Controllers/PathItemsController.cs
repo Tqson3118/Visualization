@@ -21,6 +21,15 @@ public class PathItemsController(IPathItemService service) : ApiControllerBase
         return MapResultExtensions.MapResult(this, result);
     }
 
+    /// <summary>Tìm mục lộ trình và ID lộ trình theo lessonId (hỗ trợ điều hướng O(1) từ Studio Overview).</summary>
+    [HttpGet("paths/find-by-lesson/{lessonId:int}")]
+    [Authorize(Roles = "TEACHER,ADMIN")]
+    public async Task<ActionResult<PathItemDto>> FindByLesson([FromRoute] int lessonId, CancellationToken ct)
+    {
+        var result = await _service.FindByLessonIdAsync(CurrentUserId(), CurrentRole(), lessonId, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     /// <summary>Tạo mới 1 mục (Folder / Theory / Quiz / Lab) trong lộ trình.</summary>
     [HttpPost("paths/{pathId:int}/items")]
     [Authorize(Roles = "TEACHER,ADMIN")]

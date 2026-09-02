@@ -54,6 +54,8 @@ export interface CourseDetailDto {
   authorName?: string | null;
   createdBy?: number;
   authorId?: number | null;
+  topicId?: number;
+  topicName?: string;
   progressPercent: number;
   xpReward: number;
   learningObjectives: string[];
@@ -110,6 +112,8 @@ export interface CourseListDto {
   authorName?: string | null;
   createdBy?: number;
   authorId?: number | null;
+  topicId?: number;
+  topicName?: string;
   xpReward: number;
   totalLessons: number;
   completedLessons: number;
@@ -167,8 +171,8 @@ export const courseApi = {
   submitCourseFeedback: (payload: CourseFeedbackPayload) =>
     getData<CourseFeedbackDto>({ method: 'POST', url: '/courses/feedback', data: payload }),
 
-  getMyCourseFeedback: (courseId: number) =>
-    getData<CourseFeedbackDto[]>({ method: 'GET', url: '/courses/feedback/mine', params: { courseId } }),
+  getMyCourseFeedback: (courseId?: number) =>
+    getData<CourseFeedbackDto[]>({ method: 'GET', url: '/courses/feedback/mine', params: courseId ? { courseId } : {} }),
 
   getCourseFeedbackAll: (courseId: number, status?: string) =>
     getData<CourseFeedbackDto[]>({ method: 'GET', url: '/courses/feedback/all', params: { courseId, ...(status ? { status } : {}) } }),

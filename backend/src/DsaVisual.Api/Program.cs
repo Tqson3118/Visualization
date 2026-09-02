@@ -157,7 +157,8 @@ builder.Services.AddAuthorization();
 // EF Core — SQL Server, Service truy vấn DbContext trực tiếp (KHÔNG Repository — SDD §5.1)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default"))
-           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.SqlServerEventId.SavepointsDisabledBecauseOfMARS)));
+           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.SqlServerEventId.SavepointsDisabledBecauseOfMARS)
+                                    .Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 // DI (SDD §5.3.7: Scoped cho DbContext + Service; Singleton cho Settings cache, TokenService (không state), DateTimeProvider)
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
@@ -165,6 +166,7 @@ builder.Services.AddSingleton<ITokenService, TokenService>();              // JW
 builder.Services.AddSingleton<SettingsCache>();                             // cache Settings (SDD §5.3.7)
 builder.Services.AddSingleton<LoginAttemptTracker>();                       // khóa tạm đăng nhập 5/15p
 builder.Services.AddSingleton<SubmissionLockRegistry>();                    // chống nộp bài đồng thời
+builder.Services.AddSingleton<IGamificationConfigService, GamificationConfigService>(); // Cấu hình Gamification động
 // Finding security#18: whitelist HtmlSanitizer THU HẸP — THAY thế default set của Ganss.Xss
 // (mặc định cho phép a/img/div/table/style...) bằng đúng 13 tag mong muốn; hạn chế attributes
 // và schemes (http/https/mailto) — chống phishing/tracking qua link/ảnh ngoài.
@@ -231,6 +233,8 @@ builder.Services.AddScoped<IValidator<PremiumMockPayRequest>, PremiumMockPayRequ
 builder.Services.AddScoped<IValidator<BenchmarkRequest>, BenchmarkRequestValidator>();
 builder.Services.AddScoped<IValidator<SystemSettingsDto>, SystemSettingsValidator>();
 builder.Services.AddScoped<IValidator<BugReportRequest>, BugReportRequestValidator>();
+builder.Services.AddScoped<IValidator<GamificationSettingsDto>, GamificationSettingsValidator>();
+builder.Services.AddSingleton<IGamificationConfigService, GamificationConfigService>();
 
 // Finding security#2: rate limiting toàn cục — phân vùng theo (user claim sub + IP), policy
 // riêng cho endpoint nhạy cảm (login/register/forgot-password/refresh/2fa/join — chặt hơn),
@@ -341,6 +345,14 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseCors("frontend");
 
+var webRoot = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "avatars"));
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRoot),
+    RequestPath = ""
+});
+
 app.UseAuthentication();
 
 // Finding security#2: sau Auth để partition theo claim sub (user) + IP; /health không bị giới hạn.
@@ -383,6 +395,7 @@ if (args.Contains("--seed"))
 using (var startupScope = app.Services.CreateScope())
 {
     var startupDb = startupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var startupLogger = startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     if (startupDb.Database.IsRelational())
     {
         try
@@ -414,6 +427,10 @@ using (var startupScope = app.Services.CreateScope())
             Log.Information("Database migrations verified and applied on startup.");
             await SeedRunner.FixMismatchedQuestionsAsync(startupDb);
             Log.Information("DSA quiz questions verified and reconciled.");
+            await SeedRunner.AutoRepairOrphanTheoryNodesAsync(startupDb, startupLogger);
+            Log.Information("Orphan theory nodes verified and auto-repaired.");
+            await SeedTeacherCoursesData.SeedAsync(startupDb, startupLogger);
+            Log.Information("Teacher demo data and courses verified.");
         }
         catch (Exception ex)
         {

@@ -9,11 +9,19 @@ const PSEUDOCODE = [
   '            else x ← q[front], front++',
 ];
 
-const SCHEMA: InputSchema = {
+const ENQUEUE_SCHEMA: InputSchema = {
   kind: 'linear',
   fields: [
-    { name: 'operations', type: 'string[]', label: 'Danh sách thao tác', default: ['Push 5', 'Push 3', 'Pop'], description: 'VD: Push 5 / Enqueue 5 (thêm), Pop / Dequeue (lấy ra)' },
-    { name: 'capacity', type: 'int', label: 'Dung lượng', min: 1, max: 20, default: 8, description: 'Số ô tối đa của hàng đợi' },
+    { name: 'operations', type: 'string[]', label: 'Danh sách thao tác', default: ['Enqueue 10', 'Enqueue 20', 'Enqueue 30', 'Enqueue 40', 'Enqueue 50'], description: 'VD: Enqueue 10 (thêm vào cuối), Dequeue (lấy ra từ đầu)' },
+    { name: 'capacity', type: 'int', label: 'Dung lượng (Capacity)', min: 1, max: 20, default: 8, description: 'Số ô tối đa của hàng đợi' },
+  ],
+};
+
+const DEQUEUE_SCHEMA: InputSchema = {
+  kind: 'linear',
+  fields: [
+    { name: 'operations', type: 'string[]', label: 'Danh sách thao tác', default: ['Enqueue 15', 'Enqueue 28', 'Enqueue 42', 'Dequeue', 'Dequeue'], description: 'VD: Enqueue 15, Dequeue' },
+    { name: 'capacity', type: 'int', label: 'Dung lượng (Capacity)', min: 1, max: 20, default: 8, description: 'Số ô tối đa của hàng đợi' },
   ],
 };
 
@@ -38,14 +46,15 @@ function parseOps(raw: unknown): QueueOp[] {
   return ops;
 }
 
-function queueStructure(values: number[], capacity: number, statuses: Record<number, string>): Structure {
+function queueStructure(values: (number | null)[], capacity: number, statuses: Record<number, string>): Structure {
   const elements: Element[] = [];
   for (let i = 0; i < capacity; i++) {
-    const filled = i < values.length;
+    const val = values[i];
+    const filled = val !== null;
     elements.push({
       id: `cell:${i}`,
-      label: filled ? String(values[i]) : '—',
-      status: (statuses[i] as Element['status']) ?? (filled ? 'default' : 'muted'),
+      label: filled ? String(val) : '—',
+      status: (statuses[i] as Element['status']) ?? (filled ? 'done' : 'muted'),
       group: 'queue',
       meta: { empty: !filled },
     });
@@ -54,11 +63,11 @@ function queueStructure(values: number[], capacity: number, statuses: Record<num
 }
 
 export function createQueueEnqueueGenerator(): SimulationGenerator {
-  return buildGenerator('queue.enqueue', SCHEMA, PSEUDOCODE, { validate: queueValidate, generate: runQueueOps });
+  return buildGenerator('queue.enqueue', ENQUEUE_SCHEMA, PSEUDOCODE, { validate: queueValidate, generate: runQueueOps });
 }
 
 export function createQueueDequeueGenerator(): SimulationGenerator {
-  return buildGenerator('queue.dequeue', SCHEMA, PSEUDOCODE, { validate: queueValidate, generate: runQueueOps });
+  return buildGenerator('queue.dequeue', DEQUEUE_SCHEMA, PSEUDOCODE, { validate: queueValidate, generate: runQueueOps });
 }
 
 function queueValidate(input: InputConfig): { ok: boolean; errors: string[] } {
@@ -87,96 +96,102 @@ function runQueueOps(input: InputConfig): ReturnType<SimulationGenerator['genera
   const ops = parseOps(rec.operations);
   const capacity = intField(rec, 'capacity', 8);
   const trace = new Trace();
-  const queue: number[] = [];
+  
+  const queue: (number | null)[] = Array(capacity).fill(null);
   const statuses: Record<number, string> = {};
+
+  let front = 0;
+  let rear = -1;
+  let size = 0;
 
   trace.vars.front = 0;
   trace.vars.rear = -1;
   trace.vars.capacity = capacity;
+  trace.vars.size = 0;
   trace.vars.queue = '';
   trace.push({
     line: 1,
-    explanation: `Bắt đầu: hàng đợi rỗng, dung lượng ${capacity}, front=0, rear=-1.`,
+    explanation: `Bắt đầu: Hàng đợi rỗng (Dung lượng: ${capacity}). Con trỏ front=0, rear=-1 (chưa có phần tử nào).`,
     structure: queueStructure(queue, capacity, statuses),
-    annotations: [`capacity=${capacity}, front=0, rear=-1`],
+    annotations: [`Dung lượng: ${capacity}, Số phần tử: 0`],
   });
 
   for (let opIdx = 0; opIdx < ops.length; opIdx++) {
     const op = ops[opIdx];
-    trace.vars.op = `${op.kind}${op.value !== undefined ? ` ${op.value}` : ''}`;
-    const front = 0;
-    const rear = queue.length - 1;
+    trace.vars.op = `${op.kind === 'enqueue' ? 'Enqueue' : 'Dequeue'}${op.value !== undefined ? ` ${op.value}` : ''}`;
 
     if (op.kind === 'enqueue') {
       const value = op.value ?? 0;
-      if (queue.length >= capacity) {
+      if (rear >= capacity - 1) {
         trace.push({
           line: 1,
-          explanation: `Hàng đợi đầy: số phần tử ${queue.length} = capacity ${capacity} — không thể enqueue ${value}.`,
+          explanation: `Hàng đợi đầy (hoặc rear chạm đáy): rear=${rear} đã đạt dung lượng tối đa (${capacity-1}) — Không thể thêm ${value}. (Mô hình mảng tuyến tính cứng).`,
           structure: queueStructure(queue, capacity, statuses),
-          annotations: ['LỖI: Hàng đợi đầy'],
+          annotations: ['CẢNH BÁO: Hàng đợi đầy (Overflow)'],
         });
         continue;
       }
       trace.push({
         line: 1,
-        explanation: `Kiểm tra rear=${rear} < capacity-1=${capacity - 1} → còn chỗ, enqueue ${value}.`,
+        explanation: `Kiểm tra dung lượng: rear=${rear} < capacity-1=${capacity - 1} → Hàng đợi còn chỗ, tiến hành Enqueue(${value}).`,
         structure: queueStructure(queue, capacity, statuses),
-        annotations: [`front=${front}, rear=${rear}`],
+        annotations: [`front=${front}, rear=${rear}, size=${size}`],
       });
-      const newRear = rear + 1;
-      queue.push(value);
-      statuses[newRear] = 'swap';
-      trace.vars.rear = newRear;
-      trace.vars.queue = queue.join(',');
+      rear++;
+      queue[rear] = value;
+      size++;
+      statuses[rear] = 'swap';
+      trace.vars.rear = rear;
+      trace.vars.size = size;
+      trace.vars.queue = queue.filter(v => v !== null).join(', ');
       trace.push({
         line: 2,
-        explanation: `Ghi q[${newRear}] ← ${value}; rear: ${rear} → ${newRear}.`,
+        explanation: `Enqueue: Tăng rear lên ${rear} và lưu q[${rear}] = ${value}. Phần tử ${value} đứng ở cuối hàng đợi (sau cùng).`,
         structure: queueStructure(queue, capacity, statuses),
-        annotations: [`front=${front}, rear=${newRear}, q[${newRear}]=${value}`],
+        annotations: [`front=${front}, rear=${rear}, q[${rear}]=${value}`],
       });
-      statuses[newRear] = 'done';
+      statuses[rear] = 'done';
     } else {
-      if (queue.length === 0) {
+      if (front > rear || size === 0) {
         trace.push({
           line: 3,
-          explanation: 'Hàng đợi rỗng: front=0 > rear=-1 — không thể dequeue.',
+          explanation: `Hàng đợi rỗng: front (${front}) > rear (${rear}) (không có phần tử) — Không thể Dequeue (Underflow).`,
           structure: queueStructure(queue, capacity, statuses),
-          annotations: ['LỖI: Hàng đợi rỗng'],
+          annotations: ['CẢNH BÁO: Hàng đợi rỗng (Underflow)'],
         });
         continue;
       }
-      const value = queue[0];
-      statuses[0] = 'swap';
+      const value = queue[front];
+      statuses[front] = 'swap';
       trace.push({
         line: 4,
-        explanation: `Dequeue: x ← q[0] = ${value}, front++.`,
+        explanation: `Dequeue: Lấy phần tử ${value} tại đầu hàng đợi (front=${front}) ra xử lý theo nguyên tắc FIFO.`,
         structure: queueStructure(queue, capacity, statuses),
-        annotations: [`x=${value}`],
+        annotations: [`Giá trị lấy ra: x = ${value}`],
       });
-      queue.shift();
-      // Dịch trạng thái sang trái: ô cũ 0 bị lấy ra, các ô sau dịch lên.
-      const next: Record<number, string> = {};
-      for (let i = 0; i < queue.length; i++) next[i] = statuses[i + 1] ?? 'default';
-      for (let i = queue.length; i < capacity; i++) next[i] = 'muted';
-      trace.vars.front = 0;
-      trace.vars.rear = queue.length - 1;
-      trace.vars.queue = queue.join(',');
+      
+      queue[front] = null;
+      statuses[front] = 'muted';
+      front++;
+      size--;
+      
+      trace.vars.front = front;
+      trace.vars.size = size;
+      trace.vars.queue = queue.filter(v => v !== null).join(', ');
       trace.push({
         line: 4,
-        explanation: `Đã lấy ${value} ra khỏi hàng đợi (phần tử còn lại dịch lên đầu).`,
-        structure: queueStructure(queue, capacity, next),
-        annotations: [`front=0, rear=${queue.length - 1}`],
+        explanation: `Đã hoàn tất Dequeue: Phần tử ${value} đã ra khỏi hàng đợi. Tăng con trỏ front lên ${front}. Hiện còn ${size} phần tử.`,
+        structure: queueStructure(queue, capacity, statuses),
+        annotations: [`front=${front}, rear=${rear}, size=${size}`],
       });
-      for (const k of Object.keys(statuses)) delete statuses[Number(k)];
-      Object.assign(statuses, next);
     }
   }
 
   trace.push({
     line: 4,
-    explanation: `Kết thúc: hàng đợi [${queue.join(', ')}], front=0, rear=${queue.length - 1}.`,
+    explanation: `Kết thúc chuỗi thao tác: Hàng đợi có ${size} phần tử. front=${front}, rear=${rear}.`,
     structure: queueStructure(queue, capacity, statuses),
   });
   return trace.steps;
 }
+

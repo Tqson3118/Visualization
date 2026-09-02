@@ -11,75 +11,33 @@
       <h1 class="text-2xl font-black text-white tracking-tight">{{ title }}</h1>
     </div>
 
-    <!-- Danh sách mô phỏng tương tác đính kèm -->
-    <div v-if="allSimulationKeys.length > 0" class="mb-6 p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-          <Sparkles class="w-4 h-4 text-vdsa-purple" />
-          Mô phỏng trực quan đính kèm ({{ allSimulationKeys.length }})
-        </h3>
-        <span class="text-[11px] text-vdsa-muted">Thực hành tương tác từng bước</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div
-          v-for="simKey in allSimulationKeys"
-          :key="simKey"
-          class="p-3 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border flex items-center justify-between gap-3 hover:border-vdsa-accent transition-all"
-        >
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="p-2 rounded-lg bg-vdsa-accent/20 text-vdsa-purple-light shrink-0">
-              <Play class="w-4 h-4" />
-            </span>
-            <div class="min-w-0">
-              <h4 class="text-xs font-bold text-white truncate">{{ getSimulationTitle(simKey) }}</h4>
-              <p class="text-[10px] font-mono text-vdsa-muted truncate">{{ simKey }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              data-testid="run-simulation-btn"
-              class="px-3 py-1.5 rounded-lg bg-vdsa-accent hover:bg-vdsa-accent-dark text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
-              @click="openEmbeddedVisualizer(simKey)"
-            >
-              <Play class="w-3 h-3" />
-              <span>Chạy thử thuật toán</span>
-            </button>
-            <router-link
-              :to="`/simulator/${simKey}`"
-              target="_blank"
-              class="p-1.5 rounded-lg bg-vdsa-surface hover:bg-vdsa-hover text-vdsa-muted hover:text-white transition-colors"
-              title="Mở toàn màn hình"
-            >
-              <ExternalLink class="w-3.5 h-3.5" />
-            </router-link>
-          </div>
+    <!-- Render nội dung lý thuyết & Nhúng trực tiếp các bộ mô phỏng inline -->
+    <div class="space-y-6">
+      <template v-for="(seg, idx) in contentSegments" :key="idx">
+        <div v-if="seg.type === 'html'" class="prose prose-invert max-w-none text-sm space-y-4" v-html="seg.html"></div>
+        <InlineSimulationPlayer v-else-if="seg.type === 'simulation' && seg.simKey" :sim-key="seg.simKey" />
+      </template>
+
+      <!-- Tự động hiển thị các mô phỏng đính kèm vào luồng bài học nếu chưa có thẻ anchor trong text -->
+      <div v-if="trailingSimulations.length > 0" class="mt-8 pt-6 border-t border-vdsa-border/60 space-y-6">
+        <div class="flex items-center gap-2">
+          <Sparkles class="w-4 h-4 text-purple-400" />
+          <h3 class="text-xs font-extrabold text-white uppercase tracking-wider">
+            Mô phỏng Trực quan Tương tác ({{ trailingSimulations.length }})
+          </h3>
         </div>
+        <InlineSimulationPlayer
+          v-for="simKey in trailingSimulations"
+          :key="simKey"
+          :sim-key="simKey"
+        />
       </div>
-    </div>
-
-    <!-- Embedded shared visualizer (B3) — đóng về Lý thuyết KHÔNG mất progress -->
-    <div v-if="visualizerOpen" class="relative mb-6 h-[480px] rounded-xl overflow-hidden border border-vdsa-border" data-testid="embedded-visualizer">
-      <SharedVisualizerShell
-        :frames="frames"
-        :algorithm-key="activeSimKey ?? undefined"
-        embedded
-        close-label="Về lý thuyết"
-        @close="visualizerOpen = false"
-      />
-    </div>
-
-    <div class="prose prose-invert max-w-none text-sm space-y-4">
-      <div v-html="formattedContent"></div>
     </div>
 
     <div class="mt-8 pt-6 border-t border-vdsa-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <span class="text-xs text-vdsa-muted">
         <template v-if="isCompleted">
           Bạn đã hoàn thành bài học này.
-        </template>
-        <template v-else-if="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer">
-          💡 Hãy bấm <strong class="text-white">"Chạy thử thuật toán"</strong> ở trên để trực quan hóa trước khi hoàn thành bài.
         </template>
         <template v-else>
           Đã sẵn sàng! Nhấn hoàn thành để nhận XP và sang bài tiếp theo.
@@ -96,29 +54,22 @@
 
       <button
         v-else
-        :disabled="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer"
         @click="$emit('completeStep')"
-        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer disabled:cursor-not-allowed"
-        :class="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer
-          ? 'bg-vdsa-surface border border-vdsa-border text-vdsa-disabled opacity-60'
-          : 'bg-vdsa-accent hover:bg-vdsa-accent-dark text-white shadow-lg shadow-vdsa-accent/30 ring-1 ring-vdsa-accent-light/50 hover:scale-[1.02]'"
+        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer bg-vdsa-accent hover:bg-vdsa-accent-dark text-white shadow-lg shadow-vdsa-accent/30 ring-1 ring-vdsa-accent-light/50 hover:scale-[1.02]"
       >
         <span>Hoàn thành bài học</span>
-        <BaseIcon :name="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer ? 'lock' : 'check'" class="w-4 h-4" />
+        <BaseIcon name="check" class="w-4 h-4" />
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Sparkles, Play, ExternalLink } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { Sparkles } from 'lucide-vue-next';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import { parseMarkdownToHtml } from '@/utils/markdownParser';
-import SharedVisualizerShell from '../../../features/visual-shell/components/SharedVisualizerShell.vue';
-import { buildFramesFromCatalogKey } from '../../../features/visual-shell/buildFrames';
-import type { SortFrame } from '../../../features/visual-shell/types/sorting.types';
-import { CATALOG } from '@/engines/catalog';
+import InlineSimulationPlayer from '@/components/simulator/InlineSimulationPlayer.vue';
 
 const props = defineProps<{
   title: string;
@@ -134,41 +85,87 @@ defineEmits<{
   (e: 'completeStep'): void;
 }>();
 
-const visualizerOpen = ref(false);
-const activeSimKey = ref<string | null>(props.simulationKey || null);
-const hasInteractedWithVisualizer = ref(false);
+const inlineSimulationKeys = computed<string[]>(() => {
+  if (!props.content) return [];
+  const matches = props.content.matchAll(/\[(?:Mô phỏng|Simulation|mo phong):\s*([a-zA-Z0-9._-]+)\]/gi);
+  const keys: string[] = [];
+  for (const m of matches) {
+    if (m[1] && !keys.includes(m[1])) keys.push(m[1]);
+  }
+  return keys;
+});
 
 const allSimulationKeys = computed<string[]>(() => {
   const list = [...(props.simulationKeys || [])];
   if (props.simulationKey && !list.includes(props.simulationKey)) {
     list.unshift(props.simulationKey);
   }
+  for (const k of inlineSimulationKeys.value) {
+    if (!list.includes(k)) list.push(k);
+  }
   return list;
 });
 
-function getSimulationTitle(key: string): string {
-  const item = CATALOG.find((c) => c.key === key);
-  return item ? item.title : key;
-}
-
-function openEmbeddedVisualizer(key: string): void {
-  activeSimKey.value = key;
-  visualizerOpen.value = true;
-  hasInteractedWithVisualizer.value = true;
-}
-
-/** Frame từ engine generator: key → Step[] → LegacyStepAdapter → SortFrame[]. */
-const frames = computed<SortFrame[]>(() => {
-  if (!activeSimKey.value) return [];
-  const res = buildFramesFromCatalogKey(activeSimKey.value);
-  return Array.isArray(res) ? (res as SortFrame[]) : [];
+const trailingSimulations = computed<string[]>(() => {
+  const explicit = inlineSimulationKeys.value;
+  return allSimulationKeys.value.filter((k) => !explicit.includes(k));
 });
 
+interface ContentSegment {
+  type: 'html' | 'simulation';
+  html?: string;
+  simKey?: string;
+}
+
+function formatTheorySegment(text: string): string {
+  if (!text || !text.trim()) return '';
+  const hasMarkdownPatterns = /(^|\n)#{1,6}\s|(\*\*|__)[^\n]+(\*\*|__)|```[a-zA-Z0-9_-]*\n|> \[!|\$[^$]+\$|\|[^\n]+\|/m.test(text);
+  if (!hasMarkdownPatterns && /<\/?(p|h[1-6]|div|ul|ol|li|table|pre|code|strong|em|blockquote|span)[^>]*>/i.test(text)) {
+    return text;
+  }
+  return parseMarkdownToHtml(text);
+}
+
 /**
- * Render Markdown sang HTML với Syntax Highlighting và dark theme
+ * Phân tách nội dung thành các phân đoạn HTML và các widget mô phỏng tương tác inline
  */
-const formattedContent = computed(() => {
-  if (!props.content) return '<p class="text-vdsa-muted italic">Không có nội dung lý thuyết.</p>';
-  return parseMarkdownToHtml(props.content);
+const contentSegments = computed<ContentSegment[]>(() => {
+  if (!props.content) {
+    return [{ type: 'html', html: '<p class="text-vdsa-muted italic">Không có nội dung lý thuyết.</p>' }];
+  }
+
+  const raw = props.content.trim();
+  const segments: ContentSegment[] = [];
+  const regex = /(?:<p[^>]*>\s*)?\[(?:Mô phỏng|Simulation|mo phong):\s*([a-zA-Z0-9._-]+)\](?:\s*<\/p>)?/gi;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(raw)) !== null) {
+    const textBefore = raw.substring(lastIndex, match.index);
+    if (textBefore.trim()) {
+      segments.push({
+        type: 'html',
+        html: formatTheorySegment(textBefore),
+      });
+    }
+
+    segments.push({
+      type: 'simulation',
+      simKey: match[1],
+    });
+
+    lastIndex = regex.lastIndex;
+  }
+
+  const remaining = raw.substring(lastIndex);
+  if (remaining.trim()) {
+    segments.push({
+      type: 'html',
+      html: formatTheorySegment(remaining),
+    });
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'html', html: '<p class="text-vdsa-muted italic">Không có nội dung lý thuyết.</p>' }];
 });
 </script>

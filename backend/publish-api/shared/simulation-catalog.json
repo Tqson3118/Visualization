@@ -1,4 +1,4 @@
-﻿[
+[
   { "key": "sort.bubble", "title": "Sắp xếp nổi bọt (Bubble Sort)", "dataStructure": "Mảng", "category": "algorithm", "level": "basic", "complexity": { "best": "O(n)", "average": "O(n²)", "worst": "O(n²)", "space": "O(1)" }, "tags": ["sắp xếp", "so sánh"], "demoAllowed": true },
   { "key": "sort.selection", "title": "Sắp xếp chọn (Selection Sort)", "dataStructure": "Mảng", "category": "algorithm", "level": "basic", "complexity": { "best": "O(n²)", "average": "O(n²)", "worst": "O(n²)", "space": "O(1)" }, "tags": ["sắp xếp", "chọn"], "demoAllowed": false },
   { "key": "sort.insertion", "title": "Sắp xếp chèn (Insertion Sort)", "dataStructure": "Mảng", "category": "algorithm", "level": "basic", "complexity": { "best": "O(n)", "average": "O(n²)", "worst": "O(n²)", "space": "O(1)" }, "tags": ["sắp xếp", "chèn"], "demoAllowed": false },
@@ -41,6 +41,6 @@
   { "key": "structure.bst", "title": "Cây nhị phân tìm kiếm (BST)", "dataStructure": "Cây nhị phân tìm kiếm", "category": "structure", "level": "basic", "complexity": { "best": "O(log n)", "average": "O(log n)", "worst": "O(n)", "space": "O(n)" }, "tags": ["CTDL", "cây", "BST"], "demoAllowed": false },
   { "key": "structure.avl", "title": "Cây AVL (cân bằng)", "dataStructure": "Cây AVL", "category": "structure", "level": "advanced", "complexity": { "best": "O(log n)", "average": "O(log n)", "worst": "O(log n)", "space": "O(n)" }, "tags": ["CTDL", "cây", "cân bằng"], "demoAllowed": false },
   { "key": "structure.heap", "title": "Đống nhị phân (Binary Heap — max-heap)", "dataStructure": "Đống nhị phân", "category": "structure", "level": "advanced", "complexity": { "best": "O(1)", "average": "O(log n)", "worst": "O(log n)", "space": "O(n)" }, "tags": ["CTDL", "heap"], "demoAllowed": false },
-  { "key": "structure.hashtable", "title": "Bảng băm (Hash Table — địa chỉ mở: chuỗi nối kết)", "dataStructure": "Bảng băm", "category": "structure", "level": "basic", "complexity": { "best": "O(1)", "average": "O(1)", "worst": "O(n)", "space": "O(n)" }, "tags": ["CTDL", "bảng băm"], "demoAllowed": false },
+  { "key": "structure.hashtable", "title": "Bảng băm (Hash Table — Xử lý va chạm: Chuỗi nối kết)", "dataStructure": "Bảng băm", "category": "structure", "level": "basic", "complexity": { "best": "O(1)", "average": "O(1)", "worst": "O(n)", "space": "O(n)" }, "tags": ["CTDL", "bảng băm"], "demoAllowed": false },
   { "key": "structure.graph", "title": "Đồ thị (Graph — có hướng/vô hướng, trọng số)", "dataStructure": "Đồ thị", "category": "structure", "level": "advanced", "complexity": { "best": "O(V+E)", "average": "O(V+E)", "worst": "O(V+E)", "space": "O(V+E)" }, "tags": ["CTDL", "đồ thị"], "demoAllowed": false }
 ]

@@ -162,6 +162,67 @@ public class AuthController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    public sealed class UploadAvatarRequest
+    {
+        public string Image { get; set; } = string.Empty;
+        public string? Name { get; set; }
+    }
+
+    /// <summary>Tải lên ảnh đại diện từ thiết bị.</summary>
+    [HttpPost("me/avatar")]
+    [Authorize]
+    public async Task<ActionResult<object>> UploadAvatar(
+        [FromBody] UploadAvatarRequest request,
+        [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Image))
+        {
+            return BadRequest(new { error = "Dữ liệu ảnh không được để trống" });
+        }
+
+        try
+        {
+            var rawBase64 = request.Image;
+            var extension = ".png";
+            if (rawBase64.Contains(','))
+            {
+                var prefix = rawBase64.Substring(0, rawBase64.IndexOf(','));
+                rawBase64 = rawBase64.Substring(rawBase64.IndexOf(',') + 1);
+                if (prefix.Contains("image/jpeg") || prefix.Contains("image/jpg")) extension = ".jpg";
+                else if (prefix.Contains("image/webp")) extension = ".webp";
+                else if (prefix.Contains("image/svg")) extension = ".svg";
+            }
+
+            var bytes = Convert.FromBase64String(rawBase64);
+            if (bytes.Length > 3 * 1024 * 1024)
+            {
+                return BadRequest(new { error = "Kích thước ảnh không được vượt quá 3MB" });
+            }
+
+            var webRoot = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadDir = Path.Combine(webRoot, "uploads", "avatars");
+            Directory.CreateDirectory(uploadDir);
+
+            var fileName = $"avatar_{CurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{extension}";
+            var filePath = Path.Combine(uploadDir, fileName);
+            await System.IO.File.WriteAllBytesAsync(filePath, bytes, ct);
+
+            var avatarUrl = $"/uploads/avatars/{fileName}";
+            var updateResult = await _service.UpdateMeAsync(CurrentUserId(), new UpdateProfileRequest { AvatarUrl = avatarUrl }, ct);
+            if (!updateResult.IsSuccess)
+            {
+                return MapResultExtensions.MapResult(this, updateResult);
+            }
+
+            return Ok(new { url = avatarUrl, user = updateResult.Value });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = $"Lỗi xử lý file ảnh: {ex.Message}" });
+        }
+    }
+
     /// <summary>Đổi mật khẩu (thu hồi refresh phiên khác).</summary>
     [HttpPut("me/password")]
     [Authorize]

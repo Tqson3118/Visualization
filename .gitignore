@@ -1,4 +1,4 @@
-﻿# Environment & Secrets
+# Environment & Secrets
 .env
 .env.*
 !.env.example
@@ -23,3 +23,8 @@ obj/
 .vs/
 .vscode/
 .idea/
+.vercel
+publish/
+backend/publish/
+backend_publish/
+*.zip

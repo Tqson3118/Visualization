@@ -3,19 +3,23 @@
 // Render bằng shadcn-vue Dialog (DialogScrollContent để giữ scroll khi nội dung dài).
 import { messages } from '@/i18n/vi';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogScrollContent, DialogTitle } from './dialog';
 
 const props = withDefaults(
   defineProps<{
     open: boolean;
     title?: string;
+    description?: string;
     closable?: boolean;
     width?: string;
+    isDirty?: boolean;
   }>(),
   {
     title: '',
+    description: '',
     closable: true,
     width: '560px',
+    isDirty: false,
   },
 );
 
@@ -24,15 +28,39 @@ const emit = defineEmits<{
 }>();
 
 function onOpenChange(next: boolean): void {
-  if (!next && props.open) emit('close');
+  if (!next && props.open) {
+    if (props.isDirty) {
+      const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+      if (!ok) return;
+    }
+    emit('close');
+  }
 }
 
-// Khi closable=false: chặn đóng bằng overlay/Esc + ẩn nút X (giữ hành vi Modal cũ).
+// Khi closable=false hoặc isDirty: kiểm soát đóng bằng overlay/Esc
 function onEscapeKeyDown(event: Event): void {
-  if (!props.closable) event.preventDefault();
+  if (!props.closable) {
+    event.preventDefault();
+    return;
+  }
+  if (props.isDirty) {
+    const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+    if (!ok) {
+      event.preventDefault();
+    }
+  }
 }
 function onPointerDownOutside(event: Event): void {
-  if (!props.closable) event.preventDefault();
+  if (!props.closable) {
+    event.preventDefault();
+    return;
+  }
+  if (props.isDirty) {
+    const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+    if (!ok) {
+      event.preventDefault();
+    }
+  }
 }
 </script>
 
@@ -47,6 +75,7 @@ function onPointerDownOutside(event: Event): void {
       <DialogHeader>
         <DialogTitle v-if="title">{{ title }}</DialogTitle>
         <DialogTitle v-else class="sr-only">{{ messages.common.close }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ description || title || messages.common.close }}</DialogDescription>
       </DialogHeader>
       <div>
         <slot />

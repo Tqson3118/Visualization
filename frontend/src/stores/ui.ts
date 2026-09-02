@@ -25,11 +25,12 @@ export const useUiStore = defineStore('ui', () => {
   const sidebarOpen = ref(false);
   const theme = ref<'light' | 'dark'>(readStoredTheme());
 
-  /** Áp class .dark + color-scheme lên <html> mỗi khi theme đổi (dark mặc định — ghi đè light cũ). */
+  /** Áp class .dark / .light + color-scheme lên <html> mỗi khi theme đổi */
   watch(
     theme,
     (value) => {
       document.documentElement.classList.toggle('dark', value === 'dark');
+      document.documentElement.classList.toggle('light', value === 'light');
       document.documentElement.style.colorScheme = value;
       try {
         localStorage.setItem(THEME_KEY, value);
@@ -37,7 +38,7 @@ export const useUiStore = defineStore('ui', () => {
         /* ignore */
       }
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   );
 
   /** showToast — giữ API cũ (ui.showToast(msg, type)) nhưng render bằng vue-sonner. */

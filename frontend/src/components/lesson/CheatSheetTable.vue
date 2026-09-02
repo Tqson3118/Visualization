@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   BookOpen,
   Play,
@@ -13,6 +14,8 @@ import {
   Search,
   Check,
   TrendingUp,
+  Lock,
+  Crown,
 } from 'lucide-vue-next';
 
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
@@ -22,6 +25,14 @@ import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { messages } from '@/i18n/vi';
 import { normalizeVi } from '@/utils/searchNormalize';
+import { useAuthStore } from '@/stores/auth';
+import { useGamificationStore } from '@/stores/gamification';
+import { useUiStore } from '@/stores/ui';
+
+const auth = useAuthStore();
+const gamification = useGamificationStore();
+const ui = useUiStore();
+const router = useRouter();
 
 const emit = defineEmits<{
   'open-simulation': [key: string];
@@ -66,7 +77,18 @@ function referenceUrl(key: string): string | undefined {
   return ref?.wikipedia ?? ref?.geeksforgeeks;
 }
 
+const showUpgradeModal = ref(false);
+
+const isPremiumUser = computed(() => {
+  return Boolean((auth.user as { isPremium?: boolean } | null)?.isPremium) || gamification.isPremium || auth.user?.role === 'ADMIN' || auth.user?.role === 'TEACHER';
+});
+
 function printCheatSheet(): void {
+  if (!isPremiumUser.value) {
+    showUpgradeModal.value = true;
+    ui.showToast('Xuất PDF CheatSheet là đặc quyền dành cho tài khoản Premium.', 'warning');
+    return;
+  }
   window.print();
 }
 
@@ -123,7 +145,10 @@ const REFERENCE_DOCS = [
 
       <div class="flex items-center gap-2">
         <Button variant="secondary" size="sm" class="gap-1.5" @click="printCheatSheet">
-          <Printer :size="15" /> Xuất File PDF / In CheatSheet (A4)
+          <Lock v-if="!isPremiumUser" :size="14" class="text-amber-400" />
+          <Printer v-else :size="15" />
+          Xuất File PDF / In CheatSheet (A4)
+          <Badge v-if="!isPremiumUser" variant="warning" class="text-[10px] ml-1">Premium</Badge>
         </Button>
       </div>
     </div>
@@ -300,6 +325,52 @@ const REFERENCE_DOCS = [
         {{ messages.cheatsheet.source(CATALOG.length) }}
       </footer>
     </div>
+
+    <!-- Upgrade Premium Modal for Free Users (QA-006) -->
+    <Teleport to="body">
+      <div
+        v-if="showUpgradeModal"
+        class="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in no-print"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upgrade-modal-title"
+      >
+        <div class="relative w-full max-w-md p-6 bg-[#161b22] border border-[#30363d] rounded-2xl shadow-2xl space-y-5 text-center text-white">
+          <div class="w-14 h-14 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-950/20">
+            <Crown :size="28" />
+          </div>
+
+          <div class="space-y-2">
+            <h3 id="upgrade-modal-title" class="text-xl font-extrabold text-white tracking-tight">
+              Mở khóa Xuất PDF CheatSheet
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Tính năng in và xuất tài liệu CheatSheet chuẩn định dạng A4 là đặc quyền dành riêng cho học viên đăng ký gói <strong>Premium / Pro</strong>.
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-[#0d1117] border border-[#21262d] text-left text-xs space-y-2 text-slate-300">
+            <div class="flex items-center gap-2 text-amber-300 font-semibold">
+              <Sparkles :size="14" /> Quyền lợi gói Premium:
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-slate-400 text-[11px] pl-1">
+              <li>Xuất file PDF trọn bộ 44 thuật toán chuẩn chỉnh</li>
+              <li>Mở rộng giới hạn 30 tim không giới hạn bài học</li>
+              <li>Mở khóa toàn bộ kho bài tập CodeLab nâng cao</li>
+            </ul>
+          </div>
+
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <Button variant="secondary" size="sm" class="text-xs" @click="showUpgradeModal = false">
+              Để sau
+            </Button>
+            <Button variant="primary" size="sm" class="gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white border-none shadow-md shadow-amber-900/30" @click="router.push('/premium'); showUpgradeModal = false">
+              <Crown :size="14" /> Nâng cấp Premium ngay
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 

@@ -92,14 +92,9 @@ export function createInsertionGenerator(): SimulationGenerator {
           trace.stats.comparisons++;
           trace.push({
             line: 5,
-            explanation: `Kiểm tra j=${j} ≥ 0 và a[${j}]=${a[j]} > key=${key}.`,
+            explanation: `Kiểm tra: j=${j} ≥ 0 và a[${j}]=${a[j]} > key=${key} → đúng, cần dịch sang phải.`,
             structure: arrayStructure(a, { ...statuses, [j]: 'active' }),
-            annotations: [`a[${j}]=${a[j]} > key=${key}?`],
-          });
-          trace.push({
-            line: 5,
-            explanation: `a[${j}]=${a[j]} > key=${key} → đúng, dịch a[${j}] sang phải.`,
-            structure: arrayStructure(a, { ...statuses, [j]: 'active' }),
+            annotations: [`${a[j]} > ${key} (đúng)`],
           });
 
           a[j + 1] = a[j];

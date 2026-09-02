@@ -34,15 +34,6 @@ const avatarUploading = ref(false);
 const avatarFileInput = ref<HTMLInputElement | null>(null);
 const avatarLocalFile = ref<File | null>(null);
 const avatarLocalPreview = ref<string | null>(null);
-
-const PRESET_AVATARS = [
-  { key: 'cyber', name: 'Cyber Hacker', url: '/assets/avatars/cyber-hacker.svg' },
-  { key: 'gold', name: 'Gold Knight', url: '/assets/avatars/gold-knight.svg' },
-  { key: 'neon', name: 'Neon Ninja', url: '/assets/avatars/neon-ninja.svg' },
-  { key: 'wizard', name: 'Wizard', url: '/assets/avatars/wizard.svg' },
-  { key: 'bot', name: 'AI Bot', url: '/assets/avatars/ai-bot.svg' },
-];
-
 const isPremiumUser = computed(() => {
   return gamification.isPremium || auth.user?.role === 'ADMIN' || auth.user?.role === 'TEACHER';
 });
@@ -99,24 +90,19 @@ async function uploadLocalAvatar(): Promise<void> {
       reader.readAsDataURL(avatarLocalFile.value!);
     });
 
-    const res = await fetch('/api/upload-avatar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image: base64,
-        name: avatarLocalFile.value.name,
-      }),
+    const { client } = await import('@/api/client');
+    const res = await client.post<{ url: string }>('/auth/me/avatar', {
+      image: base64,
+      name: avatarLocalFile.value.name,
     });
 
-    const data = await res.json();
-    if (!res.ok || !data?.url) {
-      throw new Error(data?.error || 'Không thể tải ảnh lên máy chủ lưu trữ.');
+    if (res.data?.url) {
+      await auth.fetchMe();
+      ui.showToast('Tải lên và cập nhật ảnh đại diện từ thiết bị thành công!', 'success');
+      cancelLocalAvatar();
+    } else {
+      throw new Error('Không nhận được đường dẫn ảnh sau khi tải lên.');
     }
-
-    await authApi.updateProfile({ avatarUrl: data.url });
-    await auth.fetchMe();
-    ui.showToast('Tải lên và cập nhật ảnh đại diện từ thiết bị thành công!', 'success');
-    cancelLocalAvatar();
   } catch (err) {
     avatarError.value = err instanceof Error ? err.message : 'Tải ảnh thất bại.';
   } finally {
@@ -390,32 +376,6 @@ async function handleConfirmDisable2Fa(): Promise<void> {
               </Button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Preset Avatars Gallery -->
-      <div>
-        <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-2">Hoặc chọn nhanh Avatar mẫu có sẵn</label>
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <button
-            v-for="p in PRESET_AVATARS"
-            :key="p.key"
-            type="button"
-            class="p-3 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer group text-left"
-            :class="auth.user?.avatarUrl === p.url
-              ? 'bg-vdsa-accent/20 border-vdsa-accent shadow-lg shadow-vdsa-accent/20 ring-1 ring-vdsa-accent'
-              : 'bg-vdsa-surface border-vdsa-border hover:border-vdsa-accent/60 hover:bg-vdsa-hover'"
-            @click="updateAvatarUrl(p.url)"
-          >
-            <img :src="p.url" :alt="p.name" class="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
-            <span class="text-[11px] font-bold text-white text-center truncate w-full">{{ p.name }}</span>
-            <span v-if="auth.user?.avatarUrl === p.url" class="text-[10px] text-vdsa-green font-semibold flex items-center gap-0.5">
-              <Check :size="10" /> Đang dùng
-            </span>
-            <span v-else class="text-[10px] text-vdsa-muted group-hover:text-white transition-colors">
-              Chọn avatar
-            </span>
-          </button>
         </div>
       </div>
 

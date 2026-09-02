@@ -1,43 +1,57 @@
 <template>
-  <div v-if="show" class="fixed inset-0 bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
-    <div class="bg-vdsa-bg-secondary border border-vdsa-border rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden">
-      <div class="w-16 h-16 rounded-full bg-vdsa-green/20 border border-vdsa-green/30 flex items-center justify-center text-vdsa-green mx-auto mb-4">
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4m6 17v-4m0 0a2 2 0 100-4 2 2 0 000 4zm3.243-8.657a6 6 0 011.414 4.243H16m0 0a6 6 0 01-4.243-1.414M16 17.5a6 6 0 00-4.243-1.414" />
-        </svg>
-      </div>
-      <h3 class="text-2xl font-black text-white">Xuất Sắc!</h3>
-      <p class="text-vdsa-secondary mt-2 text-sm">Bạn đã hoàn thành bài học và tích lũy thêm điểm kinh nghiệm.</p>
+  <Teleport to="body">
+    <div v-if="show" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div class="bg-[#131220] border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-[0_0_50px_rgba(168,85,247,0.25)] relative overflow-hidden">
+        <!-- Glowing aura -->
+        <div class="absolute -top-16 -left-16 w-40 h-40 rounded-full bg-emerald-500/15 blur-[60px] pointer-events-none"></div>
+        <div class="absolute -bottom-16 -right-16 w-40 h-40 rounded-full bg-purple-600/20 blur-[60px] pointer-events-none"></div>
 
-      <div class="my-6 p-4 rounded-2xl bg-vdsa-hover border border-vdsa-border inline-flex flex-col items-center">
-        <span class="text-xs text-vdsa-muted font-bold uppercase tracking-widest">Điểm nhận được</span>
-        <span class="text-3xl font-black text-vdsa-green mt-1">+{{ xpReward }} XP</span>
-      </div>
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto mb-4 shadow-[0_0_24px_rgba(16,185,129,0.3)] animate-pulse">
+          <CheckCircle2 class="w-9 h-9" />
+        </div>
+        
+        <div class="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-extrabold uppercase tracking-wider mb-2">
+          <Sparkles class="w-3 h-3" /> Hoàn thành bài học
+        </div>
 
-      <div class="flex flex-col gap-3">
-        <button
-          v-if="nextLessonId"
-          @click="$emit('go-next', nextLessonId)"
-          class="w-full py-3 bg-gradient-to-r from-vdsa-accent to-vdsa-purple hover:from-vdsa-accent hover:to-vdsa-purple text-white font-bold rounded-2xl transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
-        >
-          <span>Học bài tiếp theo</span>
-          <BaseIcon name="arrow-right" class="w-4 h-4" />
-        </button>
-        <!-- D3/Slice0.3: nút quiz cũ là dead-end (không có route quiz riêng; quiz đã nhúng
-             trong flow Theory→Quiz→CodeLab) → ẩn để tránh nút chết. -->
-        <button
-          @click="$emit('close')"
-          class="w-full py-3 bg-vdsa-hover hover:bg-vdsa-hover text-white font-bold rounded-2xl transition-all border border-vdsa-border cursor-pointer"
-        >
-          Quay lại lộ trình
-        </button>
+        <h3 class="text-2xl font-black text-white tracking-tight">Xuất Sắc!</h3>
+        <p class="text-slate-300 mt-1.5 text-xs sm:text-sm leading-relaxed">
+          Bạn đã hoàn thành bài học và mở khóa nội dung tiếp theo trong lộ trình.
+        </p>
+
+        <div class="my-5 p-4 rounded-2xl bg-[#1a182c] border border-purple-500/20 inline-flex flex-col items-center w-full shadow-inner">
+          <span class="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+            <Zap class="w-3.5 h-3.5 text-amber-400" /> Điểm kinh nghiệm nhận được
+          </span>
+          <span class="text-3xl font-black text-amber-400 mt-1 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+            +{{ xpReward }} XP
+          </span>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <button
+            v-if="nextLessonId"
+            @click="$emit('go-next', nextLessonId)"
+            class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 hover:scale-[1.02]"
+          >
+            <span>Học bài tiếp theo</span>
+            <ArrowRight class="w-4 h-4" />
+          </button>
+
+          <button
+            @click="$emit('close')"
+            class="w-full py-3 bg-[#1e1c30] hover:bg-[#27243f] text-slate-200 hover:text-white font-bold rounded-xl transition-all border border-slate-700/60 cursor-pointer text-xs sm:text-sm"
+          >
+            Quay lại lộ trình
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import BaseIcon from '@/shared/components/BaseIcon.vue';
+import { CheckCircle2, Sparkles, Zap, ArrowRight } from 'lucide-vue-next';
 
 defineProps<{
   show: boolean;
@@ -51,3 +65,13 @@ defineEmits<{
   (e: 'close'): void;
 }>();
 </script>
+
+<style scoped>
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+</style>

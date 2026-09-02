@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
+  Copy,
   Download,
   FileSpreadsheet,
   HelpCircle,
@@ -81,6 +82,12 @@ watch(
   { deep: true },
 );
 
+function isQuestionComplete(q: InlineQuestionItem): boolean {
+  const hasContent = q.content.trim().length > 0;
+  const validOpts = q.options.filter((o) => o.trim().length > 0);
+  return hasContent && validOpts.length >= 2;
+}
+
 function addQuestion(): void {
   questions.value.push({
     content: '',
@@ -91,11 +98,25 @@ function addQuestion(): void {
   });
 }
 
+function duplicateQuestion(idx: number): void {
+  const target = questions.value[idx];
+  if (!target) return;
+  questions.value.splice(idx + 1, 0, {
+    content: `${target.content} (Bản sao)`,
+    options: [...target.options],
+    correctIndex: target.correctIndex,
+    explanation: target.explanation,
+    points: target.points,
+  });
+  ui.showToast('Đã nhân bản câu hỏi', 'success');
+}
+
 function removeQuestion(idx: number): void {
   if (questions.value.length > 1) {
     questions.value.splice(idx, 1);
   }
 }
+
 
 // ── Preset Templates ──
 function addSampleQuestions(): void {
@@ -293,9 +314,21 @@ function confirmImport(): void {
               {{ idx + 1 }}
             </span>
             <span class="text-xs font-bold text-slate-200">Câu hỏi #{{ idx + 1 }}</span>
+            <span
+              v-if="isQuestionComplete(q)"
+              class="text-[10px] font-semibold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full"
+            >
+              Hoàn thiện ✓
+            </span>
+            <span
+              v-else
+              class="text-[10px] font-semibold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1"
+            >
+              <AlertCircle :size="11" /> Chưa hoàn thiện
+            </span>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 text-xs text-slate-400">
               <span>Điểm:</span>
               <input
@@ -306,6 +339,15 @@ function confirmImport(): void {
                 class="w-14 h-7 rounded bg-slate-900 border border-slate-700 px-2 text-center text-xs text-white focus:outline-none focus:border-purple-500"
               />
             </div>
+
+            <button
+              type="button"
+              class="text-slate-400 hover:text-sky-300 p-1.5 rounded-lg hover:bg-sky-500/10 transition-colors"
+              title="Nhân bản câu hỏi này"
+              @click="duplicateQuestion(idx)"
+            >
+              <Copy :size="14" />
+            </button>
 
             <button
               v-if="questions.length > 1"

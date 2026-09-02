@@ -27,6 +27,8 @@ public interface IGamificationService
     Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(int userId, CancellationToken ct);
     Task<Result<PremiumUpgradeResultDto>> UpgradePremiumAsync(int userId, PremiumUpgradeRequest request, CancellationToken ct);
     Task<Result<PremiumStatusDto>> MockPayAsync(int userId, PremiumMockPayRequest request, CancellationToken ct);
+    Task<Result<PaymentWebhookResultDto>> ProcessPaymentWebhookAsync(PaymentWebhookRequest request, CancellationToken ct);
     Task<Result<List<CheatsheetItemDto>>> GetCheatsheetAsync(string? structure, CancellationToken ct);
     Task<Result<BenchmarkRunResponse>> RunBenchmarkAsync(int userId, BenchmarkRequest request, CancellationToken ct);
+    Task RecordActivityAsync(int userId, CancellationToken ct = default);
 }

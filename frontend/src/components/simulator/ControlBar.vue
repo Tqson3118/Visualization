@@ -23,7 +23,7 @@
           size="sm"
           :disabled="currentIndex <= 0"
           :aria-label="messages.simulator.stepBack"
-          title="Bước lùi 1 bước (←)"
+          :title="status === 'running' ? 'Tạm dừng và lùi 1 bước (←)' : 'Bước lùi 1 bước (←)'"
           class="control-bar__icon-btn"
           @click="emit('step-back')"
         >
@@ -63,7 +63,7 @@
           size="sm"
           :disabled="currentIndex >= totalFrames - 1"
           :aria-label="messages.simulator.stepForward"
-          title="Bước tới 1 bước (→)"
+          :title="status === 'running' ? 'Tạm dừng và tiến 1 bước (→)' : 'Bước tới 1 bước (→)'"
           class="control-bar__icon-btn"
           @click="emit('step-forward')"
         >

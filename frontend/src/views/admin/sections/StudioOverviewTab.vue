@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onActivated, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   ArrowRight,
@@ -20,7 +20,6 @@ import {
 } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
-import { useClassStore } from '@/stores/classStore';
 import { useUiStore } from '@/stores/ui';
 import * as lessonsApi from '@/api/lessons';
 import { courseApi, type CourseListDto } from '@/services/courseApi';
@@ -33,9 +32,13 @@ const emit = defineEmits<{
 }>();
 
 const auth = useAuthStore();
-const classStore = useClassStore();
 const ui = useUiStore();
 const router = useRouter();
+
+function handleViewAllCurriculum(): void {
+  void router.push({ path: '/studio', query: { tab: 'curriculum' } });
+  emit('switchTab', 'curriculum');
+}
 
 const loading = ref(true);
 const totalLessons = ref(0);
@@ -44,15 +47,33 @@ const totalCourses = ref(0);
 const myLessonsCount = ref(0);
 const myTopicsCount = ref(0);
 const myCoursesCount = ref(0);
-const recentLessons = ref<lessonsApi.LessonSummary[]>([]);
+interface HubSection {
+  title: string;
+  description: string;
+  icon: any;
+  tab?: 'curriculum' | 'feedback';
+  to?: { name: string } | string;
+  badge?: string;
+  actionLabel: string;
+  accentColor: string;
+}
 
-// 4 Hubs
-const sections = [
+interface WorkflowStepItem {
+  step: string;
+  title: string;
+  desc: string;
+  tab?: 'curriculum' | 'feedback';
+  to?: { name: string } | string;
+  btnText: string;
+}
+
+// 3 Hubs (Tạm thời ẩn phần Lớp học)
+const sections: HubSection[] = [
   {
     title: 'Giáo trình & Bài giảng',
     description: 'Thiết kế giáo trình học, tổ chức cây Chương - Bài giảng, biên soạn Markdown GFM và gắn mô phỏng trực quan.',
     icon: Network,
-    tab: 'curriculum' as const,
+    tab: 'curriculum',
     badge: 'Cốt lõi',
     actionLabel: 'Mở Studio biên soạn',
     accentColor: 'text-vdsa-purple-light bg-vdsa-purple/10 border-vdsa-purple/20',
@@ -61,42 +82,34 @@ const sections = [
     title: 'Quiz & Codelab trong lộ trình',
     description: 'Thêm Quiz trắc nghiệm và Lab chấm code tự động vào cây lộ trình — mỗi item một mục trên cây.',
     icon: ClipboardList,
-    tab: 'curriculum' as const,
+    tab: 'curriculum',
     actionLabel: 'Mở cây lộ trình',
     accentColor: 'text-vdsa-yellow bg-vdsa-yellow/10 border-vdsa-yellow/20',
-  },
-  {
-    title: 'Quản lý Lớp học & Thành viên',
-    description: 'Tạo lớp học, cấp mã mời, quản lý danh sách học viên và phân phối lộ trình học nội bộ cho từng lớp.',
-    icon: Users,
-    to: { name: 'classes' },
-    actionLabel: 'Quản lý Lớp học',
-    accentColor: 'text-vdsa-red bg-vdsa-red/10 border-vdsa-red/20',
   },
   {
     title: 'Trung tâm Báo cáo & Phản hồi',
     description: 'Theo dõi các thắc mắc bài học, phản hồi góp ý trực tiếp và xử lý báo cáo từ học viên.',
     icon: ShieldAlert,
-    tab: 'feedback' as const,
+    tab: 'feedback',
     actionLabel: 'Xử lý Báo cáo',
     accentColor: 'text-vdsa-purple-light bg-vdsa-accent/10 border-vdsa-accent/20',
   },
 ];
 
-// Workflow steps
-const workflowSteps = [
+// Workflow steps (4 bước chuẩn)
+const workflowSteps: WorkflowStepItem[] = [
   {
     step: '01',
     title: 'Chủ đề',
     desc: 'Tạo chuyên đề kiến thức (Sorting, Trees, Graphs...)',
-    tab: 'curriculum' as const,
+    tab: 'curriculum',
     btnText: 'Tạo chủ đề',
   },
   {
     step: '02',
     title: 'Soạn bài',
     desc: 'Soạn lý thuyết GFM Markdown + định dạng trực quan ngay trong panel cây lộ trình',
-    tab: 'curriculum' as const,
+    tab: 'curriculum',
     btnText: 'Mở cây lộ trình',
   },
   {
@@ -110,17 +123,12 @@ const workflowSteps = [
     step: '04',
     title: 'Quiz & Lab',
     desc: 'Thêm quiz 4 đáp án và lab chấm code tự động vào cây lộ trình',
-    tab: 'curriculum' as const,
+    tab: 'curriculum',
     btnText: 'Thêm quiz/lab',
   },
-  {
-    step: '05',
-    title: 'Giao cho lớp',
-    desc: 'Lớp trỏ vào lộ trình active — học sinh tham gia học',
-    to: { name: 'classes' },
-    btnText: 'Mở lớp học',
-  },
 ];
+
+const recentLessons = ref<lessonsApi.LessonSummary[]>([]);
 
 async function loadStudioData(): Promise<void> {
   loading.value = true;
@@ -129,28 +137,34 @@ async function loadStudioData(): Promise<void> {
       lessonsApi.fetchLessons({ page: 1, pageSize: 1000 }),
       lessonsApi.fetchTopics().catch(() => [] as lessonsApi.Topic[]),
       courseApi.getCourses().catch(() => [] as CourseListDto[]),
-      classStore.fetchClasses().catch(() => {}),
     ]);
 
-    totalLessons.value = lessonData.total || (lessonData as any).totalCount || lessonData.items.length;
-    totalTopics.value = topicTree.length;
-    totalCourses.value = courseList.length;
-
     const currentUserId = auth.user?.id;
-    if (currentUserId) {
-      myLessonsCount.value = lessonData.items.filter((l) => (l as any).createdBy === currentUserId).length;
-      myTopicsCount.value = topicTree.filter((t) => (t as any).createdBy === currentUserId).length;
-      myCoursesCount.value = courseList.filter(
-        (c) => (c as any).createdBy === currentUserId || (c as any).authorId === currentUserId,
-      ).length;
-    }
 
-    if (auth.role === 'TEACHER' && currentUserId) {
-      const myLessons = lessonData.items.filter((l) => (l as any).createdBy === currentUserId);
-      recentLessons.value = myLessons.length > 0 ? myLessons.slice(0, 8) : lessonData.items.slice(0, 8);
-    } else {
-      recentLessons.value = lessonData.items.slice(0, 8);
-    }
+    // Lọc giáo trình thuộc quyền của giảng viên (hoặc admin)
+    const myCourses = courseList.filter(
+      (c) => auth.role === 'ADMIN' || !currentUserId || (c as any).createdBy === currentUserId || (c as any).authorId === currentUserId || (c as any).createdBy == null || (c as any).createdBy <= 1,
+    );
+    myCoursesCount.value = myCourses.length;
+
+    // Lọc chủ đề / topic thuộc quyền của giảng viên
+    const myTopics = topicTree.filter(
+      (t) => auth.role === 'ADMIN' || !currentUserId || (t as any).createdBy === currentUserId || (t as any).authorId === currentUserId || (t as any).createdBy == null || (t as any).createdBy <= 1,
+    );
+    myTopicsCount.value = myTopics.length;
+
+    // Lọc bài học thuộc quyền của giảng viên
+    const myLessons = lessonData.items.filter(
+      (l) => auth.role === 'ADMIN' || !currentUserId || (l as any).createdBy === currentUserId || (l as any).authorId === currentUserId || (l as any).createdBy == null || (l as any).createdBy <= 1,
+    );
+    myLessonsCount.value = (auth.role === 'ADMIN' && (lessonData.total ?? 0) > 0) ? lessonData.total : myLessons.length;
+
+    myLessons.sort((a, b) => {
+      const timeA = new Date((a as any).updatedAt || (a as any).createdAt || 0).getTime();
+      const timeB = new Date((b as any).updatedAt || (b as any).createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+    recentLessons.value = myLessons.slice(0, 8);
   } catch {
     ui.showToast('Không thể tải một số dữ liệu tổng quan.', 'warning');
   } finally {
@@ -159,6 +173,11 @@ async function loadStudioData(): Promise<void> {
 }
 
 onMounted(() => {
+  void loadStudioData();
+  window.addEventListener('focus', loadStudioData);
+});
+
+onActivated(() => {
   void loadStudioData();
 });
 </script>
@@ -193,15 +212,15 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- 4 KPI Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <!-- 3 KPI Cards (Hiển thị tài nguyên của tôi) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Card class="p-4 bg-vdsa-surface border border-vdsa-border rounded-2xl flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center font-bold">
           <BookOpen :size="22" />
         </div>
         <div>
           <p class="text-[11px] font-bold text-vdsa-muted uppercase">Tổng bài học</p>
-          <h3 class="text-xl font-black text-white mt-0.5">{{ totalLessons }}</h3>
+          <h3 class="text-xl font-black text-white mt-0.5">{{ myLessonsCount }}</h3>
         </div>
       </Card>
 
@@ -211,7 +230,7 @@ onMounted(() => {
         </div>
         <div>
           <p class="text-[11px] font-bold text-vdsa-muted uppercase">Chương / Topic</p>
-          <h3 class="text-xl font-black text-white mt-0.5">{{ totalTopics }}</h3>
+          <h3 class="text-xl font-black text-white mt-0.5">{{ myTopicsCount }}</h3>
         </div>
       </Card>
 
@@ -221,23 +240,13 @@ onMounted(() => {
         </div>
         <div>
           <p class="text-[11px] font-bold text-vdsa-muted uppercase">Giáo trình (Course)</p>
-          <h3 class="text-xl font-black text-white mt-0.5">{{ totalCourses }}</h3>
-        </div>
-      </Card>
-
-      <Card class="p-4 bg-vdsa-surface border border-vdsa-border rounded-2xl flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center font-bold">
-          <Users :size="22" />
-        </div>
-        <div>
-          <p class="text-[11px] font-bold text-vdsa-muted uppercase">Lớp học</p>
-          <h3 class="text-xl font-black text-white mt-0.5">{{ classStore.classes.length }}</h3>
+          <h3 class="text-xl font-black text-white mt-0.5">{{ myCoursesCount }}</h3>
         </div>
       </Card>
     </div>
 
-    <!-- 4 Hubs -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- 3 Hubs -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div
         v-for="hub in sections"
         :key="hub.title"
@@ -279,16 +288,16 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 5-Step Pipeline Workflow with dashed connector -->
+    <!-- 4-Step Pipeline Workflow with dashed connector -->
     <div class="p-6 rounded-3xl bg-vdsa-surface border border-vdsa-border space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-          <Sparkles :size="16" class="text-amber-400" /> Quy trình 5 bước biên soạn & giảng dạy
+          <Sparkles :size="16" class="text-amber-400" /> Quy trình 4 bước biên soạn & giảng dạy
         </h3>
         <span class="text-xs text-vdsa-muted">Chuẩn hóa theo Quyết định D0</span>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 relative">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 relative">
         <div
           v-for="(st, idx) in workflowSteps"
           :key="st.step"
@@ -327,7 +336,7 @@ onMounted(() => {
         <h3 class="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
           <BookOpen :size="16" class="text-vdsa-purple" /> Bài học cập nhật gần đây
         </h3>
-        <Button variant="ghost" size="sm" class="text-xs" @click="emit('switchTab', 'curriculum')">
+        <Button variant="ghost" size="sm" class="text-xs" @click="handleViewAllCurriculum">
           Xem toàn bộ bài học →
         </Button>
       </div>
@@ -363,18 +372,20 @@ onMounted(() => {
               <td class="p-3 text-right space-x-2">
                 <button
                   type="button"
-                  class="px-2.5 py-1 rounded bg-vdsa-bg-secondary hover:bg-slate-700 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1"
-                  @click="router.push({ path: '/studio', query: { tab: 'curriculum' } })"
+                  class="px-2.5 py-1 rounded bg-vdsa-bg-secondary hover:bg-slate-700 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1 transition-colors"
+                  @click="router.push({ path: '/studio', query: { tab: 'curriculum', lessonId: l.id, courseId: (l as any).courseId || (l as any).topicId } })"
+                  title="Chỉnh sửa bài học trên cây lộ trình"
                 >
-                  <Edit :size="12" /> Sửa trong Studio
+                  <Edit :size="12" /> Sửa bài
                 </button>
-                <a
-                  :href="`/lessons/${l.id}`"
+                <router-link
+                  :to="{ name: 'lesson-study', params: { id: l.id }, query: { courseId: (l as any).courseId || (l as any).topicId || 1, preview: 'true' } }"
                   target="_blank"
-                  class="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs font-medium inline-flex items-center gap-1"
+                  class="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs font-medium inline-flex items-center gap-1 transition-colors"
+                  title="Xem trước giao diện bài học (kể cả bản nháp)"
                 >
-                  <Eye :size="12" /> Xem
-                </a>
+                  <Eye :size="12" /> Xem trước
+                </router-link>
               </td>
             </tr>
             <tr v-if="recentLessons.length === 0">

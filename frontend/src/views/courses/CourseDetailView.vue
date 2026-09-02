@@ -16,9 +16,10 @@
     <div v-else-if="course">
       <!-- ── HEADER (kiểu Educative: breadcrumb + title/stats/buttons căn giữa) ── -->
       <div class="container mx-auto max-w-5xl px-4 pt-10 pb-12">
-        <!-- Breadcrumb: Khóa học / <tên khóa> -->
+        <!-- Breadcrumb: Lớp học hoặc Lộ trình / <tên khóa> -->
         <nav class="flex items-center gap-2 text-sm text-vdsa-muted mb-6 justify-center" aria-label="Breadcrumb">
-          <router-link :to="{ name: 'path-list' }" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
+          <router-link v-if="fromClassId" :to="`/classes/${fromClassId}`" class="font-semibold hover:text-white transition-colors">Lớp học</router-link>
+          <router-link v-else :to="{ name: 'path-list' }" class="font-semibold hover:text-white transition-colors">Lộ trình</router-link>
           <BaseIcon name="chevron-right" class="w-3.5 h-3.5 text-vdsa-disabled" />
           <span class="text-vdsa-secondary font-medium truncate">{{ course.title }}</span>
         </nav>
@@ -52,10 +53,10 @@
 
             <button
               v-if="course?.lessons?.length && courseStore.isEnrolled(course.id)"
-              @click="startLesson(course.lessons[0])"
-              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0"
+              @click="startLesson(nextStudyLesson!)"
+              class="px-8 py-3.5 bg-vdsa-accent hover:bg-vdsa-accent-light text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-vdsa-accent hover:shadow-[0_0_32px_rgba(168,85,247,0.6)] hover:scale-[1.04] hover:ring-2 hover:ring-vdsa-accent-light/60 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0 max-w-full"
             >
-              Bắt đầu học <BaseIcon name="play" class="w-4 h-4" />
+              <span class="truncate">{{ nextStudyLessonLabel }}</span> <BaseIcon name="play" class="w-4 h-4 shrink-0" />
             </button>
             <button @click="scrollToLessons" class="px-8 py-3.5 bg-vdsa-surface hover:bg-vdsa-accent/10 hover:text-vdsa-accent-light hover:border-vdsa-accent/50 text-white font-bold rounded-xl border border-vdsa-border transition-all duration-200 flex items-center justify-center gap-2 text-base cursor-pointer whitespace-nowrap shrink-0">
               Nội dung lộ trình <BaseIcon name="chevron-down" class="w-4 h-4" />
@@ -200,11 +201,11 @@
             </div>
           </section>
 
-          <!-- GÓP Ý CHO GIẢNG VIÊN (tương tác 2 chiều — CHỈ hiện khi hoàn thành 100% lộ trình) -->
-          <section v-if="course.progressPercent >= 100" id="course-feedback" class="scroll-mt-8">
+          <!-- GÓP Ý CHO GIẢNG VIÊN (tương tác 2 chiều) -->
+          <section id="course-feedback" class="scroll-mt-8">
             <h2 class="text-xl font-bold text-white uppercase tracking-wider mb-2">Góp ý cho giảng viên</h2>
             <p class="text-vdsa-muted text-sm mb-6">
-              Đây là lộ trình học có sẵn — hãy gửi đóng góp ý kiến, báo lỗi hoặc đề xuất nội dung, giảng viên sẽ đọc và phản hồi bạn tại đây.
+              Bạn có thắc mắc, đóng góp ý kiến, báo lỗi hoặc đề xuất nội dung? Hãy gửi tại đây — giảng viên sẽ đọc và phản hồi bạn.
             </p>
 
             <form v-if="auth.isAuthenticated" @submit.prevent="submitFeedback" class="p-6 rounded-2xl border border-vdsa-border bg-vdsa-surface">
@@ -308,8 +309,8 @@
           <h3 class="text-xl font-bold text-white">Mở khóa lộ trình</h3>
         </div>
         <p class="text-vdsa-secondary mb-6 leading-relaxed">
-          Bạn có chắc muốn mở khóa lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
-          <br /><span class="text-xs text-emerald-400 font-medium inline-block mt-2">Mở khóa vĩnh viễn lộ trình này với 1 🤍 (Học không giới hạn toàn bộ bài học bên trong)</span>
+          Bạn có chắc muốn đăng ký lộ trình <strong class="text-white">{{ course?.title }}</strong> này không?
+          <br /><span class="text-xs text-purple-300 font-medium inline-block mt-2">Đăng ký lộ trình với 1 🤍. Bài 1 miễn phí, các bài tiếp theo tốn 1 🤍 khi tham gia lần đầu (học lại miễn phí sau khi pass).</span>
         </p>
         <div class="flex gap-3 justify-end">
           <button
@@ -335,11 +336,12 @@
 <script setup lang="ts">
 defineOptions({ inheritAttrs: false });
 
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
+import { useHeartSystem } from '@/composables/useHeartSystem';
 import { useUiStore } from '@/stores/ui';
 import { courseApi, type CourseDetailDto, type CourseFeedbackDto, type CourseLessonDto } from '@/services/courseApi';
 import BaseIcon from '@/shared/components/BaseIcon.vue';
@@ -349,6 +351,7 @@ import { messages } from '@/i18n/vi';
 const courseStore = useCourseStore();
 const auth = useAuthStore();
 const gamification = useGamificationStore();
+const heartSystem = useHeartSystem();
 const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
@@ -423,28 +426,51 @@ const modules = computed<PathModuleGroup[]>(() => {
     if (!map.has(mTitle)) {
       map.set(mTitle, []);
     }
-    map.get(mTitle)!.push({
-      id: l.id,
-      lessonId: Number(l.id),
-      title: l.title,
-      sandboxType: l.sandboxType,
-      quizId: l.quizId ? Number(l.quizId) : undefined,
-      status: l.status,
-      isCompleted: l.status === 'Completed',
-      locked: !!l.locked,
-      xpReward: l.xpReward,
-    });
+    if (l.sandboxType !== 'folder') {
+      map.get(mTitle)!.push({
+        id: l.id,
+        nodeId: typeof l.nodeId === 'number' ? l.nodeId : Number(l.id),
+        lessonId: l.lessonId ? Number(l.lessonId) : undefined,
+        title: l.title,
+        sandboxType: l.sandboxType,
+        quizId: l.quizId ? Number(l.quizId) : undefined,
+        status: l.status,
+        isCompleted: l.status === 'Completed',
+        locked: !!l.locked,
+        xpReward: l.xpReward,
+      });
+    }
   });
-  return Array.from(map.entries()).map(([title, lessons]) => ({ title, lessons }));
+  return Array.from(map.entries())
+    .filter(([, lessons]) => lessons.length > 0)
+    .map(([title, lessons]) => ({ title, lessons }));
 });
 
 /** Adapter: PathModuleLesson → CourseLessonDto gốc rồi gọi startLesson. */
 function onModuleLessonSelect(lesson: PathModuleLesson): void {
   const target = (course.value?.lessons ?? []).find(
-    (l) => String(l.id) === String(lesson.lessonId ?? lesson.id),
+    (l) => String(l.id) === String(lesson.nodeId ?? lesson.id),
   );
   if (target) void startLesson(target);
 }
+
+/** C3: nút "Bắt đầu học" đưa học viên vào bài đang học dở — bài chưa hoàn thành đầu tiên. */
+const nextStudyLesson = computed<CourseLessonDto | null>(() => {
+  const lessons = (course.value?.lessons ?? []).filter((l) => l.sandboxType !== 'folder');
+  if (lessons.length === 0) return null;
+  return lessons.find((l) => l.status !== 'Completed' && !l.locked) ?? lessons.find((l) => l.status !== 'Completed') ?? lessons[0];
+});
+
+const nextStudyLessonLabel = computed(() => {
+  const lessons = (course.value?.lessons ?? []).filter((l) => l.sandboxType !== 'folder');
+  if (lessons.length === 0) return 'Bắt đầu học';
+  const isCompletedAll = lessons.length > 0 && lessons.every((l) => l.status === 'Completed');
+  if (isCompletedAll) return 'Ôn tập lộ trình';
+  const hasProgress = lessons.some((l) => l.status === 'Completed');
+  const target = nextStudyLesson.value;
+  if (!target) return 'Bắt đầu học';
+  return hasProgress ? 'Học tiếp: ' + target.title : 'Bắt đầu học';
+});
 
 const quizCount = computed(() => course.value?.lessons.filter(l => l.sandboxType === 'quiz' || l.quizId).length ?? 0);
 const labCount = computed(() => course.value?.lessons.filter(l => l.sandboxType === 'codelab').length ?? 0);
@@ -484,6 +510,21 @@ function scrollToLessons() {
   document.getElementById('course-lessons')?.scrollIntoView({ behavior: 'smooth' });
 }
 
+const fromClassId = computed(() => (route.query.classId ? Number(route.query.classId) : null));
+
+async function autoEnrollFromClass(): Promise<void> {
+  if (!auth.isAuthenticated || !course.value) return;
+  const isTeacherOrAdmin = auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN';
+  if (isTeacherOrAdmin) return;
+  if (courseStore.isEnrolled(course.value.id)) return;
+
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình (lớp học)');
+  if (!ok) return;
+
+  courseStore.enrollCourse(course.value.id);
+  ui.showToast('Đã mở khóa lộ trình cho lớp học! (-1 🤍)', 'success');
+}
+
 async function loadCourseDetail() {
   loading.value = true;
   error.value = null;
@@ -506,10 +547,32 @@ async function loadCourseDetail() {
       myFeedback.value = [];
     }
 
-    // Related courses: các khóa active khác (ẩn khi trống)
+    if (fromClassId.value && auth.isAuthenticated && course.value && !courseStore.isEnrolled(course.value.id)) {
+      await autoEnrollFromClass();
+    }
+
+    // Related courses: ưu tiên cùng topicId -> cùng category -> trùng từ khóa tiêu đề
     try {
-      const all = await courseApi.getCourses() as Array<{ id: string; title: string; description: string; xpReward: number }>;
-      relatedCourses.value = all.filter(c => String(c.id) !== courseId);
+      const all = await courseApi.getCourses() as Array<{ id: string; title: string; description: string; xpReward: number; topicId?: number; category?: string }>;
+      const currentTopicId = (course.value as any)?.topicId;
+      const currentCategory = course.value?.category?.toLowerCase() || '';
+      const titleWords = (course.value?.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+
+      const others = (all || []).filter(c => String(c.id) !== courseId);
+      const scored = others.map(c => {
+        let score = 0;
+        if (currentTopicId && c.topicId === currentTopicId) score += 10;
+        if (currentCategory && c.category?.toLowerCase() === currentCategory) score += 5;
+        const cTitleLower = (c.title || '').toLowerCase();
+        for (const word of titleWords) {
+          if (cTitleLower.includes(word)) score += 2;
+        }
+        return { course: c, score };
+      });
+
+      const relevant = scored.filter(s => s.score > 0);
+      relevant.sort((a, b) => b.score - a.score);
+      relatedCourses.value = relevant.slice(0, 3).map(s => s.course);
     } catch {
       relatedCourses.value = [];
     }
@@ -526,37 +589,33 @@ async function confirmRegistration() {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
-  try {
-    await gamification.spendHeart();
-    showRegisterModal.value = false;
-    if (course.value) {
-      courseStore.enrollCourse(course.value.id);
-      ui.showToast('Đăng ký lộ trình thành công! (-1 🤍)', 'success');
-      if (targetLessonToStart.value) {
-        const nextTarget = targetLessonToStart.value;
-        targetLessonToStart.value = null;
-        await startLesson(nextTarget);
-      }
-    }
-  } catch (err: any) {
-    if (err?.code === 'HEARTS_EMPTY' || err?.message?.includes('tim')) {
-      ui.showToast('Bạn cần ít nhất 1 tim để đăng ký lộ trình. Hãy chờ hồi hoặc nâng cấp Premium!', 'warning');
-    } else {
-      ui.showToast(err?.message || 'Không thể đăng ký lộ trình', 'error');
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình');
+  if (!ok) return;
+
+  showRegisterModal.value = false;
+  if (course.value) {
+    courseStore.enrollCourse(course.value.id);
+    ui.showToast('Mở khóa lộ trình thành công! (-1 🤍)', 'success');
+    if (targetLessonToStart.value) {
+      const nextTarget = targetLessonToStart.value;
+      targetLessonToStart.value = null;
+      // Bỏ qua trừ tim vì học viên vừa dùng 1 tim để mở khóa toàn bộ lộ trình
+      await startLesson(nextTarget, true);
     }
   }
 }
 
-async function startLesson(lesson: CourseLessonDto) {
-  if (lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
+async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
+  const isTeacherOrAdmin = auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN';
+  if (!isTeacherOrAdmin && lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
 
   if (!auth.isAuthenticated) {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
 
-  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình
-  if (course.value && !courseStore.isEnrolled(course.value.id)) {
+  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình (chỉ với học viên)
+  if (!isTeacherOrAdmin && course.value && !courseStore.isEnrolled(course.value.id)) {
     targetLessonToStart.value = lesson;
     showRegisterModal.value = true;
     return;
@@ -565,23 +624,27 @@ async function startLesson(lesson: CourseLessonDto) {
   const courseId = Number(course.value?.id);
   const nodeId = typeof lesson.nodeId === 'number' ? lesson.nodeId : Number(lesson.id);
 
-  if (courseId && nodeId) {
-    try {
-      const res = await gamification.enterNode(courseId, nodeId);
-      if (typeof res?.heartsLeft === 'number') {
-        gamification.hearts = res.heartsLeft;
-      }
-    } catch (err: any) {
-      const errorCode = err?.response?.data?.code || err?.code || '';
-      if (errorCode === 'HEARTS_EMPTY' || String(err?.message || '').includes('HEARTS_EMPTY') || String(err?.message || '').includes('hết tim')) {
-        ui.showToast('Bạn đã hết tim. Hãy chờ hồi hoặc nâng cấp Premium.', 'warning');
-        return;
-      }
-      console.warn('Enter node warning/error:', err);
-    }
+  // Quy tắc tim: Đăng ký tốn 1 tim, node 1 miễn phí (0 tim), các node mới sau tốn 1 tim khi vào lần đầu
+  const firstLesson = course.value?.lessons?.[0];
+  const isFirstNode = firstLesson && (String(firstLesson.id) === String(lesson.id) || (firstLesson.nodeId && firstLesson.nodeId === lesson.nodeId));
+  const isAlreadyDone = lesson.status === 'Completed';
+  const shouldChargeHeart = !skipHeartCharge && !isFirstNode && !isAlreadyDone && !isTeacherOrAdmin;
+
+  if (courseId && nodeId && shouldChargeHeart) {
+    const ok = await heartSystem.enterLessonNode(courseId, nodeId);
+    if (!ok) return;
   }
 
-  router.push({ name: 'lesson-study', params: { id: lesson.id }, query: { courseId: course.value?.id } });
+  if (course.value?.id) {
+    courseStore.enrollCourse(course.value.id);
+  }
+
+  const queryObj: Record<string, string> = { courseId: String(course.value?.id) };
+  if (fromClassId.value) {
+    queryObj.classId = String(fromClassId.value);
+  }
+
+  router.push({ name: 'lesson-study', params: { id: lesson.id }, query: queryObj });
 }
 
 // ── Góp ý cho giảng viên (2 chiều) ──────────────────────────
@@ -645,13 +708,33 @@ function statusBadgeClass(s: string) {
 
 function formatDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const trimmed = (iso || '').trim();
+    const dateStr = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed) && !trimmed.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(trimmed)
+      ? trimmed + 'Z'
+      : trimmed;
+    return new Date(dateStr).toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
   } catch {
     return iso;
   }
 }
 
 onMounted(() => {
+  loadCourseDetail();
+  window.addEventListener('focus', loadCourseDetail);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('focus', loadCourseDetail);
+});
+
+onActivated(() => {
   loadCourseDetail();
 });
 

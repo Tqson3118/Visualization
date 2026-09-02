@@ -18,6 +18,8 @@ export interface Course {
   lessons?: LessonReference[];
   totalLessons: number;
   isPublished: boolean;
+  topicId?: number;
+  topicName?: string;
 }
 
 export interface CourseProgress {

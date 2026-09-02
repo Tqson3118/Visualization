@@ -29,6 +29,7 @@ import type { AdminUserDto, AdminRole } from '@/api/admin';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { formatDate } from '@/utils/format';
+import { normalizeVi } from '@/utils/searchNormalize';
 import { messages } from '@/i18n/vi';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -93,6 +94,33 @@ function openCreateModal(): void {
   createModalOpen.value = true;
 }
 
+function validatePasswordStrength(pw: string): string[] {
+  const errors: string[] = [];
+  if (!pw || pw.length < 8) errors.push('Tối thiểu 8 ký tự');
+  if (!/[A-Z]/.test(pw)) errors.push('Ít nhất 1 chữ in hoa');
+  if (!/[0-9]/.test(pw)) errors.push('Ít nhất 1 chữ số');
+  if (!/[^A-Za-z0-9]/.test(pw)) errors.push('Ít nhất 1 ký tự đặc biệt (@, #, $, !...)');
+  return errors;
+}
+
+function parseApiError(err: any, fallback: string): string {
+  if (err?.response?.data) {
+    const d = err.response.data;
+    if (d.details?.password && Array.isArray(d.details.password)) {
+      return `Mật khẩu không đạt yêu cầu: ${d.details.password.join(', ')}`;
+    }
+    if (d.errors?.password && Array.isArray(d.errors.password)) {
+      return `Mật khẩu không đạt yêu cầu: ${d.errors.password.join(', ')}`;
+    }
+    if (d.details && typeof d.details === 'object') {
+      const msgs = Object.values(d.details).flat();
+      if (msgs.length > 0) return msgs.join(', ');
+    }
+    if (d.message) return d.message;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
 async function handleCreateUser(): Promise<void> {
   if (createForm.displayName.trim().length < 2) {
     ui.showToast('Họ tên phải từ 2 ký tự trở lên.', 'warning');
@@ -102,8 +130,9 @@ async function handleCreateUser(): Promise<void> {
     ui.showToast('Email không hợp lệ.', 'warning');
     return;
   }
-  if (createForm.password.length < 6) {
-    ui.showToast('Mật khẩu tối thiểu 6 ký tự.', 'warning');
+  const pwErrors = validatePasswordStrength(createForm.password);
+  if (pwErrors.length > 0) {
+    ui.showToast(`Mật khẩu không đạt: ${pwErrors.join(', ')}`, 'warning');
     return;
   }
   if (createForm.role === 'TEACHER' && !createForm.staffCode.trim()) {
@@ -125,7 +154,7 @@ async function handleCreateUser(): Promise<void> {
     createModalOpen.value = false;
     void load();
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Tạo người dùng thất bại.', 'error');
+    ui.showToast(parseApiError(err, 'Tạo người dùng thất bại.'), 'error');
   } finally {
     creating.value = false;
   }
@@ -211,8 +240,9 @@ function openResetModal(user: AdminUserDto): void {
 
 async function handleResetPassword(): Promise<void> {
   if (!resetTarget.value) return;
-  if (newPassword.value.length < 6) {
-    ui.showToast('Mật khẩu mới tối thiểu 6 ký tự.', 'warning');
+  const pwErrors = validatePasswordStrength(newPassword.value);
+  if (pwErrors.length > 0) {
+    ui.showToast(`Mật khẩu không đạt: ${pwErrors.join(', ')}`, 'warning');
     return;
   }
 
@@ -222,7 +252,7 @@ async function handleResetPassword(): Promise<void> {
     ui.showToast(`Đã đặt lại mật khẩu mới cho ${resetTarget.value.displayName}!`, 'success');
     resetModalOpen.value = false;
   } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Đặt lại mật khẩu thất bại.', 'error');
+    ui.showToast(parseApiError(err, 'Đặt lại mật khẩu thất bại.'), 'error');
   } finally {
     resetting.value = false;
   }
@@ -322,6 +352,15 @@ const filtered = computed(() => {
   if (roleFilter.value) list = list.filter((u) => u.role === roleFilter.value);
   if (statusFilter.value === 'active') list = list.filter((u) => u.isActive);
   if (statusFilter.value === 'locked') list = list.filter((u) => !u.isActive);
+  if (search.value.trim()) {
+    const q = normalizeVi(search.value);
+    list = list.filter((u) =>
+      normalizeVi(u.displayName || '').includes(q) ||
+      normalizeVi(u.email || '').includes(q) ||
+      normalizeVi(u.staffCode || '').includes(q) ||
+      normalizeVi(u.department || '').includes(q)
+    );
+  }
   return list;
 });
 
@@ -591,17 +630,20 @@ async function loadDrawerDetail(id: number): Promise<void> {
       <form class="space-y-4" @submit.prevent="handleCreateUser">
         <Input v-model="createForm.displayName" label="Họ và tên" placeholder="Nguyễn Văn A" required />
         <Input v-model="createForm.email" type="email" label="Địa chỉ Email" placeholder="user@example.com" required />
-        <Input v-model="createForm.password" type="password" label="Mật khẩu ban đầu" placeholder="Tối thiểu 6 ký tự" required />
+        <div>
+          <Input v-model="createForm.password" type="password" label="Mật khẩu ban đầu" placeholder="Tối thiểu 8 ký tự" required />
+          <p class="text-[11px] text-slate-400 mt-1">Yêu cầu: Tối thiểu 8 ký tự, gồm ít nhất 1 chữ in hoa, 1 số và 1 ký tự đặc biệt (@#$!...)</p>
+        </div>
 
         <div>
-          <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Vai trò (Role)</label>
+          <label class="block text-xs font-bold text-vdsa-secondary uppercase mb-1.5">Vai trò</label>
           <select
             v-model="createForm.role"
             class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
           >
-            <option value="STUDENT">Học viên (Student)</option>
-            <option value="TEACHER">Giảng viên (Teacher)</option>
-            <option value="ADMIN">Quản trị viên (Admin)</option>
+            <option value="STUDENT">Học viên</option>
+            <option value="TEACHER">Giảng viên</option>
+            <option value="ADMIN">Quản trị viên</option>
           </select>
         </div>
 
@@ -629,9 +671,8 @@ async function loadDrawerDetail(id: number): Promise<void> {
               v-model="editForm.role"
               class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
             >
-              <option value="STUDENT">Học viên (Student)</option>
-              <option value="TEACHER">Giảng viên (Teacher)</option>
-              <option value="TEACHER_PENDING">Chờ duyệt GV</option>
+              <option value="STUDENT">Học viên</option>
+              <option value="TEACHER">Giảng viên</option>
             </select>
           </div>
 
@@ -641,8 +682,8 @@ async function loadDrawerDetail(id: number): Promise<void> {
               v-model="editForm.isActive"
               class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-accent"
             >
-              <option :value="true">Hoạt động (Active)</option>
-              <option :value="false">Bị khóa (Locked)</option>
+              <option :value="true">Hoạt động</option>
+              <option :value="false">Bị khóa</option>
             </select>
           </div>
         </div>
@@ -670,7 +711,10 @@ async function loadDrawerDetail(id: number): Promise<void> {
           Đặt lại mật khẩu mới cho tài khoản <strong>{{ resetTarget?.displayName }}</strong> ({{ resetTarget?.email }}).
         </p>
 
-        <Input v-model="newPassword" type="password" label="Mật khẩu mới" placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)" required />
+        <div>
+          <Input v-model="newPassword" type="password" label="Mật khẩu mới" placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)" required />
+          <p class="text-[11px] text-slate-400 mt-1">Yêu cầu: Tối thiểu 8 ký tự, gồm ít nhất 1 chữ in hoa, 1 số và 1 ký tự đặc biệt (@#$!...)</p>
+        </div>
 
         <div class="flex items-center justify-end gap-3 pt-4 border-t border-vdsa-border">
           <Button variant="ghost" type="button" @click="resetModalOpen = false">Hủy</Button>
@@ -855,7 +899,7 @@ async function loadDrawerDetail(id: number): Promise<void> {
           </div>
         </section>
 
-        <section class="admin-users__drawer-section">
+        <section v-if="drawerDetail.role !== 'TEACHER_PENDING'" class="admin-users__drawer-section">
           <h3 class="admin-users__drawer-section-title">
             <GraduationCap :size="14" aria-hidden="true" />
             {{ messages.admin.users.sectionLearning }}
@@ -884,7 +928,7 @@ async function loadDrawerDetail(id: number): Promise<void> {
           </div>
         </section>
 
-        <section class="admin-users__drawer-section">
+        <section v-if="drawerDetail.role !== 'TEACHER_PENDING'" class="admin-users__drawer-section">
           <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.sectionActivity }}</h3>
           <div class="admin-users__drawer-stats">
             <div class="admin-users__drawer-stat">
@@ -905,7 +949,19 @@ async function loadDrawerDetail(id: number): Promise<void> {
         <!-- Drawer Quick Actions -->
         <section v-if="canManageUser(drawerDetail)" class="admin-users__drawer-section">
           <h3 class="admin-users__drawer-section-title">{{ messages.admin.users.colActions }}</h3>
-          <div class="admin-users__drawer-actions">
+          
+          <!-- Trường hợp 1: Tài khoản Chờ duyệt Giảng viên -->
+          <div v-if="drawerDetail.role === 'TEACHER_PENDING'" class="admin-users__drawer-actions">
+            <Button size="sm" variant="primary" class="w-full justify-center gap-1.5" @click="openReview(drawerDetail, 'approve')">
+              <Check :size="15" /> Duyệt làm Giảng viên
+            </Button>
+            <Button size="sm" variant="danger" class="w-full justify-center gap-1.5" @click="openReview(drawerDetail, 'reject')">
+              <X :size="15" /> Từ chối hồ sơ
+            </Button>
+          </div>
+
+          <!-- Trường hợp 2: Tài khoản thông thường -->
+          <div v-else class="admin-users__drawer-actions">
             <Button size="sm" variant="secondary" @click="openEditModal(drawerDetail)">
               <Pencil :size="14" /> Sửa thông tin
             </Button>

@@ -5,6 +5,7 @@ import { buildGenerator, intField, intArrayField, strField, Trace } from '../hel
 // ── Mô hình cây ──────────────────────────────────────────────────────────────
 
 interface BNode {
+  id?: string;
   key: number;
   left: BNode | null;
   right: BNode | null;
@@ -19,7 +20,7 @@ function buildBst(keys: number[]): BNode | null {
 }
 
 function insertRaw(node: BNode | null, key: number): BNode {
-  if (node === null) return { key, left: null, right: null };
+  if (node === null) return { id: `node:${key}`, key, left: null, right: null };
   if (key < node.key) node.left = insertRaw(node.left, key);
   else if (key > node.key) node.right = insertRaw(node.right, key);
   return node;
@@ -44,7 +45,7 @@ function treeStructure(root: BNode | null, statuses: Record<string, ElementStatu
   while (queue.length > 0) {
     const node = queue.shift() ?? null;
     if (node === null) continue;
-    const id = `node:${node.key}`;
+    const id = node.id || `node:${node.key}`;
     elements.push({
       id,
       label: String(node.key),
@@ -52,8 +53,8 @@ function treeStructure(root: BNode | null, statuses: Record<string, ElementStatu
       group: 'tree',
       meta: metas && metas[id] ? metas[id] : undefined,
     });
-    if (node.left) links.push({ from: id, to: `node:${node.left.key}`, label: 'L' });
-    if (node.right) links.push({ from: id, to: `node:${node.right.key}`, label: 'R' });
+    if (node.left) links.push({ from: id, to: node.left.id || `node:${node.left.key}`, label: 'L' });
+    if (node.right) links.push({ from: id, to: node.right.id || `node:${node.right.key}`, label: 'R' });
     queue.push(node.left);
     queue.push(node.right);
   }
@@ -348,7 +349,7 @@ function insertWithTrace(
   statuses: Record<string, ElementStatus>,
 ): BNode {
   if (node === null) {
-    const newNode: BNode = { key: x, left: null, right: null };
+    const newNode: BNode = { id: `node:${x}`, key: x, left: null, right: null };
     if (state.root === null) state.root = newNode;
     statuses[`node:${x}`] = 'highlight';
     trace.push({
@@ -510,7 +511,10 @@ function deleteWithTrace(
     structure: treeStructure(state.root, statuses),
     annotations: [`min=${minKey}`],
   });
-  statuses[`node:${node.key}`] = 'swap';
+  
+  // Lưu lại ID gốc của node hiện tại để không bị mất khi đổi key
+  node.id = node.id || `node:${node.key}`;
+  statuses[node.id] = 'swap';
   trace.stats.writes++;
   trace.push({
     line: 9,
@@ -518,9 +522,11 @@ function deleteWithTrace(
     structure: treeStructure(state.root, statuses),
     annotations: [`${node.key} ← ${minKey}`],
   });
-  node.key = minKey;
-  statuses[`node:${node.key}`] = 'default';
+  
+  node.key = minKey; // Key bị đổi nhưng id giữ nguyên
+  statuses[node.id] = 'default';
   delete statuses[`node:${x}`];
+  
   trace.push({
     line: 10,
     explanation: `Xóa đệ quy nút ${minKey} khỏi cây con phải.`,

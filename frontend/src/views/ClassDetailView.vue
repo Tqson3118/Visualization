@@ -61,6 +61,8 @@ import Select, { type SelectOption } from '@/components/ui/Select.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import PageHero from '@/components/ui/PageHero.vue';
 import PathModuleList, { type PathModuleGroup, type PathModuleLesson } from '@/components/path/PathModuleList.vue';
+import CourseCard from '@/features/courses/components/CourseCard.vue';
+import type { Course } from '@/features/courses/types/course.types';
 import { updateClassDeadline } from '@/api/pathItems';
 
 const route = useRoute();
@@ -164,7 +166,14 @@ const classModules = computed<PathModuleGroup[]>(() => {
   const walk = (list: ClassCurriculumItemDto[]): void => {
     for (const item of list) {
       if (isFolderItem(item.itemType)) {
-        current = { title: item.title || item.topicName || 'Chủ đề bài học', lessons: [] };
+        current = {
+          id: item.pathItemId ?? item.assignmentId,
+          pathItemId: item.pathItemId ?? item.assignmentId,
+          title: item.title || item.topicName || 'Chủ đề bài học',
+          dueAt: item.dueAt,
+          allowLateSubmission: item.allowLateSubmission,
+          lessons: [],
+        };
         modules.push(current);
         if (Array.isArray(item.children) && item.children.length) walk(item.children);
         continue;
@@ -175,6 +184,91 @@ const classModules = computed<PathModuleGroup[]>(() => {
 
   walk(items);
   return modules.filter((m) => m.lessons.length > 0 || modules.length === 1);
+});
+
+/** Điều hướng sang CourseDetailView của Lộ trình học kèm query ?classId=X */
+function goToPath(): void {
+  const pathId = classStore.currentClass?.learningPathId;
+  if (pathId) {
+    void router.push({ path: `/path/${pathId}`, query: { classId: String(classId.value) } });
+  }
+}
+
+/** Dữ liệu Course map sang định dạng CourseCard */
+const assignedCourse = ref<Course | null>(null);
+const loadingAssignedCourse = ref(false);
+
+async function loadAssignedCourse(pathId: number): Promise<void> {
+  loadingAssignedCourse.value = true;
+  try {
+    const c = await courseApi.getCourseById(pathId);
+    assignedCourse.value = {
+      id: String(c.id),
+      title: c.title,
+      description: c.description || '',
+      category: c.category || 'DSA',
+      difficulty: c.difficulty || 'Cơ bản',
+      xpReward: c.xpReward || 0,
+      coverImageUrl: c.coverImageUrl || c.coverImage,
+      coverImage: c.coverImageUrl || c.coverImage,
+      isPremium: c.isPremium || false,
+      totalLessons: c.lessons ? c.lessons.length : 0,
+      isPublished: c.isPublished ?? true,
+      topicId: c.topicId,
+      topicName: c.topicName,
+    };
+  } catch (err) {
+    console.error('Failed to load assigned course', err);
+    if (classStore.curriculum) {
+      assignedCourse.value = {
+        id: String(pathId),
+        title: classStore.curriculum.learningPathTitle || classStore.curriculum.title || 'Lộ trình học',
+        description: classStore.curriculum.description || '',
+        category: 'DSA',
+        difficulty: 'Cơ bản',
+        xpReward: classStore.curriculum.items.reduce((s, i) => s + (i.xpReward || 0), 0),
+        isPremium: false,
+        totalLessons: classStore.curriculum.items.filter((i) => !isFolderItem(i.itemType)).length,
+        isPublished: true,
+      };
+    }
+  } finally {
+    loadingAssignedCourse.value = false;
+  }
+}
+
+watch(
+  () => classStore.currentClass?.learningPathId,
+  (pathId) => {
+    if (pathId) {
+      void loadAssignedCourse(pathId);
+    } else {
+      assignedCourse.value = null;
+    }
+  },
+  { immediate: true },
+);
+
+/** Hạn nộp gần nhất của lộ trình để học sinh theo dõi */
+const nearestDeadline = computed(() => {
+  const items = classStore.curriculum?.items ?? [];
+  const withDue: Array<{ title: string; dueAt: string }> = [];
+  const collect = (list: ClassCurriculumItemDto[]): void => {
+    for (const item of list) {
+      if (item.dueAt) {
+        withDue.push({ title: item.title, dueAt: item.dueAt });
+      }
+      if (Array.isArray(item.children) && item.children.length) {
+        collect(item.children);
+      }
+    }
+  };
+  collect(items);
+  if (withDue.length === 0) return null;
+  withDue.sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+  const now = Date.now();
+  const upcoming = withDue.find((x) => new Date(x.dueAt).getTime() >= now);
+  return upcoming ?? withDue[withDue.length - 1];
 });
 
 /** Mục kế tiếp chưa hoàn thành (DFS) — cho nút "Tiếp tục học". */
@@ -211,38 +305,51 @@ function continueLearning(): void {
 }
 
 function handleSelectModuleLesson(lesson: PathModuleLesson): void {
-  if (lesson.lessonId) {
-    if (classStore.currentClass?.learningPathId) {
-      void router.push({ path: `/learn/${classStore.currentClass.learningPathId}/${lesson.lessonId}` });
-    } else {
-      void router.push({ name: 'lesson-study', params: { id: String(lesson.lessonId) } });
-    }
-  } else if (lesson.pathItemId && classStore.currentClass?.learningPathId) {
-    void router.push({ path: `/learn/${classStore.currentClass.learningPathId}/${lesson.pathItemId}` });
-  }
+  const targetId = lesson.lessonId ?? lesson.pathItemId ?? lesson.id;
+  if (!targetId) return;
+
+  void router.push({
+    name: 'lesson-study',
+    params: { id: String(targetId) },
+    query: {
+      courseId: classStore.currentClass?.learningPathId ? String(classStore.currentClass.learningPathId) : undefined,
+      classId: String(classId.value),
+    },
+  });
 }
 
-// ── Deadline Editing (Per-lesson overlay) ──
+// ── Deadline Editing (Per-module / Folder overlay) ──
 const deadlineModalOpen = ref(false);
 const editingLessonDeadline = ref<{
   lessonId?: number;
   pathItemId?: number;
+  pathItemIds?: number[];
   title: string;
   dueAt: string;
   allowLateSubmission: boolean;
+  isFolder: boolean;
 } | null>(null);
 const savingDeadline = ref(false);
 
-function openDeadlineModal(item: ClassCurriculumItemDto | PathModuleLesson): void {
+function openDeadlineModal(item: ClassCurriculumItemDto | PathModuleLesson | PathModuleGroup): void {
   const lessonId = (item as any).lessonId;
   const pathItemId = (item as any).pathItemId;
-  if (!lessonId && !pathItemId) return;
+  const lessons = (item as any).lessons as PathModuleLesson[] | undefined;
+  const pathItemIds = lessons && lessons.length > 0
+    ? lessons.map((l) => l.pathItemId).filter((id): id is number => typeof id === 'number')
+    : [];
+
+  const effectivePathItemId = pathItemId ?? (pathItemIds.length > 0 ? pathItemIds[0] : undefined);
+  if (!lessonId && !effectivePathItemId && pathItemIds.length === 0) return;
+
   editingLessonDeadline.value = {
     lessonId: lessonId,
-    pathItemId: pathItemId,
+    pathItemId: effectivePathItemId,
+    pathItemIds: pathItemIds,
     title: item.title,
     dueAt: item.dueAt ? toLocalInput(item.dueAt) : '',
     allowLateSubmission: item.allowLateSubmission ?? true,
+    isFolder: !lessonId,
   };
   deadlineModalOpen.value = true;
 }
@@ -252,16 +359,38 @@ async function handleSaveDeadline(): Promise<void> {
   savingDeadline.value = true;
   try {
     const dueAtIso = editingLessonDeadline.value.dueAt ? new Date(editingLessonDeadline.value.dueAt).toISOString() : null;
-    if (editingLessonDeadline.value.pathItemId) {
+    const { pathItemId, pathItemIds, lessonId, allowLateSubmission } = editingLessonDeadline.value;
+
+    if (pathItemId) {
       await updateClassDeadline(classId.value, {
-        pathItemId: editingLessonDeadline.value.pathItemId,
+        pathItemId: pathItemId,
         dueAt: dueAtIso,
-        allowLateSubmission: editingLessonDeadline.value.allowLateSubmission,
+        allowLateSubmission: allowLateSubmission,
       });
-    } else if (editingLessonDeadline.value.lessonId) {
-      await classesApi.updateLessonDeadline(classId.value, editingLessonDeadline.value.lessonId, {
+      // Nếu là fallback group phẳng nhiều bài lẻ không có node cha chung, cập nhật tiếp các bài còn lại
+      if (pathItemIds && pathItemIds.length > 1) {
+        for (const pId of pathItemIds) {
+          if (pId !== pathItemId) {
+            await updateClassDeadline(classId.value, {
+              pathItemId: pId,
+              dueAt: dueAtIso,
+              allowLateSubmission: allowLateSubmission,
+            });
+          }
+        }
+      }
+    } else if (pathItemIds && pathItemIds.length > 0) {
+      for (const pId of pathItemIds) {
+        await updateClassDeadline(classId.value, {
+          pathItemId: pId,
+          dueAt: dueAtIso,
+          allowLateSubmission: allowLateSubmission,
+        });
+      }
+    } else if (lessonId) {
+      await classesApi.updateLessonDeadline(classId.value, lessonId, {
         dueAt: dueAtIso,
-        allowLateSubmission: editingLessonDeadline.value.allowLateSubmission,
+        allowLateSubmission: allowLateSubmission,
       });
     }
     ui.showToast('Đã cập nhật hạn nộp.', 'success');
@@ -608,15 +737,15 @@ function cleanTitle(title?: string): string {
         </Card>
       </section>
 
-      <!-- Tab Lộ trình học (curriculum — feature port: teacher tạo path, student xem status) -->
+      <!-- Tab Lộ trình học (curriculum — Teacher quản lý deadline module, Student xem CourseCard) -->
       <section v-else-if="tab === 'curriculum'" class="class-detail__panel space-y-4">
-        <!-- Banner Lộ trình Active của Lớp (Mô hình hợp nhất) -->
-        <Card class="p-4 sm:p-5 bg-vdsa-surface border border-vdsa-border rounded-2xl space-y-4">
+        <!-- Banner Lộ trình Active của Lớp (Hiển thị cho Giáo viên) -->
+        <Card v-if="isManager" class="p-4 sm:p-5 bg-vdsa-surface border border-vdsa-border rounded-2xl space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="space-y-1">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers :size="15" /> Lộ trình học chính
+                  <Layers :size="15" /> Lộ trình giảng dạy của lớp
                 </span>
                 <Badge
                   v-if="classStore.currentClass?.curriculumPublished"
@@ -641,32 +770,20 @@ function cleanTitle(title?: string): string {
               </p>
             </div>
 
-            <!-- Học ngay mục kế tiếp (tiến độ theo cây — D9) -->
+            <!-- GV Action Buttons -->
             <div class="flex items-center gap-2 flex-wrap shrink-0">
-              <Button
-                v-if="nextUpItem"
-                size="sm"
-                variant="primary"
-                data-testid="continue-learning"
-                class="gap-1.5 bg-purple-600 hover:bg-purple-500"
-                @click="continueLearning"
-              >
-                <Play :size="14" aria-hidden="true" /> {{ continueLabel }}
+              <Button size="sm" variant="secondary" class="gap-1.5" @click="openSelectPathModal">
+                <Layers :size="14" /> {{ classStore.currentClass?.learningPathId ? 'Đổi Lộ trình khác' : 'Chọn Lộ trình giảng dạy' }}
               </Button>
-              <template v-if="isManager">
-                <Button size="sm" variant="secondary" class="gap-1.5" @click="openSelectPathModal">
-                  <Layers :size="14" /> {{ classStore.currentClass?.learningPathId ? 'Đổi Lộ trình khác' : 'Chọn Lộ trình giảng dạy' }}
-                </Button>
-                <Button
-                  v-if="classStore.currentClass?.learningPathId"
-                  size="sm"
-                  variant="secondary"
-                  class="gap-1.5"
-                  @click="router.push({ path: '/studio', query: { tab: 'curriculum', courseId: String(classStore.currentClass.learningPathId) } })"
-                >
-                  <ExternalLink :size="14" /> Soạn trong Studio
-                </Button>
-              </template>
+              <Button
+                v-if="classStore.currentClass?.learningPathId"
+                size="sm"
+                variant="secondary"
+                class="gap-1.5"
+                @click="router.push({ path: '/studio', query: { tab: 'curriculum', courseId: String(classStore.currentClass.learningPathId) } })"
+              >
+                <ExternalLink :size="14" /> Soạn trong Studio
+              </Button>
             </div>
           </div>
 
@@ -674,13 +791,13 @@ function cleanTitle(title?: string): string {
           <div class="pt-2 border-t border-vdsa-border/60 flex items-center gap-4">
             <div class="flex-1">
               <div class="flex items-center justify-between text-xs text-slate-300 font-semibold mb-1">
-                <span>Tiến độ hoàn thành</span>
+                <span>Tiến độ chung cả lớp</span>
                 <span class="font-mono text-emerald-400 font-bold">{{ classStore.curriculum?.progressPct ?? 0 }}%</span>
               </div>
               <ProgressBar :value="classStore.curriculum?.progressPct ?? 0" variant="success" />
             </div>
             <span class="text-xs text-slate-400 font-mono shrink-0">
-              {{ classStore.curriculum?.items.length ?? 0 }} bài học
+              {{ classStore.curriculum?.items.length ?? 0 }} mục bài học
             </span>
           </div>
         </Card>
@@ -691,7 +808,7 @@ function cleanTitle(title?: string): string {
 
         <!-- Guided Empty State -->
         <div
-          v-else-if="!classStore.curriculum?.items || classStore.curriculum.items.length === 0"
+          v-else-if="!classStore.curriculum?.items || classStore.curriculum.items.length === 0 || !classStore.currentClass?.learningPathId"
           class="p-8 sm:p-12 rounded-2xl border-2 border-dashed border-vdsa-border bg-card/40 text-center space-y-4 max-w-xl mx-auto my-4"
         >
           <div class="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-300 flex items-center justify-center mx-auto">
@@ -700,7 +817,7 @@ function cleanTitle(title?: string): string {
           <div class="space-y-1">
             <h3 class="text-base font-bold text-white">Lớp học chưa có Lộ trình giảng dạy</h3>
             <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-              Hãy chọn một <strong>Lộ trình học</strong> (Course) từ thư viện của bạn hoặc toàn sàn để gán cho lớp. Mọi học sinh trong lớp sẽ học theo lộ trình này.
+              {{ isManager ? 'Hãy chọn một Lộ trình học (Course) từ thư viện của bạn hoặc toàn sàn để gán cho lớp. Mọi học sinh trong lớp sẽ học theo lộ trình này.' : 'Giáo viên chưa gán lộ trình học cho lớp này. Vui lòng quay lại sau.' }}
             </p>
           </div>
           <div v-if="isManager" class="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
@@ -713,12 +830,63 @@ function cleanTitle(title?: string): string {
           </div>
         </div>
 
-        <!-- Unified Module Tree List (using PathModuleList per Decision D4) -->
+        <!-- Student View: 1 CourseCard gọn gàng, vào học ngay -->
+        <div v-else-if="!isManager" class="space-y-5 max-w-xl">
+          <!-- Nearest Deadline Banner if any -->
+          <div
+            v-if="nearestDeadline"
+            class="p-4 rounded-2xl border border-indigo-500/30 bg-indigo-950/25 backdrop-blur flex items-center justify-between gap-3 shadow-lg"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
+                <Clock class="w-5 h-5" />
+              </div>
+              <div class="min-w-0">
+                <span class="text-xs text-indigo-300 font-semibold block">Hạn nộp gần nhất</span>
+                <p class="text-sm font-bold text-white truncate">{{ cleanTitle(nearestDeadline.title) }}</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-xs font-mono font-bold text-indigo-200 block">{{ formatDate(nearestDeadline.dueAt) }}</span>
+              <span
+                v-if="new Date(nearestDeadline.dueAt).getTime() < Date.now()"
+                class="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 inline-block mt-0.5"
+              >
+                Đã hết hạn
+              </span>
+            </div>
+          </div>
+
+          <!-- Course Card Component -->
+          <div class="space-y-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Lộ trình học tập của lớp</h3>
+            <div class="cursor-pointer transition-transform hover:scale-[1.01]" @click="goToPath">
+              <CourseCard v-if="assignedCourse" :course="assignedCourse" />
+              <Skeleton v-else-if="loadingAssignedCourse" height="260px" class="rounded-2xl" />
+            </div>
+          </div>
+
+          <!-- Quick Action Button -->
+          <div class="pt-1">
+            <Button
+              size="lg"
+              variant="primary"
+              class="w-full sm:w-auto gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-purple-600/30 cursor-pointer"
+              @click="goToPath"
+            >
+              <Play :size="16" /> Vào Lộ trình học ngay
+              <ArrowRight :size="16" />
+            </Button>
+          </div>
+        </div>
+
+        <!-- Teacher / Manager View: Unified Module Tree List (using PathModuleList with deadline-level="folder") -->
         <div v-else class="space-y-4">
           <PathModuleList
             :modules="classModules"
             :show-deadlines="true"
             :is-teacher="isManager"
+            deadline-level="folder"
             @select-lesson="handleSelectModuleLesson"
             @edit-deadline="openDeadlineModal"
           />
@@ -868,12 +1036,17 @@ function cleanTitle(title?: string): string {
       </template>
     </Modal>
 
-    <!-- Modal Cập nhật Deadline cho bài học trong lớp -->
+    <!-- Modal Cập nhật Deadline cho module / bài học trong lớp -->
     <Modal :open="deadlineModalOpen" title="Cài đặt Hạn nộp & Deadline" width="460px" @close="deadlineModalOpen = false">
       <div v-if="editingLessonDeadline" class="space-y-4">
         <div>
-          <span class="text-xs text-slate-400 block mb-1">Bài học:</span>
+          <span class="text-xs text-slate-400 block mb-1">
+            {{ editingLessonDeadline.isFolder ? 'Module / Chủ đề:' : 'Bài học:' }}
+          </span>
           <p class="text-sm font-bold text-white">{{ cleanTitle(editingLessonDeadline.title) }}</p>
+          <p v-if="editingLessonDeadline.isFolder" class="text-[11px] text-purple-300 mt-1.5 bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/20 leading-relaxed">
+            ℹ️ Hạn nộp này sẽ được áp dụng cho <strong>tất cả các bài học</strong> trong module này (ghi đè deadline cũ).
+          </p>
         </div>
 
         <div>
