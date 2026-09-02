@@ -406,7 +406,7 @@ provideOutlineTreeContext(context);
     </div>
 
     <!-- Cây -->
-    <div class="p-2 space-y-1 overflow-y-auto flex-1 min-h-[140px] rounded-b-2xl" role="tree" aria-label="Cây nội dung lộ trình">
+    <div class="p-2 space-y-1 overflow-y-auto overflow-x-auto min-w-0 flex-1 min-h-[140px] rounded-b-2xl" role="tree" aria-label="Cây nội dung lộ trình">
       <OutlineNode v-for="rootItem in filteredItems" :key="rootItem.id" :item="rootItem" :depth="0" />
 
       <div v-if="items.length > 0 && filteredItems.length === 0" class="py-6 px-3 text-center space-y-1">
@@ -420,7 +420,7 @@ provideOutlineTreeContext(context);
         <template v-if="!readonly">
           <ol class="text-xs text-slate-400 space-y-1 text-left max-w-xs mx-auto list-none">
             <li class="flex gap-2"><span class="font-black text-emerald-400">✓</span> Đặt tên lộ trình (đã xong)</li>
-            <li class="flex gap-2"><span class="font-black text-purple-400">②</span> Thêm <b class="text-slate-200">Chương (Module)</b> — ví dụ: "Module 1: Cấu trúc dữ liệu tuyến tính"</li>
+            <li class="flex gap-2"><span class="font-black text-purple-400">②</span> Thêm <b class="text-slate-200">Chương</b> — ví dụ: "Cấu trúc dữ liệu tuyến tính"</li>
             <li class="flex gap-2"><span class="font-black text-sky-400">③</span> Thêm <b class="text-slate-200">bài học / quiz / lab</b> vào từng chương (bấm + trên dòng chương)</li>
           </ol>
           <button

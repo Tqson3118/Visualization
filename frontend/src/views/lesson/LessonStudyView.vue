@@ -223,7 +223,7 @@
           </div>
           <p class="text-vdsa-secondary mb-6 leading-relaxed">
             Bạn có muốn mở khóa lộ trình <strong class="text-white">{{ course?.title || 'này' }}</strong> để bắt đầu học bài học này không?
-            <br /><span class="text-xs text-emerald-400 font-medium inline-block mt-2">Mở khóa vĩnh viễn lộ trình này với 1 🤍 (Học không giới hạn toàn bộ bài học bên trong)</span>
+            <br /><span class="text-xs text-purple-300 font-medium inline-block mt-2">Đăng ký lộ trình với 1 🤍. Bài 1 miễn phí, các bài tiếp theo tốn 1 🤍 khi tham gia lần đầu (học lại miễn phí sau khi pass).</span>
           </p>
           <div class="flex gap-3 justify-end">
             <button
@@ -331,6 +331,10 @@ const isEnrolled = computed(() => {
   if (isTeacherOrAdmin.value) return true;
   const cId = courseId.value;
   if (!cId) return true; // Standalone lesson hoặc không gắn roadmap
+  if (completedLessonsCount.value > 0) {
+    courseStore.enrollCourse(String(cId));
+    return true;
+  }
   return courseStore.isEnrolled(String(cId));
 });
 
@@ -383,17 +387,48 @@ const toggleModule = (mIdx: number) => {
   }
 };
 
-/** Bài đã hoàn thành: đánh dấu local khi bấm "Hoàn thành bài học" (tick tức thì) +
- *  status Completed từ backend cho các bài khác. */
+const completedLessonIds = ref<Set<string>>(new Set());
+
+/** Bài đã hoàn thành: ưu tiên reactive set + status Completed từ backend/db + local storage theo course */
 function isLessonCompleted(lesson: LessonDto): boolean {
-  return lessonStore.completedLessonIds.includes(lesson.id) || lesson.status === 'Completed';
+  if (!lesson) return false;
+  const strId = String(lesson.id || '');
+  const strLessonId = String((lesson as any).lessonId || '');
+  const strNodeId = String((lesson as any).nodeId || '');
+
+  if (strId && completedLessonIds.value.has(strId)) return true;
+  if (strLessonId && completedLessonIds.value.has(strLessonId)) return true;
+  if (strNodeId && completedLessonIds.value.has(strNodeId)) return true;
+
+  if (lesson.status === 'Completed') return true;
+  const cId = courseId.value;
+  if (cId) {
+    if (strId && localStorage.getItem(`course_done_${cId}_${strId}`) === 'true') {
+      completedLessonIds.value.add(strId);
+      return true;
+    }
+    if (strLessonId && localStorage.getItem(`course_done_${cId}_${strLessonId}`) === 'true') {
+      completedLessonIds.value.add(strLessonId);
+      return true;
+    }
+  }
+  return false;
 }
 
 const isCurrentLessonCompleted = computed(() => {
-  return lessonStore.completedLessonIds.includes(lessonId.value) || (course.value?.lessons.some(l => l.id === lessonId.value && l.status === 'Completed') ?? false);
+  const curId = String(lessonId.value);
+  if (completedLessonIds.value.has(curId)) return true;
+  const currentL = course.value?.lessons?.find(l => 
+    String(l.id) === curId || 
+    String((l as any).lessonId) === curId || 
+    String((l as any).nodeId) === curId
+  );
+  if (currentL && isLessonCompleted(currentL)) return true;
+  return isLessonCompleted({ id: curId } as any);
 });
 
-// Thống kê tiến độ toàn khóa học
+
+// Thống kê tiến độ toàn khóa học (tự động cập nhật real-time)
 const totalLessonsCount = computed(() => {
   return (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder').length;
 });
@@ -412,15 +447,19 @@ const totalRoadmapXp = computed(() => {
 });
 
 function isLessonLocked(lesson: LessonDto): boolean {
+  if (isLessonCompleted(lesson)) return false; // Bài đã hoàn thành luôn mở
   if (!course.value?.lessons || course.value.lessons.length === 0) return lesson.locked ?? false;
   const lessons = course.value.lessons;
-  const idx = lessons.findIndex(l => l.id === lesson.id);
-  if (idx <= 0) return false; // Bài đầu tiên luôn mở
-  if (isLessonCompleted(lesson)) return false; // Bài đã hoàn thành luôn mở
+  const idx = lessons.findIndex(l => String(l.id) === String(lesson.id));
+  if (idx === 0) return false; // Bài đầu tiên luôn mở
+  if (idx < 0) return lesson.locked ?? true;
   // Mở khóa nếu bài liền trước đã hoàn thành
   const prevLesson = lessons[idx - 1];
-  return !isLessonCompleted(prevLesson);
+  if (prevLesson && isLessonCompleted(prevLesson)) return false;
+  return lesson.locked ?? true;
 }
+
+
 
 // Điều hướng Previous / Next trên Header
 const currentLessonIndex = computed(() => {
@@ -449,10 +488,20 @@ async function enterLessonNode(cId: string | number, lId: string | number): Prom
   const pathId = Number(cId);
   const nodeId = Number(lId);
   if (!pathId || !nodeId) return true;
-  // Node 1 (bài học đầu tiên) luôn Miễn phí (0 tim)
+
+  const isTeacherOrAdmin = authStore.user?.role === 'TEACHER' || authStore.user?.role === 'ADMIN';
+  if (isTeacherOrAdmin) return true;
+
+  // Node 1 (bài học đầu tiên) luôn Miễn phí (0 tim vì đã trả lúc đăng ký lộ trình)
   const firstLesson = course.value?.lessons?.[0];
   const isFirstNode = firstLesson && (String(firstLesson.id) === String(lId) || ((firstLesson as any).nodeId && (firstLesson as any).nodeId === nodeId));
   if (isFirstNode) return true;
+
+  // Bài đã hoàn thành -> Xem lại / học lại Miễn phí (0 tim)
+  const target = course.value?.lessons?.find(l => String(l.id) === String(lId) || String((l as any).nodeId) === String(nodeId) || String((l as any).lessonId) === String(lId));
+  if (target && isLessonCompleted(target)) return true;
+
+  // Các bài học mới tiếp theo -> tốn 1 tim khi vào lần đầu
   return heartSystem.enterLessonNode(pathId, nodeId);
 }
 
@@ -471,19 +520,41 @@ async function goToLesson(id: string) {
 }
 
 watch(courseId, async (id) => {
+  if (id) {
+    courseStore.enrollCourse(String(id));
+  }
   if (id && !course.value) {
     try {
       course.value = await courseApi.getCourseById(id) as unknown as CourseDetailDto;
       if (course.value.lessons) {
-         // Tự động mở module chứa bài học hiện tại
-         const currentMTitle = course.value.lessons.find(l => l.id === lessonId.value)?.moduleTitle || 'General';
-         const map = new Map<string, boolean>();
-         course.value.lessons.forEach(l => map.set(l.moduleTitle || 'General', true));
-         const uniqueModules = Array.from(map.keys());
-         const moduleIdx = uniqueModules.indexOf(currentMTitle);
-         if (moduleIdx !== -1 && !expandedModules.value.includes(moduleIdx)) {
-            expandedModules.value.push(moduleIdx);
-         }
+        courseStore.updateCourseLessons(String(id), course.value.lessons);
+        const prog = courseStore.getCourseProgress(String(id));
+        const c = courseStore.getCourseById(String(id));
+        if (c) {
+          (c as any).completedLessons = prog.completedLessonIds.length;
+          (c as any).progressPercent = prog.progressPercent;
+        }
+
+        // Đồng bộ các bài đã hoàn thành vào reactive set
+        course.value.lessons.forEach(l => {
+          if (l.status === 'Completed') {
+            completedLessonIds.value.add(String(l.id));
+          }
+          if (localStorage.getItem(`course_done_${id}_${l.id}`) === 'true') {
+            completedLessonIds.value.add(String(l.id));
+          }
+        });
+        completedLessonIds.value = new Set(completedLessonIds.value);
+
+        // Tự động mở module chứa bài học hiện tại
+        const currentMTitle = course.value.lessons.find(l => l.id === lessonId.value)?.moduleTitle || 'General';
+        const map = new Map<string, boolean>();
+        course.value.lessons.forEach(l => map.set(l.moduleTitle || 'General', true));
+        const uniqueModules = Array.from(map.keys());
+        const moduleIdx = uniqueModules.indexOf(currentMTitle);
+        if (moduleIdx !== -1 && !expandedModules.value.includes(moduleIdx)) {
+          expandedModules.value.push(moduleIdx);
+        }
       }
     } catch (e) {
       console.warn('Không tải được thông tin khóa học cho sidebar', e);
@@ -531,9 +602,40 @@ function resolveNextLessonId(): string | null {
 }
 
 async function finishLesson(): Promise<void> {
-  const rewardXp = lessonStore.currentLesson?.xpReward ?? 100;
+  const rewardXp = lessonStore.currentLesson?.xpReward ?? 0;
+  const strCurId = String(lessonId.value);
   await lessonStore.markLessonCompleted(lessonId.value);
   void lessonStore.syncToServer(true);
+
+  // Cập nhật real-time ngay lập tức trong memory để Vue phản ứng 100%
+  completedLessonIds.value.add(strCurId);
+
+  if (course.value?.lessons) {
+    const lObj = course.value.lessons.find(l => 
+      String(l.id) === strCurId || 
+      String((l as any).lessonId) === strCurId || 
+      String((l as any).nodeId) === strCurId
+    );
+    if (lObj) {
+      lObj.status = 'Completed';
+      if (lObj.id) completedLessonIds.value.add(String(lObj.id));
+      if ((lObj as any).lessonId) completedLessonIds.value.add(String((lObj as any).lessonId));
+      if ((lObj as any).nodeId) completedLessonIds.value.add(String((lObj as any).nodeId));
+    }
+  }
+  completedLessonIds.value = new Set(completedLessonIds.value);
+
+  if (courseId.value) {
+    if (course.value?.lessons) {
+      courseStore.updateCourseLessons(String(courseId.value), course.value.lessons);
+    }
+    const prog = courseStore.getCourseProgress(String(courseId.value));
+    const c = courseStore.getCourseById(String(courseId.value));
+    if (c) {
+      (c as any).completedLessons = completedLessonsCount.value || prog.completedLessonIds.length;
+      (c as any).progressPercent = courseProgressPercent.value || prog.progressPercent;
+    }
+  }
 
   const nextId = resolveNextLessonId();
   nextLessonId.value = nextId;

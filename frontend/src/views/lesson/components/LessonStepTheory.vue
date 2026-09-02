@@ -11,87 +11,33 @@
       <h1 class="text-2xl font-black text-white tracking-tight">{{ title }}</h1>
     </div>
 
-    <!-- Danh sách mô phỏng tương tác đính kèm -->
-    <div v-if="allSimulationKeys.length > 0" class="mb-6 p-4 rounded-2xl bg-vdsa-surface border border-vdsa-border">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-          <Sparkles class="w-4 h-4 text-vdsa-purple" />
-          Mô phỏng trực quan đính kèm ({{ allSimulationKeys.length }})
-        </h3>
-        <span class="text-[11px] text-vdsa-muted">Thực hành tương tác từng bước</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div
-          v-for="simKey in allSimulationKeys"
-          :key="simKey"
-          class="p-3 rounded-xl bg-vdsa-bg-secondary border border-vdsa-border flex items-center justify-between gap-3 hover:border-vdsa-accent transition-all"
-        >
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="p-2 rounded-lg bg-vdsa-accent/20 text-vdsa-purple-light shrink-0">
-              <Play class="w-4 h-4" />
-            </span>
-            <div class="min-w-0">
-              <h4 class="text-xs font-bold text-white truncate">{{ getSimulationTitle(simKey) }}</h4>
-              <p class="text-[10px] font-mono text-vdsa-muted truncate">{{ simKey }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              data-testid="run-simulation-btn"
-              class="px-3 py-1.5 rounded-lg bg-vdsa-accent hover:bg-vdsa-accent-dark text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1"
-              @click="openEmbeddedVisualizer(simKey)"
-            >
-              <Play class="w-3 h-3" />
-              <span>Chạy thử thuật toán</span>
-            </button>
-            <router-link
-              :to="`/simulator/${simKey}`"
-              target="_blank"
-              class="p-1.5 rounded-lg bg-vdsa-surface hover:bg-vdsa-hover text-vdsa-muted hover:text-white transition-colors"
-              title="Mở toàn màn hình"
-            >
-              <ExternalLink class="w-3.5 h-3.5" />
-            </router-link>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Embedded visualizer ở đầu bài (nếu mở từ danh sách đính kèm) -->
-    <div v-if="visualizerOpen && activeSimKey" class="relative mb-6 rounded-2xl overflow-hidden border border-purple-500/40 shadow-2xl" data-testid="embedded-visualizer">
-      <div class="bg-purple-950/80 px-4 py-2 flex items-center justify-between border-b border-purple-500/20">
-        <span class="text-xs font-bold text-purple-200 flex items-center gap-2">
-          <Sparkles class="w-3.5 h-3.5 text-purple-400" />
-          Mô phỏng đính kèm: {{ getSimulationTitle(activeSimKey) }}
-        </span>
-        <button
-          type="button"
-          data-testid="shell-close"
-          class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-          @click="visualizerOpen = false"
-        >
-          ✕ Đóng mô phỏng
-        </button>
-      </div>
-      <InlineSimulationPlayer :sim-key="activeSimKey" class="!my-0 !border-0 !rounded-none" />
-    </div>
-
     <!-- Render nội dung lý thuyết & Nhúng trực tiếp các bộ mô phỏng inline -->
-    <div class="space-y-4">
+    <div class="space-y-6">
       <template v-for="(seg, idx) in contentSegments" :key="idx">
         <div v-if="seg.type === 'html'" class="prose prose-invert max-w-none text-sm space-y-4" v-html="seg.html"></div>
         <InlineSimulationPlayer v-else-if="seg.type === 'simulation' && seg.simKey" :sim-key="seg.simKey" />
       </template>
+
+      <!-- Tự động hiển thị các mô phỏng đính kèm vào luồng bài học nếu chưa có thẻ anchor trong text -->
+      <div v-if="trailingSimulations.length > 0" class="mt-8 pt-6 border-t border-vdsa-border/60 space-y-6">
+        <div class="flex items-center gap-2">
+          <Sparkles class="w-4 h-4 text-purple-400" />
+          <h3 class="text-xs font-extrabold text-white uppercase tracking-wider">
+            Mô phỏng Trực quan Tương tác ({{ trailingSimulations.length }})
+          </h3>
+        </div>
+        <InlineSimulationPlayer
+          v-for="simKey in trailingSimulations"
+          :key="simKey"
+          :sim-key="simKey"
+        />
+      </div>
     </div>
 
     <div class="mt-8 pt-6 border-t border-vdsa-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <span class="text-xs text-vdsa-muted">
         <template v-if="isCompleted">
           Bạn đã hoàn thành bài học này.
-        </template>
-        <template v-else-if="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer">
-          💡 Hãy bấm <strong class="text-white">"Chạy mô phỏng"</strong> ở trên để trực quan hóa trước khi hoàn thành bài.
         </template>
         <template v-else>
           Đã sẵn sàng! Nhấn hoàn thành để nhận XP và sang bài tiếp theo.
@@ -108,27 +54,22 @@
 
       <button
         v-else
-        :disabled="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer"
         @click="$emit('completeStep')"
-        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer disabled:cursor-not-allowed"
-        :class="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer
-          ? 'bg-vdsa-surface border border-vdsa-border text-vdsa-disabled opacity-60'
-          : 'bg-vdsa-accent hover:bg-vdsa-accent-dark text-white shadow-lg shadow-vdsa-accent/30 ring-1 ring-vdsa-accent-light/50 hover:scale-[1.02]'"
+        class="px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer bg-vdsa-accent hover:bg-vdsa-accent-dark text-white shadow-lg shadow-vdsa-accent/30 ring-1 ring-vdsa-accent-light/50 hover:scale-[1.02]"
       >
         <span>Hoàn thành bài học</span>
-        <BaseIcon :name="allSimulationKeys.length > 0 && !hasInteractedWithVisualizer ? 'lock' : 'check'" class="w-4 h-4" />
+        <BaseIcon name="check" class="w-4 h-4" />
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Sparkles, Play, ExternalLink } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { Sparkles } from 'lucide-vue-next';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import { parseMarkdownToHtml } from '@/utils/markdownParser';
 import InlineSimulationPlayer from '@/components/simulator/InlineSimulationPlayer.vue';
-import { CATALOG } from '@/engines/catalog';
 
 const props = defineProps<{
   title: string;
@@ -143,10 +84,6 @@ const props = defineProps<{
 defineEmits<{
   (e: 'completeStep'): void;
 }>();
-
-const visualizerOpen = ref(false);
-const activeSimKey = ref<string | null>(props.simulationKey || null);
-const hasInteractedWithVisualizer = ref(false);
 
 const inlineSimulationKeys = computed<string[]>(() => {
   if (!props.content) return [];
@@ -169,16 +106,10 @@ const allSimulationKeys = computed<string[]>(() => {
   return list;
 });
 
-function getSimulationTitle(key: string): string {
-  const item = CATALOG.find((c) => c.key === key);
-  return item ? item.title : key;
-}
-
-function openEmbeddedVisualizer(key: string): void {
-  activeSimKey.value = key;
-  visualizerOpen.value = true;
-  hasInteractedWithVisualizer.value = true;
-}
+const trailingSimulations = computed<string[]>(() => {
+  const explicit = inlineSimulationKeys.value;
+  return allSimulationKeys.value.filter((k) => !explicit.includes(k));
+});
 
 interface ContentSegment {
   type: 'html' | 'simulation';

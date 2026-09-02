@@ -76,6 +76,29 @@ public static class SeedTeacherCoursesData
         {
             var junkIds = junkCourses.Select(j => j.Id).ToList();
             var junkNodes = await db.LearningPathNodes.Where(n => junkIds.Contains(n.PathId)).ToListAsync(ct);
+            var junkNodeIds = junkNodes.Select(n => n.Id).ToList();
+
+            var attachedExercises = await db.Exercises
+                .Where(e => e.NodeId != null && junkNodeIds.Contains(e.NodeId.Value))
+                .ToListAsync(ct);
+            foreach (var ex in attachedExercises)
+            {
+                ex.NodeId = null;
+            }
+            if (attachedExercises.Count > 0)
+            {
+                await db.SaveChangesAsync(ct);
+            }
+
+            var attachedAssignments = await db.ClassAssignments
+                .Where(a => a.PathItemId != null && junkNodeIds.Contains(a.PathItemId.Value))
+                .ToListAsync(ct);
+            if (attachedAssignments.Count > 0)
+            {
+                db.ClassAssignments.RemoveRange(attachedAssignments);
+                await db.SaveChangesAsync(ct);
+            }
+
             db.LearningPathNodes.RemoveRange(junkNodes);
             db.LearningPaths.RemoveRange(junkCourses);
             await db.SaveChangesAsync(ct);

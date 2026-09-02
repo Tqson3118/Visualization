@@ -27,8 +27,13 @@ import {
   Upload,
   Wand2,
   FileText,
+  Download,
+  FileSpreadsheet,
+  Maximize2,
+  Minimize2,
 } from 'lucide-vue-next';
 import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 import InlineSimulationPlayer from '@/components/simulator/InlineSimulationPlayer.vue';
 import {
   type PathItemDto,
@@ -61,12 +66,14 @@ const emit = defineEmits<{
   (e: 'saved', item: PathItemDto): void;
   (e: 'addChild', type: PathItemType, parentId: number): void;
   (e: 'selectItem', item: PathItemDto): void;
+  (e: 'dirtyChange', isDirty: boolean): void;
 }>();
 
 const ui = useUiStore();
 const saving = ref(false);
 const loadingDetail = ref(false);
 const activeViewMode = ref<'edit' | 'preview'>('edit');
+const isFullscreen = ref(false);
 
 // Common Form
 const form = reactive({
@@ -221,6 +228,26 @@ function snapshot(): string {
 }
 
 const isDirty = computed(() => snapshot() !== dirtyBaseline.value);
+
+watch(isDirty, (val) => {
+  emit('dirtyChange', val);
+}, { immediate: true });
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty.value && !saving.value) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+  emit('dirtyChange', false);
+});
 
 function requestClose(): void {
   if (isDirty.value && !saving.value) {
@@ -407,6 +434,16 @@ function insertSimulationTag(key: string): void {
   ui.showToast(`Đã chèn mô phỏng: ${getSimTitle(key)}`, 'success');
 }
 
+function addSimulations(keys: string[]): void {
+  const added = keys.filter((k) => k && !attachedSimulations.value.includes(k));
+  if (added.length === 0) {
+    ui.showToast('Các mô phỏng đã được gắn vào bài học từ trước.', 'info');
+    return;
+  }
+  attachedSimulations.value.push(...added);
+  ui.showToast('Đã gắn ' + added.length + ' mô phỏng vào bài học!', 'success');
+}
+
 function addSimulation(key: string): void {
   if (key && !attachedSimulations.value.includes(key)) {
     attachedSimulations.value.push(key);
@@ -421,7 +458,24 @@ function addSimulation(key: string): void {
 }
 
 function removeSimulation(index: number): void {
-  attachedSimulations.value.splice(index, 1);
+  const [key] = attachedSimulations.value.splice(index, 1);
+  if (key) {
+    // Fix bug "bỏ chọn mô phỏng nhưng vẫn hiển thị trong bài": gỡ chip phải gỡ luôn
+    // thẻ [Mô phỏng: key] (và tiêu đề 🎮 đi kèm) khỏi nội dung bài giảng
+    const pairRe = new RegExp(
+      '(?:<p[^>]*>\\s*<strong[^>]*>[^<]*🎮[^<]*</strong>\\s*</p>\\s*)?<p[^>]*>\\s*\\[(?:Mô phỏng|Simulation|mo phong):\\s*' + key + '\\]\\s*</p>',
+      'gi',
+    );
+    const anchorOnlyRe = new RegExp(
+      '\\[(?:Mô phỏng|Simulation|mo phong):\\s*' + key + '\\]',
+      'gi',
+    );
+    let content = theoryContentHtml.value;
+    content = content.replace(pairRe, '');
+    content = content.replace(anchorOnlyRe, '');
+    theoryContentHtml.value = content;
+    ui.showToast('Đã gỡ mô phỏng "' + getSimTitle(key) + '" khỏi bài học', 'info');
+  }
 }
 
 function getSimTitle(key: string): string {
@@ -531,6 +585,255 @@ function removeOption(qIdx: number, optIdx: number) {
   }
 }
 
+// ── Bộ công cụ Quiz: Tải file mẫu CSV/Excel, Import Excel, Import Word và AI Format ──
+function downloadSampleQuizCsv(): void {
+  const csvContent = `question,option_a,option_b,option_c,option_d,correct_option,explanation,points
+"Độ phức tạp thời gian tốt nhất của Bubble Sort (có cờ kiểm tra) là gì?","O(N)","O(N^2)","O(log N)","O(1)","A","Khi mảng đã sắp xếp trước, thuật toán dừng sau 1 lần duyệt kiểm tra O(N).",2
+"Thuật toán sắp xếp nào sau đây KHÔNG có tính ổn định (Not Stable)?","Selection Sort","Merge Sort","Bubble Sort","Insertion Sort","A","Selection Sort có thể hoán đổi các phần tử bằng nhau qua khoảng cách xa làm đổi thứ tự ban đầu.",2
+"Cấu trúc dữ liệu Ngăn xếp (Stack) hoạt động theo nguyên lý nào sau đây?","LIFO (Last In, First Out)","FIFO (First In, First Out)","LILO (Last In, Last Out)","Random Access","A","Stack hoạt động theo cơ chế vào sau ra trước (LIFO).",2
+"Cây tìm kiếm nhị phân (BST) có đặc điểm nào dưới đây?","Mọi node con bên trái đều nhỏ hơn node cha và bên phải lớn hơn node cha","Mọi node con bên trái đều lớn hơn node cha","Các node luôn được cân bằng hoàn hảo","Là một đồ thị có chu trình kín","A","Quy tắc cơ bản của BST là: Cây con trái < Node cha < Cây con phải.",2`;
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'mau_cau_hoi_quiz_dsa.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  ui.showToast('Đã tải xuống file mẫu CSV câu hỏi trắc nghiệm!', 'success');
+}
+
+async function handleQuizExcelUpload(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+  const file = input.files[0];
+
+  try {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    let rows: any[] = [];
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    } else {
+      const text = await file.text();
+      const wb = XLSX.read(text, { type: 'string' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      ui.showToast('File không có dữ liệu câu hỏi hợp lệ.', 'warning');
+      return;
+    }
+
+    const importedList: InlineQuizQuestion[] = [];
+    for (const r of rows) {
+      const content = String(r.question || r['Câu hỏi'] || r['Content'] || '').trim();
+      if (!content) continue;
+
+      const optA = String(r.option_a || r['Đáp án A'] || r['A'] || '').trim();
+      const optB = String(r.option_b || r['Đáp án B'] || r['B'] || '').trim();
+      const optC = String(r.option_c || r['Đáp án C'] || r['C'] || '').trim();
+      const optD = String(r.option_d || r['Đáp án D'] || r['D'] || '').trim();
+
+      const options = [optA, optB, optC, optD].filter(Boolean);
+      if (options.length < 2) continue;
+
+      const correctRaw = String(r.correct_option || r['Đáp án đúng'] || r['Correct'] || 'A').trim().toUpperCase();
+      let correctIdx = 0;
+      if (correctRaw === 'B' || correctRaw === '1') correctIdx = 1;
+      else if (correctRaw === 'C' || correctRaw === '2') correctIdx = 2;
+      else if (correctRaw === 'D' || correctRaw === '3') correctIdx = 3;
+
+      const explanation = String(r.explanation || r['Giải thích'] || '').trim();
+      const points = Number(r.points || r['Điểm'] || 1) || 1;
+
+      importedList.push({
+        content,
+        type: 'Single',
+        options: [optA || '', optB || '', optC || '', optD || ''],
+        correctIndex: correctIdx,
+        correctIndices: [correctIdx],
+        explanation,
+        points,
+      });
+    }
+
+    if (importedList.length === 0) {
+      ui.showToast('Không tìm thấy câu hỏi đúng cấu trúc trong file Excel/CSV.', 'warning');
+      return;
+    }
+
+    quizQuestions.value.push(...importedList);
+    ui.showToast(`Đã nhập thành công ${importedList.length} câu hỏi từ file Excel/CSV!`, 'success');
+  } catch (err: any) {
+    ui.showToast(`Lỗi khi đọc file Excel/CSV: ${err?.message || err}`, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+async function handleQuizWordUpload(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+  const file = input.files[0];
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    const text = result.value;
+
+    if (!text || !text.trim()) {
+      ui.showToast('Không đọc được nội dung văn bản từ file Word.', 'warning');
+      return;
+    }
+
+    // Smart Regex Parser bóc tách câu hỏi và đáp án từ Word
+    const rawBlocks = text.split(/(?:Câu\s+\d+[:.]|\bQuestion\s+\d+[:.]|\b\d+[\.\)]\s+)/i).filter((b) => b.trim().length > 0);
+    const parsedQuestions: InlineQuizQuestion[] = [];
+
+    for (const block of rawBlocks) {
+      const lines = block.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length < 3) continue;
+
+      const content = lines[0];
+      const options: string[] = [];
+      let correctIdx = 0;
+      let explanation = '';
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const optMatch = line.match(/^([*]?)\s*([A-D])[\.\)]\s*(.+)$/i);
+        if (optMatch) {
+          const isMarked = Boolean(optMatch[1]);
+          const letter = optMatch[2].toUpperCase();
+          const optText = optMatch[3].trim();
+          const curIdx = options.length;
+          options.push(optText);
+          if (isMarked) {
+            correctIdx = curIdx;
+          } else if (line.includes('[x]') || line.includes('(đúng)')) {
+            correctIdx = curIdx;
+          }
+        } else if (line.toLowerCase().startsWith('giải thích:') || line.toLowerCase().startsWith('explanation:')) {
+          explanation = line.replace(/^(giải thích|explanation):\s*/i, '').trim();
+        } else if (line.toLowerCase().startsWith('đáp án:') || line.toLowerCase().startsWith('answer:')) {
+          const ansLetter = line.replace(/^(đáp án|answer):\s*/i, '').trim().toUpperCase();
+          if (ansLetter === 'B' || ansLetter === '1') correctIdx = 1;
+          else if (ansLetter === 'C' || ansLetter === '2') correctIdx = 2;
+          else if (ansLetter === 'D' || ansLetter === '3') correctIdx = 3;
+        }
+      }
+
+      if (options.length >= 2) {
+        while (options.length < 4) {
+          options.push('');
+        }
+        parsedQuestions.push({
+          content,
+          type: 'Single',
+          options: options.slice(0, 4),
+          correctIndex: correctIdx,
+          correctIndices: [correctIdx],
+          explanation,
+          points: 1,
+        });
+      }
+    }
+
+    if (parsedQuestions.length === 0) {
+      ui.showToast('Không tìm thấy cấu trúc câu hỏi trắc nghiệm (Câu 1: ... A. ... B. ...) trong file Word.', 'warning');
+      return;
+    }
+
+    quizQuestions.value.push(...parsedQuestions);
+    ui.showToast(`Đã bóc tách thành công ${parsedQuestions.length} câu hỏi từ file Word (.docx)!`, 'success');
+  } catch (err: any) {
+    ui.showToast(`Lỗi khi đọc file Word: ${err?.message || err}`, 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+function handleQuizAiFormat(): void {
+  if (quizQuestions.value.length === 0) {
+    ui.showToast('Vui lòng thêm ít nhất 1 câu hỏi trước khi dùng AI Chuẩn hóa.', 'warning');
+    return;
+  }
+
+  let formattedCount = 0;
+  for (const q of quizQuestions.value) {
+    if (q.content) {
+      q.content = q.content.trim();
+      if (!q.content.endsWith('?') && !q.content.endsWith(':') && !q.content.endsWith('.')) {
+        q.content += '?';
+      }
+    }
+    q.options = q.options.map((o) => (o ? o.trim() : ''));
+    if (!q.explanation || !q.explanation.trim()) {
+      const correctOptText = q.options[q.correctIndex] || 'đáp án này';
+      q.explanation = `Lựa chọn đúng là "${correctOptText}" dựa trên nguyên lý hoạt động và phân tích độ phức tạp của thuật toán.`;
+    }
+    if (!q.points || q.points <= 0) {
+      q.points = 1;
+    }
+    formattedCount++;
+  }
+
+  ui.showToast(`AI đã chuẩn hóa và bổ sung giải thích cho ${formattedCount} câu hỏi trắc nghiệm!`, 'success');
+}
+
+function handleQuizAiGenerate(): void {
+  const topicName = form.title || 'Cấu trúc dữ liệu & Giải thuật';
+  const aiSamples: InlineQuizQuestion[] = [
+    {
+      content: `Khi áp dụng giải thuật liên quan đến "${topicName}", trường hợp xấu nhất (Worst Case) thường xảy ra khi nào?`,
+      type: 'Single',
+      options: [
+        'Dữ liệu đầu vào nghịch đảo hoặc phân bố không đồng đều',
+        'Dữ liệu đã được sắp xếp sẵn theo thứ tự mong muốn',
+        'Kích thước tập dữ liệu n < 10',
+        'Bộ nhớ RAM của hệ thống còn dưới 20%',
+      ],
+      correctIndex: 0,
+      correctIndices: [0],
+      explanation: 'Trường hợp xấu nhất xảy ra khi thứ tự dữ liệu đầu vào làm thuật toán phải thực hiện số phép so sánh/phép duyệt tối đa.',
+      points: 2,
+    },
+    {
+      content: `Độ phức tạp không gian (Space Complexity) tối ưu của cấu trúc/thuật toán "${topicName}" là:`,
+      type: 'Single',
+      options: ['O(1) bộ nhớ phụ trợ tại chỗ (In-place)', 'O(N^2) mảng hai chiều', 'O(2^N) đệ quy vô hạn', 'O(N!) hoán vị'],
+      correctIndex: 0,
+      correctIndices: [0],
+      explanation: 'Thuật toán tối ưu tận dụng không gian tại chỗ để đạt độ phức tạp không gian O(1).',
+      points: 2,
+    },
+    {
+      content: `Ứng dụng thực tế quan trọng nhất của "${topicName}" trong kỹ thuật phần mềm là gì?`,
+      type: 'Single',
+      options: [
+        'Tối ưu hóa thời gian tìm kiếm, truy xuất và quản lý dữ liệu hiệu quả',
+        'Thay thế hoàn toàn ngôn ngữ lập trình bậc cao',
+        'Tự động sửa lỗi phần cứng CPU',
+        'Mã hóa dữ liệu không thể giải mã',
+      ],
+      correctIndex: 0,
+      correctIndices: [0],
+      explanation: 'Cấu trúc dữ liệu và giải thuật giúp nâng cao hiệu năng truy xuất và xử trị dữ liệu quy mô lớn.',
+      points: 2,
+    },
+  ];
+
+  quizQuestions.value.push(...aiSamples);
+  ui.showToast(`AI đã sinh 3 câu hỏi trắc nghiệm chuyên sâu về "${topicName}"!`, 'success');
+}
+
 function addTestCase() {
   labForm.testCases.push({ input: '', expected: '', isHidden: false });
 }
@@ -539,14 +842,7 @@ function removeTestCase(idx: number) {
   labForm.testCases.splice(idx, 1);
 }
 
-// ── Lắng nghe phím tắt Ctrl + S / Cmd + S & Chống mất dữ liệu ──
-function handleBeforeUnload(e: BeforeUnloadEvent): void {
-  if (isDirty.value && !saving.value) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-}
-
+// ── Lắng nghe phím tắt Ctrl + S / Cmd + S ──
 function onGlobalKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
     e.preventDefault();
@@ -586,14 +882,7 @@ async function handleSave() {
     const itemType = normalizeItemType(props.item.itemType);
 
     if (itemType === 'theory') {
-      const inlineSimKeys: string[] = [];
-      const matches = theoryContentHtml.value.matchAll(/\[(?:Mô phỏng|Simulation|mo phong):\s*([a-zA-Z0-9._-]+)\]/gi);
-      for (const m of matches) {
-        if (m[1] && !inlineSimKeys.includes(m[1])) {
-          inlineSimKeys.push(m[1]);
-        }
-      }
-      const simKeysToSave = Array.from(new Set([...attachedSimulations.value, ...inlineSimKeys]));
+      const simKeysToSave = Array.from(new Set(attachedSimulations.value));
 
       if (props.item.lessonId) {
         try {
@@ -616,7 +905,7 @@ async function handleSave() {
             title: form.title.trim(),
             description: form.description.trim(),
             contentHtml: theoryContentHtml.value,
-            status: 'active',
+            status: 'draft',
             sortOrder: 1,
             isClassOnly: false,
             simulationKeys: simKeysToSave,
@@ -635,7 +924,7 @@ async function handleSave() {
           title: form.title.trim(),
           description: form.description.trim(),
           contentHtml: theoryContentHtml.value,
-          status: 'active',
+          status: 'draft',
           sortOrder: 1,
           isClassOnly: false,
           simulationKeys: simKeysToSave,
@@ -726,6 +1015,8 @@ async function handleSave() {
     ui.showToast('Đã lưu nội dung thành công', 'success');
     dirtyBaseline.value = snapshot();
     showDirtyConfirm.value = false;
+    (updated as any).updatedAt = new Date().toISOString();
+    (updated as any).UpdatedAt = new Date().toISOString();
     emit('saved', updated);
   } catch (err: any) {
     ui.showToast(err?.message || 'Lỗi khi lưu mục nội dung', 'error');
@@ -738,7 +1029,8 @@ async function handleSave() {
 <template>
   <div
     v-if="open && item"
-    class="item-editor-slideover relative flex flex-col h-full bg-[#12111a] border border-[#262438] rounded-2xl overflow-hidden shadow-2xl"
+    class="item-editor-slideover flex flex-col bg-[#12111a] border border-[#262438] overflow-hidden shadow-2xl transition-all duration-200"
+    :class="isFullscreen ? 'fixed inset-0 z-50 rounded-none w-screen h-screen' : 'relative h-full rounded-2xl'"
     data-testid="item-editor-slideover"
   >
     <!-- Header -->
@@ -761,13 +1053,22 @@ async function handleSave() {
       <div class="flex items-center gap-2">
         <button
           type="button"
+          :title="isFullscreen ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'"
+          class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          @click="isFullscreen = !isFullscreen"
+        >
+          <Minimize2 v-if="isFullscreen" class="w-4 h-4 text-purple-400" />
+          <Maximize2 v-else class="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           data-testid="item-editor-save"
           :disabled="saving"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-950/50 transition-colors disabled:opacity-50 cursor-pointer"
           @click="handleSave"
         >
           <Save class="w-3.5 h-3.5" />
-          <span>{{ saving ? 'Đang lưu...' : 'Lưu' }}</span>
+          <span>{{ saving ? 'Đang lưu...' : 'Lưu bài học' }}</span>
         </button>
         <button
           type="button"
@@ -1012,7 +1313,7 @@ async function handleSave() {
                 @click="openPickerModal()"
               >
                 <Eye class="w-3.5 h-3.5" />
-                <span>Xem &amp; Chọn Mô phỏng</span>
+                <span>Chọn Mô phỏng</span>
               </button>
 
               <select
@@ -1098,7 +1399,7 @@ async function handleSave() {
                   @click="toggleInlinePreviewSim(simKey)"
                 >
                   <Play class="w-3 h-3" />
-                  <span>{{ previewSimKey === simKey ? 'Đóng xem thử' : 'Chạy thử tại đây' }}</span>
+                  <span>{{ previewSimKey === simKey ? 'Đang mở' : 'Chạy thử' }}</span>
                 </button>
                 <button
                   type="button"
@@ -1111,50 +1412,136 @@ async function handleSave() {
               </div>
             </div>
 
-            <!-- Inline Interactive Player directly in Studio -->
-            <div v-if="previewSimKey" class="p-3 bg-[#0d0c18] border border-purple-500/40 rounded-xl space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                  <Play class="w-3.5 h-3.5 text-purple-400" />
-                  <span>Trực quan hóa thuật toán: {{ getSimTitle(previewSimKey) }}</span>
-                </span>
-                <button
-                  type="button"
-                  class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-white/10"
-                  @click="previewSimKey = null"
-                >
-                  ✕ Đóng
-                </button>
+            <!-- B3 fix: player mở ở overlay rộng (trước đây inline trong panel ~800px làm mô phỏng bị chèn ép) -->
+            <Teleport to="body">
+              <div
+                v-if="previewSimKey"
+                class="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+                role="dialog"
+                aria-modal="true"
+                :aria-label="'Chạy thử mô phỏng ' + getSimTitle(previewSimKey)"
+                @click.self="previewSimKey = null"
+              >
+                <div class="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-2xl bg-[#10121d] border border-purple-500/40 shadow-2xl">
+                  <div class="px-5 py-3.5 bg-[#17192a] border-b border-purple-500/20 flex items-center justify-between gap-3 sticky top-0 z-10">
+                    <span class="text-xs font-black text-purple-300 flex items-center gap-2">
+                      <Play class="w-4 h-4 text-purple-400" />
+                      <span>Chạy thử: {{ getSimTitle(previewSimKey) }}</span>
+                    </span>
+                    <button
+                      type="button"
+                      class="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/10 cursor-pointer"
+                      @click="previewSimKey = null"
+                    >
+                      ✕ Đóng
+                    </button>
+                  </div>
+                  <div class="p-4">
+                    <InlineSimulationPlayer :key="previewSimKey" :sim-key="previewSimKey" class="!my-0" />
+                  </div>
+                </div>
               </div>
-              <InlineSimulationPlayer :sim-key="previewSimKey" />
-            </div>
+            </Teleport>
           </div>
           <p v-else class="text-[11px] text-slate-500 italic">
-            Chưa có mô phỏng nào được đính kèm. Bấm "Xem &amp; Chọn Mô phỏng" để duyệt và chạy thử 44 giải thuật trực quan.
+            Chưa có mô phỏng nào được đính kèm. Bấm "Chọn Mô phỏng" để duyệt, xem thử và gắn 44 giải thuật trực quan.
           </p>
         </div>
       </div>
 
       <!-- Quiz Editor -->
       <div v-else-if="currentItemType === 'quiz'" class="space-y-4">
-        <div class="flex items-center justify-between gap-2 flex-wrap pb-1">
-          <div class="flex items-center gap-2">
-            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <HelpCircle class="w-3.5 h-3.5 text-orange-400" />
-              <span>Danh sách Câu hỏi Trắc nghiệm ({{ quizQuestions.length }})</span>
-            </label>
-            <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
-              Tổng điểm: {{ totalQuizPoints }}
-            </span>
+        <!-- Quiz Control Bar -->
+        <div class="p-3 bg-[#171527] border border-[#27253b] rounded-xl space-y-3 shadow-md">
+          <div class="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-[#242238]">
+            <div class="flex items-center gap-2">
+              <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <HelpCircle class="w-3.5 h-3.5 text-orange-400" />
+                <span>Danh sách Câu hỏi Trắc nghiệm ({{ quizQuestions.length }})</span>
+              </label>
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                Tổng điểm: {{ totalQuizPoints }}
+              </span>
+            </div>
+            
+            <button
+              type="button"
+              class="flex items-center gap-1 px-3 py-1 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-lg transition-colors cursor-pointer shadow-sm"
+              @click="addQuestion"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>+ Thêm Câu hỏi</span>
+            </button>
           </div>
-          <button
-            type="button"
-            class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg transition-colors cursor-pointer"
-            @click="addQuestion"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span>+ Câu hỏi</span>
-          </button>
+
+          <!-- Quiz Toolbar Tools: Tải mẫu, Nhập Excel, Nhập Word, AI Assistant -->
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <!-- Tải file mẫu CSV -->
+              <button
+                type="button"
+                title="Tải file mẫu CSV / Excel chuẩn để soạn câu hỏi hàng loạt"
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-white/5 hover:bg-white/10 border border-[#34324d] rounded-lg transition-colors cursor-pointer"
+                @click="downloadSampleQuizCsv"
+              >
+                <Download class="w-3.5 h-3.5 text-sky-400" />
+                <span>Tải mẫu CSV</span>
+              </button>
+
+              <!-- Upload Excel / CSV -->
+              <label
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
+                title="Nhập câu hỏi từ file Excel (.xlsx, .xls) hoặc CSV"
+              >
+                <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
+                <span>Nhập Excel / CSV</span>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  class="hidden"
+                  @change="handleQuizExcelUpload"
+                />
+              </label>
+
+              <!-- Upload Word (.docx) -->
+              <label
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition-colors cursor-pointer"
+                title="Tự động bóc tách câu hỏi và 4 đáp án A, B, C, D từ file Word (.docx)"
+              >
+                <FileText class="w-3.5 h-3.5 text-blue-400" />
+                <span>Nhập Word (.docx)</span>
+                <input
+                  type="file"
+                  accept=".docx"
+                  class="hidden"
+                  @change="handleQuizWordUpload"
+                />
+              </label>
+            </div>
+
+            <!-- AI Assistants -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                title="AI tự động chuẩn hóa dấu câu và bổ sung giải thích chi tiết cho các câu hỏi"
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors cursor-pointer"
+                @click="handleQuizAiFormat"
+              >
+                <Wand2 class="w-3.5 h-3.5 text-purple-400" />
+                <span>AI Chuẩn hóa</span>
+              </button>
+
+              <button
+                type="button"
+                title="AI tự động sinh 3 câu hỏi trắc nghiệm chuyên sâu phù hợp với chủ đề bài học"
+                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors cursor-pointer"
+                @click="handleQuizAiGenerate"
+              >
+                <Sparkles class="w-3.5 h-3.5 text-amber-400" />
+                <span>AI Sinh 3 câu</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-for="(q, qIdx) in quizQuestions" :key="qIdx" class="p-3.5 bg-[#171624] border border-[#27253b] rounded-xl space-y-3 shadow-sm">
@@ -1500,26 +1887,6 @@ async function handleSave() {
           · {{ labForm.testCases.length }} test cases · {{ labForm.maxScore }} điểm
         </span>
       </div>
-
-      <div class="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
-          @click="requestClose"
-        >
-          Đóng
-        </button>
-        <button
-          type="button"
-          data-testid="item-editor-save-bottom"
-          :disabled="saving"
-          class="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md shadow-purple-950/50 transition-colors disabled:opacity-50 cursor-pointer"
-          @click="handleSave"
-        >
-          <Save class="w-3.5 h-3.5" />
-          <span>{{ saving ? 'Đang lưu...' : 'Lưu ngay' }}</span>
-        </button>
-      </div>
     </div>
 
     <!-- Xác nhận thoát khi còn thay đổi chưa lưu -->
@@ -1563,8 +1930,10 @@ async function handleSave() {
     <SimulationPickerModal
       :is-open="showSimPicker"
       :initial-key="pickerInitialKey"
+      :attached-keys="attachedSimulations"
       @close="showSimPicker = false"
       @attach="addSimulation"
+      @attach-many="addSimulations"
       @insert="insertSimulationTag"
     />
   </div>

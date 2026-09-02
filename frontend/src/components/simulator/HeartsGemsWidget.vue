@@ -92,9 +92,17 @@ const nextHeartIn = computed(() => {
   return diff <= 0 ? null : formatDuration(Math.ceil(diff / 1000));
 });
 
-// Vừa hết đếm ngược (tim đã hồi) → fetch lại để đồng bộ hearts với backend.
-watch(nextHeartIn, (value, prev) => {
-  if (prev !== null && value === null && gamification.hearts < gamification.heartsMax) {
+const periodIndex = computed(() => {
+  if (!gamification.lastHeartAt || gamification.hearts >= gamification.heartsMax) return 0;
+  const intervalMs = regenMinutes.value * 60 * 1000;
+  const base = new Date(gamification.lastHeartAt).getTime();
+  const elapsed = Math.max(0, nowMs.value - base);
+  return Math.floor(elapsed / intervalMs);
+});
+
+// Khi vừa bước qua chu kỳ hồi tim mới (periodIndex tăng) → gọi fetchHearts ngay
+watch(periodIndex, (newIdx, oldIdx) => {
+  if (newIdx > oldIdx && gamification.hearts < gamification.heartsMax) {
     if (syncTimer !== null) clearTimeout(syncTimer);
     syncTimer = setTimeout(() => {
       void gamification.fetchHearts();

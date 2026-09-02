@@ -27,44 +27,43 @@
     <div class="p-4 flex flex-col flex-1">
       <div class="flex items-start justify-between mb-2">
         <h3 class="text-base font-bold text-white line-clamp-1 mr-2">{{ course.title }}</h3>
-        <span class="text-[10px] font-bold text-vdsa-yellow flex items-center gap-0.5 whitespace-nowrap bg-vdsa-yellow/30 px-1.5 py-0.5 rounded">
+        <span class="text-[10px] font-bold text-vdsa-yellow flex items-center gap-0.5 whitespace-nowrap bg-vdsa-yellow/30 px-1.5 py-0.5 rounded shrink-0">
           <BaseIcon name="zap" class="w-3 h-3" />
           {{ course.xpReward }} XP
         </span>
       </div>
 
-      <p class="text-xs text-vdsa-muted line-clamp-2 mb-4 flex-1">{{ course.description }}</p>
+      <p class="text-xs text-vdsa-muted line-clamp-2 mb-3 flex-1">{{ course.description }}</p>
 
-      <div class="flex items-center justify-between pt-3 border-t border-vdsa-border-subtle">
-        <div class="flex items-center gap-2 text-[10px] text-vdsa-muted font-medium">
-          <span class="flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            {{ course.totalLessons }} bài
-          </span>
+      <!-- Thanh tiến độ nổi bật khi đã ghi danh -->
+      <div v-if="authStore.isAuthenticated && isEnrolled" class="mb-3 space-y-1">
+        <div class="flex items-center justify-between text-[11px] font-semibold">
+          <span class="text-vdsa-muted">Tiến độ hoàn thành</span>
+          <span :class="progressPercent === 100 ? 'text-vdsa-green font-bold' : 'text-purple-300 font-bold'">{{ progressPercent }}%</span>
+        </div>
+        <div class="w-full h-1.5 bg-vdsa-surface rounded-full overflow-hidden border border-white/5">
+          <div
+            class="h-full rounded-full transition-all duration-500"
+            :style="{ width: progressPercent + '%' }"
+            :class="progressPercent === 100 ? 'bg-vdsa-green' : 'bg-gradient-to-r from-purple-500 to-indigo-500'"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-vdsa-border-subtle gap-2">
+        <div class="flex items-center gap-1.5 text-xs text-vdsa-muted font-medium whitespace-nowrap shrink-0">
+          <svg class="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <span class="whitespace-nowrap">{{ course.totalLessons }} bài</span>
         </div>
 
-        <div class="flex items-center gap-3">
-
-          <div v-if="authStore.isAuthenticated && isEnrolled" class="flex items-center gap-2">
-            <div class="w-16 h-1.5 bg-vdsa-surface rounded-full overflow-hidden">
-              <div
-                class="h-full rounded-full transition-all duration-500"
-                :style="{ width: progressPercent + '%' }"
-                :class="progressPercent === 100 ? 'bg-vdsa-green' : 'bg-vdsa-accent'"
-              />
-            </div>
-            <span class="text-xs font-bold tabular-nums" :class="progressPercent === 100 ? 'text-vdsa-green' : 'text-vdsa-muted'">
-              {{ progressPercent }}%
-            </span>
-          </div>
-
-          <span
-            class="inline-flex items-center px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg select-none whitespace-nowrap shrink-0"
-            :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border group-hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green group-hover:brightness-110 text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent group-hover:brightness-110 text-white shadow-vdsa-accent/30')"
-          >
-            {{ !isEnrolled ? 'Xem chi tiết' : (progressPercent === 100 ? 'Ôn tập' : 'Tiếp tục học') }}
-          </span>
-        </div>
+        <span
+          class="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md select-none whitespace-nowrap shrink-0"
+          :class="(!isEnrolled) ? 'bg-vdsa-surface border border-vdsa-border group-hover:bg-vdsa-hover text-white shadow-none' : (progressPercent === 100 ? 'bg-vdsa-green group-hover:brightness-110 text-white shadow-vdsa-accent/30' : 'bg-vdsa-accent group-hover:brightness-110 text-white shadow-vdsa-accent/30')"
+        >
+          {{ !isEnrolled ? 'Xem chi tiết' : (progressPercent === 100 ? 'Ôn tập' : 'Tiếp tục học') }}
+        </span>
       </div>
     </div>
   </div>

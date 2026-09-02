@@ -1,13 +1,34 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Clock, GraduationCap, LogOut, Home, CheckCircle2 } from 'lucide-vue-next';
+import { Clock, GraduationCap, LogOut, Home, CheckCircle2, RefreshCw } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 
 const auth = useAuthStore();
+const ui = useUiStore();
 const router = useRouter();
+const isChecking = ref(false);
+
+async function handleRefreshStatus(): Promise<void> {
+  isChecking.value = true;
+  try {
+    await auth.fetchMe();
+    if (auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN') {
+      ui.showToast('Chúc mừng! Tài khoản giảng viên của bạn đã được phê duyệt.', 'success');
+      await router.replace({ path: '/studio' });
+    } else {
+      ui.showToast('Hồ sơ của bạn vẫn đang trong hàng đợi xét duyệt từ Quản trị viên.', 'info');
+    }
+  } catch (err) {
+    ui.showToast('Không thể kết nối máy chủ để kiểm tra trạng thái.', 'error');
+  } finally {
+    isChecking.value = false;
+  }
+}
 
 async function handleLogout(): Promise<void> {
   await auth.logout();
@@ -57,11 +78,15 @@ function goHome(): void {
         </div>
       </div>
 
-      <div class="flex items-center justify-center gap-3 pt-2">
-        <Button variant="secondary" size="md" class="gap-1.5 text-xs" @click="goHome">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <Button variant="primary" size="md" class="w-full sm:w-auto gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white" :disabled="isChecking" @click="handleRefreshStatus">
+          <RefreshCw :size="14" :class="{ 'animate-spin': isChecking }" />
+          {{ isChecking ? 'Đang kiểm tra...' : 'Làm mới trạng thái' }}
+        </Button>
+        <Button variant="secondary" size="md" class="w-full sm:w-auto gap-1.5 text-xs" @click="goHome">
           <Home :size="14" /> Về trang chủ
         </Button>
-        <Button variant="danger" size="md" class="gap-1.5 text-xs" @click="handleLogout">
+        <Button variant="danger" size="md" class="w-full sm:w-auto gap-1.5 text-xs" @click="handleLogout">
           <LogOut :size="14" /> Đăng xuất
         </Button>
       </div>

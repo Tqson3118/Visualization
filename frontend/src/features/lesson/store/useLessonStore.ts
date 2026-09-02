@@ -89,6 +89,13 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       completedLessonIds.value.push(id);
       localStorage.setItem('dsa.completedLessons', JSON.stringify(completedLessonIds.value));
     }
+    if (lessonMeta.value?.courseId) {
+      try {
+        localStorage.setItem(`course_done_${lessonMeta.value.courseId}_${id}`, 'true');
+        const courseStore = useCourseStore();
+        courseStore.enrollCourse(String(lessonMeta.value.courseId));
+      } catch {}
+    }
     lessonFinished.value = true;
 
     // Chặn nhận XP free nếu bài học thuộc lộ trình mà user chưa tham gia lộ trình đó
@@ -104,7 +111,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     }
 
     if (currentLesson.value) {
-      const totalXp = currentLesson.value.xpReward ?? 100;
+      const totalXp = currentLesson.value.xpReward ?? 0;
       if (xpAwarded.value < totalXp) {
         const diff = totalXp - xpAwarded.value;
         try {

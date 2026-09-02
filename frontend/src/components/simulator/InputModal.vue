@@ -119,6 +119,11 @@ function onSubmit(): void {
         } else {
           value = parseArrayInput(rawStr, field.type);
         }
+      } else if (field.type === 'select') {
+        const hasNumberOptions = field.options?.some((opt) => typeof opt.value === 'number') || typeof field.default === 'number';
+        if (hasNumberOptions && value !== '' && !isNaN(Number(value))) {
+          value = Number(value);
+        }
       }
     } else if (Array.isArray(value) && field.type === 'int[]') {
       if (value.length === 0 && (form.inputSource === 'manual' || !('inputSource' in form))) {

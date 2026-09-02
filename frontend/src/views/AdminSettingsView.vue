@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed } from 'vue';
+import { onMounted, reactive, ref, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
   Bug,
@@ -17,6 +18,7 @@ import {
   Lock,
   Globe,
   Cpu,
+  Zap,
 } from 'lucide-vue-next';
 
 import { courseApi, type CourseFeedbackDto } from '@/services/courseApi';
@@ -29,12 +31,30 @@ import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import AdminGamificationSettingsTab from '@/components/admin/AdminGamificationSettingsTab.vue';
 
 const ui = useUiStore();
+const route = useRoute();
+const router = useRouter();
 
 // ── Tab chính ──
-type SettingTab = 'system' | 'reports';
+type SettingTab = 'system' | 'gamification' | 'reports';
 const activeTab = ref<SettingTab>('system');
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab === 'gamification' || tab === 'reports' || tab === 'system') {
+      activeTab.value = tab as SettingTab;
+    }
+  },
+  { immediate: true },
+);
+
+function switchTab(tab: SettingTab): void {
+  activeTab.value = tab;
+  void router.replace({ query: { ...route.query, tab } });
+}
 
 // ── TAB 1: CẤU HÌNH HỆ THỐNG ──
 const settingsLoading = ref(true);
@@ -108,46 +128,52 @@ async function handleSaveSettings(): Promise<void> {
   }
 }
 
-// ── TAB 2: BÁO CÁO LỖI & PHẢN HỒI ──
-const reports = ref<CourseFeedbackDto[]>([]);
+// ── TAB 2: BÁO CÁO & Ý KIẾN (nguồn /bug-reports — form /help + báo lỗi hệ thống) ──
+// C7 fix: trước đây tab này đọc course-feedback (trùng dữ liệu với tab phản hồi của GV
+// trong Studio) → giờ đọc đúng kênh /help (BugReport). C5: chỉ 2 trạng thái —
+// "Đang xử lý" (NEW/PROCESSING) và "Đã xử lý" (RESOLVED/CLOSED, khóa chỉnh sửa).
+const reports = ref<adminApi.BugReportDto[]>([]);
 const reportsLoading = ref(false);
 const reportsError = ref('');
 const statusFilter = ref<string>('');
-const typeFilter = ref<string>('');
 const searchQuery = ref<string>('');
 
 const replyTexts = reactive<Record<number, string>>({});
-const replyStatuses = reactive<Record<number, string>>({});
 const savingReportId = ref<number | null>(null);
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'New', label: 'Chưa xử lý' },
-  { value: 'Read', label: 'Đang xử lý' },
-  { value: 'Resolved', label: 'Đã giải quyết' },
+  { value: 'OPEN', label: 'Đang xử lý' },
+  { value: 'DONE', label: 'Đã xử lý' },
 ];
 
-const TYPE_OPTIONS = [
-  { value: '', label: 'Tất cả loại' },
-  { value: 'Bug', label: 'Báo lỗi hệ thống' },
-  { value: 'Suggestion', label: 'Đóng góp ý kiến' },
-  { value: 'Request', label: 'Yêu cầu hỗ trợ' },
-];
+function isOpenStatus(status: string): boolean {
+  return status === 'NEW' || status === 'PROCESSING';
+}
 
-const pendingCount = computed(() => reports.value.filter((r) => r.status === 'New').length);
-const processingCount = computed(() => reports.value.filter((r) => r.status === 'Read').length);
-const resolvedCount = computed(() => reports.value.filter((r) => r.status === 'Resolved').length);
+const openCount = computed(() => reports.value.filter((r) => isOpenStatus(r.status)).length);
+const doneCount = computed(() => reports.value.length - openCount.value);
+const pendingCount = openCount;
+
+/** Context JSON gửi kèm từ form /help (name/email) hoặc báo lỗi bài học. */
+function parseContext(ctx: string | null): Record<string, unknown> | null {
+  if (!ctx) return null;
+  try {
+    return JSON.parse(ctx) as Record<string, unknown>;
+  } catch {
+    return { raw: ctx };
+  }
+}
 
 const filteredReports = computed(() => {
   return reports.value.filter((r) => {
-    if (statusFilter.value && r.status !== statusFilter.value) return false;
-    if (typeFilter.value && r.type !== typeFilter.value) return false;
+    if (statusFilter.value === 'OPEN' && !isOpenStatus(r.status)) return false;
+    if (statusFilter.value === 'DONE' && isOpenStatus(r.status)) return false;
     if (searchQuery.value.trim()) {
       const q = normalizeVi(searchQuery.value);
-      const matchContent = normalizeVi(r.content).includes(q);
-      const matchUser = normalizeVi(r.userName).includes(q);
-      const matchCourse = normalizeVi(r.courseTitle).includes(q);
-      if (!matchContent && !matchUser && !matchCourse) return false;
+      const matchContent = normalizeVi(r.description).includes(q);
+      const matchContext = r.context ? normalizeVi(r.context).includes(q) : false;
+      if (!matchContent && !matchContext) return false;
     }
     return true;
   });
@@ -157,30 +183,33 @@ async function loadReports(): Promise<void> {
   reportsLoading.value = true;
   reportsError.value = '';
   try {
-    reports.value = await courseApi.getTeacherFeedback();
+    reports.value = await adminApi.fetchBugReports();
   } catch (err) {
-    reportsError.value = 'Không thể tải danh sách báo cáo lỗi & vi phạm từ máy chủ.';
+    reportsError.value = 'Không thể tải danh sách báo cáo & ý kiến từ máy chủ.';
   } finally {
     reportsLoading.value = false;
   }
 }
 
-async function handleReply(report: CourseFeedbackDto): Promise<void> {
+/** Trả lời/xử lý xong → RESOLVED và khóa chỉnh sửa (C5). */
+async function handleReply(report: adminApi.BugReportDto): Promise<void> {
   const text = replyTexts[report.id]?.trim();
-  const nextStatus = replyStatuses[report.id] || (text ? 'Resolved' : report.status);
-
+  if (!text) {
+    ui.showToast('Nhập nội dung phản hồi trước khi đánh dấu đã xử lý.', 'warning');
+    return;
+  }
   savingReportId.value = report.id;
   try {
-    const updated = await courseApi.replyCourseFeedback(report.id, {
-      replyText: text || undefined,
-      status: nextStatus,
+    const updated = await adminApi.updateBugReport(report.id, {
+      status: 'RESOLVED',
+      adminNote: text,
     });
     const idx = reports.value.findIndex((r) => r.id === report.id);
     if (idx !== -1) {
       reports.value[idx] = updated;
     }
     replyTexts[report.id] = '';
-    ui.showToast('Đã cập nhật trạng thái báo cáo & gửi phản hồi thành công!', 'success');
+    ui.showToast('Đã xử lý báo cáo — nội dung đã được khóa chỉnh sửa.', 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Cập nhật thất bại.', 'error');
   } finally {
@@ -188,71 +217,26 @@ async function handleReply(report: CourseFeedbackDto): Promise<void> {
   }
 }
 
+import { formatDateTime } from '@/utils/format';
+
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function getTypeBadgeVariant(type: string): 'danger' | 'warning' | 'primary' | 'muted' {
-  switch (type) {
-    case 'Bug':
-      return 'danger';
-    case 'Suggestion':
-      return 'primary';
-    case 'Request':
-      return 'warning';
-    default:
-      return 'muted';
-  }
-}
-
-function getTypeLabel(type: string): string {
-  switch (type) {
-    case 'Bug':
-      return 'Báo lỗi';
-    case 'Suggestion':
-      return 'Góp ý';
-    case 'Request':
-      return 'Yêu cầu';
-    default:
-      return type;
-  }
+  return formatDateTime(iso);
 }
 
 function getStatusBadgeVariant(status: string): 'danger' | 'warning' | 'success' | 'muted' {
-  switch (status) {
-    case 'New':
-      return 'danger';
-    case 'Read':
-      return 'warning';
-    case 'Resolved':
-      return 'success';
-    default:
-      return 'muted';
-  }
+  return isOpenStatus(status) ? 'warning' : 'success';
 }
 
 function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'New':
-      return 'Chưa xử lý';
-    case 'Read':
-      return 'Đang xử lý';
-    case 'Resolved':
-      return 'Đã giải quyết';
-    default:
-      return status;
-  }
+  return isOpenStatus(status) ? 'Đang xử lý' : 'Đã xử lý';
+}
+
+/** Nhãn nguồn gửi: /help (có name/email trong context) hoặc người dùng #id. */
+function getReporterLabel(report: adminApi.BugReportDto): string {
+  const ctx = parseContext(report.context);
+  const name = ctx && typeof ctx.name === 'string' ? ctx.name : null;
+  return name ? name : 'Người dùng #' + (report.userId ?? '?');
 }
 
 onMounted(() => {
@@ -285,7 +269,7 @@ onMounted(() => {
         type="button"
         class="tab-btn"
         :class="{ 'tab-btn--active': activeTab === 'system' }"
-        @click="activeTab = 'system'"
+        @click="switchTab('system')"
       >
         <Sliders :size="16" />
         <span>Cấu hình Hệ thống</span>
@@ -293,8 +277,17 @@ onMounted(() => {
       <button
         type="button"
         class="tab-btn"
+        :class="{ 'tab-btn--active': activeTab === 'gamification' }"
+        @click="switchTab('gamification')"
+      >
+        <Zap :size="16" class="text-amber-400" />
+        <span>Cài đặt Gamification</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
         :class="{ 'tab-btn--active': activeTab === 'reports' }"
-        @click="activeTab = 'reports'"
+        @click="switchTab('reports')"
       >
         <MessageSquare :size="16" />
         <span>Báo cáo & Ý kiến</span>
@@ -459,21 +452,22 @@ onMounted(() => {
       </form>
     </section>
 
-    <!-- TAB 2: BÁO CÁO LỖI & Ý KIẾN HỌC VIÊN -->
+    <!-- TAB 2: CÀI ĐẶT GAMIFICATION (Điểm XP & Trái tim) -->
+    <section v-else-if="activeTab === 'gamification'" class="space-y-6">
+      <AdminGamificationSettingsTab />
+    </section>
+
+    <!-- TAB 3: BÁO CÁO & Ý KIẾN (kênh /help + báo lỗi hệ thống) -->
     <section v-else-if="activeTab === 'reports'" class="space-y-6">
-      <!-- Stats Overview -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="stat-box card">
-          <span class="stat-box__label">Chưa xử lý</span>
-          <span class="stat-box__value text-rose-400 font-mono">{{ pendingCount }}</span>
-        </div>
+      <!-- Stats Overview — C5: 2 trạng thái -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="stat-box card">
           <span class="stat-box__label">Đang xử lý</span>
-          <span class="stat-box__value text-amber-400 font-mono">{{ processingCount }}</span>
+          <span class="stat-box__value text-amber-400 font-mono">{{ openCount }}</span>
         </div>
         <div class="stat-box card">
-          <span class="stat-box__label">Đã giải quyết</span>
-          <span class="stat-box__value text-emerald-400 font-mono">{{ resolvedCount }}</span>
+          <span class="stat-box__label">Đã xử lý (khóa)</span>
+          <span class="stat-box__value text-emerald-400 font-mono">{{ doneCount }}</span>
         </div>
       </div>
 
@@ -484,18 +478,13 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Tìm theo nội dung, học viên, bài học..."
+            placeholder="Tìm theo nội dung phản hồi..."
             class="filter-bar__input"
           />
         </div>
         <div class="filter-bar__controls">
           <select v-model="statusFilter" class="form-select">
             <option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-          <select v-model="typeFilter" class="form-select">
-            <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
           </select>
@@ -535,49 +524,53 @@ onMounted(() => {
         >
           <div class="report-card__top">
             <div class="flex items-center gap-2">
-              <Badge :variant="getTypeBadgeVariant(item.type)">
-                {{ getTypeLabel(item.type) }}
-              </Badge>
               <Badge :variant="getStatusBadgeVariant(item.status)">
                 {{ getStatusLabel(item.status) }}
               </Badge>
               <span class="text-xs text-slate-400 font-mono">{{ formatDate(item.createdAt) }}</span>
-            </div>
-            <div class="text-xs text-slate-400">
-              Học viên: <strong class="text-slate-200">{{ item.userName }}</strong>
-              <span v-if="item.courseTitle"> · Khóa: <em class="text-slate-300">{{ item.courseTitle }}</em></span>
+              <span
+                v-if="isOpenStatus(item.status)"
+                class="text-xs text-slate-400"
+              >
+                Người gửi: <strong class="text-slate-200">{{ getReporterLabel(item) }}</strong>
+              </span>
             </div>
           </div>
 
           <div class="report-card__content">
-            <p class="text-slate-200 whitespace-pre-wrap">{{ item.content }}</p>
+            <p class="text-slate-200 whitespace-pre-wrap">{{ item.description }}</p>
           </div>
 
-          <div v-if="item.replyText" class="report-card__reply">
+          <div v-if="item.adminNote" class="report-card__reply">
             <div class="text-xs text-primary-400 font-semibold mb-1">Phản hồi từ quản trị viên:</div>
-            <p class="text-slate-300 text-sm whitespace-pre-wrap">{{ item.replyText }}</p>
+            <p class="text-slate-300 text-sm whitespace-pre-wrap">{{ item.adminNote }}</p>
           </div>
 
-          <!-- Reply form -->
-          <div class="report-card__actions pt-3 border-t border-slate-700/50 flex flex-col sm:flex-row gap-2">
+          <!-- C5: đã xử lý → khóa chỉnh sửa -->
+          <div
+            v-if="!isOpenStatus(item.status)"
+            class="report-card__actions pt-3 border-t border-slate-700/50 flex flex-wrap items-center gap-2"
+          >
+            <span class="text-xs text-slate-500 inline-flex items-center gap-1.5">
+              <Lock :size="13" /> Đã xử lý{{ item.resolvedAt ? ' · ' + formatDate(item.resolvedAt) : '' }} — nội dung khóa chỉnh sửa
+            </span>
+          </div>
+
+          <!-- Đang xử lý → nhập phản hồi & đánh dấu đã xử lý -->
+          <div v-else class="report-card__actions pt-3 border-t border-slate-700/50 flex flex-col sm:flex-row gap-2">
             <input
               v-model="replyTexts[item.id]"
               type="text"
               class="form-input flex-1 text-sm"
-              :placeholder="item.replyText ? 'Cập nhật nội dung phản hồi...' : 'Nhập phản hồi gửi học viên...'"
+              placeholder="Nhập phản hồi cho người dùng, rồi bấm Đánh dấu đã xử lý..."
             />
-            <select v-model="replyStatuses[item.id]" class="form-select text-sm w-auto">
-              <option value="New">Chưa xử lý</option>
-              <option value="Read">Đang xử lý</option>
-              <option value="Resolved">Đã giải quyết</option>
-            </select>
             <Button
               size="sm"
               variant="primary"
               :loading="savingReportId === item.id"
               @click="handleReply(item)"
             >
-              <Send :size="14" /> Gửi
+              <Send :size="14" /> Đánh dấu đã xử lý
             </Button>
           </div>
         </article>

@@ -23,14 +23,14 @@ public static partial class SeedGrokkingAlgorithmsData
     // ── Map module order → Topic ──
     private static readonly (int Order, string Name, string Description)[] ModuleTopics =
     [
-        (1000, "Module 1: Nhập môn Thuật toán", "Thuật toán là gì, tính chất cơ bản và ứng dụng trong đời sống."),
-        (2000, "Module 2: Độ phức tạp Big-O", "Đo lường và so sánh tốc độ thuật toán bằng ký hiệu Big-O."),
-        (3000, "Module 3: Tìm kiếm", "Tìm kiếm tuyến tính và tìm kiếm nhị phân."),
-        (4000, "Module 4: Sắp xếp cơ bản", "Bubble Sort, Selection Sort và Insertion Sort."),
-        (5000, "Module 5: Đệ quy & Chia để trị", "Tư duy đệ quy, Merge Sort và Quick Sort."),
-        (6000, "Module 6: Heap & Hàng đợi ưu tiên", "Đống nhị phân, Heapify và ứng dụng Top-K."),
-        (7000, "Module 7: Đồ thị", "BFS, DFS và thuật toán Dijkstra."),
-        (8000, "Module 8: Tham lam & Quy hoạch động", "Thuật toán tham lam và giới thiệu quy hoạch động."),
+        (1000, "Nhập môn Thuật toán", "Thuật toán là gì, tính chất cơ bản và ứng dụng trong đời sống."),
+        (2000, "Độ phức tạp Big-O", "Đo lường và so sánh tốc độ thuật toán bằng ký hiệu Big-O."),
+        (3000, "Tìm kiếm", "Tìm kiếm tuyến tính và tìm kiếm nhị phân."),
+        (4000, "Sắp xếp cơ bản", "Bubble Sort, Selection Sort và Insertion Sort."),
+        (5000, "Đệ quy & Chia để trị", "Tư duy đệ quy, Merge Sort và Quick Sort."),
+        (6000, "Heap & Hàng đợi ưu tiên", "Đống nhị phân, Heapify và ứng dụng Top-K."),
+        (7000, "Đồ thị", "BFS, DFS và thuật toán Dijkstra."),
+        (8000, "Tham lam & Quy hoạch động", "Thuật toán tham lam và giới thiệu quy hoạch động."),
     ];
 
     /// <summary>Lab simulation key theo bài theory (LAB exercise) — 14 engine sẵn có.</summary>

@@ -631,7 +631,7 @@ export const messages = {
       title: 'Quản lý người dùng',
       subtitle: 'Quản lý tài khoản, khóa/mở khóa và duyệt đăng ký giảng viên.',
       tabAll: 'Tất cả người dùng',
-      tabPending: 'Chờ duyệt Teacher',
+      tabPending: 'Chờ duyệt giáo viên',
       searchLabel: 'Tìm người dùng',
       searchPlaceholder: 'Tìm theo tên/email...',
       roleFilterLabel: 'Lọc vai trò',

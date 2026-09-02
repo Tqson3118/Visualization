@@ -166,6 +166,7 @@ builder.Services.AddSingleton<ITokenService, TokenService>();              // JW
 builder.Services.AddSingleton<SettingsCache>();                             // cache Settings (SDD §5.3.7)
 builder.Services.AddSingleton<LoginAttemptTracker>();                       // khóa tạm đăng nhập 5/15p
 builder.Services.AddSingleton<SubmissionLockRegistry>();                    // chống nộp bài đồng thời
+builder.Services.AddSingleton<IGamificationConfigService, GamificationConfigService>(); // Cấu hình Gamification động
 // Finding security#18: whitelist HtmlSanitizer THU HẸP — THAY thế default set của Ganss.Xss
 // (mặc định cho phép a/img/div/table/style...) bằng đúng 13 tag mong muốn; hạn chế attributes
 // và schemes (http/https/mailto) — chống phishing/tracking qua link/ảnh ngoài.
@@ -232,6 +233,8 @@ builder.Services.AddScoped<IValidator<PremiumMockPayRequest>, PremiumMockPayRequ
 builder.Services.AddScoped<IValidator<BenchmarkRequest>, BenchmarkRequestValidator>();
 builder.Services.AddScoped<IValidator<SystemSettingsDto>, SystemSettingsValidator>();
 builder.Services.AddScoped<IValidator<BugReportRequest>, BugReportRequestValidator>();
+builder.Services.AddScoped<IValidator<GamificationSettingsDto>, GamificationSettingsValidator>();
+builder.Services.AddSingleton<IGamificationConfigService, GamificationConfigService>();
 
 // Finding security#2: rate limiting toàn cục — phân vùng theo (user claim sub + IP), policy
 // riêng cho endpoint nhạy cảm (login/register/forgot-password/refresh/2fa/join — chặt hơn),
@@ -341,6 +344,14 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseCors("frontend");
+
+var webRoot = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "avatars"));
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRoot),
+    RequestPath = ""
+});
 
 app.UseAuthentication();
 

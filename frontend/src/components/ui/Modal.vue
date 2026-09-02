@@ -12,12 +12,14 @@ const props = withDefaults(
     description?: string;
     closable?: boolean;
     width?: string;
+    isDirty?: boolean;
   }>(),
   {
     title: '',
     description: '',
     closable: true,
     width: '560px',
+    isDirty: false,
   },
 );
 
@@ -26,15 +28,39 @@ const emit = defineEmits<{
 }>();
 
 function onOpenChange(next: boolean): void {
-  if (!next && props.open) emit('close');
+  if (!next && props.open) {
+    if (props.isDirty) {
+      const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+      if (!ok) return;
+    }
+    emit('close');
+  }
 }
 
-// Khi closable=false: chặn đóng bằng overlay/Esc + ẩn nút X (giữ hành vi Modal cũ).
+// Khi closable=false hoặc isDirty: kiểm soát đóng bằng overlay/Esc
 function onEscapeKeyDown(event: Event): void {
-  if (!props.closable) event.preventDefault();
+  if (!props.closable) {
+    event.preventDefault();
+    return;
+  }
+  if (props.isDirty) {
+    const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+    if (!ok) {
+      event.preventDefault();
+    }
+  }
 }
 function onPointerDownOutside(event: Event): void {
-  if (!props.closable) event.preventDefault();
+  if (!props.closable) {
+    event.preventDefault();
+    return;
+  }
+  if (props.isDirty) {
+    const ok = window.confirm('Bạn có thay đổi chưa lưu, có chắc chắn muốn đóng?');
+    if (!ok) {
+      event.preventDefault();
+    }
+  }
 }
 </script>
 

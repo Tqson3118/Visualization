@@ -206,7 +206,7 @@ public sealed class PathItemService(
                         Title = request.Title.Trim(),
                         Description = request.Description?.Trim(),
                         ContentHtml = "",
-                        Status = LessonStatus.Active,
+                        Status = path.Status == LearningPathStatus.Active ? LessonStatus.Active : LessonStatus.Draft,
                         CreatedBy = userId,
                         CreatedAt = now
                     };
@@ -351,9 +351,10 @@ public sealed class PathItemService(
             if (node.LessonId is { } lessonId)
             {
                 var lesson = await db.Lessons.FirstOrDefaultAsync(l => l.Id == lessonId, ct);
-                if (lesson is not null && lesson.Status == LessonStatus.Hidden)
+                if (lesson is not null)
                 {
                     lesson.Title = node.Title;
+                    lesson.UpdatedAt = clock.UtcNow;
                 }
             }
 
@@ -621,11 +622,10 @@ public sealed class PathItemService(
 
     private static bool CanManagePath(int userId, string role, LearningPath path) =>
         role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase)
-        || path.CreatedBy == userId
-        || path.AuthorId == userId;
+        || ((role.Equals("TEACHER", StringComparison.OrdinalIgnoreCase) || role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase))
+            && (path.CreatedBy == userId || (path.AuthorId.HasValue && path.AuthorId.Value == userId)));
 
     private static bool CanViewPath(int userId, string role, LearningPath path) =>
         CanManagePath(userId, role, path)
-        || path.Status == LearningPathStatus.Active
-        || path.Visibility == PathVisibility.Public;
+        || path.Status == LearningPathStatus.Active;
 }

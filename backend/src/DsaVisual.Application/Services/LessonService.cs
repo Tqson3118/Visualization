@@ -73,7 +73,8 @@ public sealed class LessonService(
 
         var total = await query.CountAsync(ct);
         var items = await query
-            .OrderBy(l => l.SortOrder).ThenBy(l => l.Id)
+            // S-4: "Bài học cập nhật gần đây" — bài vừa sửa phải nổi lên đầu danh sách.
+            .OrderByDescending(l => l.UpdatedAt ?? l.CreatedAt).ThenByDescending(l => l.Id)
             .Skip((safePage - 1) * safeSize).Take(safeSize)
             .Select(l => new LessonSummaryDto
             {
@@ -470,6 +471,25 @@ public sealed class LessonService(
 
         // Finding #6 (FR-10.3): xem lesson → tăng quest lesson_viewed (atomic, không chặn luồng chính)
         await QuestProgressWriter.IncrementAsync(db, userId, "lesson_viewed", ct);
+
+        // Cập nhật ngày hoạt động & chuỗi học tập
+        var actToday = clock.UtcNow.AddHours(7).Date;
+        var actYesterday = actToday.AddDays(-1);
+        var actUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (actUser is not null)
+        {
+            if (actUser.LastActivityDate == actYesterday)
+            {
+                actUser.StreakDays += 1;
+            }
+            else if (actUser.LastActivityDate != actToday)
+            {
+                actUser.StreakDays = 1;
+            }
+            actUser.LastActivityDate = actToday;
+            actUser.StreakLastProcessed ??= actToday;
+            await db.SaveChangesAsync(ct);
+        }
 
         logger.LogInformation("User {UserId} marked lesson {LessonId} as viewed", userId, lessonId);
         return Result.Ok();

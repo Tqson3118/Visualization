@@ -5,12 +5,12 @@ import { adjacency, buildGenerator, buildGraphEdges, graphStructure, parseGraphP
 const PSEUDOCODE = [
   'procedure Dijkstra(G, s)',
   '  d[s] ← 0; với mọi v ≠ s: d[v] ← ∞',
-  '  PQ ← {(0, s)}',
-  '  while PQ ≠ rỗng do',
-  '    u ← extract-min',
+  '  Tập chưa chốt ← V (hoặc PQ ← {(0, s)})',
+  '  while còn đỉnh chưa chốt do',
+  '    u ← extract-min (chọn u có d[u] nhỏ nhất)',
   '    for cạnh (u, v, w) do',
   '      if d[u] + w < d[v] then',
-  '        d[v] ← d[u] + w; parent[v] ← u; decrease-key',
+  '        d[v] ← d[u] + w; parent[v] ← u    // relax',
   '  end procedure',
 ];
 
@@ -96,7 +96,7 @@ export function createDijkstraGenerator(): SimulationGenerator {
         statuses.nodes[u] = 'done';
         trace.push({
           line: 5,
-          explanation: `extract-min: chọn u = ${u} có d[${u}] = ${dist[u]} nhỏ nhất trong các đỉnh chưa thăm.`,
+          explanation: `extract-min: chọn u = ${u} có d[${u}] = ${dist[u]} nhỏ nhất trong các đỉnh chưa chốt (quét bảng O(V); với Min-Heap đạt O((V+E)log V)).`,
           structure: graphStructure(g, edges, statuses, dist),
           annotations: [`d[${u}]=${dist[u]} → đã chốt`],
         });

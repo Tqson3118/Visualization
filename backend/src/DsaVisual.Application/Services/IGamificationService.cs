@@ -30,4 +30,5 @@ public interface IGamificationService
     Task<Result<PaymentWebhookResultDto>> ProcessPaymentWebhookAsync(PaymentWebhookRequest request, CancellationToken ct);
     Task<Result<List<CheatsheetItemDto>>> GetCheatsheetAsync(string? structure, CancellationToken ct);
     Task<Result<BenchmarkRunResponse>> RunBenchmarkAsync(int userId, BenchmarkRequest request, CancellationToken ct);
+    Task RecordActivityAsync(int userId, CancellationToken ct = default);
 }

@@ -73,28 +73,9 @@ public sealed class ExerciseService(
                 .Where(n => n.PathId == targetCourseId.Value && n.LessonId != null)
                 .Select(n => n.LessonId!.Value);
 
-            var pathTopicId = await db.LearningPaths
-                .Where(p => p.Id == targetCourseId.Value)
-                .Select(p => p.TopicId)
-                .FirstOrDefaultAsync(ct);
-
-            if (pathTopicId is > 0)
-            {
-                var pathTopicLessonIds = db.Lessons
-                    .Where(l => l.TopicId == pathTopicId.Value && l.DeletedAt == null)
-                    .Select(l => l.Id);
-
-                query = query.Where(e =>
-                    (e.NodeId != null && courseNodeIds.Contains(e.NodeId.Value)) ||
-                    courseLessonIds.Contains(e.LessonId) ||
-                    pathTopicLessonIds.Contains(e.LessonId));
-            }
-            else
-            {
-                query = query.Where(e =>
-                    (e.NodeId != null && courseNodeIds.Contains(e.NodeId.Value)) ||
-                    courseLessonIds.Contains(e.LessonId));
-            }
+            query = query.Where(e =>
+                (e.NodeId != null && courseNodeIds.Contains(e.NodeId.Value)) ||
+                courseLessonIds.Contains(e.LessonId));
         }
 
         var total = await query.CountAsync(ct);
@@ -583,6 +564,25 @@ public sealed class ExerciseService(
                     await db.SaveChangesAsync(ct);
                 }
             }
+        }
+
+        // Cập nhật ngày hoạt động & chuỗi học tập
+        var actToday = clock.UtcNow.AddHours(7).Date;
+        var actYesterday = actToday.AddDays(-1);
+        var actUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (actUser is not null)
+        {
+            if (actUser.LastActivityDate == actYesterday)
+            {
+                actUser.StreakDays += 1;
+            }
+            else if (actUser.LastActivityDate != actToday)
+            {
+                actUser.StreakDays = 1;
+            }
+            actUser.LastActivityDate = actToday;
+            actUser.StreakLastProcessed ??= actToday;
+            await db.SaveChangesAsync(ct);
         }
 
         await tx.CommitAsync(ct);
@@ -1077,6 +1077,25 @@ public sealed class ExerciseService(
                     await db.SaveChangesAsync(ct);
                 }
             }
+        }
+
+        // Cập nhật ngày hoạt động & chuỗi học tập
+        var codeToday = clock.UtcNow.AddHours(7).Date;
+        var codeYesterday = codeToday.AddDays(-1);
+        var codeUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (codeUser is not null)
+        {
+            if (codeUser.LastActivityDate == codeYesterday)
+            {
+                codeUser.StreakDays += 1;
+            }
+            else if (codeUser.LastActivityDate != codeToday)
+            {
+                codeUser.StreakDays = 1;
+            }
+            codeUser.LastActivityDate = codeToday;
+            codeUser.StreakLastProcessed ??= codeToday;
+            await db.SaveChangesAsync(ct);
         }
 
         await tx.CommitAsync(ct);

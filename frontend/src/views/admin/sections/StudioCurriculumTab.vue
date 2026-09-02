@@ -41,6 +41,7 @@ import Button from '@/components/ui/Button.vue';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { useConfirm } from '@/composables/useConfirm';
+import { fetchTopics, type Topic } from '@/api/lessons';
 
 /**
  * Studio > Lộ trình — màn curriculum tối giản theo plan §5.1 / D7 / D8:
@@ -52,6 +53,16 @@ const router = useRouter();
 const ui = useUiStore();
 const auth = useAuthStore();
 const { confirm } = useConfirm();
+
+const emit = defineEmits<{
+  (e: 'dirtyChange', val: boolean): void;
+}>();
+
+const isEditorDirty = ref(false);
+function handleDirtyChange(val: boolean): void {
+  isEditorDirty.value = val;
+  emit('dirtyChange', val);
+}
 
 // ── Danh sách lộ trình của tôi ──
 const paths = ref<CourseListDto[]>([]);
@@ -99,11 +110,16 @@ const pathStatusLabel: Record<string, string> = {
   pending_review: 'Chờ duyệt',
   active: 'Công khai',
   rejected: 'Bị từ chối',
+  classonly: 'Lớp học',
 };
 
 const selectedPathStatus = computed(() => {
-  const status = selectedPath.value?.status ?? 'draft';
-  return { key: status, label: pathStatusLabel[status] ?? 'Nháp' };
+  // pendingScope = lựa chọn mới từ menu (⋯) chưa bấm "Lưu lộ trình" — hiển thị kèm "(chưa lưu)".
+  const status = pendingScope.value
+    ? (pendingScope.value === 'class' ? 'classonly' : pendingScope.value)
+    : (selectedPath.value?.status ?? 'draft');
+  const label = pathStatusLabel[status] ?? 'Nháp';
+  return { key: status, label: pendingScope.value ? label + ' (chưa lưu)' : label };
 });
 
 // ── Cây nội dung ──
@@ -278,6 +294,7 @@ function handleDocClick(e: MouseEvent): void {
 }
 
 // Cài đặt / Sửa thông tin lộ trình
+const availableTopics = ref<Topic[]>([]);
 const editPathModalOpen = ref(false);
 const savingPath = ref(false);
 const editPathForm = ref({
@@ -285,6 +302,7 @@ const editPathForm = ref({
   description: '',
   category: 'Cấu trúc dữ liệu',
   difficulty: 'Beginner',
+  topicId: null as number | null,
   learningObjectives: [] as string[],
   keyOutcomes: [] as string[],
 });
@@ -297,6 +315,7 @@ function openEditPathModal(): void {
     description: selectedPath.value.description || '',
     category: (selectedPath.value as any).category || 'Cấu trúc dữ liệu',
     difficulty: (selectedPath.value as any).difficulty || 'Beginner',
+    topicId: (selectedPath.value as any).topicId ?? null,
     learningObjectives: [...((selectedPath.value as any).learningObjectives || [])],
     keyOutcomes: [...((selectedPath.value as any).keyOutcomes || [])],
   };
@@ -304,24 +323,46 @@ function openEditPathModal(): void {
 }
 
 async function handleSavePath(): Promise<void> {
-  if (!selectedPath.value) return;
-  if (!editPathForm.value.title.trim()) {
+  const path = selectedPath.value;
+  if (!path) return;
+  // Fix bug "nút Lưu lộ trình không hoạt động": trước đây form chỉ có dữ liệu khi
+  // đã mở modal Cài đặt lộ trình — bấm nút trực tiếp luôn bị chặn "Tên trống".
+  // Nguồn dữ liệu: modal nếu đang mở, ngược lại dùng thông tin hiện tại của lộ trình.
+  const modalOpen = editPathModalOpen.value;
+  const src = modalOpen
+    ? editPathForm.value
+    : {
+        title: path.title || '',
+        description: path.description || '',
+        category: (path as any).category || 'Cấu trúc dữ liệu',
+        difficulty: (path as any).difficulty || 'Beginner',
+        topicId: (path as any).topicId ?? null,
+        learningObjectives: ((path as any).learningObjectives || []) as string[],
+        keyOutcomes: ((path as any).keyOutcomes || []) as string[],
+      };
+  if (!src.title.trim()) {
     ui.showToast('Tên lộ trình không được để trống.', 'warning');
     return;
   }
   savingPath.value = true;
   try {
-    await courseApi.updateCourse(selectedPath.value.id, {
-      title: editPathForm.value.title.trim(),
-      description: editPathForm.value.description.trim(),
-      category: editPathForm.value.category,
-      difficulty: editPathForm.value.difficulty,
-      learningObjectives: editPathForm.value.learningObjectives,
-      keyOutcomes: editPathForm.value.keyOutcomes,
+    await courseApi.updateCourse(path.id, {
+      title: src.title.trim(),
+      description: src.description.trim(),
+      category: src.category,
+      difficulty: src.difficulty,
+      topicId: src.topicId ?? undefined,
+      learningObjectives: src.learningObjectives,
+      keyOutcomes: src.keyOutcomes,
+      // Chế độ hiển thị chọn từ menu (⋯) chỉ được ghi khi bấm Lưu lộ trình
+      // — fix bug "chọn Nháp chưa bấm lưu đã tự lưu". Khi không có thay đổi,
+      // không gửi scope để backend giữ nguyên trạng thái hiện tại.
+      ...(pendingScope.value ? { scope: pendingScope.value } : {}),
     });
+    pendingScope.value = null;
     await loadPaths();
     editPathModalOpen.value = false;
-    ui.showToast('Đã lưu thông tin lộ trình thành công!', 'success');
+    ui.showToast('Đã lưu lộ trình thành công!', 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể lưu lộ trình.', 'error');
   } finally {
@@ -342,28 +383,42 @@ async function handleRenamePath(): Promise<void> {
   await handleSavePath();
 }
 
-// Chế độ hiển thị (D6)
+// Chế độ hiển thị (D6) — chọn Nháp/Lớp học chỉ đánh dấu pending,
+// ghi thật khi bấm "Lưu lộ trình" (fix bug tự lưu không qua nút Save).
 const changingVisibility = ref(false);
+const pendingScope = ref<'draft' | 'class' | null>(null);
 
 async function handleSetVisibility(scope: 'draft' | 'class' | 'public'): Promise<void> {
   const path = selectedPath.value;
   if (!path || changingVisibility.value) return;
   pathMenuOpen.value = false;
-  changingVisibility.value = true;
-  try {
-    if (scope === 'public') {
-      await courseApi.submitCourseForReview(path.id);
-      ui.showToast('Đã gửi lộ trình để admin duyệt công khai.', 'success');
-    } else {
-      await courseApi.updateCourse(path.id, { title: path.title, scope });
-      ui.showToast(scope === 'draft' ? 'Lộ trình đã về chế độ Nháp.' : 'Lộ trình đã mở cho lớp học.', 'success');
+  if (scope === 'public') {
+    if (!(path as any).topicId && !editPathForm.value.topicId) {
+      ui.showToast('Vui lòng chọn Chủ đề cho lộ trình trước khi gửi duyệt công khai.', 'warning');
+      openEditPathModal();
+      return;
     }
-    await loadPaths();
-  } catch (err) {
-    ui.showToast(err instanceof Error ? err.message : 'Không thể đổi chế độ hiển thị.', 'error');
-  } finally {
-    changingVisibility.value = false;
+    // Gửi duyệt công khai là hành động tường minh, giữ nguyên gọi ngay.
+    changingVisibility.value = true;
+    try {
+      await courseApi.submitCourseForReview(path.id);
+      pendingScope.value = null;
+      ui.showToast('Đã gửi lộ trình để admin duyệt công khai.', 'success');
+      await loadPaths();
+    } catch (err) {
+      ui.showToast(err instanceof Error ? err.message : 'Không thể gửi duyệt.', 'error');
+    } finally {
+      changingVisibility.value = false;
+    }
+    return;
   }
+  pendingScope.value = scope;
+  ui.showToast(
+    scope === 'draft'
+      ? 'Đã chọn chế độ Nháp — bấm "Lưu lộ trình" để áp dụng.'
+      : 'Đã chọn chế độ Lớp học — bấm "Lưu lộ trình" để áp dụng.',
+    'info',
+  );
 }
 
 // Xóa lộ trình
@@ -417,7 +472,12 @@ async function handleLessonIdQuery(): Promise<void> {
 onMounted(async () => {
   document.addEventListener('click', handleDocClick);
   syncFromRoute();
-  await loadPaths();
+  void loadPaths();
+  try {
+    availableTopics.value = await fetchTopics();
+  } catch (e) {
+    console.warn('Không thể nạp danh sách chủ đề:', e);
+  }
   // Query trỏ tới lộ trình không còn trong danh sách → bỏ chọn.
   if (selectedPathId.value != null && !selectedPath.value) selectPath(null);
   if (selectedPathId.value != null) await loadTree();
@@ -471,7 +531,7 @@ watch(
 
       <div class="flex items-center gap-2 shrink-0">
         <Button
-          v-if="selectedPath"
+          v-if="selectedPath && !selectedItemId"
           size="sm"
           variant="primary"
           data-testid="save-path-btn"
@@ -611,10 +671,10 @@ watch(
         <Layers class="w-4 h-4 text-slate-600 mb-1" />
       </div>
 
-      <!-- Cột cây nội dung đầy đủ (320px - 384px) -->
+      <!-- Cột cây nội dung đầy đủ (384px - 440px) -->
       <div
         v-else
-        class="w-full lg:w-80 xl:w-96 shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-[420px] transition-all"
+        class="w-full lg:w-96 xl:w-[410px] 2xl:w-[440px] shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-[420px] transition-all"
       >
         <div class="relative min-w-0 flex-1 flex flex-col h-full">
           <div
@@ -662,6 +722,7 @@ watch(
           @saved="handleItemSaved"
           @add-child="handleAddItem"
           @select-item="openEditor"
+          @dirty-change="handleDirtyChange"
         />
 
         <!-- Empty State khi chưa chọn item nào -->
@@ -741,7 +802,12 @@ watch(
     </div>
 
     <!-- Modal Cài đặt & Lưu Lộ trình -->
-    <Modal :open="editPathModalOpen" title="Cài đặt & Lưu thông tin Lộ trình" @close="editPathModalOpen = false">
+    <Modal
+      :open="editPathModalOpen"
+      title="Cài đặt & Lưu thông tin Lộ trình"
+      :is-dirty="Boolean(editPathForm.title || editPathForm.description)"
+      @close="editPathModalOpen = false"
+    >
       <div class="space-y-4 pt-1 max-h-[70vh] overflow-y-auto pr-1">
         <div>
           <label for="edit-path-title" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
@@ -769,13 +835,13 @@ watch(
           />
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label for="edit-path-cat" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Danh mục / Chủ đề DSA
+            <label for="edit-path-category" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Phân loại / Danh mục DSA
             </label>
             <select
-              id="edit-path-cat"
+              id="edit-path-category"
               v-model="editPathForm.category"
               class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
             >
@@ -784,6 +850,21 @@ watch(
               <option value="Sắp xếp & Tìm kiếm">Sắp xếp & Tìm kiếm</option>
               <option value="Cây & Bảng băm">Cây & Bảng băm</option>
               <option value="Đồ thị">Đồ thị</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Chủ đề kiến thức (Topic)
+            </label>
+            <select
+              id="edit-path-topic"
+              v-model="editPathForm.topicId"
+              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            >
+              <option :value="null">— Không chọn / Mặc định —</option>
+              <option v-for="t in availableTopics" :key="t.id" :value="t.id">{{ t.name }}</option>
             </select>
           </div>
 

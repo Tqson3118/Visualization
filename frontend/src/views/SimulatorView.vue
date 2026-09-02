@@ -38,9 +38,21 @@ const key = computed(() => String(route.params.key ?? ''));
 const isDemoKey = computed(() => getCatalogMeta(key.value)?.demoAllowed === true);
 const isDemo = computed(() => !auth.isAuthenticated);
 
+function checkGuestAccess(): void {
+  if (!auth.isAuthenticated && !isDemoKey.value) {
+    ui.showToast('Vui lòng đăng nhập để trải nghiệm toàn bộ thư viện thuật toán.', 'warning');
+    void router.replace({ name: 'login', query: { redirect: route.fullPath } });
+  }
+}
+
 onMounted(() => {
+  checkGuestAccess();
   window.addEventListener('keydown', onKeydown);
   checkFavorite();
+});
+
+watch(key, () => {
+  checkGuestAccess();
 });
 
 const initialInput = computed<InputConfig | undefined>(() => {

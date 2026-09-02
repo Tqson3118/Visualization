@@ -204,9 +204,9 @@ function onRowClick(): void {
 </script>
 
 <template>
-  <div class="tree-node-wrapper" :style="{ paddingLeft: depth * 16 + 'px' }">
+  <div class="tree-node-wrapper" :style="{ paddingLeft: Math.min(depth * 8, 24) + 'px' }">
     <div
-      class="group relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-1.5 py-1.5 cursor-pointer transition-colors border border-transparent select-none"
+      class="group relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-1.5 py-1.5 cursor-pointer transition-colors border border-transparent select-none min-w-0"
       :class="[
         isSelected ? 'bg-purple-600/25 border-purple-500/50 border-l-4 border-l-purple-500 shadow-sm' : 'hover:bg-[#1e1d2c]',
         zoneClass,
@@ -281,7 +281,7 @@ function onRowClick(): void {
         @keydown.esc.prevent="cancelRename"
         @blur="commitRename"
       />
-      <span v-else class="text-xs font-bold truncate text-slate-200 group-hover:text-white">
+      <span v-else class="flex-1 min-w-0 text-xs font-bold truncate text-slate-200 group-hover:text-white">
         {{ item.title || 'Mục chưa đặt tên' }}
       </span>
 
@@ -300,7 +300,12 @@ function onRowClick(): void {
       </span>
 
       <!-- Right: node actions -->
-      <div v-if="!ctx.readonly" class="flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0" @click.stop>
+      <div
+        v-if="!ctx.readonly"
+        class="flex items-center gap-1 ml-auto transition-opacity shrink-0"
+        :class="menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'"
+        @click.stop
+      >
         <button
           v-if="isFolder"
           type="button"
@@ -329,11 +334,11 @@ function onRowClick(): void {
     <!-- Menu: hành động -->
     <div
       v-if="menuOpen && mode === 'actions'"
-      class="relative z-50 ml-auto w-fit"
+      class="relative z-[70] ml-auto w-fit"
       role="menu"
       :aria-label="'Hành động cho ' + (item.title || 'mục')"
     >
-      <div class="absolute right-2 -top-1 w-44 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-50">
+      <div class="absolute right-2 -top-1 w-44 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-[70]">
         <button
           type="button"
           role="menuitem"
@@ -365,8 +370,8 @@ function onRowClick(): void {
     </div>
 
     <!-- Menu: chọn đích di chuyển -->
-    <div v-else-if="menuOpen && mode === 'move'" class="relative z-50 ml-auto w-fit" role="menu" aria-label="Chọn thư mục đích">
-      <div class="absolute right-2 -top-1 w-52 max-h-56 overflow-y-auto bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-50">
+    <div v-else-if="menuOpen && mode === 'move'" class="relative z-[70] ml-auto w-fit" role="menu" aria-label="Chọn thư mục đích">
+      <div class="absolute right-2 -top-1 w-52 max-h-56 overflow-y-auto bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-[70]">
         <p class="px-2.5 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Di chuyển đến…</p>
         <button
           type="button"
@@ -396,8 +401,8 @@ function onRowClick(): void {
     </div>
 
     <!-- Menu: thêm mục con -->
-    <div v-else-if="menuOpen && mode === 'add'" class="relative z-50 ml-auto w-fit" role="menu" aria-label="Thêm mục con">
-      <div class="absolute right-2 -top-1 w-48 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-50">
+    <div v-else-if="menuOpen && mode === 'add'" class="relative z-[70] ml-auto w-fit" role="menu" aria-label="Thêm mục con">
+      <div class="absolute right-2 -top-1 w-48 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-[70]">
         <button
           type="button"
           role="menuitem"

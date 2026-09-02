@@ -411,15 +411,16 @@ describe('AppHeader — Unit Tests (Modules A ~ H)', () => {
       expect(wrapper.find('.app-header__menu').exists()).toBe(false);
     });
 
-    it('U-MNU-004: Menu có đủ 5 mục', async () => {
+    it('U-MNU-004: Menu có đủ các mục', async () => {
       setupAuthedUser();
       const wrapper = mount(AppHeader);
       await wrapper.find('.app-header__user').trigger('click');
 
       const menuItems = wrapper.findAll('.app-header__menu-item');
-      expect(menuItems.length).toBe(5);
+      expect(menuItems.length).toBe(6);
       const texts = menuItems.map((i) => i.text());
       expect(texts).toContain(messages.nav.profile);
+      expect(texts).toContain('Gói Pro của tôi');
       expect(texts).toContain('Bảng xếp hạng');
       expect(texts).toContain('Premium');
       expect(texts).toContain('Trợ giúp');

@@ -60,25 +60,30 @@ const currentAnalysis = computed(() => {
   };
 });
 
-function handleAskAi(): void {
+async function handleAskAi(): Promise<void> {
   if (!userQuestion.value.trim() || isThinking.value) return;
   const q = userQuestion.value.trim();
   chatHistory.value.push({ sender: 'user', text: q });
   userQuestion.value = '';
   isThinking.value = true;
 
-  setTimeout(() => {
-    let reply = `Dựa trên bước ${props.step?.index ?? 0} của ${props.algorithmTitle}: `;
-    if (q.toLowerCase().includes('tại sao') || q.toLowerCase().includes('vì sao')) {
-      reply += `Bước này được thực thi nhằm đảm bảo tính đúng đắn của thuật toán: "${currentAnalysis.value?.intent}". Trạng thái hiện tại: [${currentAnalysis.value?.vars}].`;
-    } else if (q.toLowerCase().includes('độ phức tạp') || q.toLowerCase().includes('time')) {
-      reply += `Mỗi thao tác so sánh/hoán đổi ở bước này đóng góp vào tổng số ${props.step?.stats.comparisons ?? 0} lần so sánh và ${props.step?.stats.swaps ?? 0} lần đổi chỗ.`;
-    } else {
-      reply += `Hệ thống đã ghi nhận trạng thái: ${currentAnalysis.value?.explanation}. Thao tác này giúp thu hẹp không gian bài toán.`;
-    }
+  try {
+    const { askAiStepExplanation } = await import('@/services/aiTutorService');
+    const reply = await askAiStepExplanation({
+      algorithmTitle: props.algorithmTitle || 'Thuật toán DSA',
+      stepIndex: props.step?.index ?? 0,
+      explanation: currentAnalysis.value?.explanation || props.step?.explanation,
+      variables: currentAnalysis.value?.vars,
+      pseudocodeLine: String(currentAnalysis.value?.line ?? ''),
+      userQuestion: q,
+    });
     chatHistory.value.push({ sender: 'ai', text: reply });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Không thể kết nối AI Tutor lúc này.';
+    chatHistory.value.push({ sender: 'ai', text: `⚠️ ${errorMsg}` });
+  } finally {
     isThinking.value = false;
-  }, 400);
+  }
 }
 
 watch(

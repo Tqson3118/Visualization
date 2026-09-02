@@ -22,14 +22,14 @@ public static partial class SeedGrokkingData
     // ── Map module nguồn → Topic (module order 1000..8000) ──
     private static readonly (int Order, string Name, string Description)[] ModuleTopics =
     [
-        (1000, "Module 1: Cấu trúc Dữ liệu Tuyến tính cốt lõi", "Array (Mảng), Linked List (Danh sách liên kết) — nền tảng tuyến tính của mọi cấu trúc dữ liệu."),
-        (2000, "Module 2: Quản lý luồng dữ liệu (LIFO & FIFO)", "Stack (Ngăn xếp), Queue & Deque (Hàng đợi) — kiểm soát thứ tự xử lý dữ liệu."),
-        (3000, "Module 3: Tra cứu dữ liệu tốc độ cao (Hashing)", "Hash Map (Bảng băm), Hash Set (Tập hợp băm) — truy cập O(1) qua hàm băm."),
-        (4000, "Module 4: Cấu trúc dữ liệu Phân cấp (Cây cơ bản)", "Tree (Cây tổng quát), Binary Search Tree (BST) — tổ chức dữ liệu theo phân cấp."),
-        (5000, "Module 5: Cây nhị phân tìm kiếm & Cân bằng (BST & AVL)", "Binary Search Tree (BST) — tìm kiếm nhanh O(log n); AVL — tự cân bằng sau mỗi thao tác."),
-        (6000, "Module 6: Đống nhị phân (Heap) & Hàng đợi ưu tiên", "Heap (Đống nhị phân) — chèn/trích xuất O(log n); Priority Queue — xử lý theo độ ưu tiên."),
-        (7000, "Module 7: Đồ thị (Graph)", "Đồ thị — mô hình quan hệ; BFS/DFS — duyệt và tìm đường đi ngắn nhất."),
-        (8000, "Module 8: Cấu trúc dữ liệu nâng cao (Trie, Set/Map)", "Trie — tìm kiếm theo tiền tố; Set/Map — tra cứu O(1) và ứng dụng thực tế."),
+        (1000, "Cấu trúc Dữ liệu Tuyến tính cốt lõi", "Array (Mảng), Linked List (Danh sách liên kết) — nền tảng tuyến tính của mọi cấu trúc dữ liệu."),
+        (2000, "Quản lý luồng dữ liệu (LIFO & FIFO)", "Stack (Ngăn xếp), Queue & Deque (Hàng đợi) — kiểm soát thứ tự xử lý dữ liệu."),
+        (3000, "Tra cứu dữ liệu tốc độ cao (Hashing)", "Hash Map (Bảng băm), Hash Set (Tập hợp băm) — truy cập O(1) qua hàm băm."),
+        (4000, "Cấu trúc dữ liệu Phân cấp (Cây cơ bản)", "Tree (Cây tổng quát), Binary Search Tree (BST) — tổ chức dữ liệu theo phân cấp."),
+        (5000, "Cây nhị phân tìm kiếm & Cân bằng (BST & AVL)", "Binary Search Tree (BST) — tìm kiếm nhanh O(log n); AVL — tự cân bằng sau mỗi thao tác."),
+        (6000, "Đống nhị phân (Heap) & Hàng đợi ưu tiên", "Heap (Đống nhị phân) — chèn/trích xuất O(log n); Priority Queue — xử lý theo độ ưu tiên."),
+        (7000, "Đồ thị (Graph)", "Đồ thị — mô hình quan hệ; BFS/DFS — duyệt và tìm đường đi ngắn nhất."),
+        (8000, "Cấu trúc dữ liệu nâng cao (Trie, Set/Map)", "Trie — tìm kiếm theo tiền tố; Set/Map — tra cứu O(1) và ứng dụng thực tế."),
     ];
 
     /// <summary>Lesson nguồn → (LessonId nguồn, title, moduleOrder, sandboxType). Lấy từ JSON lúc runtime.</summary>

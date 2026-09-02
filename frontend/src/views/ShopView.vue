@@ -456,16 +456,26 @@ const slotLabel = (slot: string | null): string => {
 
                   <!-- Case 2: Standard Buy Action -->
                   <template v-else>
-                    <span class="shop__price" aria-label="Giá">
-                      <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
-                    </span>
-                    <Button
-                      :disabled="!canAfford(item.priceGems) || buyingId !== null || isMaxStacked(item)"
-                      :loading="buyingId === item.id"
-                      @click="buy(item)"
+                    <div class="flex items-center justify-between w-full">
+                      <span class="shop__price" aria-label="Giá">
+                        <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}
+                      </span>
+                      <Button
+                        :disabled="!canAfford(item.priceGems) || buyingId !== null || isMaxStacked(item)"
+                        :loading="buyingId === item.id"
+                        :title="!canAfford(item.priceGems) ? `Bạn còn thiếu ${formatNumber(item.priceGems - gamification.gems)} Gems` : undefined"
+                        @click="buy(item)"
+                      >
+                        {{ isMaxStacked(item) ? 'Đã đạt tối đa' : messages.shop.buy }}
+                      </Button>
+                    </div>
+                    <RouterLink
+                      v-if="!canAfford(item.priceGems) && !isMaxStacked(item)"
+                      to="/quests"
+                      class="text-[10px] text-purple-300 hover:text-white hover:underline flex items-center justify-center gap-1 w-full pt-1 transition-colors"
                     >
-                      {{ isMaxStacked(item) ? 'Đã đạt tối đa' : messages.shop.buy }}
-                    </Button>
+                      <Sparkles :size="11" class="text-purple-400" /> Thiếu {{ formatNumber(item.priceGems - gamification.gems) }} Gems · Kiếm tại Thử thách
+                    </RouterLink>
                   </template>
                 </footer>
               </article>

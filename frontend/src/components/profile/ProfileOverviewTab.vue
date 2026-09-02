@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { RouterLink } from 'vue-router';
-import type { Component } from 'vue';
-import { ShoppingBag, Target, Trophy, Users } from 'lucide-vue-next';
+import { ArrowRight, CheckCircle2, Crown, ShoppingBag, Target, Trophy, Users } from 'lucide-vue-next';
 import { useGamificationStore } from '@/stores/gamification';
 import { useProgressStore } from '@/stores/progress';
 import { useUiStore } from '@/stores/ui';
@@ -33,6 +32,13 @@ const levelProgressPct = computed(() => {
   const o = overview.value;
   if (!o || o.lessonsTotal === 0) return 0;
   return Math.min(100, Math.round((o.lessonsViewed / o.lessonsTotal) * 100));
+});
+
+const proDaysRemaining = computed(() => {
+  if (!gamification.isPremium) return 0;
+  if (!gamification.premium?.expiresAt) return 999;
+  const diff = new Date(gamification.premium.expiresAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 });
 
 const quickLinks: Array<{ label: string; to: string; icon: Component }> = [
@@ -123,6 +129,39 @@ const radarOption = computed(() => {
             <ProgressBar :value="levelProgressPct" :variant="levelProgressPct >= 100 ? 'success' : 'default'" />
           </div>
         </div>
+
+        <div class="card profile__overview-card profile__pro-card" :class="{ 'profile__pro-card--active': gamification.isPremium }">
+          <div class="flex items-center justify-between">
+            <h2 class="profile__panel-title flex items-center gap-2">
+              <Crown :size="18" :class="gamification.isPremium ? 'text-amber-400' : 'text-slate-400'" />
+              Trạng thái Gói học Pro
+            </h2>
+            <span v-if="gamification.isPremium" class="profile__pro-chip">✨ PRO</span>
+            <span v-else class="profile__free-chip">Miễn phí</span>
+          </div>
+
+          <p v-if="gamification.isPremium" class="text-xs text-slate-300">
+            Bạn đang sử dụng tài khoản <strong class="text-amber-400">PRO</strong>: Hồi tim 10 phút/tim, truy cập toàn bộ học phần và bài tập nâng cao.
+          </p>
+          <p v-else class="text-xs text-slate-400">
+            Nâng cấp gói Pro để hồi tim siêu tốc 10 phút/tim, mở khóa toàn bộ lộ trình và thử thách nâng cao.
+          </p>
+
+          <div v-if="gamification.isPremium" class="text-xs text-slate-400 mt-1">
+            Thời hạn:
+            <span class="font-bold text-white">
+              {{ !gamification.premium?.expiresAt ? 'Vĩnh viễn' : `Còn ${proDaysRemaining} ngày` }}
+            </span>
+          </div>
+
+          <div class="mt-2">
+            <RouterLink :to="{ name: 'subscription' }" class="profile__pro-btn">
+              <span>{{ gamification.isPremium ? 'Xem chi tiết gói Pro' : 'Nâng cấp Pro ngay' }}</span>
+              <ArrowRight :size="14" />
+            </RouterLink>
+          </div>
+        </div>
+
         <div class="card profile__overview-card">
           <h2 class="profile__panel-title">Điểm đến nhanh</h2>
           <div class="profile__quick">
@@ -188,8 +227,57 @@ const radarOption = computed(() => {
 
 .profile__overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-lg, 24px);
+}
+
+.profile__pro-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  position: relative;
+  background: linear-gradient(135deg, rgba(22, 27, 34, 0.9), rgba(30, 27, 75, 0.2));
+}
+
+.profile__pro-card--active {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.4), rgba(245, 158, 11, 0.06));
+}
+
+.profile__pro-chip {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a0f00;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+}
+
+.profile__free-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.profile__pro-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+.profile__pro-btn:hover {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  transform: translateY(-1px);
 }
 
 .profile__overview-card {

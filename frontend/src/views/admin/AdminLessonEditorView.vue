@@ -432,6 +432,16 @@ function toggleSimulation(key: string): void {
 
 function removeSimulation(key: string): void {
   form.selectedSimulations = form.selectedSimulations.filter((k) => k !== key);
+  // Fix "bỏ chọn nhưng vẫn hiển thị": xóa luôn thẻ [Mô phỏng: key] còn sót trong
+  // markdown — nếu không học viên vẫn thấy player inline từ nội dung bài học.
+  const anchorRe = new RegExp('\\[(?:Mô phỏng|Simulation|mo phong):\\s*' + key + '\\]', 'gi');
+  if (anchorRe.test(form.markdown)) {
+    form.markdown = form.markdown
+      .replace(anchorRe, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    ui.showToast('Đã gỡ mô phỏng "' + key + '" khỏi bài học (cả thẻ trong nội dung)', 'info');
+  }
 }
 
 // ── Smooth Scroll to Section ──

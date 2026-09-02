@@ -20,6 +20,7 @@ import ProfileOverviewTab from '@/components/profile/ProfileOverviewTab.vue';
 import ProfileProgressTab from '@/components/profile/ProfileProgressTab.vue';
 import ProfileInventoryTab from '@/components/profile/ProfileInventoryTab.vue';
 import ProfileAchievementsTab from '@/components/profile/ProfileAchievementsTab.vue';
+import ProfileFeedbackTab from '@/components/profile/ProfileFeedbackTab.vue';
 import ProfileSettingsTab from '@/components/profile/ProfileSettingsTab.vue';
 
 const route = useRoute();
@@ -28,9 +29,10 @@ const auth = useAuthStore();
 const gamification = useGamificationStore();
 const progressStore = useProgressStore();
 
-const tab = ref<'overview' | 'progress' | 'achievements' | 'inventory' | 'settings'>('overview');
+const tab = ref<'overview' | 'progress' | 'achievements' | 'inventory' | 'feedback' | 'settings'>('overview');
 const loading = ref(true);
 const loadError = ref('');
+const avatarImgFailed = ref(false);
 
 const level = computed(() => gamification.level);
 const xp = computed(() => gamification.xp);
@@ -75,7 +77,7 @@ async function retryOverview(): Promise<void> {
 onMounted(async () => {
   loading.value = true;
   const qTab = route.query.tab as string;
-  if (qTab && ['overview', 'progress', 'achievements', 'inventory', 'settings'].includes(qTab)) {
+  if (qTab && ['overview', 'progress', 'achievements', 'inventory', 'feedback', 'settings'].includes(qTab)) {
     tab.value = qTab as typeof tab.value;
   }
 
@@ -103,10 +105,11 @@ onMounted(async () => {
       <div class="profile__user">
         <span class="profile__avatar-frame" :class="frameThemeClass">
           <img
-            v-if="auth.user?.avatarUrl"
+            v-if="auth.user?.avatarUrl && !avatarImgFailed"
             :src="auth.user.avatarUrl"
             :alt="auth.user?.displayName ?? 'Avatar'"
             class="profile__avatar profile__avatar-image"
+            @error="avatarImgFailed = true"
           />
           <span v-else class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
             {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
@@ -177,13 +180,14 @@ onMounted(async () => {
       </div>
     </header>
 
-    <!-- Tabs: Tổng quan / Tiến độ / Túi đồ / Thành tích / Cài đặt -->
+    <!-- Tabs: Tổng quan / Tiến độ / Túi đồ / Thành tích / Phản hồi / Cài đặt -->
     <Tabs
       :tabs="[
         { key: 'overview', label: 'Tổng quan' },
         { key: 'progress', label: 'Tiến độ' },
         { key: 'inventory', label: 'Túi đồ', badge: gamification.inventory.length > 0 ? gamification.inventory.length : undefined },
         { key: 'achievements', label: 'Thành tích' },
+        { key: 'feedback', label: 'Ý kiến & Phản hồi' },
         { key: 'settings', label: 'Cài đặt' },
       ]"
       v-model="tab"
@@ -214,7 +218,12 @@ onMounted(async () => {
       <ProfileAchievementsTab />
     </section>
 
-    <!-- Tab 5: Cài đặt -->
+    <!-- Tab 5: Ý kiến & Phản hồi của tôi -->
+    <section v-else-if="tab === 'feedback'" class="profile__panel">
+      <ProfileFeedbackTab />
+    </section>
+
+    <!-- Tab 6: Cài đặt -->
     <section v-else-if="tab === 'settings'" class="profile__panel">
       <ProfileSettingsTab />
     </section>

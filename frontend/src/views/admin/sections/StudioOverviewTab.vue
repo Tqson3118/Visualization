@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onActivated, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   ArrowRight,
@@ -34,6 +34,11 @@ const emit = defineEmits<{
 const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
+
+function handleViewAllCurriculum(): void {
+  void router.push({ path: '/studio', query: { tab: 'curriculum' } });
+  emit('switchTab', 'curriculum');
+}
 
 const loading = ref(true);
 const totalLessons = ref(0);
@@ -152,8 +157,13 @@ async function loadStudioData(): Promise<void> {
     const myLessons = lessonData.items.filter(
       (l) => auth.role === 'ADMIN' || !currentUserId || (l as any).createdBy === currentUserId || (l as any).authorId === currentUserId || (l as any).createdBy == null || (l as any).createdBy <= 1,
     );
-    myLessonsCount.value = myLessons.length;
+    myLessonsCount.value = (auth.role === 'ADMIN' && (lessonData.total ?? 0) > 0) ? lessonData.total : myLessons.length;
 
+    myLessons.sort((a, b) => {
+      const timeA = new Date((a as any).updatedAt || (a as any).createdAt || 0).getTime();
+      const timeB = new Date((b as any).updatedAt || (b as any).createdAt || 0).getTime();
+      return timeB - timeA;
+    });
     recentLessons.value = myLessons.slice(0, 8);
   } catch {
     ui.showToast('Không thể tải một số dữ liệu tổng quan.', 'warning');
@@ -163,6 +173,11 @@ async function loadStudioData(): Promise<void> {
 }
 
 onMounted(() => {
+  void loadStudioData();
+  window.addEventListener('focus', loadStudioData);
+});
+
+onActivated(() => {
   void loadStudioData();
 });
 </script>
@@ -321,7 +336,7 @@ onMounted(() => {
         <h3 class="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
           <BookOpen :size="16" class="text-vdsa-purple" /> Bài học cập nhật gần đây
         </h3>
-        <Button variant="ghost" size="sm" class="text-xs" @click="emit('switchTab', 'curriculum')">
+        <Button variant="ghost" size="sm" class="text-xs" @click="handleViewAllCurriculum">
           Xem toàn bộ bài học →
         </Button>
       </div>

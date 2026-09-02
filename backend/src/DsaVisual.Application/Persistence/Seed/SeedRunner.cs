@@ -132,6 +132,65 @@ public static class SeedRunner
                 }
             }
         }
+
+        // Repair Final Test exercises if they have AVL questions or duplicate questions
+        var finalTestExercises = await db.Exercises.Where(e => e.Title.StartsWith("Kiểm tra cuối:") && e.DeletedAt == null).ToListAsync(ct);
+        foreach (var finalEx in finalTestExercises)
+        {
+            var curQuestions = await db.Questions.Where(q => q.ExerciseId == finalEx.Id).ToListAsync(ct);
+            var hasDuplicateOrAvlMismatch = false;
+            if (!finalEx.Title.Contains("Cây", StringComparison.OrdinalIgnoreCase))
+            {
+                hasDuplicateOrAvlMismatch = curQuestions.Any(q => q.Content.Contains("AVL", StringComparison.OrdinalIgnoreCase));
+            }
+            if (!hasDuplicateOrAvlMismatch && curQuestions.Count > 1)
+            {
+                var distinctCount = curQuestions.Select(q => q.Content).Distinct().Count();
+                if (distinctCount < curQuestions.Count)
+                {
+                    hasDuplicateOrAvlMismatch = true;
+                }
+            }
+
+            if (hasDuplicateOrAvlMismatch || curQuestions.Count == 0)
+            {
+                db.Questions.RemoveRange(curQuestions);
+
+                string[] lessonTitles = finalEx.Title switch
+                {
+                    var t when t.Contains("Sắp xếp & Tìm kiếm") => ["Bubble Sort", "Binary Search"],
+                    var t when t.Contains("CTDL tuyến tính") => ["Stack", "Linked List"],
+                    var t when t.Contains("Cây") => ["BST", "AVL"],
+                    var t when t.Contains("Bảng băm") => ["Hash Table"],
+                    var t when t.Contains("Đồ thị") => ["BFS"],
+                    _ => ["Bubble Sort", "Binary Search"]
+                };
+
+                var sourceByTitle = SeedData.Lessons.ToDictionary(l => l.Title, l => l.SourceLesson);
+                var questions = new List<Question>();
+                var qSort = 1;
+                foreach (var lessonTitle in lessonTitles)
+                {
+                    var source = sourceByTitle.TryGetValue(lessonTitle, out var s) ? s : null;
+                    foreach (var q in LoadQuizQuestions(lessonTitle, source, takeFirst: 2))
+                    {
+                        q.ExerciseId = finalEx.Id;
+                        q.SortOrder = qSort++;
+                        questions.Add(q);
+                        if (questions.Count >= 5) break;
+                    }
+                    if (questions.Count >= 5) break;
+                }
+
+                foreach (var q in questions)
+                {
+                    db.Questions.Add(q);
+                }
+                finalEx.MaxScore = questions.Sum(q => q.Points);
+                finalEx.Description = $"Kiểm tra cuối lộ trình — {questions.Count} câu trộn từ các bài học trong path.";
+            }
+        }
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -239,6 +298,11 @@ public static class SeedRunner
 
     private static async Task<int> SeedUsersAsync(AppDbContext db, DateTime now, ILogger logger, CancellationToken ct)
     {
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE Users SET AvatarUrl = '/assets/avatars/ai-bot.svg' WHERE AvatarUrl LIKE '%pngtree%' OR AvatarUrl LIKE 'http%'", ct);
+        }
+
         var adminId = 0;
         foreach (var seed in SeedData.Users)
         {
@@ -255,11 +319,19 @@ public static class SeedRunner
                     adminId = user.Id;
                 }
 
-                // Teacher demo luôn có đủ dữ liệu để trình diễn Teacher Studio/Shop trên máy dev.
+                // Teacher & Student demo avatar cục bộ
+                if (user.AvatarUrl != null && (user.AvatarUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || user.AvatarUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    user.AvatarUrl = email == "teacher@demo.local" ? "/assets/avatars/cyber-hacker.svg" : "/assets/avatars/ai-bot.svg";
+                }
                 if (email == "teacher@demo.local")
                 {
                     user.Gems = Math.Max(user.Gems, 1000);
                     user.AvatarUrl ??= "/assets/avatars/cyber-hacker.svg";
+                }
+                if (email == "student@demo.local")
+                {
+                    user.AvatarUrl ??= "/assets/avatars/ai-bot.svg";
                 }
                 user.UpdatedAt = now;
                 await db.SaveChangesAsync(ct);

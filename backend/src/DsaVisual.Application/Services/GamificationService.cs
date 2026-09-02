@@ -22,9 +22,11 @@ public sealed class GamificationService(
     AppDbContext db,
     IDateTimeProvider clock,
     ISimulationCatalogService catalog,
-    ILogger<GamificationService> logger) : IGamificationService
+    ILogger<GamificationService> logger,
+    IGamificationConfigService? configService = null) : IGamificationService
 {
-    private const int SessionMinutes = 36 * 60; // 36 giờ (2160 phút) theo quyết định PM
+    private readonly IGamificationConfigService _configService = configService ?? new GamificationConfigService();
+
  
     // ── Hearts ────────────────────────────────────────────────
  
@@ -261,7 +263,7 @@ public sealed class GamificationService(
         var alreadyPassed = nodeProgress?.Status == 2;
 
         var now = clock.UtcNow;
-        var expiresAt = now.AddMinutes(SessionMinutes);
+        var expiresAt = now.AddHours(_configService.GetSessionHours());
 
         // 1 transaction: gia hạn session hết hạn / tạo session mới (UNIQUE) → trừ tim (SDD §7.3.29, v2.5)
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -753,6 +755,33 @@ public sealed class GamificationService(
             .Select(u => new { u.Id, u.DisplayName, u.Xp })
             .ToListAsync(ct);
 
+        Dictionary<int, int> weeklyScores = new();
+        if (tab.Equals("week", StringComparison.OrdinalIgnoreCase) && rows.Count > 0)
+        {
+            var nowUtc7 = clock.UtcNow.AddHours(7);
+            var daysSinceMonday = ((int)nowUtc7.DayOfWeek + 6) % 7;
+            var weekStart = nowUtc7.Date.AddDays(-daysSinceMonday).AddHours(-7);
+            var userIds = rows.Select(r => r.Id).ToList();
+
+            var exScores = await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => userIds.Contains(s.UserId) && s.SubmittedAt >= weekStart)
+                .GroupBy(s => s.UserId)
+                .Select(g => new { UserId = g.Key, Score = g.Sum(s => s.Score) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score, ct);
+
+            var codeScores = await db.CodeSubmissions.AsNoTracking()
+                .Where(s => userIds.Contains(s.UserId) && s.SubmittedAt >= weekStart)
+                .GroupBy(s => s.UserId)
+                .Select(g => new { UserId = g.Key, Score = g.Sum(s => s.Score) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score, ct);
+
+            foreach (var uid in userIds)
+            {
+                var totalWeek = exScores.GetValueOrDefault(uid) + codeScores.GetValueOrDefault(uid);
+                weeklyScores[uid] = totalWeek > 0 ? totalWeek : rows.First(r => r.Id == uid).Xp;
+            }
+        }
+
         var items = rows.Select((row, index) => new LeaderboardEntryDto
         {
             Rank = (safePage - 1) * safeSize + index + 1,
@@ -760,9 +789,9 @@ public sealed class GamificationService(
             DisplayName = row.DisplayName,
             Xp = row.Xp,
             Level = ComputeLevel(row.Xp),
-            // G-F3E-NEW-1: FE đọc row.value — map theo tab. Cả 3 tab đều xếp hạng theo
-            // tổng Xp (week/class chỉ khác bộ lọc user) → Value = Xp là đúng với cách tính hiện có.
-            Value = row.Xp
+            Value = tab.Equals("week", StringComparison.OrdinalIgnoreCase)
+                ? weeklyScores.GetValueOrDefault(row.Id, row.Xp)
+                : row.Xp
         }).ToList();
 
         return Result<PagedResponse<LeaderboardEntryDto>>.Ok(
@@ -771,50 +800,52 @@ public sealed class GamificationService(
 
     // ── Shop / Gems ───────────────────────────────────────────
 
+    public async Task RecordActivityAsync(int userId, CancellationToken ct = default)
+    {
+        await UpdateStreakEagerAsync(userId, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<Result<List<ShopItemDto>>> GetShopItemsAsync(int userId, CancellationToken ct)
     {
         var items = await db.ShopItems.AsNoTracking()
+            .Where(i => !i.ItemKey.Contains("streak_freeze", StringComparison.OrdinalIgnoreCase))
             .OrderBy(i => i.PriceGems)
             .ToListAsync(ct);
 
-        var owned = await db.UserInventory.AsNoTracking()
-            .Where(i => i.UserId == userId)
-            .GroupBy(i => i.ItemId)
-            .Select(g => new { ItemId = g.Key, Count = g.Sum(i => i.Quantity) })
-            .ToDictionaryAsync(x => x.ItemId, x => x.Count, ct);
+        var inventory = await db.UserInventory.AsNoTracking()
+            .Where(iv => iv.UserId == userId)
+            .ToDictionaryAsync(iv => iv.ItemId, iv => iv.Quantity, ct);
 
         return Result<List<ShopItemDto>>.Ok(items.Select(i => new ShopItemDto
         {
             Id = i.Id,
             ItemKey = i.ItemKey,
             Name = i.Name,
-            Description = i.Type == 0 || i.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
-                ? (i.ItemKey.Contains("10") ? "Hồi ngay 10 Tim để tiếp tục học tập và làm bài tập." : "Hồi ngay 5 Tim để tiếp tục học tập và làm bài tập.")
-                : (i.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || i.Type == 2
-                    ? "Khung viền nổi bật hiển thị quanh avatar và bảng xếp hạng."
-                    : "Avatar trang trí đại diện tài khoản học viên."),
-            Slot = i.Type == 0 || i.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase)
-                ? "item"
-                : (i.ItemKey.StartsWith("frame", StringComparison.OrdinalIgnoreCase) || i.Type == 2 ? "frame" : "avatar"),
             PriceGems = i.PriceGems,
             MaxStack = i.MaxStack,
             Type = i.Type,
-            Owned = owned.GetValueOrDefault(i.Id)
+            Owned = inventory.TryGetValue(i.Id, out var q) ? q : 0,
         }).ToList());
     }
 
     public async Task<Result<ShopBuyResultDto>> BuyItemAsync(int userId, int itemId, CancellationToken ct)
     {
-        var item = await db.ShopItems.AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == itemId, ct);
+        var item = await db.ShopItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == itemId, ct);
         if (item is null)
         {
             return Result<ShopBuyResultDto>.Fail(ErrorCodes.NOT_FOUND, "Vật phẩm không tồn tại");
         }
 
+        // Bỏ streak_freeze theo yêu cầu hệ thống
+        if (item.ItemKey.Contains("streak_freeze", StringComparison.OrdinalIgnoreCase))
+        {
+            return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED, "Vật phẩm không còn được mở bán");
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Trừ gems atomic — UPDATE điều kiện chống double-spend (FR-10.2)
+        // Trừ gems bằng 1 UPDATE atomic duy nhất (Gems = Gems - price WHERE Gems >= price)
         var affected = await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE Users SET Gems = Gems - {item.PriceGems} WHERE Id = {userId} AND Gems >= {item.PriceGems}", ct);
         if (affected == 0)
@@ -823,60 +854,80 @@ public sealed class GamificationService(
             return Result<ShopBuyResultDto>.Fail(ErrorCodes.INSUFFICIENT_GEMS, "Không đủ gems để mua vật phẩm này");
         }
 
-        // Nếu là vật phẩm hồi tim tiêu hao -> hồi tim ngay cho người dùng
-        if (item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase))
+        // Nếu là vật phẩm hồi tim tiêu hao -> cộng tim hardcode (+5 hoặc +10) theo vật phẩm và trần theo HeartsMax của user
+        if (item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || item.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase))
         {
             var refillAmount = item.ItemKey.Contains("10") ? 10 : 5;
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE Users SET Hearts = CASE WHEN Hearts + {refillAmount} > 10 THEN 10 ELSE Hearts + {refillAmount} END WHERE Id = {userId}", ct);
-        }
-
-        // Finding #4: inventory tăng bằng 1 UPDATE atomic DUY NHẤT (Quantity + 1 WHERE Quantity < MaxStack) —
-        // 2 mua song song không thể cùng đọc qty=4 < 5 rồi ghi 5 (lost-update) / vượt stack / trừ gems 2 lần.
-        var invAffected = await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE UserInventory SET Quantity = Quantity + 1 WHERE UserId = {userId} AND ItemId = {itemId} AND Quantity < {item.MaxStack}", ct);
-
-        if (invAffected == 0)
-        {
-            var exists = await db.UserInventory.AsNoTracking()
-                .AnyAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
-            if (exists)
+            if (db.Database.IsRelational())
             {
-                // ROWCOUNT=0 mà đã có dòng → đạt giới hạn MaxStack → hoàn gems (rollback)
-                await tx.RollbackAsync(ct);
-                return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
-                    "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET Hearts = CASE WHEN Hearts + {refillAmount} > HeartsMax THEN HeartsMax ELSE Hearts + {refillAmount} END WHERE Id = {userId}", ct);
             }
-
-            // Lần mua đầu — INSERT. Race 2 request mua lần đầu song song → 1 bên vi phạm
-            // UNIQUE(UserId,ItemId) → bắt DbUpdateException → retry UPDATE atomic (chống double-INSERT).
-            var inventory = new UserInventory
+            else
             {
-                UserId = userId,
-                ItemId = itemId,
-                Quantity = 1,
-                IsEquipped = false,
-                PurchasedAt = clock.UtcNow,
-                ExpiresAt = item.DurationHours is { } hours ? clock.UtcNow.AddHours(hours) : null
-            };
-            db.UserInventory.Add(inventory);
-            try
-            {
-                await db.SaveChangesAsync(ct);
-            }
-            catch (DbUpdateException)
-            {
-                db.Entry(inventory).State = EntityState.Detached;   // dòng đã tồn tại (INSERT trùng) → không INSERT lại
-                var retried = await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"UPDATE UserInventory SET Quantity = Quantity + 1 WHERE UserId = {userId} AND ItemId = {itemId} AND Quantity < {item.MaxStack}", ct);
-                if (retried == 0)
+                var user = await db.Users.FindAsync([userId], ct);
+                if (user is not null)
                 {
-                    await tx.RollbackAsync(ct);
-                    return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
-                        "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+                    user.Hearts = Math.Min(user.HeartsMax, user.Hearts + refillAmount);
+                    await db.SaveChangesAsync(ct);
                 }
             }
         }
+
+        // Finding #4: inventory tăng bằng 1 UPDATE atomic DUY NHẤT (Quantity + 1 WHERE Quantity < MaxStack)
+        var invAffected = db.Database.IsRelational()
+            ? await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE UserInventory SET Quantity = Quantity + 1 WHERE UserId = {userId} AND ItemId = {itemId} AND Quantity < {item.MaxStack}", ct)
+            : 0;
+
+            if (invAffected == 0)
+            {
+                var existingInv = await db.UserInventory.FirstOrDefaultAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
+                if (existingInv is not null)
+                {
+                    if (existingInv.Quantity >= item.MaxStack)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                            "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+                    }
+                    existingInv.Quantity += 1;
+                    await db.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    var inventory = new UserInventory
+                    {
+                        UserId = userId,
+                        ItemId = itemId,
+                        Quantity = 1,
+                        IsEquipped = false,
+                        PurchasedAt = clock.UtcNow,
+                        ExpiresAt = item.DurationHours is { } hours ? clock.UtcNow.AddHours(hours) : null
+                    };
+                    db.UserInventory.Add(inventory);
+                    try
+                    {
+                        await db.SaveChangesAsync(ct);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        db.Entry(inventory).State = EntityState.Detached;
+                        var existing = await db.UserInventory.FirstOrDefaultAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
+                        if (existing is not null && existing.Quantity < item.MaxStack)
+                        {
+                            existing.Quantity += 1;
+                            await db.SaveChangesAsync(ct);
+                        }
+                        else
+                        {
+                            await tx.RollbackAsync(ct);
+                            return Result<ShopBuyResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                                "Đã đạt giới hạn số lượng vật phẩm", new() { ["itemId"] = ["Đã đạt giới hạn số lượng vật phẩm"] });
+                        }
+                    }
+                }
+            }
 
         // Log giao dịch CÙNG transaction (append-only, SDD §7.3.27)
         db.GemTransactions.Add(new GemTransaction
@@ -896,7 +947,7 @@ public sealed class GamificationService(
         var newQty = await db.UserInventory.AsNoTracking()
             .Where(i => i.UserId == userId && i.ItemId == itemId)
             .Select(i => i.Quantity)
-            .FirstAsync(ct);
+            .FirstOrDefaultAsync(ct);
         logger.LogInformation("User {UserId} bought item {ItemId} ({ItemKey})", userId, itemId, item.ItemKey);
 
         return Result<ShopBuyResultDto>.Ok(new ShopBuyResultDto
@@ -1131,7 +1182,7 @@ public sealed class GamificationService(
         }
 
         user.PremiumUntil = expiresAt;
-        user.HeartsMax = 30;                     // Premium 30 tim (FR-10.7)
+        user.HeartsMax = _configService.GetHeartsMaxPremium();                     // Premium tim theo cấu hình (mặc định 30)
 
         db.GemTransactions.Add(new GemTransaction
         {
@@ -1239,7 +1290,7 @@ public sealed class GamificationService(
         }
 
         user.PremiumUntil = expiresAt;
-        user.HeartsMax = 30;
+        user.HeartsMax = _configService.GetHeartsMaxPremium();
 
         db.GemTransactions.Add(new GemTransaction
         {
@@ -1372,33 +1423,38 @@ public sealed class GamificationService(
     }
 
     /// <summary>
-    /// Cấu hình tim: Premium 10 phút/tim (max 30), Free 30 phút/tim (max HeartsMax, lưới an toàn clamp ≤ 10) — FR-10.1, SDD §8.4A.
-    /// BUG-1: khi hết hạn premium, Math.Min(user.HeartsMax, 10) chặn quyền lợi 30 tim "đọng" trong DB (downgrade lazy đã
-    /// đồng bộ xuống DB tại EnsureHeartsMaxSyncAsync — đây là lớp an toàn cho mọi caller dùng user stale).
+    /// Cấu hình tim: Lấy từ IGamificationConfigService (mặc định Free 30p/tim max 10, Premium 10p/tim max 30).
+    /// BUG-1: khi hết hạn premium, Math.Min(user.HeartsMax, maxFree) chặn quyền lợi tim Premium "đọng" trong DB.
     /// </summary>
-    private static (int MaxHearts, int RegenSeconds) HeartConfig(User user, DateTime now)
+    private (int MaxHearts, int RegenSeconds) HeartConfig(User user, DateTime now)
     {
         var isPremium = user.PremiumUntil > now;
-        return (isPremium ? 30 : Math.Min(user.HeartsMax, 10), isPremium ? 600 : 1800);
+        var maxFree = _configService.GetHeartsMaxFree();
+        var maxPremium = _configService.GetHeartsMaxPremium();
+        var regenMinutes = _configService.GetHeartRegenMinutes();
+        var freeRegenSec = regenMinutes * 60;
+        var premRegenSec = Math.Min(600, freeRegenSec / 3 > 0 ? freeRegenSec / 3 : 600);
+        return (isPremium ? maxPremium : Math.Min(user.HeartsMax, maxFree), isPremium ? premRegenSec : freeRegenSec);
     }
 
     /// <summary>
-    /// BUG-1 (lazy downgrade — quyết định ghi decision log): premium đã hết hạn mà HeartsMax vẫn 30 trong DB
+    /// BUG-1 (lazy downgrade — quyết định ghi decision log): premium đã hết hạn mà HeartsMax vẫn > maxFree trong DB
     /// (không có job downgrade) → đồng bộ xuống DB bằng 1 UPDATE atomic (chỉ chạy khi cần), rồi clamp giá trị
-    /// cached để mọi logic tiếp theo dùng đúng. Idempotent: WHERE PremiumUntil <= now AND HeartsMax > 10.
+    /// cached để mọi logic tiếp theo dùng đúng. Idempotent: WHERE PremiumUntil <= now AND HeartsMax > maxFree.
     /// </summary>
     private async Task EnsureHeartsMaxSyncAsync(User user, CancellationToken ct)
     {
         var now = clock.UtcNow;
-        if (user.PremiumUntil > now || user.HeartsMax <= 10)
+        var maxFree = _configService.GetHeartsMaxFree();
+        if (user.PremiumUntil > now || user.HeartsMax <= maxFree)
         {
             return;
         }
 
         await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE Users SET HeartsMax = 10, Hearts = CASE WHEN Hearts > 10 THEN 10 ELSE Hearts END WHERE Id = {user.Id} AND PremiumUntil <= {now} AND HeartsMax > 10", ct);
-        user.HeartsMax = 10;
-        user.Hearts = Math.Min(user.Hearts, 10);
+            $"UPDATE Users SET HeartsMax = {maxFree}, Hearts = CASE WHEN Hearts > {maxFree} THEN {maxFree} ELSE Hearts END WHERE Id = {user.Id} AND PremiumUntil <= {now} AND HeartsMax > {maxFree}", ct);
+        user.HeartsMax = maxFree;
+        user.Hearts = Math.Min(user.Hearts, maxFree);
     }
 
     /// <summary>

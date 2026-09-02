@@ -72,7 +72,10 @@ const filteredFeedbacks = computed(() => {
   if (selectedCourseId.value !== 'all') {
     list = list.filter((i) => i.courseId === Number(selectedCourseId.value));
   }
-  if (feedbackStatusFilter.value) {
+  if (feedbackStatusFilter.value === 'OPEN') {
+    // C5: nhóm "Đang xử lý" gộp New + Read.
+    list = list.filter((i) => i.status === 'New' || i.status === 'Read');
+  } else if (feedbackStatusFilter.value) {
     list = list.filter((i) => i.status === feedbackStatusFilter.value);
   }
   if (feedbackSearchQuery.value.trim()) {
@@ -124,8 +127,7 @@ async function sendFeedbackReply(item: CourseFeedbackDto): Promise<void> {
       <div class="flex items-center gap-2">
         <select v-model="feedbackStatusFilter" class="course-bar__select text-xs py-1.5 w-auto">
           <option value="">Tất cả Trạng thái</option>
-          <option value="New">Mới</option>
-          <option value="Read">Đã đọc</option>
+          <option value="OPEN">Đang xử lý</option>
           <option value="Resolved">Đã xử lý</option>
         </select>
         <Button size="sm" variant="secondary" @click="loadFeedback">
@@ -176,7 +178,7 @@ async function sendFeedbackReply(item: CourseFeedbackDto): Promise<void> {
 
           <div class="flex items-center gap-1.5">
             <Badge :variant="item.type === 'Bug' ? 'danger' : 'secondary'">{{ item.type }}</Badge>
-            <Badge :variant="item.status === 'Resolved' ? 'success' : 'warning'">{{ item.status }}</Badge>
+            <Badge :variant="item.status === 'Resolved' ? 'success' : 'warning'">{{ item.status === 'Resolved' ? 'Đã xử lý' : 'Đang xử lý' }}</Badge>
           </div>
         </div>
 
@@ -190,7 +192,7 @@ async function sendFeedbackReply(item: CourseFeedbackDto): Promise<void> {
           <p class="mt-1">{{ item.replyText }}</p>
         </div>
 
-        <div v-else class="flex items-center gap-2 pt-1">
+        <div v-else-if="item.status !== 'Resolved'" class="flex items-center gap-2 pt-1">
           <input
             v-model="replyTexts[item.id]"
             type="text"

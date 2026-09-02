@@ -196,10 +196,10 @@ function groupKeyFor(item: CatalogMeta): CatalogGroupKey {
   return GROUP_DEFS.find((g) => item.key.startsWith(g.prefix))?.key ?? 'structure';
 }
 
-/** Nhóm danh sách đã lọc — các nhóm luôn toàn vẹn, không bị phân mảnh cắt ngang */
-const allGrouped = computed<CatalogGroup[]>(() => {
+/** Nhóm danh sách theo trang hiện tại (PAGE_SIZE = 12) */
+const grouped = computed<CatalogGroup[]>(() => {
   const buckets = new Map<CatalogGroupKey, CatalogMeta[]>();
-  for (const item of filtered.value) {
+  for (const item of paged.value) {
     const key = groupKeyFor(item);
     const list = buckets.get(key);
     if (list) list.push(item);
@@ -212,8 +212,6 @@ const allGrouped = computed<CatalogGroup[]>(() => {
     items: buckets.get(g.key) ?? [],
   }));
 });
-
-const grouped = computed<CatalogGroup[]>(() => allGrouped.value);
 
 // ── Chip Big-O màu theo tốc độ (màu khớp giá trị average đang hiển thị) ──
 type ComplexityTone = 'success' | 'warning' | 'danger';

@@ -76,6 +76,7 @@ onMounted(() => {
   onScroll(); // khởi tạo ngay
   if (auth.isAuthenticated) {
     void gamification.fetchInventory();
+    void gamification.fetchPremium();
   }
 });
 
@@ -160,12 +161,16 @@ async function onLogout(): Promise<void> {
                 @error="avatarImgFailed = true"
               />
               <span v-else>{{ avatarInitial }}</span>
+              <span v-if="gamification.isPremium" class="app-header__pro-badge" title="Tài khoản PRO">PRO</span>
             </button>
           </span>
           <Transition name="app-menu">
             <div v-if="menuOpen" class="app-header__menu">
               <RouterLink :to="{ name: 'profile' }" class="app-header__menu-item" @click="menuOpen = false">
                 {{ messages.nav.profile }}
+              </RouterLink>
+              <RouterLink :to="{ name: 'subscription' }" class="app-header__menu-item" @click="menuOpen = false">
+                Gói Pro của tôi
               </RouterLink>
               <RouterLink :to="{ name: 'leaderboard' }" class="app-header__menu-item" @click="menuOpen = false">
                 Bảng xếp hạng
@@ -229,6 +234,9 @@ async function onLogout(): Promise<void> {
           <template v-else>
             <RouterLink :to="{ name: 'profile' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
               {{ messages.nav.profile }}
+            </RouterLink>
+            <RouterLink :to="{ name: 'subscription' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+              Gói Pro của tôi
             </RouterLink>
             <RouterLink :to="{ name: 'leaderboard' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
               Bảng xếp hạng
@@ -478,6 +486,23 @@ html.light .app-header {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.app-header__pro-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: linear-gradient(135deg, #f59e0b, #eab308);
+  color: #1a0f00;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 6px;
+  border: 1px solid #fde68a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .app-header__user-avatar-image { width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block; }

@@ -24,35 +24,15 @@
     </header>
 
     <CourseFilter
-      :categories="courseStore.categories"
+      :topics="courseStore.topics"
+      :selected-topic="courseStore.selectedTopic"
       :difficulties="courseStore.difficulties"
-      :selected-category="courseStore.selectedCategory"
       :selected-difficulty="courseStore.selectedDifficulty"
       :search-query="courseStore.searchQuery"
-      @update:category="courseStore.setCategory"
+      @update:topic="courseStore.setTopic"
       @update:difficulty="courseStore.setDifficulty"
       @update:searchQuery="courseStore.setSearchQuery"
     />
-
-    <div class="flex items-center gap-3 mt-4 relative">
-      <label for="course-sort" class="text-xs text-vdsa-muted font-semibold uppercase tracking-wider">Sắp xếp</label>
-      <div class="relative flex-1 sm:w-auto">
-        <select
-          id="course-sort"
-          v-model="selectedSort"
-          class="appearance-none w-full sm:w-auto bg-vdsa-surface text-white border border-vdsa-border-strong rounded-full pl-4 pr-10 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-vdsa-accent/30 focus:border-vdsa-accent transition-all cursor-pointer"
-          aria-label="Sắp xếp lộ trình"
-        >
-          <option value="default">Mặc định</option>
-          <option value="difficulty">Độ khó</option>
-          <option value="title">Tiêu đề A-Z</option>
-          <option value="xp">XP giảm dần</option>
-        </select>
-        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-vdsa-secondary" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-      </div>
-    </div>
 
     <div v-if="courseStore.isLoading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="status" aria-label="Đang tải lộ trình">
       <div v-for="i in 4" :key="i" class="rounded-2xl overflow-hidden border border-vdsa-border-subtle bg-vdsa-surface">
@@ -66,33 +46,107 @@
       </div>
     </div>
 
-    <div v-else-if="sortedCourses.length === 0" class="empty-state text-center py-20 bg-vdsa-surface rounded-lg border border-vdsa-border mt-6" role="status">
+    <div v-else-if="courseStore.filteredCourses.length === 0" class="empty-state text-center py-20 bg-vdsa-surface rounded-lg border border-vdsa-border mt-6" role="status">
       <div class="text-5xl mb-4" aria-hidden="true"><BaseIcon name="search" class="w-14 h-14 text-vdsa-muted mx-auto" /></div>
       <h3 class="text-xl font-bold text-white">Không tìm thấy lộ trình phù hợp</h3>
       <p class="text-vdsa-secondary mt-2">Vui lòng thay đổi bộ lọc hoặc quay lại sau.</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-6" role="list" aria-label="Danh sách lộ trình">
-      <router-link
-        v-for="course in paginatedCourses"
-        :key="course.id"
-        :to="{ name: 'path-detail', params: { id: course.id } }"
-        class="course-card-link block"
-        :aria-label="`Xem chi tiết lộ trình ${course.title}`"
-        role="listitem"
-      >
-        <CourseCard :course="course" />
-      </router-link>
-    </div>
+    <!-- Khi đang lọc theo một Chủ đề cụ thể, lọc cấp độ, hoặc có từ khóa tìm kiếm -->
+    <template v-if="courseStore.selectedTopic !== 'All' || courseStore.selectedDifficulty !== 'All' || courseStore.searchQuery.trim()">
+      <section class="mt-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="flex items-center gap-2.5 text-xl font-extrabold text-white tracking-tight">
+            <span class="w-1.5 h-6 rounded-full bg-gradient-to-b from-vdsa-accent to-vdsa-accent/40" aria-hidden="true"></span>
+            {{ courseStore.searchQuery.trim() ? `Kết quả tìm kiếm cho "${courseStore.searchQuery}"` : (courseStore.selectedTopic !== 'All' ? courseStore.selectedTopic : `Lộ trình trình độ ${courseStore.selectedDifficulty}`) }}
+            <span class="text-xs font-semibold text-vdsa-muted">({{ courseStore.filteredCourses.length }} lộ trình)</span>
+          </h2>
+          <button
+            v-if="courseStore.selectedTopic !== 'All' || courseStore.selectedDifficulty !== 'All'"
+            @click="resetFilters"
+            class="text-xs font-semibold text-purple-400 hover:text-purple-300 hover:underline transition-colors cursor-pointer"
+          >
+            ← Xem tất cả lộ trình
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list">
+          <router-link
+            v-for="course in courseStore.filteredCourses"
+            :key="course.id"
+            :to="{ name: 'path-detail', params: { id: course.id } }"
+            class="course-card-link block"
+            :aria-label="`Xem chi tiết lộ trình ${course.title}`"
+            role="listitem"
+          >
+            <CourseCard :course="course" />
+          </router-link>
+        </div>
+      </section>
+    </template>
 
-    <div v-if="hasMore" class="mt-8 text-center">
-      <button
-        @click="page++"
-        class="px-8 py-3 bg-vdsa-surface border border-vdsa-border text-white font-semibold rounded-xl hover:bg-vdsa-hover hover:border-vdsa-accent/30 transition-all"
-      >
-        Xem thêm
-      </button>
-    </div>
+    <!-- Mặc định (Tất cả): Hiển thị mục Tất cả ở đầu tiên, sau đó tới từng Chủ đề kiến thức -->
+    <template v-else>
+      <div v-if="groupedCourses.length > 0" class="mt-6 space-y-10">
+        <!-- 1. MỤC TẤT CẢ LỘ TRÌNH Ở ĐẦU TIÊN -->
+        <section class="course-topic-section" aria-label="Tất cả lộ trình">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/5">
+            <h2 class="flex items-center gap-2.5 text-lg md:text-xl font-bold text-white tracking-tight">
+              <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm shadow-purple-500/50" aria-hidden="true"></span>
+              Tất cả
+              <span class="text-xs font-semibold text-vdsa-muted">({{ courseStore.filteredCourses.length }} lộ trình)</span>
+            </h2>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list" aria-label="Danh sách tất cả lộ trình">
+            <router-link
+              v-for="course in courseStore.filteredCourses"
+              :key="'all-' + course.id"
+              :to="{ name: 'path-detail', params: { id: course.id } }"
+              class="course-card-link block"
+              :aria-label="`Xem chi tiết lộ trình ${course.title}`"
+              role="listitem"
+            >
+              <CourseCard :course="course" />
+            </router-link>
+          </div>
+        </section>
+
+        <!-- 2. CÁC PHÂN NHÓM THEO CHỦ ĐỀ Ở DƯỚI (GIỮ NGUYÊN) -->
+        <section
+          v-for="[topic, list] in groupedCourses"
+          :key="topic"
+          class="course-topic-section"
+          :aria-label="'Lộ trình chủ đề ' + topic"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="flex items-center gap-2.5 text-lg md:text-xl font-bold text-white tracking-tight">
+              <span class="w-2 h-2 rounded-full bg-purple-500" aria-hidden="true"></span>
+              {{ topic }}
+              <span class="text-xs font-semibold text-vdsa-muted">({{ list.length }} lộ trình)</span>
+            </h2>
+            <button
+              @click="filterByTopic(topic)"
+              class="text-xs font-semibold text-purple-400 hover:text-purple-300 hover:underline transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              Lọc theo chủ đề này &rarr;
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list" :aria-label="'Danh sách lộ trình ' + topic">
+            <router-link
+              v-for="course in list"
+              :key="course.id"
+              :to="{ name: 'path-detail', params: { id: course.id } }"
+              class="course-card-link block"
+              :aria-label="`Xem chi tiết lộ trình ${course.title}`"
+              role="listitem"
+            >
+              <CourseCard :course="course" />
+            </router-link>
+          </div>
+        </section>
+      </div>
+    </template>
 
     <div v-if="courseStore.error" class="mt-6 text-center py-10 bg-vdsa-surface rounded-lg border border-vdsa-border">
       <div class="text-5xl mb-4"><BaseIcon name="warning" class="w-14 h-14 text-vdsa-red mx-auto" /></div>
@@ -109,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import CourseCard from '@/features/courses/components/CourseCard.vue';
@@ -119,37 +173,26 @@ import BaseIcon from '@/shared/components/BaseIcon.vue';
 const authStore = useAuthStore();
 const courseStore = useCourseStore();
 
-const selectedSort = ref('default');
-const page = ref(1);
-const pageSize = 8;
-
-const paginatedCourses = computed(() => {
-  return sortedCourses.value.slice(0, page.value * pageSize);
-});
-
-const hasMore = computed(() => {
-  return paginatedCourses.value.length < sortedCourses.value.length;
-});
-
-const sortedCourses = computed(() => {
-  const courses = courseStore.filteredCourses;
-  switch (selectedSort.value) {
-    case 'difficulty': {
-      const order: Record<string, number> = { Easy: 0, Beginner: 0, Medium: 1, Intermediate: 1, Hard: 2, Advanced: 2 };
-      return [...courses].sort((a, b) => (order[a.difficulty] ?? 0) - (order[b.difficulty] ?? 0));
-    }
-    case 'title':
-      return [...courses].sort((a, b) => a.title.localeCompare(b.title, 'vi'));
-    case 'xp':
-      return [...courses].sort((a, b) => (b.xpReward ?? 0) - (a.xpReward ?? 0));
-    default:
-      return courses;
+const groupedCourses = computed(() => {
+  const groups = new Map<string, typeof courseStore.filteredCourses>();
+  for (const c of courseStore.filteredCourses) {
+    const key = ((c as any).topicName as string | undefined) || c.category || 'Chủ đề khác';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(c);
   }
+  return Array.from(groups.entries());
 });
 
-watch([selectedSort, () => courseStore.filteredCourses], () => {
-  page.value = 1;
-});
+function filterByTopic(topic: string): void {
+  courseStore.setTopic(topic);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetFilters(): void {
+  courseStore.setTopic('All');
+  courseStore.setDifficulty('All');
+  courseStore.setSearchQuery('');
+}
 
 onMounted(async () => {
   await courseStore.loadCourses();

@@ -468,11 +468,26 @@ const structureLabel = computed(() => props.structure?.kind ?? '');
 
       <!-- Mini Legend Bar ghim dưới Canvas -->
       <div v-if="structure" class="canvas-area__mini-legend" aria-label="Chú giải trạng thái">
-        <span class="legend-badge"><span class="legend-dot" style="background:#5EEAD4" /> Chưa xét</span>
-        <span class="legend-badge"><span class="legend-dot" style="background:#FBBF24" /> So sánh</span>
-        <span class="legend-badge"><span class="legend-dot" style="background:#F59E0B" /> Pivot / Khóa</span>
-        <span class="legend-badge"><span class="legend-dot" style="background:#F87171" /> Hoán đổi</span>
-        <span class="legend-badge"><span class="legend-dot" style="background:#34D399" /> Đã chốt</span>
+        <template v-if="structure.kind === 'queue'">
+          <span class="legend-badge"><span class="legend-dot" style="background:#34D399" /> Phần tử trong hàng đợi</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#F87171" /> Đang thêm (Enqueue)</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#CBD5E1" /> Ô trống (chưa dùng)</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#38bdf8" /> ↑ front (Đầu lấy ra)</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#fb923c" /> ↑ rear (Cuối thêm vào)</span>
+        </template>
+        <template v-else-if="structure.kind === 'stack'">
+          <span class="legend-badge"><span class="legend-dot" style="background:#34D399" /> Phần tử trong Stack</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#F87171" /> Đang Push / Pop</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#CBD5E1" /> Ô trống</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#FBBF24" /> ← top (Đỉnh ngăn xếp)</span>
+        </template>
+        <template v-else>
+          <span class="legend-badge"><span class="legend-dot" style="background:#5EEAD4" /> Chưa xét</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#FBBF24" /> So sánh</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#F59E0B" /> Pivot / Khóa</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#F87171" /> Hoán đổi</span>
+          <span class="legend-badge"><span class="legend-dot" style="background:#34D399" /> Đã chốt</span>
+        </template>
       </div>
     </div>
   </div>

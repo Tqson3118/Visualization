@@ -760,6 +760,11 @@ public sealed class ClassService(
 
     public async Task<Result> UpdateAssignmentDeadlineAsync(int userId, string role, int id, int pathItemId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct)
     {
+        if (dueAt.HasValue && dueAt.Value <= DateTime.UtcNow)
+        {
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Hạn nộp bài phải ở tương lai");
+        }
+
         var classRoom = await db.Classes.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
         if (classRoom is null)
         {
@@ -777,26 +782,67 @@ public sealed class ClassService(
             return Result.Fail(ErrorCodes.NOT_FOUND, "Mục lộ trình không thuộc lớp học này");
         }
 
-        var overlay = await db.ClassAssignments.FirstOrDefaultAsync(a => a.ClassId == id && a.PathItemId == pathItemId && !a.Archived, ct);
-        if (overlay is null)
+        // Fetch all nodes in the path to support folder DFS propagation
+        var allNodes = await db.LearningPathNodes
+            .Where(n => n.PathId == classRoom.LearningPathId)
+            .ToListAsync(ct);
+
+        // Collect node itself and all descendants DFS
+        var targetNodeIds = new HashSet<int> { node.Id };
+        var queue = new Queue<int>();
+        queue.Enqueue(node.Id);
+
+        while (queue.Count > 0)
         {
-            overlay = new ClassAssignment
+            var currentId = queue.Dequeue();
+            var children = allNodes.Where(n => n.ParentId == currentId).ToList();
+            foreach (var child in children)
             {
-                ClassId = id,
-                PathItemId = pathItemId,
-                LessonId = node.LessonId,
-                ExerciseId = node.FinalTestId ?? node.LabExerciseId,
-                DueAt = dueAt,
-                AllowLateSubmission = allowLateSubmission,
-                SortOrder = node.SortOrder,
-                CreatedAt = clock.UtcNow
-            };
-            db.ClassAssignments.Add(overlay);
+                if (targetNodeIds.Add(child.Id))
+                {
+                    queue.Enqueue(child.Id);
+                }
+            }
         }
-        else
+
+        var targetNodes = allNodes.Where(n => targetNodeIds.Contains(n.Id)).ToList();
+
+        // Fetch existing overlay assignments for this class
+        var existingAssignments = await db.ClassAssignments
+            .Where(a => a.ClassId == id && !a.Archived)
+            .ToListAsync(ct);
+
+        foreach (var targetNode in targetNodes)
         {
-            overlay.DueAt = dueAt;
-            overlay.AllowLateSubmission = allowLateSubmission;
+            var overlay = existingAssignments.FirstOrDefault(a =>
+                a.PathItemId == targetNode.Id ||
+                (targetNode.LessonId != null && a.LessonId == targetNode.LessonId));
+
+            if (overlay is null)
+            {
+                overlay = new ClassAssignment
+                {
+                    ClassId = id,
+                    PathItemId = targetNode.Id,
+                    LessonId = targetNode.LessonId,
+                    ExerciseId = targetNode.FinalTestId ?? targetNode.LabExerciseId,
+                    DueAt = dueAt,
+                    AllowLateSubmission = allowLateSubmission,
+                    SortOrder = targetNode.SortOrder,
+                    CreatedAt = clock.UtcNow
+                };
+                db.ClassAssignments.Add(overlay);
+                existingAssignments.Add(overlay);
+            }
+            else
+            {
+                overlay.PathItemId = targetNode.Id;
+                if (targetNode.LessonId != null) overlay.LessonId = targetNode.LessonId;
+                if (targetNode.FinalTestId != null || targetNode.LabExerciseId != null)
+                    overlay.ExerciseId = targetNode.FinalTestId ?? targetNode.LabExerciseId;
+                overlay.DueAt = dueAt;
+                overlay.AllowLateSubmission = allowLateSubmission;
+            }
         }
 
         await db.SaveChangesAsync(ct);
@@ -805,6 +851,11 @@ public sealed class ClassService(
 
     public async Task<Result> UpdateLessonDeadlineAsync(int userId, string role, int id, int lessonId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct)
     {
+        if (dueAt.HasValue && dueAt.Value <= DateTime.UtcNow)
+        {
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Hạn nộp bài phải ở tương lai");
+        }
+
         var classRoom = await db.Classes.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
         if (classRoom is null)
         {

@@ -74,12 +74,30 @@
               <h4 class="text-xs font-bold text-white tracking-tight leading-snug">
                 {{ sim.title }}
               </h4>
-              <span
-                v-if="activeSimKey === sim.key"
-                class="px-1.5 py-0.5 rounded bg-purple-500 text-white text-[10px] font-extrabold uppercase shrink-0"
-              >
-                Đang xem
-              </span>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span
+                  v-if="activeSimKey === sim.key"
+                  class="px-1.5 py-0.5 rounded bg-purple-500 text-white text-[10px] font-extrabold uppercase"
+                >
+                  Đang xem
+                </span>
+                <!-- C2 fix: tick chọn ngay trên card (trước đây chỉ xem, nút chọn nằm khuất dưới cùng) -->
+                <button
+                  type="button"
+                  :data-testid="'sim-select-' + sim.key"
+                  class="p-1 rounded-md border transition-colors cursor-pointer"
+                  :class="isSelected(sim.key)
+                    ? 'bg-purple-600 border-purple-400 text-white shadow shadow-purple-600/40'
+                    : 'bg-[#0c0d16] border-slate-600 text-slate-500 hover:border-purple-400 hover:text-purple-300'"
+                  :title="isSelected(sim.key) ? 'Bỏ chọn mô phỏng này' : 'Chọn gắn vào bài học'"
+                  :aria-label="(isSelected(sim.key) ? 'Bỏ chọn ' : 'Chọn ') + sim.title"
+                  :aria-pressed="isSelected(sim.key)"
+                  @click.stop="toggleSelect(sim.key)"
+                >
+                  <Check v-if="isSelected(sim.key)" class="w-3.5 h-3.5" />
+                  <Plus v-else class="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
@@ -95,7 +113,7 @@
         </div>
 
         <!-- Right: Live Interactive Simulation Player (7/12 cols) -->
-        <div class="md:col-span-7 h-full overflow-y-auto p-4 bg-[#10121f] flex flex-col justify-between">
+        <div class="md:col-span-7 h-full overflow-y-auto p-4 bg-[#10121f]">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -135,33 +153,41 @@
             </div>
           </div>
 
-          <!-- Bottom Action Buttons -->
-          <div class="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-end gap-2.5 mt-4">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
-              @click="emit('close')"
-            >
-              Đóng
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl bg-[#231e38] hover:bg-purple-950 border border-purple-500/40 text-purple-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-              @click="insertIntoMarkdown(activeSimKey)"
-            >
-              <FileCode class="w-3.5 h-3.5 text-purple-400" />
-              <span>Chèn vào nội dung bài học [Mô phỏng]</span>
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-purple-600/30"
-              @click="attachSimulation(activeSimKey)"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>Đính kèm vào bài học</span>
-            </button>
-          </div>
         </div>
+      </div>
+
+      <!-- C2 fix: Footer hành động sticky — luôn hiển thị dù list dài, kèm đếm số đã chọn -->
+      <div class="px-5 py-3 bg-[#131524] border-t border-slate-800/80 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+        <span v-if="selectedCount > 0" class="mr-auto text-[11px] font-extrabold text-purple-300 flex items-center gap-1.5">
+          <Check class="w-3.5 h-3.5" />
+          Đã chọn {{ selectedCount }} mô phỏng
+        </span>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+          @click="emit('close')"
+        >
+          Đóng
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl bg-[#231e38] hover:bg-purple-950 border border-purple-500/40 text-purple-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+          title="Chèn thẻ [Mô phỏng] của mô phỏng đang xem trước vào nội dung bài giảng"
+          @click="insertIntoMarkdown(activeSimKey)"
+        >
+          <FileCode class="w-3.5 h-3.5 text-purple-400" />
+          <span>Chèn [Mô phỏng] vào bài giảng</span>
+        </button>
+        <button
+          type="button"
+          data-testid="btn-attach-selected"
+          class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-purple-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="selectedCount === 0"
+          @click="attachSelected"
+        >
+          <Plus class="w-3.5 h-3.5" />
+          <span>{{ selectedCount > 0 ? 'Đính kèm ' + selectedCount + ' mô phỏng' : 'Đính kèm mô phỏng' }}</span>
+        </button>
       </div>
     </div>
   </div>
@@ -169,24 +195,63 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Sparkles, X, Search, Play, FileCode, Plus } from 'lucide-vue-next';
+import { Sparkles, X, Search, Play, FileCode, Plus, Check } from 'lucide-vue-next';
 import InlineSimulationPlayer from '@/components/simulator/InlineSimulationPlayer.vue';
 import { CATALOG, type CatalogMeta } from '@/engines/catalog';
 
 const props = defineProps<{
   isOpen: boolean;
   initialKey?: string;
+  /** Các mô phỏng đã gắn trong bài học — dùng để đánh dấu tick chọn sẵn. */
+  attachedKeys?: string[];
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'attach', key: string): void;
+  (e: 'attachMany', keys: string[]): void;
   (e: 'insert', key: string): void;
 }>();
 
 const activeSimKey = ref<string>(props.initialKey || 'sort.bubble');
 const searchQuery = ref('');
 const selectedCategory = ref('all');
+
+// C2: chọn nhiều mô phỏng ngay trên card — tick sẵn theo danh sách đã gắn.
+const selectedKeys = ref<Set<string>>(new Set());
+
+const selectedCount = computed(() => selectedKeys.value.size);
+
+function isSelected(key: string): boolean {
+  return selectedKeys.value.has(key);
+}
+
+function toggleSelect(key: string): void {
+  const next = new Set(selectedKeys.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  selectedKeys.value = next;
+}
+
+function attachSelected(): void {
+  const keys = Array.from(selectedKeys.value);
+  if (keys.length === 0) return;
+  emit('attachMany', keys);
+}
+
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open) {
+      selectedKeys.value = new Set(props.attachedKeys ?? []);
+      activeSimKey.value = props.initialKey || 'sort.bubble';
+      searchQuery.value = '';
+    }
+  },
+);
 
 const CATEGORIES = [
   { id: 'all', name: 'Tất cả (44)' },

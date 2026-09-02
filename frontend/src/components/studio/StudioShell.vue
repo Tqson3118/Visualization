@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
@@ -14,13 +15,16 @@ import {
   Shield,
   ChevronRight,
   School,
+  ShoppingBag,
+  CreditCard,
+  Trophy,
 } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/stores/auth';
 
 const props = withDefaults(
   defineProps<{
-    activeTab?: 'overview' | 'curriculum' | 'exercises' | 'feedback' | 'classes' | 'users' | 'stats' | 'settings' | string;
+    activeTab?: 'overview' | 'curriculum' | 'exercises' | 'feedback' | 'moderation' | 'classes' | 'users' | 'stats' | 'settings' | string;
   }>(),
   {
     activeTab: '',
@@ -28,7 +32,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  (e: 'update:activeTab', tab: 'overview' | 'curriculum' | 'exercises' | 'feedback'): void;
+  (e: 'update:activeTab', tab: 'overview' | 'curriculum' | 'exercises' | 'feedback' | 'moderation' | 'gamification'): void;
 }>();
 
 const auth = useAuthStore();
@@ -43,7 +47,7 @@ interface NavItem {
   label: string;
   icon: any;
   to?: string;
-  tabKey?: 'overview' | 'curriculum' | 'exercises' | 'feedback';
+  tabKey?: 'overview' | 'curriculum' | 'exercises' | 'feedback' | 'moderation' | 'gamification';
 }
 
 const teacherNavItems: NavItem[] = [
@@ -71,6 +75,32 @@ const teacherNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
+  {
+    key: 'moderation',
+    label: 'Duyệt Lộ trình',
+    icon: ClipboardCheck,
+    tabKey: 'moderation',
+    to: '/studio?tab=moderation',
+  },
+  {
+    key: 'gamification',
+    label: 'Cài đặt Gamification',
+    icon: Trophy,
+    tabKey: 'gamification',
+    to: '/studio?tab=gamification',
+  },
+  {
+    key: 'shop',
+    label: 'Cửa hàng & Vật phẩm',
+    icon: ShoppingBag,
+    to: '/admin/shop',
+  },
+  {
+    key: 'transactions',
+    label: 'Giao dịch & Gói Pro',
+    icon: CreditCard,
+    to: '/admin/transactions',
+  },
   {
     key: 'users',
     label: 'Quản lý Tài khoản',
@@ -201,8 +231,8 @@ function handleNavClick(item: NavItem): void {
       </div>
     </aside>
 
-    <!-- Main Content Area (Cuộn độc lập mượt mà) -->
-    <main class="flex-1 h-full overflow-y-auto p-3 md:p-6 min-w-0 max-w-7xl">
+    <!-- Main Content Area (Cuộn độc lập mượt mà, mở rộng toàn màn hình) -->
+    <main class="flex-1 h-full overflow-y-auto p-3 md:p-6 min-w-0 w-full max-w-none">
       <slot />
     </main>
   </div>

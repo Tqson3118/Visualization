@@ -10,14 +10,17 @@ export const useCourseStore = defineStore('course', () => {
   const courses = ref<Course[]>([]);
   const isLoading = ref<boolean>(false);
   const error = ref<string>('');
+  const selectedTopic = ref<string>('All');
   const selectedCategory = ref<string>('All');
   const selectedDifficulty = ref<string>('All');
   const searchQuery = ref<string>('');
   const enrolledCourseIds = ref<Set<string>>(new Set());
 
-
   const filteredCourses = computed(() => {
     let result = courses.value;
+    if (selectedTopic.value !== 'All') {
+      result = result.filter(c => (c.topicName || c.category) === selectedTopic.value);
+    }
     if (selectedCategory.value !== 'All') {
       result = result.filter(c => c.category === selectedCategory.value);
     }
@@ -42,10 +45,25 @@ export const useCourseStore = defineStore('course', () => {
       result = result.filter(c =>
         normalizeVi(c.title).includes(q) ||
         normalizeVi(c.description).includes(q) ||
-        normalizeVi(c.category).includes(q)
+        normalizeVi(c.category).includes(q) ||
+        (c.topicName ? normalizeVi(c.topicName).includes(q) : false)
       );
     }
     return result;
+  });
+
+  const topics = computed(() => {
+    const tSet = new Set<string>();
+    for (const c of courses.value) {
+      const name = c.topicName || c.category;
+      if (name && name.trim()) {
+        tSet.add(name.trim());
+      }
+    }
+    if (tSet.size === 0) {
+      return ['All'];
+    }
+    return ['All', ...Array.from(tSet)];
   });
 
   const DIFFICULTY_TERMS = new Set([
@@ -78,6 +96,8 @@ export const useCourseStore = defineStore('course', () => {
       const mapped = apiCourses.map(c => ({
         ...c,
         coverImage: c.coverImageUrl ?? c.coverImage,
+        topicName: c.topicName,
+        topicId: c.topicId,
       }));
       courses.value = mapped.filter(c => c.isPublished) as Course[];
     } catch (err) {
@@ -105,16 +125,22 @@ export const useCourseStore = defineStore('course', () => {
     enrolledCourseIds.value = enrolled;
   }
 
-  function enrollCourse(courseId: string) {
-    enrolledCourseIds.value.add(courseId);
-    localStorage.setItem(`enrolled_${courseId}`, 'true');
+  function enrollCourse(courseId: string | number) {
+    const sId = String(courseId);
+    enrolledCourseIds.value.add(sId);
+    localStorage.setItem(`enrolled_${sId}`, 'true');
   }
 
-  function isEnrolled(courseId: string): boolean {
-    // Nếu chưa load courses nhưng có trong local thì fallback
-    if (!enrolledCourseIds.value.has(courseId)) {
-      if (localStorage.getItem(`enrolled_${courseId}`) === 'true') {
-        enrolledCourseIds.value.add(courseId);
+  function isEnrolled(courseId: string | number): boolean {
+    const sId = String(courseId);
+    if (!enrolledCourseIds.value.has(sId)) {
+      if (localStorage.getItem(`enrolled_${sId}`) === 'true') {
+        enrolledCourseIds.value.add(sId);
+        return true;
+      }
+      const progress = getCourseProgress(sId);
+      if (progress.completedLessonIds.length > 0 || progress.progressPercent > 0) {
+        enrollCourse(sId);
         return true;
       }
       return false;
@@ -164,7 +190,10 @@ export const useCourseStore = defineStore('course', () => {
       for (const lesson of lessons) {
         const key = `lesson_progress_${lesson.id}`;
         const saved = localStorage.getItem(key);
-        let isDone = dsaCompleted.includes(Number(lesson.id)) || dsaCompleted.includes(String(lesson.id));
+        let isDone = (lesson as any).status === 'Completed' ||
+          dsaCompleted.includes(Number(lesson.id)) ||
+          dsaCompleted.includes(String(lesson.id)) ||
+          localStorage.getItem(`course_done_${courseId}_${lesson.id}`) === 'true';
         if (saved) {
           try {
             const data = JSON.parse(saved);
@@ -181,21 +210,29 @@ export const useCourseStore = defineStore('course', () => {
           completedLessonIds.push(lesson.id);
         }
       }
-    } else if (storedCourseProgress) {
-      try {
-        const parsed = JSON.parse(storedCourseProgress);
-        return {
-          courseId,
-          completedLessonIds: parsed.completedLessonIds || [],
-          totalLessons: course.totalLessons || parsed.totalLessons || 0,
-          progressPercent: parsed.progressPercent || (course as any).progressPercent || 0,
-          xpEarned: parsed.xpEarned || 0,
-          isCompleted: parsed.progressPercent === 100 || storedCompleted === 'true',
-        };
-      } catch {}
+    } else {
+      let localDoneCount = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(`course_done_${courseId}_`) && localStorage.getItem(k) === 'true') {
+          localDoneCount++;
+          const lessonId = k.replace(`course_done_${courseId}_`, '');
+          completedLessonIds.push(lessonId);
+        }
+      }
+      if (localDoneCount > 0) {
+        completedCount = Math.max(completedCount, localDoneCount);
+      } else if (storedCourseProgress) {
+        try {
+          const parsed = JSON.parse(storedCourseProgress);
+          if (parsed && typeof parsed.progressPercent === 'number' && parsed.progressPercent > 0) {
+            completedCount = Math.max(completedCount, parsed.completedLessonIds?.length || 0);
+          }
+        } catch {}
+      }
     }
 
-    const total = course.totalLessons > 0 ? course.totalLessons : lessons.length;
+    const total = course.totalLessons > 0 ? course.totalLessons : (lessons.length > 0 ? lessons.length : 1);
     let progressPercent = 0;
     if (total > 0 && completedCount > 0) {
       progressPercent = Math.min(100, Math.round((completedCount / total) * 100));
@@ -227,6 +264,10 @@ export const useCourseStore = defineStore('course', () => {
     return result;
   }
 
+  function setTopic(topic: string) {
+    selectedTopic.value = topic;
+  }
+
   function setCategory(category: string) {
     selectedCategory.value = category;
   }
@@ -240,6 +281,7 @@ export const useCourseStore = defineStore('course', () => {
   }
 
   function resetFilters() {
+    selectedTopic.value = 'All';
     selectedCategory.value = 'All';
     selectedDifficulty.value = 'All';
     searchQuery.value = '';
@@ -305,16 +347,19 @@ export const useCourseStore = defineStore('course', () => {
     courses,
     isLoading,
     error,
+    selectedTopic,
     selectedCategory,
     selectedDifficulty,
     searchQuery,
     filteredCourses,
+    topics,
     categories,
     difficulties,
     loadCourses,
     getCourseById,
     getCourseProgress,
     updateCourseLessons,
+    setTopic,
     setCategory,
     setDifficulty,
     setSearchQuery,
@@ -330,6 +375,7 @@ export const useCourseStore = defineStore('course', () => {
       courses.value = [];
       isLoading.value = false;
       error.value = '';
+      selectedTopic.value = 'All';
       selectedCategory.value = 'All';
       selectedDifficulty.value = 'All';
       searchQuery.value = '';

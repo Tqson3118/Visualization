@@ -1,0 +1,797 @@
+{
+  "results": [
+    {
+      "index": 1,
+      "key": "sort.bubble",
+      "title": "Sắp xếp nổi bọt (Bubble Sort)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n²)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 68,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2] được khởi tạo.Hỏi AI · i=0, j=0Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_bubble.png"
+    },
+    {
+      "index": 2,
+      "key": "sort.selection",
+      "title": "Sắp xếp chọn (Selection Sort)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n²)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 66,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2] được khởi tạo.Hỏi AI · i=0, minIdx=0Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_selection.png"
+    },
+    {
+      "index": 3,
+      "key": "sort.insertion",
+      "title": "Sắp xếp chèn (Insertion Sort)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n²)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 56,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2] được khởi tạo.Hỏi AI · i=1Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_insertion.png"
+    },
+    {
+      "index": 4,
+      "key": "sort.merge",
+      "title": "Sắp xếp trộn (Merge Sort)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 114,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2] được khởi tạo.Hỏi AI · left=0, right=5Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_merge.png"
+    },
+    {
+      "index": 5,
+      "key": "sort.quick",
+      "title": "Sắp xếp nhanh (Quick Sort — Lomuto)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 71,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2] được khởi tạo.Hỏi AI · low=0, high=5Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_quick.png"
+    },
+    {
+      "index": 6,
+      "key": "sort.heap",
+      "title": "Sắp xếp vun đống (Heap Sort)",
+      "badges": [
+        "Đống nhị phân",
+        "Độ phức tạp TB: O(n log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 146,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [12, 8, 17, 5, 23, 19, 3, 15, 7, 2] được khởi tạo thành cây đống.Hỏi AI · n=10Giới thiệu thuật toánBảng mà",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-sort_heap.png"
+    },
+    {
+      "index": 7,
+      "key": "search.linear",
+      "title": "Tìm kiếm tuyến tính (Linear Search)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 11,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [5, 3, 8, 1, 9, 2], tìm target=8.Hỏi AI · target=8, n=6Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-search_linear.png"
+    },
+    {
+      "index": 8,
+      "key": "search.binary",
+      "title": "Tìm kiếm nhị phân (Binary Search)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 13,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [2, 5, 8, 12, 19, 23], tìm target=19.Hỏi AI · target=19, n=6Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-search_binary.png"
+    },
+    {
+      "index": 9,
+      "key": "stack.push",
+      "title": "Ngăn xếp — Push",
+      "badges": [
+        "Ngăn xếp",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: ngăn xếp rỗng, dung lượng 8, top = -1.Hỏi AI · capacity=8, top=-1Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-stack_push.png"
+    },
+    {
+      "index": 10,
+      "key": "stack.pop",
+      "title": "Ngăn xếp — Pop",
+      "badges": [
+        "Ngăn xếp",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: ngăn xếp rỗng, dung lượng 8, top = -1.Hỏi AI · capacity=8, top=-1Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-stack_pop.png"
+    },
+    {
+      "index": 11,
+      "key": "stack.peek",
+      "title": "Ngăn xếp — Peek",
+      "badges": [
+        "Ngăn xếp",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: ngăn xếp rỗng, dung lượng 8, top = -1.Hỏi AI · capacity=8, top=-1Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-stack_peek.png"
+    },
+    {
+      "index": 12,
+      "key": "queue.enqueue",
+      "title": "Hàng đợi — Enqueue",
+      "badges": [
+        "Hàng đợi",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 12,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: Hàng đợi rỗng (Dung lượng: 8). Con trỏ front=0, rear=-1 (chưa có phần tử nào).Hỏi AI · Dung lượng: 8, Số phần t",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-queue_enqueue.png"
+    },
+    {
+      "index": 13,
+      "key": "queue.dequeue",
+      "title": "Hàng đợi — Dequeue",
+      "badges": [
+        "Hàng đợi",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 12,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: Hàng đợi rỗng (Dung lượng: 8). Con trỏ front=0, rear=-1 (chưa có phần tử nào).Hỏi AI · Dung lượng: 8, Số phần t",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-queue_dequeue.png"
+    },
+    {
+      "index": 14,
+      "key": "list.insert",
+      "title": "Danh sách liên kết — Chèn",
+      "badges": [
+        "Danh sách liên kết đơn",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: danh sách liên kết rỗng (head = null).Hỏi AI · head=nullGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-list_insert.png"
+    },
+    {
+      "index": 15,
+      "key": "list.delete",
+      "title": "Danh sách liên kết — Xóa",
+      "badges": [
+        "Danh sách liên kết đơn",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 3,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: danh sách liên kết [10 → 20 → 30 → 40 → null], head = nút 0.Hỏi AI · head=0Giới thiệu thuật toánBảng màu chú gi",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-list_delete.png"
+    },
+    {
+      "index": 16,
+      "key": "list.search",
+      "title": "Danh sách liên kết — Tìm kiếm",
+      "badges": [
+        "Danh sách liên kết đơn",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 10,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: danh sách liên kết [10 → 20 → 30 → 40 → null], head = nút 0.Hỏi AI · head=0Giới thiệu thuật toánBảng màu chú gi",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-list_search.png"
+    },
+    {
+      "index": 17,
+      "key": "list.traverse",
+      "title": "Danh sách liên kết — Duyệt",
+      "badges": [
+        "Danh sách liên kết đơn",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 7,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: danh sách liên kết [10 → 20 → 30 → 40 → null], head = nút 0.Hỏi AI · head=0Giới thiệu thuật toánBảng màu chú gi",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-list_traverse.png"
+    },
+    {
+      "index": 18,
+      "key": "tree.bst-insert",
+      "title": "BST — Chèn",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 9,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây BST dựng từ các khóa [50, 30, 70, 20, 40, 60, 80], thao tác insert 25.Hỏi AI · n=7 nútGiới thiệu thuật toán",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-insert.png"
+    },
+    {
+      "index": 19,
+      "key": "tree.bst-delete",
+      "title": "BST — Xóa",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây BST dựng từ các khóa [50, 30, 70, 20, 40, 60, 80], thao tác delete 25.Hỏi AI · n=7 nútGiới thiệu thuật toán",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-delete.png"
+    },
+    {
+      "index": 20,
+      "key": "tree.bst-search",
+      "title": "BST — Tìm kiếm",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây BST dựng từ các khóa [50, 30, 70, 20, 40, 60, 80], thao tác search 25.Hỏi AI · n=7 nútGiới thiệu thuật toán",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-search.png"
+    },
+    {
+      "index": 21,
+      "key": "tree.bst-preorder",
+      "title": "BST — Duyệt Preorder",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 16,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: duyệt preorder cây BST [50, 30, 70, 20, 40, 60, 80].Hỏi AI · n=7 nútGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-preorder.png"
+    },
+    {
+      "index": 22,
+      "key": "tree.bst-inorder",
+      "title": "BST — Duyệt Inorder",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 16,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: duyệt inorder cây BST [50, 30, 70, 20, 40, 60, 80].Hỏi AI · n=7 nútGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-inorder.png"
+    },
+    {
+      "index": 23,
+      "key": "tree.bst-postorder",
+      "title": "BST — Duyệt Postorder",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 16,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: duyệt postorder cây BST [50, 30, 70, 20, 40, 60, 80].Hỏi AI · n=7 nútGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-postorder.png"
+    },
+    {
+      "index": 24,
+      "key": "tree.bst-levelorder",
+      "title": "BST — Duyệt Level-order",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 16,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: duyệt levelorder cây BST [50, 30, 70, 20, 40, 60, 80].Hỏi AI · n=7 nútGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_bst-levelorder.png"
+    },
+    {
+      "index": 25,
+      "key": "tree.avl-insert",
+      "title": "Cây AVL — Chèn kèm xoay (LL/RR/LR/RL)",
+      "badges": [
+        "Cây AVL",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 15,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây AVL từ các khóa [50, 30, 70, 20, 40, 60, 80], chèn 25.Hỏi AI · x=25Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-tree_avl-insert.png"
+    },
+    {
+      "index": 26,
+      "key": "heap.insert",
+      "title": "Đống nhị phân — Chèn (bubble up)",
+      "badges": [
+        "Đống nhị phân",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 8,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đống [10, 7, 9, 4, 6, 8] (size=6), thao tác insert.Hỏi AI · size=6Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-heap_insert.png"
+    },
+    {
+      "index": 27,
+      "key": "heap.extract",
+      "title": "Đống nhị phân — Trích xuất max (sift down)",
+      "badges": [
+        "Đống nhị phân",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 10,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đống [10, 7, 9, 4, 6, 8] (size=6), thao tác extract.Hỏi AI · size=6Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-heap_extract.png"
+    },
+    {
+      "index": 28,
+      "key": "heap.heapify",
+      "title": "Đống nhị phân — Heapify",
+      "badges": [
+        "Đống nhị phân",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 20,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đống [10, 7, 9, 4, 6, 8] (size=6), thao tác heapify.Hỏi AI · size=6Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-heap_heapify.png"
+    },
+    {
+      "index": 29,
+      "key": "hash.insert",
+      "title": "Bảng băm — Chèn (chuỗi nối kết)",
+      "badges": [
+        "Bảng băm",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 14,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: bảng băm 11 bucket, hàm băm modulo, thao tác insert [12, 25, 37, 41, 58].Hỏi AI · m=11, mode=moduloGiới thiệu t",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-hash_insert.png"
+    },
+    {
+      "index": 30,
+      "key": "hash.search",
+      "title": "Bảng băm — Tìm kiếm",
+      "badges": [
+        "Bảng băm",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: bảng băm 11 bucket, hàm băm modulo, thao tác search [12, 25, 37, 41, 58].Hỏi AI · m=11, mode=moduloGiới thiệu t",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-hash_search.png"
+    },
+    {
+      "index": 31,
+      "key": "hash.delete",
+      "title": "Bảng băm — Xóa",
+      "badges": [
+        "Bảng băm",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: bảng băm 11 bucket, hàm băm modulo, thao tác delete [12, 25, 37, 41, 58].Hỏi AI · m=11, mode=moduloGiới thiệu t",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-hash_delete.png"
+    },
+    {
+      "index": 32,
+      "key": "graph.bfs",
+      "title": "Đồ thị — Duyệt BFS",
+      "badges": [
+        "Đồ thị",
+        "Độ phức tạp TB: O(V+E)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 28,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đồ thị 7 đỉnh 9 cạnh, BFS từ đỉnh 0.Hỏi AI · source=0, V=7, E=9Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-graph_bfs.png"
+    },
+    {
+      "index": 33,
+      "key": "graph.dfs",
+      "title": "Đồ thị — Duyệt DFS",
+      "badges": [
+        "Đồ thị",
+        "Độ phức tạp TB: O(V+E)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 25,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đồ thị 7 đỉnh 9 cạnh, DFS từ đỉnh 0.Hỏi AI · source=0, V=7, E=9Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-graph_dfs.png"
+    },
+    {
+      "index": 34,
+      "key": "graph.dijkstra",
+      "title": "Đồ thị — Dijkstra (đường đi ngắn nhất)",
+      "badges": [
+        "Đồ thị",
+        "Độ phức tạp TB: O(V²)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 29,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đồ thị 7 đỉnh 10 cạnh (có trọng số), Dijkstra từ đỉnh 0.Hỏi AI · source=0Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-graph_dijkstra.png"
+    },
+    {
+      "index": 35,
+      "key": "structure.array",
+      "title": "Mảng (Array)",
+      "badges": [
+        "Mảng",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 7,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: mảng [10, 20, 30, 40, 50] — vùng nhớ liên tục, mỗi ô 1 chỉ số.Hỏi AI · n=5Giới thiệu thuật toánBảng màu chú giả",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_array.png"
+    },
+    {
+      "index": 36,
+      "key": "structure.linkedlist",
+      "title": "Danh sách liên kết đơn (Singly Linked List)",
+      "badges": [
+        "Danh sách liên kết đơn",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 7,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: danh sách liên kết đơn [10 → 20 → 30 → null].Hỏi AI · head=0Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_linkedlist.png"
+    },
+    {
+      "index": 37,
+      "key": "structure.stack",
+      "title": "Ngăn xếp (Stack — LIFO)",
+      "badges": [
+        "Ngăn xếp",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 6,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: ngăn xếp [5, 8, 13] (top=2), dung lượng 8.Hỏi AI · LIFO: vào sau ra trướcGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_stack.png"
+    },
+    {
+      "index": 38,
+      "key": "structure.queue",
+      "title": "Hàng đợi (Queue — FIFO)",
+      "badges": [
+        "Hàng đợi",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: hàng đợi [5, 8, 13] (front=0, rear=2).Hỏi AI · FIFO: vào trước ra trướcGiới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_queue.png"
+    },
+    {
+      "index": 39,
+      "key": "structure.binarytree",
+      "title": "Cây nhị phân (Binary Tree)",
+      "badges": [
+        "Cây nhị phân",
+        "Độ phức tạp TB: O(n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây nhị phân tổng quát 7 nút — mỗi nút có tối đa 2 con.Hỏi AI · n=7Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_binarytree.png"
+    },
+    {
+      "index": 40,
+      "key": "structure.bst",
+      "title": "Cây nhị phân tìm kiếm (BST)",
+      "badges": [
+        "Cây nhị phân tìm kiếm",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: BST từ [50, 30, 70, 20, 40, 60, 80] — mọi nút trái < nút < mọi nút phải.Hỏi AI · n=7Giới thiệu thuật toánBảng m",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_bst.png"
+    },
+    {
+      "index": 41,
+      "key": "structure.avl",
+      "title": "Cây AVL (cân bằng)",
+      "badges": [
+        "Cây AVL",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 4,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: cây AVL từ [50, 30, 70, 20, 40, 60, 80] — mọi nút duy trì hệ số cân bằng |bf| ≤ 1.Hỏi AI · AVL cân bằngGiới thi",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_avl.png"
+    },
+    {
+      "index": 42,
+      "key": "structure.heap",
+      "title": "Đống nhị phân (Binary Heap — max-heap)",
+      "badges": [
+        "Đống nhị phân",
+        "Độ phức tạp TB: O(log n)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: max-heap [10, 7, 9, 4, 6, 8] — a[0] = 10 là phần tử lớn nhất.Hỏi AI · max=10Giới thiệu thuật toánBảng màu chú g",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_heap.png"
+    },
+    {
+      "index": 43,
+      "key": "structure.hashtable",
+      "title": "Bảng băm (Hash Table — Xử lý va chạm: Chuỗi nối kết)",
+      "badges": [
+        "Bảng băm",
+        "Độ phức tạp TB: O(1)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: bảng băm 11 bucket, chèn [12, 25, 37, 41, 58] bằng hàm băm modulo.Hỏi AI · chuỗi nối kếtGiới thiệu thuật toánBả",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_hashtable.png"
+    },
+    {
+      "index": 44,
+      "key": "structure.graph",
+      "title": "Đồ thị (Graph — có hướng/vô hướng, trọng số)",
+      "badges": [
+        "Đồ thị",
+        "Độ phức tạp TB: O(V+E)"
+      ],
+      "hasCanvas": true,
+      "stepCurrent": 1,
+      "totalSteps": 5,
+      "nextStepWorked": true,
+      "hasPseudocode": false,
+      "explanationSample": "Bắt đầu: đồ thị 6 đỉnh, cạnh 5, có hướng, có trọng số.Hỏi AI · V=6, E=5Giới thiệu thuật toánBảng màu chú giải",
+      "hasError": false,
+      "alertText": null,
+      "shotName": "SIM-structure_graph.png"
+    }
+  ],
+  "consoleErrors": []
+}
