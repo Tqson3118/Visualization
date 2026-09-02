@@ -349,6 +349,9 @@ const userTabs = computed(() => [
 
 const filtered = computed(() => {
   let list = users.value;
+  if (tab.value === 'all') {
+    list = list.filter((u) => u.role !== 'TEACHER_PENDING');
+  }
   if (roleFilter.value) list = list.filter((u) => u.role === roleFilter.value);
   if (statusFilter.value === 'active') list = list.filter((u) => u.isActive);
   if (statusFilter.value === 'locked') list = list.filter((u) => !u.isActive);
@@ -480,7 +483,6 @@ async function loadDrawerDetail(id: number): Promise<void> {
         <option value="">{{ messages.admin.users.roleAll }}</option>
         <option value="STUDENT">{{ messages.admin.users.roleStudent }}</option>
         <option value="TEACHER">{{ messages.admin.users.roleTeacher }}</option>
-        <option value="TEACHER_PENDING">{{ messages.admin.users.rolePending }}</option>
         <option value="ADMIN">{{ messages.admin.users.roleAdmin }}</option>
       </select>
       <select v-model="statusFilter" class="admin-users__select" :aria-label="messages.admin.users.statusFilterLabel">

@@ -28,6 +28,7 @@ import {
   Play,
   Plus,
   Puzzle,
+  Search,
   Settings2,
   Sparkles,
   Timer,
@@ -46,7 +47,8 @@ import * as classesApi from '@/api/classes';
 import * as lessonsApi from '@/api/lessons';
 import * as exercisesApi from '@/api/exercises';
 import { courseApi, type CourseListDto } from '@/services/courseApi';
-import { formatDate } from '@/utils/format';
+import { formatDate, parseDateSafely } from '@/utils/format';
+import { normalizeVi } from '@/utils/searchNormalize';
 import { messages } from '@/i18n/vi';
 import type { ClassCurriculumItemDto } from '@/api/types';
 import Button from '@/components/ui/Button.vue';
@@ -58,11 +60,11 @@ import Input from '@/components/ui/Input.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import Select, { type SelectOption } from '@/components/ui/Select.vue';
-import ProgressBar from '@/components/ui/ProgressBar.vue';
 import PageHero from '@/components/ui/PageHero.vue';
 import PathModuleList, { type PathModuleGroup, type PathModuleLesson } from '@/components/path/PathModuleList.vue';
 import CourseCard from '@/features/courses/components/CourseCard.vue';
 import type { Course } from '@/features/courses/types/course.types';
+import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import { updateClassDeadline } from '@/api/pathItems';
 
 const route = useRoute();
@@ -70,6 +72,7 @@ const router = useRouter();
 const classStore = useClassStore();
 const auth = useAuthStore();
 const ui = useUiStore();
+const courseStore = useCourseStore();
 
 const classId = computed(() => Number(route.params.id));
 const tab = ref<'members' | 'curriculum' | 'settings'>('curriculum');
@@ -94,7 +97,11 @@ async function openSelectPathModal(): Promise<void> {
   selectedPathId.value = classStore.currentClass?.learningPathId ?? null;
   loadingPaths.value = true;
   try {
-    availablePaths.value = await courseApi.getCourses();
+    const all = await courseApi.getCourses();
+    // GV chỉ được thêm lộ trình dành riêng cho lớp học (ClassOnly)
+    availablePaths.value = all.filter(
+      (p) => p.status === 'class' || (p as any).visibility === 'ClassOnly',
+    );
   } catch {
     availablePaths.value = [];
   } finally {
@@ -103,6 +110,11 @@ async function openSelectPathModal(): Promise<void> {
 }
 
 async function handleSetLearningPath(pathId: number | null): Promise<void> {
+  if (pathId !== classStore.currentClass?.learningPathId && classStore.members.length > 0 && classStore.currentClass?.learningPathId) {
+    ui.showToast('Lớp học đã có học viên tham gia, không thể thay đổi lộ trình.', 'error');
+    return;
+  }
+
   bindingPath.value = true;
   try {
     await classStore.setLearningPath(classId.value, pathId);
@@ -139,12 +151,17 @@ const classModules = computed<PathModuleGroup[]>(() => {
 
   const modules: PathModuleGroup[] = [];
   let current: PathModuleGroup | null = null;
+  let allPrecedingCompleted = true; // First lesson is unlocked
+  const isTeacherOrAdmin = isManager.value;
 
   const pushLesson = (item: ClassCurriculumItemDto): void => {
     if (!current) {
       current = { title: item.topicName || 'Nội dung lộ trình', lessons: [] };
       modules.push(current);
     }
+    const isDone = item.status === 'completed';
+    const isLocked = !isTeacherOrAdmin && !allPrecedingCompleted;
+
     current.lessons.push({
       id: item.pathItemId ?? item.assignmentId ?? item.lessonId ?? item.exerciseId ?? item.title,
       pathItemId: item.pathItemId ?? item.assignmentId,
@@ -152,15 +169,19 @@ const classModules = computed<PathModuleGroup[]>(() => {
       assignmentId: item.assignmentId,
       title: item.title,
       sandboxType: mapItemType(item.itemType),
-      status: item.status === 'completed' ? 'Completed' : item.status,
-      isCompleted: item.status === 'completed',
-      locked: false,
-      isLocked: false,
+      status: isDone ? 'Completed' : (isLocked ? 'Locked' : (item.status || 'NotStarted')),
+      isCompleted: isDone,
+      locked: isLocked,
+      isLocked: isLocked,
       dueAt: item.dueAt,
       allowLateSubmission: item.allowLateSubmission,
       bestScore: item.bestScore,
       xpReward: item.xpReward,
     });
+
+    if (!isDone) {
+      allPrecedingCompleted = false;
+    }
   };
 
   const walk = (list: ClassCurriculumItemDto[]): void => {
@@ -241,6 +262,8 @@ watch(
   () => classStore.currentClass?.learningPathId,
   (pathId) => {
     if (pathId) {
+      // Đồng bộ trạng thái ghi danh cho học sinh trong lớp để tiến độ khớp giữa lớp và lộ trình
+      courseStore.enrollCourse(pathId);
       void loadAssignedCourse(pathId);
     } else {
       assignedCourse.value = null;
@@ -292,20 +315,25 @@ const continueLabel = computed(() => {
 
 function continueLearning(): void {
   const item = nextUpItem.value;
-  if (!item) return;
-  if (item.lessonId) {
-    void router.push({ name: 'lesson-study', params: { id: String(item.lessonId) } });
-    return;
-  }
-  const pathId = classStore.currentClass?.learningPathId;
-  const targetId = item.pathItemId ?? item.assignmentId;
-  if (pathId && targetId) {
-    void router.push({ path: '/learn/' + pathId + '/' + targetId });
-  }
+  const targetId = item?.lessonId ?? item?.pathItemId ?? item?.assignmentId ?? classModules.value[0]?.lessons?.[0]?.id;
+  if (!targetId) return;
+
+  void router.push({
+    name: 'lesson-study',
+    params: { id: String(targetId) },
+    query: {
+      courseId: classStore.currentClass?.learningPathId ? String(classStore.currentClass.learningPathId) : undefined,
+      classId: String(classId.value),
+    },
+  });
 }
 
 function handleSelectModuleLesson(lesson: PathModuleLesson): void {
-  const targetId = lesson.lessonId ?? lesson.pathItemId ?? lesson.id;
+  if (!isManager.value && (lesson.locked || lesson.isLocked)) {
+    ui.showToast('Bạn cần hoàn thành bài học trước để mở khóa bài học này.', 'warning');
+    return;
+  }
+  const targetId = lesson.pathItemId ?? lesson.id ?? lesson.lessonId;
   if (!targetId) return;
 
   void router.push({
@@ -330,6 +358,10 @@ const editingLessonDeadline = ref<{
   isFolder: boolean;
 } | null>(null);
 const savingDeadline = ref(false);
+const minDateTimeLocal = computed(() => {
+  const d = new Date(Date.now() + 60000);
+  return toLocalInput(d.toISOString());
+});
 
 function openDeadlineModal(item: ClassCurriculumItemDto | PathModuleLesson | PathModuleGroup): void {
   const lessonId = (item as any).lessonId;
@@ -356,6 +388,13 @@ function openDeadlineModal(item: ClassCurriculumItemDto | PathModuleLesson | Pat
 
 async function handleSaveDeadline(): Promise<void> {
   if (!editingLessonDeadline.value) return;
+  if (editingLessonDeadline.value.dueAt) {
+    const selectedTime = new Date(editingLessonDeadline.value.dueAt).getTime();
+    if (selectedTime <= Date.now()) {
+      ui.showToast('Hạn nộp bài phải ở thời điểm tương lai', 'error');
+      return;
+    }
+  }
   savingDeadline.value = true;
   try {
     const dueAtIso = editingLessonDeadline.value.dueAt ? new Date(editingLessonDeadline.value.dueAt).toISOString() : null;
@@ -412,13 +451,24 @@ const reportLoaded = ref(false);
 /** Bảng học viên phân trang client-side (dữ liệu thật từ classStore.members). */
 const MEMBER_PAGE_SIZE = 8;
 const memberPage = ref(1);
-const memberPageCount = computed(() => Math.max(1, Math.ceil(classStore.members.length / MEMBER_PAGE_SIZE)));
+const memberSearchQuery = ref('');
+
+const filteredMembers = computed(() => {
+  const q = normalizeVi(memberSearchQuery.value.trim());
+  if (!q) return classStore.members;
+  return classStore.members.filter((m) =>
+    normalizeVi(m.displayName || '').includes(q) ||
+    normalizeVi(m.email || '').includes(q)
+  );
+});
+
+const memberPageCount = computed(() => Math.max(1, Math.ceil(filteredMembers.value.length / MEMBER_PAGE_SIZE)));
 const pagedMembers = computed(() => {
   const start = (memberPage.value - 1) * MEMBER_PAGE_SIZE;
-  return classStore.members.slice(start, start + MEMBER_PAGE_SIZE);
+  return filteredMembers.value.slice(start, start + MEMBER_PAGE_SIZE);
 });
 const memberPageRange = computed(() => {
-  const total = classStore.members.length;
+  const total = filteredMembers.value.length;
   if (total === 0) return { from: 0, to: 0 };
   const from = (memberPage.value - 1) * MEMBER_PAGE_SIZE + 1;
   return { from, to: Math.min(memberPage.value * MEMBER_PAGE_SIZE, total) };
@@ -428,9 +478,9 @@ function goMemberPage(page: number): void {
   memberPage.value = Math.min(Math.max(1, page), memberPageCount.value);
 }
 
-// Thành viên thay đổi (thêm/gỡ) → về trang đầu.
+// Thành viên thay đổi hoặc tìm kiếm → về trang đầu.
 watch(
-  () => classStore.members.length,
+  [() => classStore.members.length, memberSearchQuery],
   () => {
     memberPage.value = 1;
   },
@@ -467,13 +517,16 @@ const isManager = computed(() => {
 /** Vai trò thành viên: backend ClassMemberDto không trả role → so với OwnerId của lớp. */
 const isMemberTeacher = (member: { userId: number }): boolean => member.userId === classStore.currentClass?.ownerId;
 
-// B4: Bỏ tab 'assignments' — lớp học chỉ học theo lộ trình GV tạo sẵn.
+// B4: Bỏ tab 'assignments' — lớp học chỉ học theo lộ trình GV tạo sẵn. Học viên không thấy tab Thành viên.
 const detailTabs = computed<Array<{ key: 'members' | 'curriculum' | 'settings'; label: string }>>(() => {
-  const tabs: Array<{ key: 'members' | 'curriculum' | 'settings'; label: string }> = [
-    { key: 'members', label: messages.classes.detailTabMembers },
-    { key: 'curriculum', label: messages.classes.curriculumTab },
-  ];
-  if (isManager.value) tabs.push({ key: 'settings', label: messages.classes.detailTabSettings });
+  const tabs: Array<{ key: 'members' | 'curriculum' | 'settings'; label: string }> = [];
+  if (isManager.value) {
+    tabs.push({ key: 'members', label: messages.classes.detailTabMembers });
+  }
+  tabs.push({ key: 'curriculum', label: messages.classes.curriculumTab });
+  if (isManager.value) {
+    tabs.push({ key: 'settings', label: messages.classes.detailTabSettings });
+  }
   return tabs;
 });
 
@@ -529,7 +582,8 @@ async function addMember(): Promise<void> {
 
 /** ISO → giá trị cho input datetime-local (múi giờ địa phương). */
 function toLocalInput(iso: string): string {
-  const d = new Date(iso);
+  const d = parseDateSafely(iso);
+  if (!d || Number.isNaN(d.getTime())) return '';
   const pad = (n: number): string => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -594,7 +648,7 @@ function cleanTitle(title?: string): string {
             <Badge variant="primary">
               {{ isManager ? messages.classes.roleManager : messages.classes.roleMember }}
             </Badge>
-            <span class="class-detail__hero-chip">
+            <span v-if="isManager" class="class-detail__hero-chip">
               <Users :size="13" aria-hidden="true" />
               {{ messages.classes.members(classStore.members.length) }}
             </span>
@@ -640,12 +694,22 @@ function cleanTitle(title?: string): string {
       <!-- Tabs shadcn: Thành viên / Lộ trình đã gán / Cài đặt -->
       <Tabs :tabs="detailTabs" v-model="tab" @change="tab = $event as typeof tab" />
 
-      <!-- Tab Thành viên -->
-      <section v-if="tab === 'members'" class="class-detail__panel">
-        <div v-if="isManager" class="class-detail__toolbar">
+      <!-- Tab Thành viên (Chỉ dành cho Giáo viên / Quản lý) -->
+      <section v-if="tab === 'members' && isManager" class="class-detail__panel">
+        <div v-if="isManager" class="class-detail__toolbar flex items-center justify-between gap-3 flex-wrap">
           <Button size="md" @click="addMemberOpen = true">
             <UserPlus :size="14" aria-hidden="true" /> {{ messages.classes.detailAddMember }}
           </Button>
+
+          <div v-if="classStore.members.length > 0" class="relative min-w-[240px]">
+            <input
+              v-model="memberSearchQuery"
+              type="text"
+              placeholder="Tìm học viên theo tên, email..."
+              class="w-full pl-9 pr-3 py-2 bg-vdsa-surface-elevated border border-vdsa-border rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+            />
+            <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
         </div>
         <EmptyState
           v-if="classStore.members.length === 0"
@@ -772,7 +836,14 @@ function cleanTitle(title?: string): string {
 
             <!-- GV Action Buttons -->
             <div class="flex items-center gap-2 flex-wrap shrink-0">
-              <Button size="sm" variant="secondary" class="gap-1.5" @click="openSelectPathModal">
+              <Button
+                size="sm"
+                variant="secondary"
+                class="gap-1.5"
+                :disabled="Boolean(classStore.currentClass?.learningPathId && classStore.members.length > 0)"
+                :title="classStore.currentClass?.learningPathId && classStore.members.length > 0 ? 'Lớp học đã có học viên, không thể thay đổi lộ trình' : ''"
+                @click="openSelectPathModal"
+              >
                 <Layers :size="14" /> {{ classStore.currentClass?.learningPathId ? 'Đổi Lộ trình khác' : 'Chọn Lộ trình giảng dạy' }}
               </Button>
               <Button
@@ -787,16 +858,13 @@ function cleanTitle(title?: string): string {
             </div>
           </div>
 
-          <!-- Overall Progress Bar -->
-          <div class="pt-2 border-t border-vdsa-border/60 flex items-center gap-4">
-            <div class="flex-1">
-              <div class="flex items-center justify-between text-xs text-slate-300 font-semibold mb-1">
-                <span>Tiến độ chung cả lớp</span>
-                <span class="font-mono text-emerald-400 font-bold">{{ classStore.curriculum?.progressPct ?? 0 }}%</span>
-              </div>
-              <ProgressBar :value="classStore.curriculum?.progressPct ?? 0" variant="success" />
-            </div>
-            <span class="text-xs text-slate-400 font-mono shrink-0">
+          <!-- Roadmap Details Meta -->
+          <div v-if="classStore.currentClass?.learningPathId" class="pt-2 border-t border-vdsa-border/60 flex items-center justify-between text-xs text-slate-400">
+            <span class="flex items-center gap-1.5">
+              <BookOpen :size="13" class="text-purple-400" />
+              Lộ trình học tập của lớp
+            </span>
+            <span class="text-xs text-slate-300 font-mono font-bold">
               {{ classStore.curriculum?.items.length ?? 0 }} mục bài học
             </span>
           </div>
@@ -830,8 +898,8 @@ function cleanTitle(title?: string): string {
           </div>
         </div>
 
-        <!-- Student View: 1 CourseCard gọn gàng, vào học ngay -->
-        <div v-else-if="!isManager" class="space-y-5 max-w-xl">
+        <!-- Student View: Unified Module Tree List & Nearest deadline banner -->
+        <div v-else-if="!isManager" class="space-y-4">
           <!-- Nearest Deadline Banner if any -->
           <div
             v-if="nearestDeadline"
@@ -857,36 +925,35 @@ function cleanTitle(title?: string): string {
             </div>
           </div>
 
-          <!-- Course Card Component -->
-          <div class="space-y-2">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Lộ trình học tập của lớp</h3>
-            <div class="cursor-pointer transition-transform hover:scale-[1.01]" @click="goToPath">
-              <CourseCard v-if="assignedCourse" :course="assignedCourse" />
-              <Skeleton v-else-if="loadingAssignedCourse" height="260px" class="rounded-2xl" />
-            </div>
-          </div>
-
           <!-- Quick Action Button -->
-          <div class="pt-1">
+          <div class="pt-1 flex items-center justify-between gap-3 flex-wrap">
             <Button
               size="lg"
               variant="primary"
               class="w-full sm:w-auto gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-purple-600/30 cursor-pointer"
-              @click="goToPath"
+              @click="continueLearning"
             >
-              <Play :size="16" /> Vào Lộ trình học ngay
+              <Play :size="16" /> {{ continueLabel }}
               <ArrowRight :size="16" />
             </Button>
           </div>
+
+          <PathModuleList
+            :modules="classModules"
+            :show-deadlines="true"
+            :is-teacher="false"
+            deadline-level="none"
+            @select-lesson="handleSelectModuleLesson"
+          />
         </div>
 
-        <!-- Teacher / Manager View: Unified Module Tree List (using PathModuleList with deadline-level="folder") -->
+        <!-- Teacher / Manager View: Unified Module Tree List (using PathModuleList with deadline-level="both") -->
         <div v-else class="space-y-4">
           <PathModuleList
             :modules="classModules"
             :show-deadlines="true"
             :is-teacher="isManager"
-            deadline-level="folder"
+            deadline-level="both"
             @select-lesson="handleSelectModuleLesson"
             @edit-deadline="openDeadlineModal"
           />
@@ -1054,6 +1121,7 @@ function cleanTitle(title?: string): string {
           <input
             v-model="editingLessonDeadline.dueAt"
             type="datetime-local"
+            :min="minDateTimeLocal"
             class="w-full bg-vdsa-surface border border-vdsa-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
           />
           <span class="text-[11px] text-slate-500 mt-1 block">Để trống nếu không muốn áp dụng hạn nộp.</span>

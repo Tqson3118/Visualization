@@ -22,18 +22,26 @@ const gamification = useGamificationStore();
 const ui = useUiStore();
 
 const loading = ref(true);
+const error = ref<string | null>(null);
 const claimingId = ref<number | null>(null);
 
-onMounted(async () => {
+async function loadQuests() {
+  loading.value = true;
+  error.value = null;
   try {
     await gamification.fetchQuests();
-  } catch {
+  } catch (err: any) {
+    error.value = 'Không thể tải danh sách thử thách lúc này. Vui lòng thử lại!';
     ui.showToast(messages.quests.loadError, 'error');
   } finally {
     loading.value = false;
   }
   void gamification.fetchHearts();
   void gamification.fetchStreak();
+}
+
+onMounted(() => {
+  void loadQuests();
 });
 
 const doneCount = computed(() => gamification.quests.filter((q) => q.current >= q.target).length);
@@ -99,6 +107,13 @@ async function claim(quest: QuestDto): Promise<void> {
 
     <div v-if="loading" class="quests__loading" aria-busy="true">
       <Skeleton v-for="i in 5" :key="i" height="110px" />
+    </div>
+
+    <div v-else-if="error" class="py-12 text-center">
+      <p class="text-vdsa-secondary text-sm mb-4">{{ error }}</p>
+      <button @click="loadQuests" class="px-5 py-2 rounded-xl bg-vdsa-accent hover:bg-vdsa-accent-light text-white text-xs font-bold transition-all cursor-pointer">
+        Thử lại
+      </button>
     </div>
 
     <EmptyState

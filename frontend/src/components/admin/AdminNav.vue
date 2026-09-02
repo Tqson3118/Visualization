@@ -19,7 +19,7 @@ interface NavItem {
 
 const LINKS: readonly NavItem[] = [
   { key: 'content', label: 'Studio Lộ trình & Bài giảng', to: { path: '/studio', query: { tab: 'curriculum' } }, adminOnly: false },
-  { key: 'classes', label: 'Quản lý lớp học', to: { name: 'classes' }, adminOnly: false },
+  { key: 'classes', label: 'Quản lý lớp học', to: { name: 'admin-classes' }, adminOnly: true },
   { key: 'users', label: 'Quản lý Người dùng', to: { name: 'admin-users' }, adminOnly: true },
   { key: 'stats', label: 'Thống kê Hệ thống', to: { name: 'admin-stats' }, adminOnly: true },
   { key: 'settings', label: 'Cấu hình & Báo cáo', to: { name: 'admin-settings' }, adminOnly: true },

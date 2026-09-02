@@ -60,8 +60,9 @@ public sealed class GamificationService(
         await EnsureHeartsMaxSyncAsync(user, ct);
         await PersistHeartRegenAsync(user, ct);
 
+        var now = clock.UtcNow;
         var affected = await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE Users SET Hearts = Hearts - 1 WHERE Id = {userId} AND Hearts > 0", ct);
+            $"UPDATE Users SET Hearts = Hearts - 1, LastHeartAt = {now} WHERE Id = {userId} AND Hearts > 0", ct);
         if (affected == 0)
         {
             return Result<HeartsStatusDto>.Fail(ErrorCodes.HEARTS_EMPTY,
@@ -809,7 +810,7 @@ public sealed class GamificationService(
     public async Task<Result<List<ShopItemDto>>> GetShopItemsAsync(int userId, CancellationToken ct)
     {
         var items = await db.ShopItems.AsNoTracking()
-            .Where(i => !i.ItemKey.Contains("streak_freeze", StringComparison.OrdinalIgnoreCase))
+            .Where(i => !i.ItemKey.Contains("streak_freeze"))
             .OrderBy(i => i.PriceGems)
             .ToListAsync(ct);
 

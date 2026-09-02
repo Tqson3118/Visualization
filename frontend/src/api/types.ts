@@ -121,6 +121,7 @@ export interface ClassReportAssignmentDto {
   late: number;
   notSubmitted: number;
   avgScore: number;
+  itemType?: 'theory' | 'quiz' | 'code' | string;
 }
 
 /** Học viên chậm tiến độ (thiếu ≥ 2 bài gán) — khớp backend LaggingLearnerDto. */

@@ -428,55 +428,9 @@ public static partial class SeedDemoActivity
                     new(S(10), 3), new(S(11), 2), new(S(12), 1),
                     new(H(10), 3), new(H(11), 2), new(H(12), 1),
                 ],
-                Assignments:
-                [
-                    new(
-                        ExerciseTitle: "Lab: Binary Search",
-                        LessonTitle: null,
-                        CreatedDaysAgo: 2,
-                        DueOffsetDays: -1,
-                        Submissions:
-                        [
-                            new(H(10), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(11), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(12), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(0), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(1), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(2), Late: true, NewScore: 6, NewOffsetDays: 2),
-                            new(S(3), Late: true, NewScore: 5, NewOffsetDays: 3),
-                        ]),
-                    new(
-                        ExerciseTitle: "Code: Binary Search",
-                        LessonTitle: null,
-                        CreatedDaysAgo: 1,
-                        DueOffsetDays: 2,
-                        Submissions:
-                        [
-                            new(H(10), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(11), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(12), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(4), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(5), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(6), Late: false, NewScore: 0, NewOffsetDays: -1),
-                        ]),
-                    new(
-                        ExerciseTitle: "Quiz: Stack",
-                        LessonTitle: null,
-                        CreatedDaysAgo: 1,
-                        DueOffsetDays: 6,
-                        Submissions:
-                        [
-                            new(H(10), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(11), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(12), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(0), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(1), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(2), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(S(3), Late: false, NewScore: 0, NewOffsetDays: -1),
-                        ]),
-                    new(ExerciseTitle: null, LessonTitle: "Linked List", CreatedDaysAgo: 1, DueOffsetDays: 12, Submissions: []),
-                ]),
-            // ── SD21361NC — Giải thuật nâng cao HK1 2026 (ĐÓNG, giữ 5 member V1 + 3 assignment cũ) ──
+                Assignments: []
+            ),
+            // ── SD21361NC — Giải thuật nâng cao HK1 2026 (ĐÓNG, giữ 5 member V1 + 0 assignment) ──
             new PlannedClassV2Spec(
                 Name: "SD21361NC — Giải thuật nâng cao HK1 2026",
                 InviteCode: "ADVNCE",
@@ -490,44 +444,8 @@ public static partial class SeedDemoActivity
                     new(A(0), 8), new(A(1), 7), new(A(2), 6), new(A(3), 5), new(A(4), 4),
                     new(A(5), 3), new(A(6), 2), new(A(7), 1),
                 ],
-                Assignments:
-                [
-                    new(
-                        ExerciseTitle: "Quiz: BST",
-                        LessonTitle: null,
-                        CreatedDaysAgo: 4,
-                        DueOffsetDays: -3,
-                        Submissions:
-                        [
-                            new(H(5), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(6), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(7), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(8), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(0), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(1), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(2), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(3), Late: true, NewScore: 5, NewOffsetDays: 2),
-                            new(A(4), Late: true, NewScore: 6, NewOffsetDays: 3),
-                        ]),
-                    new(
-                        ExerciseTitle: "Lab: Stack",
-                        LessonTitle: null,
-                        CreatedDaysAgo: 1,
-                        DueOffsetDays: 1,
-                        Submissions:
-                        [
-                            new(H(5), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(6), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(7), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(8), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(H(9), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(0), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(1), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(2), Late: false, NewScore: 0, NewOffsetDays: -1),
-                            new(A(3), Late: false, NewScore: 0, NewOffsetDays: -1),
-                        ]),
-                    new(ExerciseTitle: null, LessonTitle: "AVL", CreatedDaysAgo: 1, DueOffsetDays: 10, Submissions: []),
-                ]),
+                Assignments: []
+            ),
         ];
     }
 }

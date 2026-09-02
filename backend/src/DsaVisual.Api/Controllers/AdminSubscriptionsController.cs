@@ -76,9 +76,13 @@ public sealed class AdminSubscriptionsController(AppDbContext db, IDateTimeProvi
         {
             result = result.Where(s => s.IsActive).ToList();
         }
+        else if (status?.ToLowerInvariant() == "pending" || status?.ToLowerInvariant() == "unactivated")
+        {
+            result = result.Where(s => s.Status == 2).ToList();
+        }
         else if (status?.ToLowerInvariant() == "expired")
         {
-            result = result.Where(s => !s.IsActive).ToList();
+            result = result.Where(s => s.Status == 1 || (s.Status == 0 && s.ExpiresAt != null && s.ExpiresAt <= now)).ToList();
         }
 
         return Ok(result);

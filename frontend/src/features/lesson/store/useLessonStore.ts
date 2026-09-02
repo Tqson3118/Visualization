@@ -398,7 +398,9 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     const token = getLessonAuthToken();
     if (token && isOnline.value) {
       try {
-        const detail = await fetchLessonDetail(lessonId);
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseIdParam = urlParams.get('courseId');
+        const detail = await fetchLessonDetail(lessonId, courseIdParam);
         if (requestId !== lessonLoadRequestId) return;
         const lesson = await buildLessonFromApi(detail);
         if (requestId !== lessonLoadRequestId) return;
@@ -442,13 +444,13 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           return;
         }
 
-        console.warn('Lỗi kết nối máy chủ, thử tìm dữ liệu bài học cục bộ:', e);
         try {
           const urlParams = new URLSearchParams(window.location.search);
-          const courseIdParam = urlParams.get('courseId') || '7';
-          const courseData = await courseApi.getCourseById(courseIdParam) as unknown as CourseDetailDto;
-          const found = courseData.lessons?.find(l => String(l.id) === String(lessonId));
-          if (found && requestId === lessonLoadRequestId) {
+          const courseIdParam = urlParams.get('courseId');
+          if (courseIdParam) {
+            const courseData = await courseApi.getCourseById(courseIdParam) as unknown as CourseDetailDto;
+            const found = courseData.lessons?.find(l => String(l.id) === String(lessonId));
+            if (found && requestId === lessonLoadRequestId) {
             const detail: LessonDetailResponse = {
               id: String(found.id),
               courseId: String(courseData.id),
@@ -497,6 +499,10 @@ export const useLessonStore = defineStore('lessonStudy', () => {
             currentLesson.value = null;
             error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';
           }
+        } else {
+          currentLesson.value = null;
+          error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';
+        }
         } catch {
           currentLesson.value = null;
           error.value = e instanceof Error ? e.message : 'Không tìm thấy bài học';

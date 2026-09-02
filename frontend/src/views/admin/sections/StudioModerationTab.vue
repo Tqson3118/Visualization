@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   AlertCircle,
   BookOpen,
@@ -7,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  ExternalLink,
   Layers,
   Network,
   RefreshCw,
@@ -31,6 +33,11 @@ import Drawer from '@/components/ui/Drawer.vue';
 import ProseContent from '@/components/ui/ProseContent.vue';
 
 const ui = useUiStore();
+const router = useRouter();
+
+function openDirectCurriculum(course: CourseListDto): void {
+  void router.push({ path: '/studio', query: { tab: 'curriculum', courseId: course.id } });
+}
 
 const pendingCourses = ref<CourseListDto[]>([]);
 const loading = ref(true);
@@ -304,9 +311,10 @@ async function openNodeDetail(item: PathItemDto): Promise<void> {
                 size="sm"
                 variant="secondary"
                 class="text-xs font-bold gap-1"
-                @click="openPreview(course)"
+                title="Mở trực tiếp toàn bộ giáo trình trong Studio để duyệt chi tiết"
+                @click="openDirectCurriculum(course)"
               >
-                <Eye :size="13" /> Xem giáo trình
+                <ExternalLink :size="13" /> Xem giáo trình
               </Button>
               
               <Button

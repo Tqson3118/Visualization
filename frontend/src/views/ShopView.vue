@@ -29,7 +29,6 @@ import Badge from '@/components/ui/Badge.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import BlockToken from '@/components/ui/BlockToken.vue';
-import Tabs from '@/components/ui/Tabs.vue';
 import { formatNumber } from '@/utils/format';
 import { messages } from '@/i18n/vi';
 
@@ -131,19 +130,17 @@ async function toggleEquipFromShop(item: ShopItemDto): Promise<void> {
   }
 }
 
-const CATEGORY_TABS: Array<{ id: 'all' | 'item' | 'avatar' | 'frame'; label: string }> = [
-  { id: 'all', label: 'Tất cả' },
-  { id: 'item', label: 'Vật phẩm' },
-  { id: 'avatar', label: 'Avatar' },
-  { id: 'frame', label: 'Khung viền' },
+const CATEGORY_TABS = [
+  { id: 'all' as const, label: 'Tất cả', icon: Sparkles },
+  { id: 'frame' as const, label: 'Khung avatar', icon: Frame },
+  { id: 'avatar' as const, label: 'Avatar', icon: Image },
+  { id: 'item' as const, label: 'Vật phẩm', icon: Heart },
 ];
 
-const categoryTabItems = computed(() =>
-  CATEGORY_TABS.map((c) => ({
-    key: c.id,
-    label: c.label,
-  })),
-);
+function getCategoryCount(catId: string): number {
+  if (catId === 'all') return items.value.length;
+  return items.value.filter((i) => isItemInCategory(i, catId)).length;
+}
 
 function isItemInCategory(item: ShopItemDto, cat: string): boolean {
   if (cat === 'all') return true;
@@ -164,12 +161,7 @@ function isMaxStacked(item: ShopItemDto): boolean {
   return ownedQuantity(item) >= max;
 }
 
-// Ô trám cho lưới 3 cột (3×3) khi tổng item không chia hết cho 3.
-const fillCount = computed(() => {
-  const len = filteredItems.value.length;
-  if (len === 0) return 0;
-  return (3 - (len % 3)) % 3;
-});
+
 
 // Icon lucide theo slot
 const SLOT_ICON: Record<string, Component> = {
@@ -401,7 +393,27 @@ const slotLabel = (slot: string | null): string => {
           <!-- Khu phải: trưng bày vật phẩm theo lưới 3×3 -->
           <section class="shop__showcase" aria-label="Trưng bày vật phẩm">
             <header class="shop__showcase-head flex-col sm:flex-row gap-3">
-              <Tabs :tabs="categoryTabItems" v-model="activeCategory" class="shop__cat-tabs flex-1" />
+              <div class="shop__cat-list flex-1 flex items-center gap-2 flex-wrap" role="tablist" aria-label="Phân loại cửa hàng">
+                <button
+                  v-for="cat in CATEGORY_TABS"
+                  :key="cat.id"
+                  type="button"
+                  role="tab"
+                  :aria-selected="activeCategory === cat.id"
+                  class="shop__cat-tab flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  :class="activeCategory === cat.id ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30' : 'bg-[#14121f] text-slate-400 hover:text-white border border-[#262438] hover:border-purple-500/40'"
+                  @click="activeCategory = cat.id"
+                >
+                  <component :is="cat.icon" :size="13" />
+                  <span>{{ cat.label }}</span>
+                  <span
+                    class="text-[10px] px-1.5 py-0.2 rounded-full font-mono font-semibold"
+                    :class="activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-white/5 text-slate-400'"
+                  >
+                    {{ getCategoryCount(cat.id) }}
+                  </span>
+                </button>
+              </div>
               <span class="shop__showcase-count shrink-0">{{ filteredItems.length }} ITEMS</span>
             </header>
 
@@ -479,12 +491,6 @@ const slotLabel = (slot: string | null): string => {
                   </template>
                 </footer>
               </article>
-
-              <!-- Ô trám cho đủ lưới 3 cột (3×3) -->
-              <div v-for="i in fillCount" :key="`fill-${i}`" class="shop__card shop__card--soon card" aria-hidden="true">
-                <span class="shop__soon-icon"><Plus :size="18" /></span>
-                <span class="shop__soon-text">{{ messages.shop.soon }}</span>
-              </div>
             </div>
           </section>
         </div>

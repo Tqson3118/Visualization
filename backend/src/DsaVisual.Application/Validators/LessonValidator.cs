@@ -23,7 +23,6 @@ public sealed class LessonValidator : AbstractValidator<LessonUpsertRequest>
             .MaximumLength(500).WithMessage("Mô tả không được vượt quá 500 ký tự");
 
         RuleFor(x => x.ContentHtml)
-            .NotEmpty().WithMessage("Nội dung bài học không được để trống")
             .MaximumLength(200_000).WithMessage("Nội dung bài học không được vượt quá 200.000 ký tự");
 
         RuleFor(x => x.Status)

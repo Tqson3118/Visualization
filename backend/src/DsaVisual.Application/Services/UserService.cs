@@ -33,6 +33,11 @@ public sealed class UserService(
         {
             query = query.Where(u => u.Role == roleFilter);
         }
+        else
+        {
+            // Tab "Tất cả người dùng": loại trừ tài khoản TEACHER_PENDING đang chờ duyệt
+            query = query.Where(u => u.Role != UserRole.TeacherPending);
+        }
 
         if (!string.IsNullOrWhiteSpace(status) && bool.TryParse(status, out var activeFilter))
         {

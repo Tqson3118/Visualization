@@ -50,8 +50,18 @@ const AVATAR_IMAGE_URLS: Record<string, string> = {
   'avatar-neon-ninja': '/assets/avatars/neon-ninja.svg',
   'avatar-wizard': '/assets/avatars/wizard.svg',
   'avatar-ai-bot': '/assets/avatars/ai-bot.svg',
+  'avatar-dragon': '/assets/avatars/dragon.svg',
 };
 
 export function avatarImageUrl(itemKey: string): string {
-  return AVATAR_IMAGE_URLS[itemKey] ?? '';
+  if (typeof window !== 'undefined') {
+    try {
+      const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
+      if (custom[itemKey]) return custom[itemKey];
+    } catch {}
+  }
+  if (AVATAR_IMAGE_URLS[itemKey]) return AVATAR_IMAGE_URLS[itemKey];
+  if (itemKey.includes('dragon')) return '/assets/avatars/dragon.svg';
+  return '';
 }
+

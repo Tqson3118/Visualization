@@ -39,8 +39,9 @@ export interface LessonDetailResponse {
   lastScrollPercent: number;
 }
 
-export async function fetchLessonDetail(lessonId: string): Promise<LessonDetailResponse> {
-  const res = await client.get<LessonDetailResponse>(`/concepts/lessons/${encodeURIComponent(lessonId)}`);
+export async function fetchLessonDetail(lessonId: string, courseId?: string | number | null): Promise<LessonDetailResponse> {
+  const q = courseId ? `?courseId=${encodeURIComponent(String(courseId))}` : '';
+  const res = await client.get<LessonDetailResponse>(`/concepts/lessons/${encodeURIComponent(lessonId)}${q}`);
   return res.data;
 }
 

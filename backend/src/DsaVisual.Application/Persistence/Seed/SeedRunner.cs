@@ -228,6 +228,53 @@ public static class SeedRunner
         }
     }
 
+    public static async Task CleanModulePrefixesAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        try
+        {
+            var topics = await db.Topics.ToListAsync(ct);
+            var changed = false;
+            foreach (var t in topics)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(t.Name, @"^Module\s*\d+\s*:\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    t.Name = System.Text.RegularExpressions.Regex.Replace(t.Name, @"^Module\s*\d+\s*:\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                    changed = true;
+                }
+            }
+
+            var paths = await db.LearningPaths.ToListAsync(ct);
+            foreach (var p in paths)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(p.Title, @"^Module\s*\d+\s*:\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    p.Title = System.Text.RegularExpressions.Regex.Replace(p.Title, @"^Module\s*\d+\s*:\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                    changed = true;
+                }
+            }
+
+            var nodes = await db.LearningPathNodes.ToListAsync(ct);
+            foreach (var n in nodes)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(n.Title, @"^Module\s*\d+\s*:\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    n.Title = System.Text.RegularExpressions.Regex.Replace(n.Title, @"^Module\s*\d+\s*:\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("CleanModulePrefixes: Đã làm sạch các tiền tố 'Module X:' khỏi database.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "CleanModulePrefixes: Không thể hoàn tất làm sạch tiền tố Module.");
+        }
+    }
+
     public static async Task MigratePathTreeAndClassAssignmentsAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
     {
         // 1. Reconcile LearningPath.Visibility

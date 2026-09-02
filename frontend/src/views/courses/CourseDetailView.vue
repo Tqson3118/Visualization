@@ -512,17 +512,24 @@ function scrollToLessons() {
 
 const fromClassId = computed(() => (route.query.classId ? Number(route.query.classId) : null));
 
+const isOwnCourse = computed(() => {
+  if (!auth.isAuthenticated || !course.value) return false;
+  if (auth.user?.role === 'ADMIN') return true;
+  const uId = auth.user?.id;
+  return (
+    auth.user?.role === 'TEACHER' &&
+    uId != null &&
+    (course.value.authorId === uId || (course.value as any).createdBy === uId)
+  );
+});
+
 async function autoEnrollFromClass(): Promise<void> {
   if (!auth.isAuthenticated || !course.value) return;
-  const isTeacherOrAdmin = auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN';
-  if (isTeacherOrAdmin) return;
+  if (isOwnCourse.value) return;
   if (courseStore.isEnrolled(course.value.id)) return;
 
-  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình (lớp học)');
-  if (!ok) return;
-
+  // Lớp học: tự động cấp quyền học cho học viên trong lớp (miễn phí)
   courseStore.enrollCourse(course.value.id);
-  ui.showToast('Đã mở khóa lộ trình cho lớp học! (-1 🤍)', 'success');
 }
 
 async function loadCourseDetail() {
@@ -589,7 +596,7 @@ async function confirmRegistration() {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
-  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình');
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình', isOwnCourse.value);
   if (!ok) return;
 
   showRegisterModal.value = false;
@@ -606,16 +613,15 @@ async function confirmRegistration() {
 }
 
 async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
-  const isTeacherOrAdmin = auth.user?.role === 'TEACHER' || auth.user?.role === 'ADMIN';
-  if (!isTeacherOrAdmin && lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
+  if (!isOwnCourse.value && lesson.locked) return; // node chưa mở khoá — bấm bị chặn (backend cũng 403)
 
   if (!auth.isAuthenticated) {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
 
-  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình (chỉ với học viên)
-  if (!isTeacherOrAdmin && course.value && !courseStore.isEnrolled(course.value.id)) {
+  // Chặn khi chưa enroll lộ trình: hiện modal xác nhận tham gia lộ trình (học viên hoặc giáo viên học lộ trình người khác)
+  if (!isOwnCourse.value && course.value && !courseStore.isEnrolled(course.value.id)) {
     targetLessonToStart.value = lesson;
     showRegisterModal.value = true;
     return;
@@ -625,13 +631,14 @@ async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
   const nodeId = typeof lesson.nodeId === 'number' ? lesson.nodeId : Number(lesson.id);
 
   // Quy tắc tim: Đăng ký tốn 1 tim, node 1 miễn phí (0 tim), các node mới sau tốn 1 tim khi vào lần đầu
-  const firstLesson = course.value?.lessons?.[0];
+  const playableLessons = (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder');
+  const firstLesson = playableLessons[0];
   const isFirstNode = firstLesson && (String(firstLesson.id) === String(lesson.id) || (firstLesson.nodeId && firstLesson.nodeId === lesson.nodeId));
   const isAlreadyDone = lesson.status === 'Completed';
-  const shouldChargeHeart = !skipHeartCharge && !isFirstNode && !isAlreadyDone && !isTeacherOrAdmin;
+  const shouldChargeHeart = !skipHeartCharge && !isFirstNode && !isAlreadyDone && !isOwnCourse.value;
 
   if (courseId && nodeId && shouldChargeHeart) {
-    const ok = await heartSystem.enterLessonNode(courseId, nodeId);
+    const ok = await heartSystem.enterLessonNode(courseId, nodeId, false, isOwnCourse.value);
     if (!ok) return;
   }
 

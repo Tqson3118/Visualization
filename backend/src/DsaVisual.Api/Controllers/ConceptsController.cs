@@ -147,6 +147,12 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         public bool Locked { get; set; }
     }
 
+    private static string? CleanPrefix(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        return System.Text.RegularExpressions.Regex.Replace(text, @"^Module\s*\d+\s*:\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+    }
+
     private static string DetermineCategory(LearningPath path, CourseContentMetadata? meta = null)
     {
         if (!string.IsNullOrWhiteSpace(meta?.Category))
@@ -308,7 +314,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                 Category = DetermineCategory(path, meta),
                 Difficulty = DetermineDifficulty(path, meta),
                 TopicId = path.TopicId,
-                TopicName = path.TopicId != null ? topicsMap.GetValueOrDefault(path.TopicId.Value) : null,
+                TopicName = path.TopicId != null ? CleanPrefix(topicsMap.GetValueOrDefault(path.TopicId.Value)) : null,
                 IsPremium = false,
                 IsPublished = path.Status == LearningPathStatus.Active,
                 Status = FormatLearningPathStatus(path.Status),
@@ -360,7 +366,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var isTeacherOrAdmin = role == "ADMIN" || (role == "TEACHER" && isOwnerOrAuthor);
         var canView = isTeacherOrAdmin
             || path.Status == LearningPathStatus.Active
-            || (path.Status == LearningPathStatus.ClassOnly && isEnrolledViaClass);
+            || isEnrolledViaClass;
 
         if (!canView)
         {
@@ -383,7 +389,8 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                 .ToHashSet();
 
         var completed = playableNodes.Count(n => passedNodeIds.Contains(n.Id));
-        var lessons = await BuildLessonsAsync(userId, role, nodes, ct);
+        var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && (path.CreatedBy == userId || path.AuthorId == userId));
+        var lessons = await BuildLessonsAsync(userId, role, nodes, isOwnerOrTeacher, ct);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
         var meta = ParseMetadata(path.HighlightsJson, path.Title);
         var author = await CourseAuthorAsync(path.AuthorId, ct);
@@ -545,6 +552,20 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         {
             path.Status = LearningPathStatus.Draft;
         }
+        else if (requestedScope == "public" || requestedScope == "pending_review")
+        {
+            if (role == "ADMIN")
+            {
+                path.Status = LearningPathStatus.Active;
+                path.IsActive = true;
+            }
+            else
+            {
+                path.Status = LearningPathStatus.PendingReview;
+                path.SubmittedAt = DateTime.UtcNow;
+                path.RejectionReason = null;
+            }
+        }
 
         if (role == "ADMIN")
         {
@@ -586,6 +607,13 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             return Forbid();
         }
 
+        // Giáo viên chỉ được gán lộ trình dành cho lớp học (ClassOnly) cho lớp học
+        var isClassOnly = path.Status == LearningPathStatus.ClassOnly || path.Visibility == PathVisibility.ClassOnly;
+        if (role != "ADMIN" && !isClassOnly)
+        {
+            return BadRequest(new { message = "Giáo viên chỉ được gán lộ trình dành cho lớp học (Class Only) cho lớp học." });
+        }
+
         if (request.ClassIds == null || request.ClassIds.Count == 0)
         {
             return BadRequest(new { message = "Danh sách lớp không được để trống." });
@@ -602,6 +630,18 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             {
                 continue; // Chỉ gán những lớp GV sở hữu
             }
+
+            // Không cho phép đổi lộ trình khác khi lớp đã có học viên
+            if (c.LearningPathId != id && c.LearningPathId != null)
+            {
+                var hasStudents = await _db.ClassMembers.AsNoTracking()
+                    .AnyAsync(m => m.ClassId == c.Id && m.UserId != c.OwnerId, ct);
+                if (hasStudents)
+                {
+                    continue;
+                }
+            }
+
             c.LearningPathId = id;
             c.CurriculumTitle ??= path.Title;
             c.CurriculumDescription ??= path.Description;
@@ -653,9 +693,13 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         if (role != "ADMIN" && path.CreatedBy != userId && path.AuthorId != userId && path.CreatedBy > 1)
             return Forbid();
 
-        var nodeCount = await _db.LearningPathNodes.CountAsync(n => n.PathId == id && n.LessonId != null, ct);
+        var nodeCount = await _db.LearningPathNodes.CountAsync(n => n.PathId == id && (n.LessonId != null || n.FinalTestId != null || n.LabExerciseId != null || n.ItemType != PathItemType.Folder), ct);
         if (nodeCount == 0)
-            return BadRequest(new { message = "Lộ trình phải có ít nhất 1 bài học trước khi gửi duyệt." });
+        {
+            nodeCount = await _db.LearningPathNodes.CountAsync(n => n.PathId == id, ct);
+        }
+        if (nodeCount == 0)
+            return BadRequest(new { message = "Lộ trình phải có ít nhất 1 bài học hoặc mục nội dung trước khi gửi duyệt." });
 
         if (role == "ADMIN")
         {
@@ -796,7 +840,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                 Highlights = meta.Highlights,
                 Testimonials = ParseTestimonials(path.TestimonialsJson),
                 Author = author,
-                Lessons = await BuildLessonsAsync(null, null, nodes, ct)
+                Lessons = await BuildLessonsAsync(null, null, nodes, isOwnerOrTeacher: false, ct: ct)
             });
         }
 
@@ -1148,7 +1192,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
     }
 
     private async Task<List<ConceptsLessonDto>> BuildLessonsAsync(
-        int? userId, string? role, List<LearningPathNode> nodes, CancellationToken ct)
+        int? userId, string? role, List<LearningPathNode> nodes, bool isOwnerOrTeacher = false, CancellationToken ct = default)
     {
         if (nodes.Count == 0)
         {
@@ -1327,8 +1371,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             }
 
             var passed = passedNodeIds.Contains(node.Id);
-            var isStaffOrTeacher = role == "ADMIN" || role == "TEACHER";
-            var locked = DisableNodeLocks || isStaffOrTeacher ? false : (!prevPassed && !passed);
+            var locked = DisableNodeLocks || isOwnerOrTeacher ? false : (!prevPassed && !passed);
 
             result.Add(new ConceptsLessonDto
             {
@@ -1414,12 +1457,24 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
     }
 
     [HttpGet("lessons/{id:int}")]
-    public async Task<ActionResult<LessonDetailResponse>> GetLesson(int id, CancellationToken ct)
+    public async Task<ActionResult<LessonDetailResponse>> GetLesson(
+        [FromRoute] int id,
+        [FromQuery] int? courseId = null,
+        CancellationToken ct = default)
     {
         var userId = CurrentUserId();
         var role = TryGetCurrentRole();
-        var node = await _db.LearningPathNodes.AsNoTracking()
-            .FirstOrDefaultAsync(n => n.Id == id, ct);
+        LearningPathNode? node = null;
+        if (courseId.HasValue && courseId.Value > 0)
+        {
+            node = await _db.LearningPathNodes.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.PathId == courseId.Value && (n.Id == id || n.LessonId == id), ct);
+        }
+        if (node is null)
+        {
+            node = await _db.LearningPathNodes.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
+        }
         if (node is null)
         {
             node = await _db.LearningPathNodes.AsNoTracking()
@@ -1453,9 +1508,14 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
 
         var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && path != null && (path.CreatedBy == userId || path.AuthorId == userId));
 
-        // Chặn học sinh/khách xem bài học nếu khóa học đang là bản nháp.
-        // Fix A3: chế độ "Lớp học" (ClassOnly) phải học được — chỉ chặn bản nháp/tạm ẩn.
-        if (!isOwnerOrTeacher && path != null && path.Status != LearningPathStatus.Active && path.Status != LearningPathStatus.ClassOnly)
+        var isEnrolledViaClass = path != null && await _db.Classes.AsNoTracking()
+            .Where(c => c.LearningPathId == path.Id && c.DeletedAt == null)
+            .Join(_db.ClassMembers.AsNoTracking(), c => c.Id, m => m.ClassId, (c, m) => m.UserId)
+            .AnyAsync(uId => uId == userId, ct);
+
+        // Chặn học sinh/khách xem bài học nếu khóa học đang là bản nháp (trừ khi là thành viên lớp được gán lộ trình).
+        // Fix A3: chế độ "Lớp học" (ClassOnly) phải học được — chỉ chặn bản nháp/tạm ẩn khi không thuộc lớp.
+        if (!isOwnerOrTeacher && !isEnrolledViaClass && path != null && path.Status != LearningPathStatus.Active && path.Status != LearningPathStatus.ClassOnly)
         {
             return NotFound(new { message = "Khóa học hiện đang ở chế độ bản nháp hoặc tạm ẩn." });
         }
@@ -1928,9 +1988,15 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var path = await _db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
         var role = TryGetCurrentRole();
         var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && path != null && (path.CreatedBy == userId || path.AuthorId == userId));
+
+        var isEnrolledViaClass = path != null && await _db.Classes.AsNoTracking()
+            .Where(c => c.LearningPathId == path.Id && c.DeletedAt == null)
+            .Join(_db.ClassMembers.AsNoTracking(), c => c.Id, m => m.ClassId, (c, m) => m.UserId)
+            .AnyAsync(uId => uId == userId, ct);
+
         // Fix A3: chế độ "Lớp học" (ClassOnly) cho học viên trong lớp ghi nhận tiến độ —
         // trước đây chỉ Active được ghi → khóa lớp học xong bài nhưng unlock không bao giờ cập nhật.
-        if (!isOwnerOrTeacher && path != null && path.Status != LearningPathStatus.Active && path.Status != LearningPathStatus.ClassOnly)
+        if (!isOwnerOrTeacher && !isEnrolledViaClass && path != null && path.Status != LearningPathStatus.Active && path.Status != LearningPathStatus.ClassOnly)
         {
             return StatusCode(403, new { message = "Khóa học hiện đang ở chế độ bản nháp hoặc tạm ẩn, không thể ghi nhận tiến độ." });
         }

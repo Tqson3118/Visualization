@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   BookOpen,
@@ -275,8 +275,14 @@ async function handleMoveItem(item: PathItemDto, target: OutlineMoveTarget): Pro
 }
 
 // ── Lưu từ panel soạn ──
-async function handleItemSaved(): Promise<void> {
+async function handleItemSaved(savedItem?: PathItemDto): Promise<void> {
   await loadTree();
+  if (savedItem?.id) {
+    const curId = savedItem.id;
+    selectedItemId.value = null;
+    await nextTick();
+    selectedItemId.value = curId;
+  }
 }
 
 // ── Menu lộ trình (⋯) ──
@@ -295,14 +301,17 @@ function handleDocClick(e: MouseEvent): void {
 
 // Cài đặt / Sửa thông tin lộ trình
 const availableTopics = ref<Topic[]>([]);
+const knowledgeTopics = computed(() => {
+  return availableTopics.value.filter((t) => !t.name.startsWith('Module '));
+});
 const editPathModalOpen = ref(false);
 const savingPath = ref(false);
 const editPathForm = ref({
   title: '',
   description: '',
-  category: 'Cấu trúc dữ liệu',
   difficulty: 'Beginner',
   topicId: null as number | null,
+  scope: 'Draft' as 'Draft' | 'ClassOnly' | 'Public',
   learningObjectives: [] as string[],
   keyOutcomes: [] as string[],
 });
@@ -310,12 +319,20 @@ const editPathForm = ref({
 function openEditPathModal(): void {
   if (!selectedPath.value) return;
   pathMenuOpen.value = false;
+  const currStatus = selectedPath.value.status;
+  const currScope: 'Draft' | 'ClassOnly' | 'Public' =
+    currStatus === 'active' || (selectedPath.value as any).isPublished
+      ? 'Public'
+      : currStatus === 'class' || (selectedPath.value as any).visibility === 'ClassOnly'
+        ? 'ClassOnly'
+        : 'Draft';
+
   editPathForm.value = {
     title: selectedPath.value.title || '',
     description: selectedPath.value.description || '',
-    category: (selectedPath.value as any).category || 'Cấu trúc dữ liệu',
     difficulty: (selectedPath.value as any).difficulty || 'Beginner',
     topicId: (selectedPath.value as any).topicId ?? null,
+    scope: currScope,
     learningObjectives: [...((selectedPath.value as any).learningObjectives || [])],
     keyOutcomes: [...((selectedPath.value as any).keyOutcomes || [])],
   };
@@ -325,18 +342,15 @@ function openEditPathModal(): void {
 async function handleSavePath(): Promise<void> {
   const path = selectedPath.value;
   if (!path) return;
-  // Fix bug "nút Lưu lộ trình không hoạt động": trước đây form chỉ có dữ liệu khi
-  // đã mở modal Cài đặt lộ trình — bấm nút trực tiếp luôn bị chặn "Tên trống".
-  // Nguồn dữ liệu: modal nếu đang mở, ngược lại dùng thông tin hiện tại của lộ trình.
   const modalOpen = editPathModalOpen.value;
   const src = modalOpen
     ? editPathForm.value
     : {
         title: path.title || '',
         description: path.description || '',
-        category: (path as any).category || 'Cấu trúc dữ liệu',
         difficulty: (path as any).difficulty || 'Beginner',
         topicId: (path as any).topicId ?? null,
+        scope: pendingScope.value || undefined,
         learningObjectives: ((path as any).learningObjectives || []) as string[],
         keyOutcomes: ((path as any).keyOutcomes || []) as string[],
       };
@@ -349,15 +363,11 @@ async function handleSavePath(): Promise<void> {
     await courseApi.updateCourse(path.id, {
       title: src.title.trim(),
       description: src.description.trim(),
-      category: src.category,
       difficulty: src.difficulty,
       topicId: src.topicId ?? undefined,
+      scope: (src as any).scope || pendingScope.value || undefined,
       learningObjectives: src.learningObjectives,
       keyOutcomes: src.keyOutcomes,
-      // Chế độ hiển thị chọn từ menu (⋯) chỉ được ghi khi bấm Lưu lộ trình
-      // — fix bug "chọn Nháp chưa bấm lưu đã tự lưu". Khi không có thay đổi,
-      // không gửi scope để backend giữ nguyên trạng thái hiện tại.
-      ...(pendingScope.value ? { scope: pendingScope.value } : {}),
     });
     pendingScope.value = null;
     await loadPaths();
@@ -471,16 +481,20 @@ async function handleLessonIdQuery(): Promise<void> {
 // ── Khởi động ──
 onMounted(async () => {
   document.addEventListener('click', handleDocClick);
+  await loadPaths();
   syncFromRoute();
-  void loadPaths();
   try {
     availableTopics.value = await fetchTopics();
   } catch (e) {
     console.warn('Không thể nạp danh sách chủ đề:', e);
   }
   // Query trỏ tới lộ trình không còn trong danh sách → bỏ chọn.
-  if (selectedPathId.value != null && !selectedPath.value) selectPath(null);
-  if (selectedPathId.value != null) await loadTree();
+  if (selectedPathId.value != null && !selectedPath.value) {
+    selectPath(null);
+  }
+  if (selectedPathId.value != null) {
+    await loadTree();
+  }
   await handleLessonIdQuery();
 });
 
@@ -492,7 +506,7 @@ watch(
   () => [route.query.courseId, route.query.lessonId],
   async () => {
     syncFromRoute();
-    if (selectedPathId.value != null && !tree.value.length) await loadTree();
+    if (selectedPathId.value != null) await loadTree();
     await handleLessonIdQuery();
   },
 );
@@ -671,12 +685,12 @@ watch(
         <Layers class="w-4 h-4 text-slate-600 mb-1" />
       </div>
 
-      <!-- Cột cây nội dung đầy đủ (384px - 440px) -->
+      <!-- Cột cây nội dung đầy đủ (420px - 520px linh hoạt) -->
       <div
         v-else
-        class="w-full lg:w-96 xl:w-[410px] 2xl:w-[440px] shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-[420px] transition-all"
+        class="w-full lg:w-[420px] xl:w-[480px] 2xl:w-[520px] shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:max-h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-0 transition-all"
       >
-        <div class="relative min-w-0 flex-1 flex flex-col h-full">
+        <div class="relative min-w-0 flex-1 flex flex-col min-h-0">
           <div
             v-if="loadingTree"
             class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-[#12111a]/70"
@@ -822,41 +836,10 @@ watch(
           />
         </div>
 
-        <div>
-          <label for="edit-path-desc" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-            Mô tả tóm tắt lộ trình
-          </label>
-          <textarea
-            id="edit-path-desc"
-            v-model="editPathForm.description"
-            rows="3"
-            placeholder="Mô tả ngắn gọn về mục tiêu và nội dung cốt lõi của khóa học..."
-            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 resize-none"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label for="edit-path-category" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Phân loại / Danh mục DSA
-            </label>
-            <select
-              id="edit-path-category"
-              v-model="editPathForm.category"
-              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
-            >
-              <option value="Cấu trúc dữ liệu">Cấu trúc dữ liệu</option>
-              <option value="Giải thuật">Giải thuật</option>
-              <option value="Sắp xếp & Tìm kiếm">Sắp xếp & Tìm kiếm</option>
-              <option value="Cây & Bảng băm">Cây & Bảng băm</option>
-              <option value="Đồ thị">Đồ thị</option>
-              <option value="Khác">Khác</option>
-            </select>
-          </div>
-
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Chủ đề kiến thức (Topic)
+              Chủ đề kiến thức (11 Chủ đề DSA)
             </label>
             <select
               id="edit-path-topic"
@@ -864,7 +847,7 @@ watch(
               class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
             >
               <option :value="null">— Không chọn / Mặc định —</option>
-              <option v-for="t in availableTopics" :key="t.id" :value="t.id">{{ t.name }}</option>
+              <option v-for="t in knowledgeTopics" :key="t.id" :value="t.id">{{ t.name }}</option>
             </select>
           </div>
 
@@ -882,6 +865,21 @@ watch(
               <option value="Advanced">Nâng cao (Advanced / Khó)</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label for="edit-path-scope" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Phạm vi hiển thị & Mục đích sử dụng
+          </label>
+          <select
+            id="edit-path-scope"
+            v-model="editPathForm.scope"
+            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+          >
+            <option value="ClassOnly">Dành cho lớp học (ClassOnly — Chỉ hiển thị trong lớp riêng)</option>
+            <option value="Public">Công khai (Public — Hiển thị toàn hệ thống / Gửi duyệt)</option>
+            <option value="Draft">Bản nháp (Draft — Chỉ tác giả thấy)</option>
+          </select>
         </div>
       </div>
 

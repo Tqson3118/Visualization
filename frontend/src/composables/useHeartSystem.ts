@@ -20,10 +20,12 @@ export function useHeartSystem() {
 
   /**
    * Trừ 1 tim một cách an toàn kèm thông báo lỗi nếu hết tim
+   * @param reason Lý do trừ tim
+   * @param isOwner Cờ bỏ qua trừ tim nếu là chủ sở hữu hoặc admin
    */
-  async function spendHeartSafely(reason = 'Bắt đầu học'): Promise<boolean> {
+  async function spendHeartSafely(reason = 'Bắt đầu học', isOwner = false): Promise<boolean> {
     if (!auth.isAuthenticated) return true;
-    if (auth.user?.role === 'ADMIN' || auth.user?.role === 'TEACHER') return true;
+    if (auth.user?.role === 'ADMIN' || isOwner) return true;
 
     if (!hasHearts.value) {
       ui.showToast('Bạn đã hết tim. Hãy chờ hồi phục hoặc nâng cấp Premium để tiếp tục!', 'warning');
@@ -52,10 +54,11 @@ export function useHeartSystem() {
    * @param pathId ID lộ trình
    * @param nodeId ID node bài học
    * @param skipCharge Bỏ qua trừ tim (dùng khi vừa mở khóa lộ trình)
+   * @param isOwner Cờ bỏ qua trừ tim nếu là chủ sở hữu hoặc admin
    */
-  async function enterLessonNode(pathId: number, nodeId: number, skipCharge = false): Promise<boolean> {
+  async function enterLessonNode(pathId: number, nodeId: number, skipCharge = false, isOwner = false): Promise<boolean> {
     if (!auth.isAuthenticated) return true;
-    if (auth.user?.role === 'ADMIN' || auth.user?.role === 'TEACHER') return true;
+    if (auth.user?.role === 'ADMIN' || isOwner) return true;
     if (skipCharge) return true;
 
     try {

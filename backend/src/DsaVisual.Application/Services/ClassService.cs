@@ -28,16 +28,22 @@ public sealed class ClassService(
 
     public async Task<Result<List<ClassDto>>> GetMyClassesAsync(int userId, string role, CancellationToken ct)
     {
-        var isTeacherOrAdmin = IsTeacherOrAdmin(role);
-        var classIds = isTeacherOrAdmin
+        var isAdmin = IsAdmin(role);
+        var isTeacher = role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase);
+        var classIds = isAdmin
             ? await db.Classes.AsNoTracking()
-                .Where(c => c.OwnerId == userId && c.DeletedAt == null)
+                .Where(c => c.DeletedAt == null)
                 .Select(c => c.Id)
                 .ToListAsync(ct)
-            : await db.ClassMembers.AsNoTracking()
-                .Where(m => m.UserId == userId)
-                .Select(m => m.ClassId)
-                .ToListAsync(ct);
+            : isTeacher
+                ? await db.Classes.AsNoTracking()
+                    .Where(c => c.OwnerId == userId && c.DeletedAt == null)
+                    .Select(c => c.Id)
+                    .ToListAsync(ct)
+                : await db.ClassMembers.AsNoTracking()
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.ClassId)
+                    .ToListAsync(ct);
 
         if (classIds.Count == 0)
         {
@@ -215,7 +221,7 @@ public sealed class ClassService(
             CurriculumTitle = classRoom.CurriculumTitle ?? pathTitle,
             CurriculumDescription = classRoom.CurriculumDescription,
             CurriculumPublished = classRoom.CurriculumPublished,
-            Members = members,
+            Members = canManage ? members : members.Where(m => m.UserId == userId).ToList(),
             Assignments = assignmentDtos
         });
     }
@@ -471,11 +477,9 @@ public sealed class ClassService(
         }
 
         var canManage = CanManage(userId, role, classRoom);
-        var isMember = await db.ClassMembers.AsNoTracking()
-            .AnyAsync(m => m.ClassId == id && m.UserId == userId, ct);
-        if (!canManage && !isMember)
+        if (!canManage)
         {
-            return Result<List<ClassMemberDto>>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền xem danh sách thành viên lớp này");
+            return Result<List<ClassMemberDto>>.Fail(ErrorCodes.FORBIDDEN, "Chỉ giảng viên và quản trị viên mới có quyền xem danh sách học viên lớp này");
         }
 
         var members = await db.ClassMembers.AsNoTracking()
@@ -485,7 +489,7 @@ public sealed class ClassService(
             {
                 UserId = u.Id,
                 DisplayName = u.DisplayName,
-                Email = canManage ? u.Email : EmailMasker.Mask(u.Email),
+                Email = u.Email,
                 JoinedAt = m.JoinedAt
             })
             .ToListAsync(ct);
@@ -506,6 +510,12 @@ public sealed class ClassService(
         {
             return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
                 "Phải gán ít nhất bài học hoặc bài tập", new() { ["lessonId"] = ["Phải gán ít nhất bài học hoặc bài tập"] });
+        }
+
+        if (request.DueAt.HasValue && request.DueAt.Value <= clock.UtcNow)
+        {
+            return Result<ClassDetailDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Hạn nộp bài phải ở tương lai", new() { ["dueAt"] = ["Hạn nộp bài phải ở tương lai"] });
         }
 
         if (request.LessonId is { } lessonId)
@@ -561,6 +571,12 @@ public sealed class ClassService(
         if (assignment is null)
         {
             return Result.Fail(ErrorCodes.NOT_FOUND, "Bài gán không tồn tại");
+        }
+
+        if (request.DueAt.HasValue && request.DueAt.Value <= clock.UtcNow)
+        {
+            return Result.Fail(ErrorCodes.VALIDATION_FAILED,
+                "Hạn nộp bài phải ở tương lai", new() { ["dueAt"] = ["Hạn nộp bài phải ở tương lai"] });
         }
 
         assignment.DueAt = request.DueAt;
@@ -709,6 +725,18 @@ public sealed class ClassService(
             return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền quản lý lớp này");
         }
 
+        // 1 lớp chỉ gán 1 lộ trình và chỉ đổi khi chưa có học viên
+        if (classRoom.LearningPathId != learningPathId && classRoom.LearningPathId != null)
+        {
+            var hasStudents = await db.ClassMembers.AsNoTracking()
+                .AnyAsync(m => m.ClassId == id && m.UserId != classRoom.OwnerId, ct);
+            if (hasStudents)
+            {
+                return Result<ClassDetailDto>.Fail(ErrorCodes.CONFLICT,
+                    "Lớp học đã có học viên tham gia, không thể thay đổi hoặc gỡ lộ trình giảng dạy");
+            }
+        }
+
         if (learningPathId.HasValue)
         {
             // Không AsNoTracking: có thể nâng cấp Visibility Private → ClassOnly ngay trong giao dịch này
@@ -718,10 +746,15 @@ public sealed class ClassService(
                 return Result<ClassDetailDto>.Fail(ErrorCodes.NOT_FOUND, "Lộ trình học không tồn tại");
             }
 
-            // D5 fix: chỉ Visibility quyết định khả năng gán (không còn miễn qua Status Active/ClassOnly).
-            // Public/ClassOnly: Teacher/Admin quản lý lớp đều được gán.
-            // Private: chỉ chủ sở hữu path (CreatedBy/AuthorId) hoặc Admin — cấm mượn lộ trình riêng tư của Teacher khác.
             var isPathOwner = path.CreatedBy == userId || path.AuthorId == userId;
+            var isClassOnly = path.Status == LearningPathStatus.ClassOnly || path.Visibility == PathVisibility.ClassOnly;
+            var isPublic = path.Status == LearningPathStatus.Active || path.Visibility == PathVisibility.Public;
+            if (!IsAdmin(role) && !isClassOnly && !isPathOwner && !isPublic)
+            {
+                return Result<ClassDetailDto>.Fail(ErrorCodes.FORBIDDEN,
+                    "Giáo viên chỉ được gán lộ trình dành cho lớp học (Class Only) cho lớp học.");
+            }
+
             var canUsePath = path.Visibility == PathVisibility.Public
                 || path.Visibility == PathVisibility.ClassOnly
                 || isPathOwner
@@ -736,6 +769,7 @@ public sealed class ClassService(
             if (path.Visibility == PathVisibility.Private)
             {
                 path.Visibility = PathVisibility.ClassOnly;
+                path.Status = LearningPathStatus.ClassOnly;
                 logger.LogInformation(
                     "Path {PathId} auto-upgraded visibility Private → ClassOnly when assigned to Class {ClassId} by user {UserId}",
                     path.Id, id, userId);
@@ -760,7 +794,7 @@ public sealed class ClassService(
 
     public async Task<Result> UpdateAssignmentDeadlineAsync(int userId, string role, int id, int pathItemId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct)
     {
-        if (dueAt.HasValue && dueAt.Value <= DateTime.UtcNow)
+        if (dueAt.HasValue && dueAt.Value <= clock.UtcNow)
         {
             return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Hạn nộp bài phải ở tương lai");
         }
@@ -812,6 +846,8 @@ public sealed class ClassService(
             .Where(a => a.ClassId == id && !a.Archived)
             .ToListAsync(ct);
 
+        var utcDueAt = dueAt.HasValue ? DateTime.SpecifyKind(dueAt.Value, DateTimeKind.Utc) : (DateTime?)null;
+
         foreach (var targetNode in targetNodes)
         {
             var overlay = existingAssignments.FirstOrDefault(a =>
@@ -826,7 +862,7 @@ public sealed class ClassService(
                     PathItemId = targetNode.Id,
                     LessonId = targetNode.LessonId,
                     ExerciseId = targetNode.FinalTestId ?? targetNode.LabExerciseId,
-                    DueAt = dueAt,
+                    DueAt = utcDueAt,
                     AllowLateSubmission = allowLateSubmission,
                     SortOrder = targetNode.SortOrder,
                     CreatedAt = clock.UtcNow
@@ -840,7 +876,7 @@ public sealed class ClassService(
                 if (targetNode.LessonId != null) overlay.LessonId = targetNode.LessonId;
                 if (targetNode.FinalTestId != null || targetNode.LabExerciseId != null)
                     overlay.ExerciseId = targetNode.FinalTestId ?? targetNode.LabExerciseId;
-                overlay.DueAt = dueAt;
+                overlay.DueAt = utcDueAt;
                 overlay.AllowLateSubmission = allowLateSubmission;
             }
         }
@@ -851,7 +887,7 @@ public sealed class ClassService(
 
     public async Task<Result> UpdateLessonDeadlineAsync(int userId, string role, int id, int lessonId, DateTime? dueAt, bool allowLateSubmission, CancellationToken ct)
     {
-        if (dueAt.HasValue && dueAt.Value <= DateTime.UtcNow)
+        if (dueAt.HasValue && dueAt.Value <= clock.UtcNow)
         {
             return Result.Fail(ErrorCodes.VALIDATION_FAILED, "Hạn nộp bài phải ở tương lai");
         }
@@ -1027,7 +1063,7 @@ public sealed class ClassService(
                     Description = node.Description,
                     ItemType = itemTypeStr,
                     SortOrder = node.SortOrder,
-                    DueAt = overlay?.DueAt,
+                    DueAt = overlay?.DueAt != null ? DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc) : null,
                     AllowLateSubmission = overlay?.AllowLateSubmission ?? true,
                     Status = isCompleted ? "completed" : "not_started",
                     BestScore = bestScore,
@@ -1075,112 +1111,7 @@ public sealed class ClassService(
             });
         }
 
-        if (assignments.Count == 0)
-        {
-            return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
-            {
-                ClassId = id,
-                LearningPathId = null,
-                LearningPathTitle = null,
-                Title = displayTitle,
-                Description = displayDesc,
-                Published = classRoom.CurriculumPublished,
-                ProgressPct = 0,
-                Items = []
-            });
-        }
-
-        // Nạp tiêu đề thật + progress của học viên (fallback cho class legacy không có LearningPathId).
-        var fallbackLessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
-        var fallbackExerciseIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
-
-        var fallbackLessonTitles = fallbackLessonIds.Count > 0
-            ? await db.Lessons.AsNoTracking().Where(l => fallbackLessonIds.Contains(l.Id))
-                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
-            : new Dictionary<int, string>();
-        var fallbackExerciseTitles = fallbackExerciseIds.Count > 0
-            ? await db.Exercises.AsNoTracking().Where(e => fallbackExerciseIds.Contains(e.Id))
-                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
-            : new Dictionary<int, string>();
-
-        var fallbackLessonProgress = fallbackLessonIds.Count > 0
-            ? await db.UserProgress.AsNoTracking()
-                .Where(p => p.UserId == userId && fallbackLessonIds.Contains(p.LessonId))
-                .ToListAsync(ct)
-            : new List<UserProgress>();
-        var fallbackLessonProgressByLesson = fallbackLessonProgress.ToDictionary(p => p.LessonId);
-
-        var fallbackAssignmentIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.Id).ToList();
-        var fallbackExerciseDone = fallbackAssignmentIds.Count > 0
-            ? await db.ExerciseSubmissions.AsNoTracking()
-                .Where(s => s.UserId == userId && s.ClassAssignmentId != null && fallbackAssignmentIds.Contains(s.ClassAssignmentId.Value) && s.Score > 0)
-                .Select(s => s.ClassAssignmentId!.Value)
-                .Distinct()
-                .ToListAsync(ct)
-            : new List<int>();
-        var fallbackExerciseDoneSet = fallbackExerciseDone.ToHashSet();
-
-        var fallbackCompletedAssignments = new HashSet<int>();
-        foreach (var assignment in assignments)
-        {
-            if (assignment.LessonId is { } lessonId && fallbackLessonProgressByLesson.TryGetValue(lessonId, out var progress)
-                && (progress.CompletedAt != null || (progress.BestScore ?? 0) > 0))
-            {
-                fallbackCompletedAssignments.Add(assignment.Id);
-            }
-            else if (assignment.ExerciseId is { } exerciseId && fallbackExerciseDoneSet.Contains(assignment.Id))
-            {
-                fallbackCompletedAssignments.Add(assignment.Id);
-            }
-        }
-
-        var fallbackFirstIncompleteIndex = -1;
-        var fallbackItemDtos = new List<ClassCurriculumItemDto>();
-        for (var i = 0; i < assignments.Count; i++)
-        {
-            var assignment = assignments[i];
-            var isCompleted = fallbackCompletedAssignments.Contains(assignment.Id);
-            if (!isCompleted && fallbackFirstIncompleteIndex < 0)
-            {
-                fallbackFirstIncompleteIndex = i;
-            }
-
-            var title = assignment.LessonId is { } lid ? (fallbackLessonTitles.GetValueOrDefault(lid) ?? string.Empty)
-                : assignment.ExerciseId is { } eid ? (fallbackExerciseTitles.GetValueOrDefault(eid) ?? string.Empty)
-                : string.Empty;
-
-            fallbackItemDtos.Add(new ClassCurriculumItemDto
-            {
-                AssignmentId = assignment.Id,
-                LessonId = assignment.LessonId,
-                ExerciseId = assignment.ExerciseId,
-                Title = title,
-                ItemType = assignment.LessonId != null ? "lesson" : "exercise",
-                SortOrder = assignment.SortOrder,
-                DueAt = assignment.DueAt,
-                AllowLateSubmission = assignment.AllowLateSubmission,
-                Status = "not_started",
-                BestScore = assignment.LessonId is { } lid2 && fallbackLessonProgressByLesson.TryGetValue(lid2, out var up)
-                    ? up.BestScore
-                    : null
-            });
-        }
-
-        for (var i = 0; i < fallbackItemDtos.Count; i++)
-        {
-            if (fallbackCompletedAssignments.Contains(fallbackItemDtos[i].AssignmentId))
-            {
-                fallbackItemDtos[i].Status = "completed";
-            }
-            else if (i == fallbackFirstIncompleteIndex)
-            {
-                fallbackItemDtos[i].Status = "in_progress";
-            }
-        }
-
-        var fallbackCompletedCount = fallbackCompletedAssignments.Count;
-        var fallbackProgressPct = (int)Math.Round(fallbackCompletedCount * 100.0 / assignments.Count);
-
+        // Nếu lớp chưa gán Lộ trình học (LearningPathId == null), trả về danh sách bài học rỗng
         return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
         {
             ClassId = id,
@@ -1189,8 +1120,8 @@ public sealed class ClassService(
             Title = displayTitle,
             Description = displayDesc,
             Published = classRoom.CurriculumPublished,
-            ProgressPct = fallbackProgressPct,
-            Items = fallbackItemDtos
+            ProgressPct = 0,
+            Items = []
         });
     }
 
@@ -1236,6 +1167,16 @@ public sealed class ClassService(
                     .ToListAsync(ct)
                 : [];
 
+            var lessonIds = pageNodes.Where(n => n.LessonId != null).Select(n => n.LessonId!.Value).Distinct().ToList();
+            var exerciseIds = pageNodes.Select(n => n.FinalTestId ?? n.LabExerciseId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+
+            var lessonsMap = lessonIds.Count > 0
+                ? await db.Lessons.AsNoTracking().Where(l => lessonIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+                : new Dictionary<int, string>();
+            var exercisesMap = exerciseIds.Count > 0
+                ? await db.Exercises.AsNoTracking().Where(e => exerciseIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+                : new Dictionary<int, string>();
+
             var reportAssignments = new List<ClassReportAssignmentDto>();
             var completedAssignmentsByUser = memberIds.ToDictionary(mId => mId, _ => 0);
 
@@ -1258,15 +1199,30 @@ public sealed class ClassService(
                     }
                 }
 
+                string itemType = node.ItemType switch
+                {
+                    PathItemType.Theory => "theory",
+                    PathItemType.Quiz => "quiz",
+                    PathItemType.Lab => "code",
+                    _ => (node.LessonId != null ? "theory" : (node.FinalTestId != null ? "quiz" : (node.LabExerciseId != null ? "code" : "theory")))
+                };
+
+                var resolvedTitle = !string.IsNullOrWhiteSpace(node.Title)
+                    ? node.Title
+                    : (node.LessonId is { } lId && lessonsMap.TryGetValue(lId, out var lt) ? lt
+                    : (node.FinalTestId is { } fId && exercisesMap.TryGetValue(fId, out var ft) ? ft
+                    : (node.LabExerciseId is { } leId && exercisesMap.TryGetValue(leId, out var letitle) ? letitle : "Bài học")));
+
                 reportAssignments.Add(new ClassReportAssignmentDto
                 {
                     AssignmentId = overlay?.Id ?? node.Id,
-                    Title = node.Title,
-                    DueAt = overlay?.DueAt,
+                    Title = resolvedTitle,
+                    DueAt = overlay?.DueAt != null ? DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc) : null,
                     OnTime = onTime,
                     Late = late,
                     NotSubmitted = Math.Max(0, notSubmitted),
-                    AvgScore = Math.Round(avg, 1)
+                    AvgScore = Math.Round(avg, 1),
+                    ItemType = itemType
                 });
             }
 
@@ -1274,16 +1230,18 @@ public sealed class ClassService(
                 .Select(memberId => new
                 {
                     MemberId = memberId,
-                    Missing = pageNodes.Count - completedAssignmentsByUser.GetValueOrDefault(memberId)
+                    Missing = pageNodes.Count - completedAssignmentsByUser.GetValueOrDefault(memberId, 0)
                 })
                 .Where(x => x.Missing >= 2)
                 .OrderByDescending(x => x.Missing)
-                .Take(10)
                 .ToList();
 
-            var users = await db.Users.AsNoTracking()
-                .Where(u => lagging.Select(l => l.MemberId).Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+            var laggingUserIds = lagging.Select(l => l.MemberId).ToList();
+            var users = laggingUserIds.Count > 0
+                ? await db.Users.AsNoTracking()
+                    .Where(u => laggingUserIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct)
+                : new Dictionary<int, string>();
 
             return Result<ClassReportDto>.Ok(new ClassReportDto
             {
@@ -1300,142 +1258,142 @@ public sealed class ClassService(
             });
         }
 
+        // Fallback: Lớp học chưa có LearningPathId nhưng có ClassAssignments (như SD21361)
         var fallbackAssignments = await db.ClassAssignments.AsNoTracking()
-            .Where(a => a.ClassId == id)
-            .OrderBy(a => a.DueAt)
+            .Where(a => a.ClassId == id && !a.Archived)
+            .OrderBy(a => a.SortOrder)
             .ToListAsync(ct);
 
-        var assignmentIds = fallbackAssignments.Where(a => a.Id > 0).Select(a => a.Id).ToList();
-
-        // findings-biz #15 + perf #8: chỉ đếm submissions/tiến độ của member HIỆN TẠI (member đã kick không tính)
-        var submissions = assignmentIds.Count > 0 && memberIds.Count > 0
-            ? await db.ExerciseSubmissions.AsNoTracking()
-                .Where(s => s.ClassAssignmentId != null
-                    && assignmentIds.Contains(s.ClassAssignmentId.Value)
-                    && memberIds.Contains(s.UserId))
-                .Select(s => new SubmissionCountRow { UserId = s.UserId, ClassAssignmentId = s.ClassAssignmentId!.Value, SubmittedAt = s.SubmittedAt, Score = s.Score })
-                .ToListAsync(ct)
-            : [];
-
-        // findings-perf #2 (N+1): batch title trước vòng lặp
-        var lessonIds = fallbackAssignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
-        var exerciseIds = fallbackAssignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
-        var lessonTitles = lessonIds.Count > 0
-            ? await db.Lessons.AsNoTracking()
-                .Where(l => lessonIds.Contains(l.Id))
-                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
-            : new Dictionary<int, string>();
-        var exerciseTitles = exerciseIds.Count > 0
-            ? await db.Exercises.AsNoTracking()
-                .Where(e => exerciseIds.Contains(e.Id))
-                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
-            : new Dictionary<int, string>();
-
-        // Query tiến độ bài học của các thành viên trong lớp (UserProgress)
-        var lessonProgresses = lessonIds.Count > 0 && memberIds.Count > 0
-            ? await db.UserProgress.AsNoTracking()
-                .Where(p => memberIds.Contains(p.UserId) && lessonIds.Contains(p.LessonId) && p.CompletedAt != null)
-                .Select(p => new { p.UserId, p.LessonId, CompletedAt = p.CompletedAt!.Value, BestScore = p.BestScore ?? 100 })
-                .ToListAsync(ct)
-            : [];
-
-        var fallbackReportAssignments = new List<ClassReportAssignmentDto>();
-        var fallbackCompletedAssignmentsByUser = memberIds.ToDictionary(mId => mId, _ => 0);
-
-        foreach (var assignment in fallbackAssignments)
+        if (fallbackAssignments.Count > 0)
         {
-            int onTime = 0;
-            int late = 0;
-            int notSubmitted = 0;
-            double avg = 0;
+            var fallbackLessonIds = fallbackAssignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
+            var fallbackExerciseIds = fallbackAssignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
 
-            if (assignment.LessonId is { } lessonId)
+            var fallbackLessonTitles = fallbackLessonIds.Count > 0
+                ? await db.Lessons.AsNoTracking().Where(l => fallbackLessonIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+                : new Dictionary<int, string>();
+            var fallbackExerciseTitles = fallbackExerciseIds.Count > 0
+                ? await db.Exercises.AsNoTracking().Where(e => fallbackExerciseIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+                : new Dictionary<int, string>();
+
+            var fallbackLessonProgress = fallbackLessonIds.Count > 0 && memberIds.Count > 0
+                ? await db.UserProgress.AsNoTracking()
+                    .Where(p => memberIds.Contains(p.UserId) && fallbackLessonIds.Contains(p.LessonId) && (p.CompletedAt != null || (p.BestScore ?? 0) > 0))
+                    .ToListAsync(ct)
+                : [];
+
+            var fallbackAssignmentIds = fallbackAssignments.Where(a => a.ExerciseId != null).Select(a => a.Id).ToList();
+            var fallbackSubmissions = fallbackAssignmentIds.Count > 0 && memberIds.Count > 0
+                ? await db.ExerciseSubmissions.AsNoTracking()
+                    .Where(s => memberIds.Contains(s.UserId) && s.ClassAssignmentId != null && fallbackAssignmentIds.Contains(s.ClassAssignmentId.Value) && s.Score > 0)
+                    .ToListAsync(ct)
+                : [];
+
+            var fallbackReportAssignments = new List<ClassReportAssignmentDto>();
+            var fallbackCompletedByUser = memberIds.ToDictionary(mId => mId, _ => 0);
+
+            foreach (var assignment in fallbackAssignments)
             {
-                var lessonCompletedList = lessonProgresses.Where(p => p.LessonId == lessonId).ToList();
-                onTime = lessonCompletedList.Count(p => p.CompletedAt <= (assignment.DueAt ?? DateTime.MaxValue));
-                late = lessonCompletedList.Count - onTime;
-                notSubmitted = totalMembers - lessonCompletedList.Count;
-                avg = lessonCompletedList.Count > 0 ? lessonCompletedList.Average(p => (double)p.BestScore) : 0;
-
-                foreach (var p in lessonCompletedList)
+                var completedUserIds = new HashSet<int>();
+                if (assignment.LessonId is { } lid)
                 {
-                    if (fallbackCompletedAssignmentsByUser.ContainsKey(p.UserId))
+                    foreach (var p in fallbackLessonProgress.Where(p => p.LessonId == lid))
                     {
-                        fallbackCompletedAssignmentsByUser[p.UserId]++;
+                        completedUserIds.Add(p.UserId);
                     }
                 }
-            }
-            else if (assignment.ExerciseId is { })
-            {
-                // findings-biz #15 (c): count distinct (User, Assignment) — nộp trùng cùng user không đếm 2 lần;
-                // lấy bài nộp SỚM NHẤT của từng user để xếp OnTime/Late
-                var firstByUser = submissions
-                    .Where(s => s.ClassAssignmentId == assignment.Id)
-                    .GroupBy(s => s.UserId)
-                    .Select(g => g.OrderBy(s => s.SubmittedAt).First())
-                    .ToList();
-                onTime = firstByUser.Count(s => s.SubmittedAt <= (assignment.DueAt ?? DateTime.MaxValue));
-                late = firstByUser.Count - onTime;
-                notSubmitted = totalMembers - firstByUser.Count;
-                avg = firstByUser.Count > 0 ? firstByUser.Average(s => (double)s.Score) : 0;
-
-                foreach (var s in firstByUser)
+                else if (assignment.ExerciseId != null)
                 {
-                    if (fallbackCompletedAssignmentsByUser.ContainsKey(s.UserId))
+                    foreach (var s in fallbackSubmissions.Where(s => s.ClassAssignmentId == assignment.Id))
                     {
-                        fallbackCompletedAssignmentsByUser[s.UserId]++;
+                        completedUserIds.Add(s.UserId);
                     }
                 }
+
+                int onTime = 0;
+                int late = 0;
+                if (assignment.DueAt == null)
+                {
+                    onTime = completedUserIds.Count;
+                }
+                else
+                {
+                    foreach (var uId in completedUserIds)
+                    {
+                        var lp = fallbackLessonProgress.FirstOrDefault(p => p.UserId == uId && p.LessonId == assignment.LessonId);
+                        var sub = fallbackSubmissions.FirstOrDefault(s => s.UserId == uId && s.ClassAssignmentId == assignment.Id);
+                        var doneAt = lp?.CompletedAt ?? sub?.SubmittedAt;
+                        if (doneAt.HasValue && doneAt.Value > assignment.DueAt.Value) late++;
+                        else onTime++;
+                    }
+                }
+
+                int notSubmitted = totalMembers - completedUserIds.Count;
+                foreach (var uId in completedUserIds)
+                {
+                    if (fallbackCompletedByUser.ContainsKey(uId))
+                    {
+                        fallbackCompletedByUser[uId]++;
+                    }
+                }
+
+                var title = assignment.LessonId is { } lId && fallbackLessonTitles.TryGetValue(lId, out var lt) ? lt
+                    : (assignment.ExerciseId is { } eId && fallbackExerciseTitles.TryGetValue(eId, out var et) ? et : "Bài tập");
+
+                fallbackReportAssignments.Add(new ClassReportAssignmentDto
+                {
+                    AssignmentId = assignment.Id,
+                    Title = title,
+                    DueAt = assignment.DueAt != null ? DateTime.SpecifyKind(assignment.DueAt.Value, DateTimeKind.Utc) : null,
+                    OnTime = onTime,
+                    Late = late,
+                    NotSubmitted = Math.Max(0, notSubmitted),
+                    AvgScore = 100,
+                    ItemType = assignment.LessonId != null ? "theory" : "code"
+                });
             }
 
-            var title = assignment.LessonId is { } lid
-                ? lessonTitles.GetValueOrDefault(lid)
-                : assignment.ExerciseId is { } eid
-                    ? exerciseTitles.GetValueOrDefault(eid)
-                    : null;
+            var laggingFallback = memberIds
+                .Select(memberId => new
+                {
+                    MemberId = memberId,
+                    Missing = fallbackAssignments.Count - fallbackCompletedByUser.GetValueOrDefault(memberId, 0)
+                })
+                .Where(x => x.Missing >= 2)
+                .OrderByDescending(x => x.Missing)
+                .ToList();
 
-            fallbackReportAssignments.Add(new ClassReportAssignmentDto
+            var laggingUserIds = laggingFallback.Select(l => l.MemberId).ToList();
+            var usersFallback = laggingUserIds.Count > 0
+                ? await db.Users.AsNoTracking()
+                    .Where(u => laggingUserIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct)
+                : new Dictionary<int, string>();
+
+            return Result<ClassReportDto>.Ok(new ClassReportDto
             {
-                AssignmentId = assignment.Id,
-                Title = title ?? string.Empty,
-                DueAt = assignment.DueAt,
-                OnTime = onTime,
-                Late = late,
-                NotSubmitted = Math.Max(0, notSubmitted),
-                AvgScore = Math.Round(avg, 1)
+                ClassId = classRoom.Id,
+                ClassName = classRoom.Name,
+                TotalMembers = totalMembers,
+                Assignments = fallbackReportAssignments,
+                LaggingLearners = laggingFallback.Select(l => new LaggingLearnerDto
+                {
+                    UserId = l.MemberId,
+                    DisplayName = usersFallback.GetValueOrDefault(l.MemberId) ?? "Người dùng đã xóa",
+                    MissingCount = l.Missing
+                }).ToList()
             });
         }
-
-        // Học viên chậm tiến độ: thiếu ≥ 2 bài gán (FR-8.4)
-        var fallbackLagging = memberIds
-            .Select(memberId => new
-            {
-                MemberId = memberId,
-                Missing = fallbackAssignments.Count - fallbackCompletedAssignmentsByUser.GetValueOrDefault(memberId)
-            })
-            .Where(x => x.Missing >= 2)
-            .OrderByDescending(x => x.Missing)
-            .Take(10)
-            .ToList();
-
-        var fallbackUsers = await db.Users.AsNoTracking()
-            .Where(u => fallbackLagging.Select(l => l.MemberId).Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
 
         return Result<ClassReportDto>.Ok(new ClassReportDto
         {
             ClassId = classRoom.Id,
             ClassName = classRoom.Name,
             TotalMembers = totalMembers,
-            Assignments = fallbackReportAssignments,
-            LaggingLearners = fallbackLagging.Select(l => new LaggingLearnerDto
-            {
-                UserId = l.MemberId,
-                DisplayName = fallbackUsers.GetValueOrDefault(l.MemberId) ?? "Người dùng đã xóa",
-                MissingCount = l.Missing
-            }).ToList()
+            Assignments = [],
+            LaggingLearners = []
         });
-    }
+}
 
     public async Task<Result<CsvFileDto>> ExportReportCsvAsync(int userId, string role, int id, CancellationToken ct)
     {
@@ -1447,11 +1405,13 @@ public sealed class ClassService(
 
         var data = report.Value!;
         var sb = new StringBuilder();
-        // C8: Header tổng quát
-        sb.AppendLine($"Báo cáo lớp,{Csv(data.ClassName)},Tổng học viên,{data.TotalMembers}");
+        // Chỉ định phân cách dấu phẩy cho Microsoft Excel trên mọi máy tính / vùng miền
+        sb.AppendLine("sep=,");
+        sb.AppendLine($"Báo cáo lớp,{Csv(data.ClassName)},Tổng học viên,{data.TotalMembers},Ngày xuất,{clock.UtcNow:yyyy-MM-dd HH:mm}");
         sb.AppendLine();
-        // C8: Bảng 1 — thống kê bài tập (cột đơn giản, không có AssignmentId kỳ lạ)
-        sb.AppendLine("Bảng 1: Thống kê bài tập");
+
+        // Bảng 1 — thống kê bài tập
+        sb.AppendLine("Bảng 1: Thống kê tổng hợp bài tập & bài học");
         sb.AppendLine("STT,Tên bài tập / Bài học,Hạn nộp,Nộp đúng hạn,Nộp muộn,Chưa nộp,Điểm TB");
         var idx = 1;
         foreach (var assignment in data.Assignments)
@@ -1462,13 +1422,89 @@ public sealed class ClassService(
             sb.AppendLine($"{idx++},{Csv(assignment.Title)},{Csv(dueStr)},{assignment.OnTime},{assignment.Late},{assignment.NotSubmitted},{assignment.AvgScore.ToString("F1", CultureInfo.InvariantCulture)}");
         }
         sb.AppendLine();
-        // C8: Bảng 2 — học viên chậm tiến độ
+
+        // Bảng 2 — học viên chậm tiến độ
         sb.AppendLine("Bảng 2: Học viên chậm tiến độ (thiếu ≥ 2 bài)");
         sb.AppendLine("STT,Tên học viên,Số bài còn thiếu");
         var idx2 = 1;
         foreach (var learner in data.LaggingLearners)
         {
             sb.AppendLine($"{idx2++},{Csv(learner.DisplayName)},{learner.MissingCount}");
+        }
+        if (data.LaggingLearners.Count == 0)
+        {
+            sb.AppendLine("1,Không có học viên nào chậm tiến độ,0");
+        }
+        sb.AppendLine();
+
+        // Bảng 3 — Chi tiết nộp bài từng học viên (bao gồm nhãn Nộp muộn)
+        sb.AppendLine("Bảng 3: Chi tiết trạng thái nộp bài của học viên");
+        sb.AppendLine("STT,Tên học viên,Tên bài tập,Hạn nộp,Thời gian nộp,Trạng thái");
+
+        var classMembers = await db.ClassMembers.AsNoTracking()
+            .Where(m => m.ClassId == id)
+            .Join(db.Users.AsNoTracking(), m => m.UserId, u => u.Id, (m, u) => new { m.UserId, u.DisplayName })
+            .OrderBy(m => m.DisplayName)
+            .ToListAsync(ct);
+
+        var memberUserIds = classMembers.Select(m => m.UserId).ToList();
+        var progressMap = memberUserIds.Count > 0
+            ? await db.UserNodeProgress.AsNoTracking()
+                .Where(p => memberUserIds.Contains(p.UserId) && p.Status == 2)
+                .ToListAsync(ct)
+            : [];
+
+        var fallbackAssignmentIds = data.Assignments.Select(a => a.AssignmentId).ToList();
+        var fallbackSubmissions = memberUserIds.Count > 0 && fallbackAssignmentIds.Count > 0
+            ? await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => memberUserIds.Contains(s.UserId) && s.ClassAssignmentId != null && fallbackAssignmentIds.Contains(s.ClassAssignmentId.Value))
+                .ToListAsync(ct)
+            : [];
+
+        var idx3 = 1;
+        foreach (var m in classMembers)
+        {
+            foreach (var a in data.Assignments)
+            {
+                var prog = progressMap.FirstOrDefault(p => p.UserId == m.UserId && p.NodeId == a.AssignmentId);
+                var sub = fallbackSubmissions.FirstOrDefault(s => s.UserId == m.UserId && s.ClassAssignmentId == a.AssignmentId);
+
+                var dueStr = a.DueAt.HasValue
+                    ? a.DueAt.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                    : "Không giới hạn";
+
+                string submitTimeStr;
+                string statusLabel;
+
+                DateTime? completedAt = prog?.PassedAt ?? sub?.SubmittedAt;
+
+                if (completedAt != null)
+                {
+                    submitTimeStr = completedAt.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    if (a.DueAt.HasValue && completedAt.Value > a.DueAt.Value)
+                    {
+                        statusLabel = "Nộp muộn";
+                    }
+                    else
+                    {
+                        statusLabel = "Đúng hạn";
+                    }
+                }
+                else
+                {
+                    submitTimeStr = "—";
+                    if (a.DueAt.HasValue && clock.UtcNow > a.DueAt.Value)
+                    {
+                        statusLabel = "Quá hạn (Chưa nộp)";
+                    }
+                    else
+                    {
+                        statusLabel = "Chưa nộp";
+                    }
+                }
+
+                sb.AppendLine($"{idx3++},{Csv(m.DisplayName)},{Csv(a.Title)},{Csv(dueStr)},{Csv(submitTimeStr)},{Csv(statusLabel)}");
+            }
         }
 
         var preamble = Encoding.UTF8.GetPreamble();

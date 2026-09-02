@@ -4,7 +4,7 @@
   "codelabBaseXp": 100,
   "streakBonusXp": 20,
   "heartsMaxFree": 10,
-  "heartsMaxPremium": 31,
+  "heartsMaxPremium": 30,
   "heartRegenMinutes": 30,
   "sessionHours": 36
 }

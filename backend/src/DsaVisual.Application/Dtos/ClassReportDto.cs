@@ -20,6 +20,8 @@ public sealed class ClassReportAssignmentDto
     public int Late { get; set; }
     public int NotSubmitted { get; set; }
     public double AvgScore { get; set; }
+    /// <summary>Loại nội dung bài gán: "theory" (lý thuyết), "quiz" (trắc nghiệm), "code" (thực hành code/lab).</summary>
+    public string ItemType { get; set; } = "theory";
 }
 
 /// <summary>Học viên chậm tiến độ — API_REFERENCE.md §4.11 example.</summary>

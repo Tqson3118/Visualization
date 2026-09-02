@@ -83,13 +83,6 @@ const adminNavItems: NavItem[] = [
     to: '/studio?tab=moderation',
   },
   {
-    key: 'gamification',
-    label: 'Cài đặt Gamification',
-    icon: Trophy,
-    tabKey: 'gamification',
-    to: '/studio?tab=gamification',
-  },
-  {
     key: 'shop',
     label: 'Cửa hàng & Vật phẩm',
     icon: ShoppingBag,
@@ -100,6 +93,12 @@ const adminNavItems: NavItem[] = [
     label: 'Giao dịch & Gói Pro',
     icon: CreditCard,
     to: '/admin/transactions',
+  },
+  {
+    key: 'classes',
+    label: 'Quản lý Lớp học',
+    icon: School,
+    to: '/admin/classes',
   },
   {
     key: 'users',

@@ -1,0 +1,36 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="dragonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+    <radialGradient id="dragonEye" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#eab308" />
+    </radialGradient>
+    <filter id="dragonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="50" cy="50" r="46" fill="#0f0e1a" stroke="url(#dragonGrad)" stroke-width="2.5" />
+
+  <!-- Dragon Crest & Horns -->
+  <path d="M 50 14 Q 58 24 55 35 Q 68 20 78 26 Q 72 38 65 44 Q 85 45 88 56 Q 78 62 68 58 Q 72 70 65 80 Q 56 72 54 62 Q 50 68 46 62 Q 44 72 35 80 Q 28 70 32 58 Q 22 62 12 56 Q 15 45 35 44 Q 28 38 22 26 Q 32 20 45 35 Q 42 24 50 14 Z"
+        fill="url(#dragonGrad)" filter="url(#dragonGlow)" opacity="0.95" />
+
+  <!-- Dragon Head Inner Contour -->
+  <path d="M 50 25 L 59 42 L 55 58 L 50 64 L 45 58 L 41 42 Z" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.5" />
+
+  <!-- Eyes -->
+  <polygon points="44,45 48,47 45,50" fill="url(#dragonEye)" />
+  <polygon points="56,45 52,47 55,50" fill="url(#dragonEye)" />
+
+  <!-- Nostrils / Fire Spark -->
+  <circle cx="48" cy="58" r="1.2" fill="#ef4444" />
+  <circle cx="52" cy="58" r="1.2" fill="#ef4444" />
+  <path d="M 47 62 Q 50 69 53 62 Z" fill="#fbbf24" />
+</svg>

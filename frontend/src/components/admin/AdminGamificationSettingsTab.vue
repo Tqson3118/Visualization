@@ -17,11 +17,13 @@ import {
 import * as adminApi from '@/api/admin';
 import type { GamificationSettingsDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
+import { useGamificationStore } from '@/stores/gamification';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import Badge from '@/components/ui/Badge.vue';
 
 const ui = useUiStore();
+const gamificationStore = useGamificationStore();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -78,6 +80,10 @@ async function handleSave(): Promise<void> {
       form.heartRegenMinutes = updated.heartRegenMinutes;
       form.sessionHours = updated.sessionHours;
     }
+    try {
+      await gamificationStore.fetchSummary();
+      await gamificationStore.fetchHearts();
+    } catch {}
     ui.showToast('Đã lưu cấu hình Gamification thành công! Toàn bộ hệ thống đã được cập nhật.', 'success');
   } catch (err: any) {
     ui.showToast(err?.message || 'Lưu cấu hình Gamification thất bại.', 'error');
@@ -104,6 +110,10 @@ async function handleReset(): Promise<void> {
       form.heartRegenMinutes = res.heartRegenMinutes;
       form.sessionHours = res.sessionHours;
     }
+    try {
+      await gamificationStore.fetchSummary();
+      await gamificationStore.fetchHearts();
+    } catch {}
     ui.showToast('Đã khôi phục cấu hình Gamification về mặc định thành công!', 'info');
   } catch (err: any) {
     ui.showToast(err?.message || 'Khôi phục mặc định thất bại.', 'error');

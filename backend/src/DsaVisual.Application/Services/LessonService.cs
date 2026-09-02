@@ -273,6 +273,12 @@ public sealed class LessonService(
             return simError;
         }
 
+        var linkedNodes = await db.LearningPathNodes.Where(n => n.LessonId == lesson.Id).ToListAsync(ct);
+        foreach (var ln in linkedNodes)
+        {
+            ln.Title = lesson.Title;
+        }
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Lesson {LessonId} updated by user {UserId} (status {Status}, classOnly {ClassOnly})",

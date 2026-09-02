@@ -93,10 +93,13 @@ export const useCourseStore = defineStore('course', () => {
     error.value = '';
     try {
       const apiCourses = await courseApi.getCourses();
+      const cleanPrefix = (str?: string) => str ? str.replace(/^Module\s*\d+\s*:\s*/i, '').trim() : str;
       const mapped = apiCourses.map(c => ({
         ...c,
+        title: cleanPrefix(c.title) || c.title,
+        category: cleanPrefix(c.category) || c.category,
         coverImage: c.coverImageUrl ?? c.coverImage,
-        topicName: c.topicName,
+        topicName: cleanPrefix(c.topicName),
         topicId: c.topicId,
       }));
       courses.value = mapped.filter(c => c.isPublished) as Course[];

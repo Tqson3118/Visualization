@@ -38,13 +38,13 @@ const route = useRoute();
 const router = useRouter();
 
 // ── Tab chính ──
-type SettingTab = 'system' | 'gamification' | 'reports';
-const activeTab = ref<SettingTab>('system');
+type SettingTab = 'gamification' | 'reports' | 'system';
+const activeTab = ref<SettingTab>('gamification');
 
 watch(
   () => route.query.tab,
   (tab) => {
-    if (tab === 'gamification' || tab === 'reports' || tab === 'system') {
+    if (tab === 'reports' || tab === 'gamification') {
       activeTab.value = tab as SettingTab;
     }
   },
@@ -148,7 +148,8 @@ const STATUS_OPTIONS = [
 ];
 
 function isOpenStatus(status: string): boolean {
-  return status === 'NEW' || status === 'PROCESSING';
+  const s = (status || '').toUpperCase();
+  return s === 'NEW' || s === 'PROCESSING';
 }
 
 const openCount = computed(() => reports.value.filter((r) => isOpenStatus(r.status)).length);
@@ -265,15 +266,6 @@ onMounted(() => {
 
     <!-- Navigation Tabs -->
     <div class="tabs-nav mb-6">
-      <button
-        type="button"
-        class="tab-btn"
-        :class="{ 'tab-btn--active': activeTab === 'system' }"
-        @click="switchTab('system')"
-      >
-        <Sliders :size="16" />
-        <span>Cấu hình Hệ thống</span>
-      </button>
       <button
         type="button"
         class="tab-btn"

@@ -251,7 +251,7 @@ export interface AdminSubscriptionDto {
   createdAt: string;
 }
 
-export async function fetchAdminSubscriptions(status?: 'active' | 'expired'): Promise<AdminSubscriptionDto[]> {
+export async function fetchAdminSubscriptions(status?: 'active' | 'expired' | 'pending' | string): Promise<AdminSubscriptionDto[]> {
   return getData<AdminSubscriptionDto[]>({ method: 'GET', url: '/admin/subscriptions', params: status ? { status } : {} });
 }
 

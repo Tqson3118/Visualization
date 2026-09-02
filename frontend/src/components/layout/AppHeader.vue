@@ -125,6 +125,7 @@ async function onLogout(): Promise<void> {
         <RouterLink :to="{ name: 'simulations' }" class="app-header__link">{{ messages.nav.simulations }}</RouterLink>
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
+        <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
         <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
           Studio
         </RouterLink>
@@ -215,6 +216,9 @@ async function onLogout(): Promise<void> {
           </RouterLink>
           <RouterLink :to="{ name: 'shop' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Cửa hàng
+          </RouterLink>
+          <RouterLink :to="{ name: 'classes' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
+            Lớp học
           </RouterLink>
           <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Studio

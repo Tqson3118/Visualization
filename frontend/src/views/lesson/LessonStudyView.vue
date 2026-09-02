@@ -96,7 +96,7 @@
     <div class="flex-1 flex flex-col h-full min-w-0">
       <header class="px-4 lg:px-6 py-2.5 border-b border-vdsa-border bg-vdsa-bg-secondary backdrop-blur-md flex items-center justify-between shrink-0 shadow-lg z-20 flex-wrap gap-2">
         <div class="flex items-center gap-3 min-w-0 flex-1">
-          <router-link :to="courseId ? `/path/${courseId}` : '/path'" class="text-xs font-semibold text-vdsa-muted hover:text-white transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap">
+          <router-link :to="route.query.classId ? `/classes/${route.query.classId}` : (courseId ? `/path/${courseId}` : '/path')" class="text-xs font-semibold text-vdsa-muted hover:text-white transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap">
             <BaseIcon name="arrow-left" class="w-3.5 h-3.5" /> Thoát
           </router-link>
           <span class="text-vdsa-disabled shrink-0">|</span>
@@ -326,9 +326,21 @@ const courseId = computed(() => {
   return lessonStore.lessonMeta?.courseId ?? null;
 });
 
-const isTeacherOrAdmin = computed(() => authStore.user?.role === 'TEACHER' || authStore.user?.role === 'ADMIN');
+const isOwnCourse = computed(() => {
+  if (!authStore.isAuthenticated) return false;
+  if (authStore.user?.role === 'ADMIN') return true;
+  const uId = authStore.user?.id;
+  const authorId = (course.value as any)?.authorId ?? (course.value as any)?.author?.id;
+  const createdBy = (course.value as any)?.createdBy;
+  return (
+    authStore.user?.role === 'TEACHER' &&
+    uId != null &&
+    (authorId === uId || createdBy === uId)
+  );
+});
+
 const isEnrolled = computed(() => {
-  if (isTeacherOrAdmin.value) return true;
+  if (isOwnCourse.value) return true;
   const cId = courseId.value;
   if (!cId) return true; // Standalone lesson hoặc không gắn roadmap
   if (completedLessonsCount.value > 0) {
@@ -345,7 +357,7 @@ async function confirmLessonEnroll() {
   }
   const cId = courseId.value;
   if (!cId) return;
-  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình');
+  const ok = await heartSystem.spendHeartSafely('Mở khóa lộ trình', isOwnCourse.value);
   if (!ok) return;
 
   courseStore.enrollCourse(String(cId));
@@ -392,37 +404,22 @@ const completedLessonIds = ref<Set<string>>(new Set());
 /** Bài đã hoàn thành: ưu tiên reactive set + status Completed từ backend/db + local storage theo course */
 function isLessonCompleted(lesson: LessonDto): boolean {
   if (!lesson) return false;
-  const strId = String(lesson.id || '');
-  const strLessonId = String((lesson as any).lessonId || '');
-  const strNodeId = String((lesson as any).nodeId || '');
+  const key = String((lesson as any).nodeId ?? lesson.id ?? '');
+  if (!key) return false;
 
-  if (strId && completedLessonIds.value.has(strId)) return true;
-  if (strLessonId && completedLessonIds.value.has(strLessonId)) return true;
-  if (strNodeId && completedLessonIds.value.has(strNodeId)) return true;
-
+  if (completedLessonIds.value.has(key)) return true;
   if (lesson.status === 'Completed') return true;
   const cId = courseId.value;
-  if (cId) {
-    if (strId && localStorage.getItem(`course_done_${cId}_${strId}`) === 'true') {
-      completedLessonIds.value.add(strId);
-      return true;
-    }
-    if (strLessonId && localStorage.getItem(`course_done_${cId}_${strLessonId}`) === 'true') {
-      completedLessonIds.value.add(strLessonId);
-      return true;
-    }
+  if (cId && localStorage.getItem(`course_done_${cId}_${key}`) === 'true') {
+    completedLessonIds.value.add(key);
+    return true;
   }
   return false;
 }
 
 const isCurrentLessonCompleted = computed(() => {
   const curId = String(lessonId.value);
-  if (completedLessonIds.value.has(curId)) return true;
-  const currentL = course.value?.lessons?.find(l => 
-    String(l.id) === curId || 
-    String((l as any).lessonId) === curId || 
-    String((l as any).nodeId) === curId
-  );
+  const currentL = course.value?.lessons?.find(l => String(l.id) === curId || String((l as any).nodeId) === curId);
   if (currentL && isLessonCompleted(currentL)) return true;
   return isLessonCompleted({ id: curId } as any);
 });
@@ -447,6 +444,7 @@ const totalRoadmapXp = computed(() => {
 });
 
 function isLessonLocked(lesson: LessonDto): boolean {
+  if (isOwnCourse.value) return false;
   if (isLessonCompleted(lesson)) return false; // Bài đã hoàn thành luôn mở
   if (!course.value?.lessons || course.value.lessons.length === 0) return lesson.locked ?? false;
   const lessons = course.value.lessons;
@@ -489,11 +487,11 @@ async function enterLessonNode(cId: string | number, lId: string | number): Prom
   const nodeId = Number(lId);
   if (!pathId || !nodeId) return true;
 
-  const isTeacherOrAdmin = authStore.user?.role === 'TEACHER' || authStore.user?.role === 'ADMIN';
-  if (isTeacherOrAdmin) return true;
+  if (isOwnCourse.value) return true;
 
   // Node 1 (bài học đầu tiên) luôn Miễn phí (0 tim vì đã trả lúc đăng ký lộ trình)
-  const firstLesson = course.value?.lessons?.[0];
+  const playableLessons = (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder');
+  const firstLesson = playableLessons[0];
   const isFirstNode = firstLesson && (String(firstLesson.id) === String(lId) || ((firstLesson as any).nodeId && (firstLesson as any).nodeId === nodeId));
   if (isFirstNode) return true;
 
@@ -502,12 +500,12 @@ async function enterLessonNode(cId: string | number, lId: string | number): Prom
   if (target && isLessonCompleted(target)) return true;
 
   // Các bài học mới tiếp theo -> tốn 1 tim khi vào lần đầu
-  return heartSystem.enterLessonNode(pathId, nodeId);
+  return heartSystem.enterLessonNode(pathId, nodeId, false, isOwnCourse.value);
 }
 
 async function goToLesson(id: string) {
   const target = course.value?.lessons.find(l => l.id === id);
-  if (target && isLessonLocked(target)) return; // node chưa mở khoá — không cho vào
+  if (!isOwnCourse.value && target && isLessonLocked(target)) return; // node chưa mở khoá — không cho vào
   if (!isEnrolled.value) {
     showEnrollModal.value = true;
     return;
@@ -516,7 +514,14 @@ async function goToLesson(id: string) {
     const ok = await enterLessonNode(courseId.value, id);
     if (!ok) return;
   }
-  router.push({ name: 'lesson-study', params: { id }, query: courseId.value ? { courseId: courseId.value } : {} });
+  router.push({
+    name: 'lesson-study',
+    params: { id },
+    query: {
+      ...route.query,
+      ...(courseId.value ? { courseId: courseId.value } : {}),
+    },
+  });
 }
 
 watch(courseId, async (id) => {
@@ -594,11 +599,16 @@ async function onLessonComplete(): Promise<void> {
 }
 
 function resolveNextLessonId(): string | null {
-  const currentId = lessonId.value;
-  const lessons = course.value?.lessons ?? [];
-  const currentIdx = lessons.findIndex(l => String(l.id) === String(currentId));
+  const currentId = String(lessonId.value);
+  const lessons = (course.value?.lessons ?? []).filter(l => l.sandboxType !== 'folder');
+  const currentIdx = lessons.findIndex(l =>
+    String(l.id) === currentId ||
+    String((l as any).lessonId) === currentId ||
+    String((l as any).nodeId) === currentId
+  );
   if (currentIdx === -1 || currentIdx >= lessons.length - 1) return null;
-  return String(lessons[currentIdx + 1].id);
+  const next = lessons[currentIdx + 1];
+  return String(next.id || (next as any).lessonId || (next as any).nodeId);
 }
 
 async function finishLesson(): Promise<void> {
@@ -607,21 +617,19 @@ async function finishLesson(): Promise<void> {
   await lessonStore.markLessonCompleted(lessonId.value);
   void lessonStore.syncToServer(true);
 
-  // Cập nhật real-time ngay lập tức trong memory để Vue phản ứng 100%
-  completedLessonIds.value.add(strCurId);
+  // Cập nhật đúng bài đang học
+  const currentL = course.value?.lessons?.find(l => 
+    String(l.id) === strCurId || String((l as any).nodeId) === strCurId
+  );
+  const targetKey = currentL ? String((currentL as any).nodeId ?? currentL.id) : strCurId;
 
-  if (course.value?.lessons) {
-    const lObj = course.value.lessons.find(l => 
-      String(l.id) === strCurId || 
-      String((l as any).lessonId) === strCurId || 
-      String((l as any).nodeId) === strCurId
-    );
-    if (lObj) {
-      lObj.status = 'Completed';
-      if (lObj.id) completedLessonIds.value.add(String(lObj.id));
-      if ((lObj as any).lessonId) completedLessonIds.value.add(String((lObj as any).lessonId));
-      if ((lObj as any).nodeId) completedLessonIds.value.add(String((lObj as any).nodeId));
-    }
+  completedLessonIds.value.add(targetKey);
+  completedLessonIds.value.add(strCurId);
+  if (currentL) {
+    currentL.status = 'Completed';
+  }
+  if (courseId.value) {
+    localStorage.setItem(`course_done_${courseId.value}_${targetKey}`, 'true');
   }
   completedLessonIds.value = new Set(completedLessonIds.value);
 
@@ -640,12 +648,17 @@ async function finishLesson(): Promise<void> {
   const nextId = resolveNextLessonId();
   nextLessonId.value = nextId;
 
+  const isAllCourseFinished = totalLessonsCount.value > 0 && completedLessonsCount.value >= totalLessonsCount.value;
+
   if (nextId) {
     fireConfetti('node-pass');
     showCompletionModal.value = true;
-  } else {
+  } else if (isAllCourseFinished && totalLessonsCount.value > 1) {
     fireConfetti('levelup');
     showCourseCompletedModal.value = true;
+  } else {
+    fireConfetti('node-pass');
+    showCompletionModal.value = true;
   }
 }
 
@@ -655,18 +668,31 @@ async function goToNextLesson(nextId: string): Promise<void> {
     if (!ok) return;
   }
   showCompletionModal.value = false;
-  router.push({ name: 'lesson-study', params: { id: nextId }, query: courseId.value ? { courseId: courseId.value } : {} });
+  const q: Record<string, string> = {};
+  if (courseId.value) q.courseId = String(courseId.value);
+  if (route.query.classId) q.classId = String(route.query.classId);
+  void router.push({ name: 'lesson-study', params: { id: nextId }, query: q });
 }
 
 function goBackToCourse(): void {
   showCompletionModal.value = false;
   showCourseCompletedModal.value = false;
-  router.push(courseId.value ? `/path/${courseId.value}` : '/path');
+  const fromClassId = route.query.classId;
+  if (fromClassId) {
+    void router.push(`/classes/${fromClassId}`);
+    return;
+  }
+  void router.push(courseId.value ? `/path/${courseId.value}` : '/path');
 }
 
 function onExploreMoreCourses(): void {
   showCourseCompletedModal.value = false;
-  router.push('/path');
+  const fromClassId = route.query.classId;
+  if (fromClassId) {
+    void router.push(`/classes/${fromClassId}`);
+    return;
+  }
+  void router.push('/path');
 }
 
 function autoExpandCurrentModule(currLessonId: string): void {

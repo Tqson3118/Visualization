@@ -692,9 +692,9 @@ async function handleSave(): Promise<void> {
     }
 
     if (route.query.courseId) {
-      await router.push(`/studio?courseId=${route.query.courseId}`);
+      await router.push(`/studio?tab=curriculum&courseId=${route.query.courseId}`);
     } else {
-      await router.push('/studio');
+      await router.push('/studio?tab=curriculum');
     }
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Lưu bài học thất bại.', 'error');
@@ -705,9 +705,9 @@ async function handleSave(): Promise<void> {
 
 function goBack(): void {
   if (route.query.courseId) {
-    void router.push(`/studio?courseId=${route.query.courseId}`);
+    void router.push(`/studio?tab=curriculum&courseId=${route.query.courseId}`);
   } else {
-    void router.push('/studio');
+    void router.push('/studio?tab=curriculum');
   }
 }
 </script>

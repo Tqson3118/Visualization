@@ -87,8 +87,9 @@ export const useGamificationStore = defineStore('gamification', () => {
   async function fetchQuests(): Promise<void> {
     try {
       quests.value = await gamificationApi.fetchQuests();
-    } catch {
-      // API lỗi → danh sách rỗng, view hiện empty state
+    } catch (err) {
+      console.warn('fetchQuests error:', err);
+      throw err;
     }
   }
 

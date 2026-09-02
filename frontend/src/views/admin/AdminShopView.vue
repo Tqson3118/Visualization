@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, reactive } from 'vue';
 import {
   ShoppingBag,
@@ -17,6 +17,7 @@ import {
   Frame,
   Heart,
   CheckCircle2,
+  Upload,
 } from 'lucide-vue-next';
 
 import * as adminApi from '@/api/admin';
@@ -54,6 +55,7 @@ const form = reactive({
   type: 1, // 1=Avatar, 2=Frame, 0=Consumable
   maxStack: 1,
   durationHours: null as number | null,
+  imageUrl: '',
 });
 
 async function loadData(): Promise<void> {
@@ -100,6 +102,7 @@ function openCreateModal(): void {
   form.type = 1;
   form.maxStack = 1;
   form.durationHours = null;
+  form.imageUrl = '';
   createModalOpen.value = true;
 }
 
@@ -111,7 +114,29 @@ function openEditModal(item: AdminShopItemDto): void {
   form.type = item.type;
   form.maxStack = item.maxStack;
   form.durationHours = item.durationHours;
+  try {
+    const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
+    form.imageUrl = custom[item.itemKey] || '';
+  } catch {
+    form.imageUrl = '';
+  }
   editModalOpen.value = true;
+}
+
+function handleFileUpload(e: Event): void {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    ui.showToast('Vui lòng chọn ảnh có kích thước dưới 3MB.', 'warning');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (loadEvent) => {
+    form.imageUrl = (loadEvent.target?.result as string) || '';
+    ui.showToast('Đã tải ảnh lên thành công!', 'success');
+  };
+  reader.readAsDataURL(file);
 }
 
 async function handleCreateItem(): Promise<void> {
@@ -129,6 +154,13 @@ async function handleCreateItem(): Promise<void> {
       maxStack: Number(form.type === 1 || form.type === 2 ? 1 : form.maxStack),
       durationHours: form.durationHours,
     });
+    if (form.imageUrl && form.imageUrl.trim()) {
+      try {
+        const custom = JSON.parse(localStorage.getItem('custom_shop_assets') || '{}');
+        custom[form.itemKey.trim()] = form.imageUrl.trim();
+        localStorage.setItem('custom_shop_assets', JSON.stringify(custom));
+      } catch {}
+    }
     ui.showToast('Đã thêm vật phẩm mới thành công!', 'success');
     createModalOpen.value = false;
     await loadData();
@@ -483,6 +515,44 @@ function formatDate(dateStr: string): string {
           </div>
         </div>
 
+        <!-- Image URL / Upload from device with Live Preview for Avatar (1) & Frame (2) -->
+        <div v-if="form.type === 1 || form.type === 2" class="p-3.5 bg-[#131120] border border-[#2e2c44] rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-[11px] font-bold text-slate-300 uppercase">
+              {{ form.type === 1 ? 'Hình ảnh Avatar *' : 'Hình ảnh Khung viền *' }}
+            </label>
+            <span class="text-[10px] text-slate-400 italic">Chọn tải từ máy hoặc dán link URL</span>
+          </div>
+
+          <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <!-- Upload from Device -->
+            <label class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors cursor-pointer shrink-0 shadow-sm">
+              <Upload :size="14" />
+              <span>Tải ảnh từ máy</span>
+              <input
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleFileUpload"
+              />
+            </label>
+
+            <!-- Or Enter URL -->
+            <input
+              v-model="form.imageUrl"
+              type="text"
+              :placeholder="form.type === 1 ? 'hoặc dán link: /assets/avatars/... hoặc https://...' : 'hoặc dán link: /assets/frames/... hoặc https://...'"
+              class="flex-1 min-w-[200px] px-3 py-2 text-xs bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+            />
+
+            <!-- Live Preview -->
+            <div class="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              <img v-if="form.imageUrl" :src="form.imageUrl" alt="Preview" class="w-full h-full object-contain" />
+              <component :is="form.type === 1 ? Image : Frame" v-else class="w-5 h-5 text-slate-600" />
+            </div>
+          </div>
+        </div>
+
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#2e2c44]">
           <Button variant="ghost" @click="createModalOpen = false">Hủy</Button>
           <Button type="submit" :loading="saving">Lưu vật phẩm</Button>
@@ -523,6 +593,44 @@ function formatDate(dateStr: string): string {
               <option :value="2">Khung viền (Type 2)</option>
               <option :value="0">Tiêu hao / Tim (Type 0)</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Image URL / Upload from device with Live Preview for Avatar (1) & Frame (2) -->
+        <div v-if="form.type === 1 || form.type === 2" class="p-3.5 bg-[#131120] border border-[#2e2c44] rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-[11px] font-bold text-slate-300 uppercase">
+              {{ form.type === 1 ? 'Hình ảnh Avatar *' : 'Hình ảnh Khung viền *' }}
+            </label>
+            <span class="text-[10px] text-slate-400 italic">Chọn tải từ máy hoặc dán link URL</span>
+          </div>
+
+          <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <!-- Upload from Device -->
+            <label class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors cursor-pointer shrink-0 shadow-sm">
+              <Upload :size="14" />
+              <span>Tải ảnh từ máy</span>
+              <input
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleFileUpload"
+              />
+            </label>
+
+            <!-- Or Enter URL -->
+            <input
+              v-model="form.imageUrl"
+              type="text"
+              :placeholder="form.type === 1 ? 'hoặc dán link: /assets/avatars/... hoặc https://...' : 'hoặc dán link: /assets/frames/... hoặc https://...'"
+              class="flex-1 min-w-[200px] px-3 py-2 text-xs bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+            />
+
+            <!-- Live Preview -->
+            <div class="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              <img v-if="form.imageUrl" :src="form.imageUrl" alt="Preview" class="w-full h-full object-contain" />
+              <component :is="form.type === 1 ? Image : Frame" v-else class="w-5 h-5 text-slate-600" />
+            </div>
           </div>
         </div>
 

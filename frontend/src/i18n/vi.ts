@@ -643,7 +643,7 @@ export const messages = {
       roleAdmin: 'Quản trị',
       statusAll: 'Trạng thái: Tất cả',
       statusActive: 'Hoạt động',
-      statusLocked: 'Đã khóa',
+      statusLocked: 'Hủy kích hoạt',
       search: 'Tìm',
       colUser: 'Người dùng',
       colRole: 'Vai trò',
@@ -651,11 +651,11 @@ export const messages = {
       colCreated: 'Ngày tạo',
       colActions: 'Thao tác',
       active: 'Hoạt động',
-      locked: 'Đã khóa',
+      locked: 'Hủy kích hoạt',
       approve: 'Duyệt',
       reject: 'Từ chối',
-      lock: 'Khóa',
-      unlock: 'Mở khóa',
+      lock: 'Hủy kích hoạt',
+      unlock: 'Kích hoạt',
       emptyTitle: 'Không có người dùng phù hợp',
       emptyTitleDesc: 'Thử xóa bộ lọc hoặc tìm từ khóa khác.',
       emptyPending: 'Không có tài khoản chờ duyệt',
@@ -905,9 +905,9 @@ export const messages = {
     summaryTotalClasses: 'Tổng số lớp',
     summaryActiveLearners: 'Học viên',
     summaryManagedClasses: 'Lớp quản lý',
-    // Banner strip mono (block-token — DESIGN §1): số lớp + tổng thành viên
-    stripLabel: (total: number, members: number) =>
-      `${String(total).padStart(2, '0')} LỚP · ${String(members).padStart(2, '0')} THÀNH VIÊN`,
+    // Banner strip mono (block-token — DESIGN §1): số lớp
+    stripLabel: (total: number, _members: number) =>
+      `${String(total).padStart(2, '0')} LỚP`,
     // Modal tham gia lớp
     joinTitle: 'Tham gia lớp',
     joinCodeLabel: 'Mã mời (6 ký tự)',

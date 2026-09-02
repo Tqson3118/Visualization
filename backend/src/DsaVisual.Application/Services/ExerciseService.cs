@@ -290,6 +290,12 @@ public sealed class ExerciseService(
             exercise.Questions.Add(ToQuestion(q));
         }
 
+        var linkedNodes = await db.LearningPathNodes.Where(n => n.FinalTestId == exercise.Id || n.LabExerciseId == exercise.Id).ToListAsync(ct);
+        foreach (var ln in linkedNodes)
+        {
+            ln.Title = exercise.Title;
+        }
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Exercise {ExerciseId} updated by user {UserId}", id, userId);

@@ -72,37 +72,62 @@ public static class SeedTeacherCoursesData
                      || string.IsNullOrWhiteSpace(p.Title))
             .ToList();
 
-        if (junkCourses.Count > 0)
+        try
         {
-            var junkIds = junkCourses.Select(j => j.Id).ToList();
-            var junkNodes = await db.LearningPathNodes.Where(n => junkIds.Contains(n.PathId)).ToListAsync(ct);
-            var junkNodeIds = junkNodes.Select(n => n.Id).ToList();
+            if (junkCourses.Count > 0)
+            {
+                var junkIds = junkCourses.Select(j => j.Id).ToList();
+                var junkNodes = await db.LearningPathNodes.Where(n => junkIds.Contains(n.PathId)).ToListAsync(ct);
+                var junkNodeIds = junkNodes.Select(n => n.Id).ToList();
 
-            var attachedExercises = await db.Exercises
-                .Where(e => e.NodeId != null && junkNodeIds.Contains(e.NodeId.Value))
-                .ToListAsync(ct);
-            foreach (var ex in attachedExercises)
-            {
-                ex.NodeId = null;
-            }
-            if (attachedExercises.Count > 0)
-            {
+                var attachedExercises = await db.Exercises
+                    .Where(e => e.NodeId != null && junkNodeIds.Contains(e.NodeId.Value))
+                    .ToListAsync(ct);
+                foreach (var ex in attachedExercises)
+                {
+                    ex.NodeId = null;
+                }
+                if (attachedExercises.Count > 0)
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+
+                var attachedAssignments = await db.ClassAssignments
+                    .Where(a => a.PathItemId != null && junkNodeIds.Contains(a.PathItemId.Value))
+                    .ToListAsync(ct);
+                if (attachedAssignments.Count > 0)
+                {
+                    db.ClassAssignments.RemoveRange(attachedAssignments);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                var attachedProgress = await db.UserNodeProgress
+                    .Where(p => junkNodeIds.Contains(p.NodeId))
+                    .ToListAsync(ct);
+                if (attachedProgress.Count > 0)
+                {
+                    db.UserNodeProgress.RemoveRange(attachedProgress);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                var attachedSessions = await db.NodeSessions
+                    .Where(s => junkNodeIds.Contains(s.NodeId))
+                    .ToListAsync(ct);
+                if (attachedSessions.Count > 0)
+                {
+                    db.NodeSessions.RemoveRange(attachedSessions);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                db.LearningPathNodes.RemoveRange(junkNodes);
+                db.LearningPaths.RemoveRange(junkCourses);
                 await db.SaveChangesAsync(ct);
+                logger.LogInformation("SeedTeacher: Đã dọn dẹp {Count} khóa học rác/test cũ", junkCourses.Count);
             }
-
-            var attachedAssignments = await db.ClassAssignments
-                .Where(a => a.PathItemId != null && junkNodeIds.Contains(a.PathItemId.Value))
-                .ToListAsync(ct);
-            if (attachedAssignments.Count > 0)
-            {
-                db.ClassAssignments.RemoveRange(attachedAssignments);
-                await db.SaveChangesAsync(ct);
-            }
-
-            db.LearningPathNodes.RemoveRange(junkNodes);
-            db.LearningPaths.RemoveRange(junkCourses);
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("SeedTeacher: Đã dọn dẹp {Count} khóa học rác/test cũ", junkCourses.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("SeedTeacher: Bỏ qua dọn dẹp khóa học cũ do ràng buộc khóa ngoại: {Msg}", ex.Message);
         }
 
         // 3. Tạo các Topic thuộc về Giảng viên
@@ -391,9 +416,15 @@ public static class SeedTeacherCoursesData
             "# Kỹ thuật Chia để trị (Divide and Conquer)\n\nNội dung đang được Giảng viên biên soạn...", topicId, teacherId, now, ct, LessonStatus.Draft);
         var lessonDraft2 = await EnsureLessonAsync(db, "Quy hoạch động 1 chiều & Bảng phương án", 
             "# Quy hoạch động (Dynamic Programming)\n\nNội dung đang được Giảng viên biên soạn...", topicId, teacherId, now, ct, LessonStatus.Draft);
+        var lessonDraft3 = await EnsureLessonAsync(db, "Quy hoạch động 2 chiều & Tối ưu hóa", 
+            "# Quy hoạch động 2 chiều (2D Dynamic Programming)\n\nNội dung đang được Giảng viên biên soạn...", topicId, teacherId, now, ct, LessonStatus.Draft);
+        var lessonDraft4 = await EnsureLessonAsync(db, "Tối ưu hóa Độ phức tạp Thuật toán", 
+            "# Tối ưu hóa Độ phức tạp Thuật toán (Optimization)\n\nNội dung đang được Giảng viên biên soạn...", topicId, teacherId, now, ct, LessonStatus.Draft);
 
         await EnsurePathNodeAsync(db, course.Id, "Bài 1: Kỹ thuật Chia để trị (Draft)", lessonDraft1.Id, PathItemType.Theory, 1, ct);
         await EnsurePathNodeAsync(db, course.Id, "Bài 2: Quy hoạch động 1 chiều (Draft)", lessonDraft2.Id, PathItemType.Theory, 2, ct);
+        await EnsurePathNodeAsync(db, course.Id, "Bài 3: Quy hoạch động 2 chiều (Draft)", lessonDraft3.Id, PathItemType.Theory, 3, ct);
+        await EnsurePathNodeAsync(db, course.Id, "Bài 4: Tối ưu độ phức tạp (Draft)", lessonDraft4.Id, PathItemType.Theory, 4, ct);
     }
 
     private static async Task<Lesson> EnsureLessonAsync(AppDbContext db, string title, string content, int topicId, int teacherId, DateTime now, CancellationToken ct, LessonStatus status = LessonStatus.Active)

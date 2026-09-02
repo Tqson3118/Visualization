@@ -76,7 +76,21 @@ const filteredClasses = computed(() => {
     (c) =>
       c.name.toLowerCase().includes(q) ||
       (c.inviteCode && c.inviteCode.toLowerCase().includes(q)) ||
-      (c.description && c.description.toLowerCase().includes(q)),
+      (c.description && c.description.toLowerCase().includes(q)) ||
+      String(c.id) === q ||
+      `#${c.id}` === q ||
+      `id: ${c.id}`.toLowerCase().includes(q),
+  );
+});
+
+const memberSearchQuery = ref('');
+const filteredMembers = computed(() => {
+  const q = memberSearchQuery.value.trim().toLowerCase();
+  if (!q) return classStore.members;
+  return classStore.members.filter(
+    (m) =>
+      (m.displayName && m.displayName.toLowerCase().includes(q)) ||
+      (m.email && m.email.toLowerCase().includes(q)),
   );
 });
 
@@ -120,6 +134,7 @@ async function copyCode(code?: string): Promise<void> {
 
 async function openMemberModal(cls: ClassDto): Promise<void> {
   activeClassForMembers.value = cls;
+  memberSearchQuery.value = '';
   memberModalOpen.value = true;
   membersLoading.value = true;
   try {
@@ -439,6 +454,15 @@ async function handleDeleteClass(cls: ClassDto): Promise<void> {
             </Button>
           </form>
 
+          <!-- Search Member by Name / Email -->
+          <div v-if="classStore.members.length > 0" class="pt-1">
+            <Input
+              v-model="memberSearchQuery"
+              placeholder="Tìm kiếm học viên theo tên hoặc email..."
+              class="w-full text-xs"
+            />
+          </div>
+
           <!-- Members List -->
           <div v-if="membersLoading" class="space-y-2 py-4">
             <Skeleton v-for="i in 3" :key="i" class="h-10 w-full" />
@@ -450,9 +474,13 @@ async function handleDeleteClass(cls: ClassDto): Promise<void> {
             hoặc thêm qua email ở trên.
           </div>
 
+          <div v-else-if="filteredMembers.length === 0" class="py-6 text-center text-xs text-slate-400">
+            Không tìm thấy học viên nào khớp với từ khóa "{{ memberSearchQuery }}".
+          </div>
+
           <div v-else class="max-h-64 overflow-y-auto space-y-2 pr-1">
             <div
-              v-for="member in classStore.members"
+              v-for="member in filteredMembers"
               :key="member.userId"
               class="p-2.5 rounded-xl bg-[#0b0a12] border border-[#262438] flex items-center justify-between"
             >

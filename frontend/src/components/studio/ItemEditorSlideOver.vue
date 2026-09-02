@@ -348,7 +348,7 @@ watch(
       dirtyBaseline.value = snapshot();
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 );
 
 function applyTemplate(tpl: LessonTemplate): void {
@@ -883,6 +883,7 @@ async function handleSave() {
 
     if (itemType === 'theory') {
       const simKeysToSave = Array.from(new Set(attachedSimulations.value));
+      const contentHtmlToSave = theoryContentHtml.value?.trim() ? theoryContentHtml.value : '<p>Nội dung bài học đang được biên soạn.</p>';
 
       if (props.item.lessonId) {
         try {
@@ -892,19 +893,25 @@ async function handleSave() {
             topicId: currentLesson.topicId ?? 1,
             title: form.title.trim(),
             description: form.description.trim(),
-            contentHtml: theoryContentHtml.value,
+            contentHtml: contentHtmlToSave,
             status: currentLesson.status ?? 'active',
             sortOrder: currentLesson.sortOrder ?? 1,
             isClassOnly: currentLesson.isClassOnly ?? false,
             simulationKeys: simKeysToSave,
           });
+          await updatePathItem(props.item.id, {
+            title: form.title.trim(),
+            description: form.description.trim(),
+          });
+          props.item.title = form.title.trim();
+          props.item.description = form.description.trim();
         } catch (fetchErr) {
           console.warn('Lesson không tồn tại trên máy chủ, đang tạo mới bài học thay thế:', fetchErr);
           const created = await lessonsApi.createLesson({
             topicId: 1,
             title: form.title.trim(),
             description: form.description.trim(),
-            contentHtml: theoryContentHtml.value,
+            contentHtml: contentHtmlToSave,
             status: 'draft',
             sortOrder: 1,
             isClassOnly: false,
@@ -923,7 +930,7 @@ async function handleSave() {
           topicId: 1,
           title: form.title.trim(),
           description: form.description.trim(),
-          contentHtml: theoryContentHtml.value,
+          contentHtml: contentHtmlToSave,
           status: 'draft',
           sortOrder: 1,
           isClassOnly: false,
@@ -1476,25 +1483,25 @@ async function handleSave() {
 
           <!-- Quiz Toolbar Tools: Tải mẫu, Nhập Excel, Nhập Word, AI Assistant -->
           <div class="flex items-center justify-between gap-2 flex-wrap">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <!-- Tải file mẫu CSV -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- Tải file mẫu Excel / CSV -->
               <button
                 type="button"
-                title="Tải file mẫu CSV / Excel chuẩn để soạn câu hỏi hàng loạt"
-                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-300 bg-white/5 hover:bg-white/10 border border-[#34324d] rounded-lg transition-colors cursor-pointer"
+                title="Tải file mẫu Excel / CSV chuẩn để soạn câu hỏi trắc nghiệm hàng loạt"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-xl transition-all cursor-pointer shadow-sm"
                 @click="downloadSampleQuizCsv"
               >
-                <Download class="w-3.5 h-3.5 text-sky-400" />
-                <span>Tải mẫu CSV</span>
+                <Download class="w-4 h-4 text-sky-400" />
+                <span>Tải file mẫu (Excel / CSV)</span>
               </button>
 
-              <!-- Upload Excel / CSV -->
+              <!-- Nhập Excel / CSV -->
               <label
-                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
-                title="Nhập câu hỏi từ file Excel (.xlsx, .xls) hoặc CSV"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all cursor-pointer shadow-sm"
+                title="Nhập câu hỏi trắc nghiệm từ file Excel (.xlsx, .xls) hoặc CSV"
               >
-                <FileSpreadsheet class="w-3.5 h-3.5 text-emerald-400" />
-                <span>Nhập Excel / CSV</span>
+                <FileSpreadsheet class="w-4 h-4 text-emerald-400" />
+                <span>Nhập từ Excel / CSV</span>
                 <input
                   type="file"
                   accept=".xlsx, .xls, .csv"
@@ -1502,44 +1509,10 @@ async function handleSave() {
                   @change="handleQuizExcelUpload"
                 />
               </label>
-
-              <!-- Upload Word (.docx) -->
-              <label
-                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg transition-colors cursor-pointer"
-                title="Tự động bóc tách câu hỏi và 4 đáp án A, B, C, D từ file Word (.docx)"
-              >
-                <FileText class="w-3.5 h-3.5 text-blue-400" />
-                <span>Nhập Word (.docx)</span>
-                <input
-                  type="file"
-                  accept=".docx"
-                  class="hidden"
-                  @change="handleQuizWordUpload"
-                />
-              </label>
             </div>
 
-            <!-- AI Assistants -->
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
-                title="AI tự động chuẩn hóa dấu câu và bổ sung giải thích chi tiết cho các câu hỏi"
-                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors cursor-pointer"
-                @click="handleQuizAiFormat"
-              >
-                <Wand2 class="w-3.5 h-3.5 text-purple-400" />
-                <span>AI Chuẩn hóa</span>
-              </button>
-
-              <button
-                type="button"
-                title="AI tự động sinh 3 câu hỏi trắc nghiệm chuyên sâu phù hợp với chủ đề bài học"
-                class="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors cursor-pointer"
-                @click="handleQuizAiGenerate"
-              >
-                <Sparkles class="w-3.5 h-3.5 text-amber-400" />
-                <span>AI Sinh 3 câu</span>
-              </button>
+            <div class="text-[11px] text-slate-400 font-medium italic">
+              * Tải file mẫu về điền câu hỏi, sau đó nhập vào để hoàn thành nhanh.
             </div>
           </div>
         </div>

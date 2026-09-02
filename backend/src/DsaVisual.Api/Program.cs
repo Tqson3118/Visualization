@@ -431,6 +431,8 @@ using (var startupScope = app.Services.CreateScope())
             Log.Information("Orphan theory nodes verified and auto-repaired.");
             await SeedTeacherCoursesData.SeedAsync(startupDb, startupLogger);
             Log.Information("Teacher demo data and courses verified.");
+            await SeedRunner.CleanModulePrefixesAsync(startupDb, startupLogger);
+            Log.Information("Module name prefixes sanitized.");
         }
         catch (Exception ex)
         {

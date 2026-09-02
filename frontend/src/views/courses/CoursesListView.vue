@@ -176,7 +176,8 @@ const courseStore = useCourseStore();
 const groupedCourses = computed(() => {
   const groups = new Map<string, typeof courseStore.filteredCourses>();
   for (const c of courseStore.filteredCourses) {
-    const key = ((c as any).topicName as string | undefined) || c.category || 'Chủ đề khác';
+    const rawKey = ((c as any).topicName as string | undefined) || c.category || 'Chủ đề khác';
+    const key = rawKey.replace(/^Module\s*\d+\s*:\s*/i, '').trim();
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(c);
   }

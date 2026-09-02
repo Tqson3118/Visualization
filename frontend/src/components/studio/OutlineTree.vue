@@ -322,10 +322,10 @@ provideOutlineTreeContext(context);
 <template>
   <div
     data-testid="outline-tree"
-    class="rounded-2xl border border-[#262438] bg-[#12111a] shadow-lg flex flex-col"
+    class="flex flex-col bg-transparent border-0 shadow-none w-full flex-1 min-h-0"
   >
     <!-- Thanh công cụ -->
-    <div class="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-[#262438] bg-[#171622] rounded-t-2xl">
+    <div class="flex items-center justify-between gap-2 px-1 py-2 border-b border-[#262438]/60 bg-transparent">
       <div class="flex items-center gap-2 min-w-0">
         <Layers class="w-4 h-4 text-purple-400 shrink-0" />
         <span class="text-xs font-black uppercase tracking-wider text-slate-300 truncate">Cây nội dung</span>
@@ -384,14 +384,14 @@ provideOutlineTreeContext(context);
     </div>
 
     <!-- Thanh tìm kiếm nhanh -->
-    <div v-if="items.length > 0" class="px-2.5 py-1.5 border-b border-[#262438] bg-[#14131f]">
+    <div v-if="items.length > 0" class="px-1 py-1.5 border-b border-[#262438]/60 bg-transparent">
       <div class="relative">
         <Search class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Tìm bài học, quiz, lab..."
-          class="w-full pl-8 pr-7 py-1 text-xs bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+          class="w-full pl-8 pr-7 py-1 text-xs bg-[#0e0d16]/80 border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
         />
         <button
           v-if="searchQuery"
@@ -405,8 +405,8 @@ provideOutlineTreeContext(context);
       </div>
     </div>
 
-    <!-- Cây -->
-    <div class="p-2 space-y-1 overflow-y-auto overflow-x-auto min-w-0 flex-1 min-h-[140px] rounded-b-2xl" role="tree" aria-label="Cây nội dung lộ trình">
+    <!-- Cây phẳng trực tiếp trên nền (cuộn mượt mà trọn vẹn, không bị cắt cụt) -->
+    <div class="py-2 pb-16 space-y-1 overflow-y-auto overflow-x-auto min-w-0 flex-1 min-h-0 bg-transparent pr-1" role="tree" aria-label="Cây nội dung lộ trình">
       <OutlineNode v-for="rootItem in filteredItems" :key="rootItem.id" :item="rootItem" :depth="0" />
 
       <div v-if="items.length > 0 && filteredItems.length === 0" class="py-6 px-3 text-center space-y-1">

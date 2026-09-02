@@ -1,8 +1,9 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Trophy, Heart, Sparkles, Clock, ShieldCheck, RefreshCw, Save } from 'lucide-vue-next';
 import { client } from '@/api/client';
 import { useUiStore } from '@/stores/ui';
+import { useGamificationStore } from '@/stores/gamification';
 
 interface GamificationSettings {
   theoryBaseXp: number;
@@ -16,6 +17,7 @@ interface GamificationSettings {
 }
 
 const ui = useUiStore();
+const gamificationStore = useGamificationStore();
 const loading = ref(false);
 const saving = ref(false);
 
@@ -52,6 +54,10 @@ async function handleSave() {
     if (res.data) {
       form.value = { ...res.data };
     }
+    try {
+      await gamificationStore.fetchSummary();
+      await gamificationStore.fetchHearts();
+    } catch {}
     ui.showToast('Đã lưu cấu hình Gamification thành công! Toàn hệ thống đã cập nhật.', 'success');
   } catch (err: any) {
     console.error('Failed to save settings:', err);

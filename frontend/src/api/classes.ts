@@ -101,8 +101,10 @@ export async function fetchClassReport(id: number): Promise<ClassReportDto> {
 
 /** Xuất CSV báo cáo lớp — trả về text CSV (UTF-8 BOM — mở được bằng Excel). */
 export async function exportClassReportCsv(id: number): Promise<string> {
-  const response = await getData<unknown>({ method: 'GET', url: CLASS_ENDPOINTS.reportExport(id) });
-  return typeof response === 'string' ? response : '';
+  const response = await client.get<string>(CLASS_ENDPOINTS.reportExport(id), {
+    responseType: 'text',
+  });
+  return response.data;
 }
 // ── Learning Path / Curriculum (per-class) ───────────────────
 

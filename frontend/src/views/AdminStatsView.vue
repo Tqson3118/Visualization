@@ -344,55 +344,39 @@ const roleChartOption = computed(() => {
         </div>
       </div>
 
-      <!-- ═══ 2 BIỂU ĐỒ ECHARTS ═══ -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Biểu đồ 1: Doanh thu 7 ngày (Chiếm 2 cột) -->
-        <div class="lg:col-span-2 p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border flex flex-col justify-between">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-            <div>
-              <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-                <TrendingUp :size="18" class="text-vdsa-accent" />
-                Biểu Đồ Doanh Thu &amp; Giao Dịch (7 Ngày Gần Nhất)
-              </h3>
-              <p class="text-xs text-vdsa-muted mt-0.5">Tổng 7 ngày: {{ formatCurrency(totalRevenue7d) }} ({{ totalOrders7d }} đơn)</p>
-            </div>
-
-            <!-- Metric Toggle Pill -->
-            <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs self-start sm:self-auto">
-              <button
-                type="button"
-                class="px-3 py-1 rounded font-semibold transition-colors"
-                :class="chartMetric === 'revenue' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
-                @click="chartMetric = 'revenue'"
-              >
-                Doanh thu (VNĐ)
-              </button>
-              <button
-                type="button"
-                class="px-3 py-1 rounded font-semibold transition-colors"
-                :class="chartMetric === 'orders' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
-                @click="chartMetric = 'orders'"
-              >
-                Số đơn hàng
-              </button>
-            </div>
-          </div>
-
-          <VChartLazy :option="revenueChartOption" height="280px" />
-        </div>
-
-        <!-- Biểu đồ 2: Phân bố vai trò người dùng (Chiếm 1 cột) -->
-        <div class="p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border flex flex-col justify-between">
+      <!-- ═══ BIỂU ĐỒ DOANH THU & GIAO DỊCH ═══ -->
+      <div class="w-full p-5 rounded-2xl bg-vdsa-surface border border-vdsa-border flex flex-col justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
           <div>
             <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-              <GraduationCap :size="18" class="text-emerald-400" />
-              Cơ Cấu Vai Trò Người Dùng
+              <TrendingUp :size="18" class="text-vdsa-accent" />
+              Biểu Đồ Doanh Thu &amp; Giao Dịch (7 Ngày Gần Nhất)
             </h3>
-            <p class="text-xs text-vdsa-muted mt-0.5">Phân bổ tỷ lệ thành viên trong hệ thống</p>
+            <p class="text-xs text-vdsa-muted mt-0.5">Tổng 7 ngày: {{ formatCurrency(totalRevenue7d) }} ({{ totalOrders7d }} đơn)</p>
           </div>
 
-          <VChartLazy :option="roleChartOption" height="280px" />
+          <!-- Metric Toggle Pill -->
+          <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs self-start sm:self-auto">
+            <button
+              type="button"
+              class="px-3 py-1 rounded font-semibold transition-colors"
+              :class="chartMetric === 'revenue' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+              @click="chartMetric = 'revenue'"
+            >
+              Doanh thu (VNĐ)
+            </button>
+            <button
+              type="button"
+              class="px-3 py-1 rounded font-semibold transition-colors"
+              :class="chartMetric === 'orders' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+              @click="chartMetric = 'orders'"
+            >
+              Số đơn hàng
+            </button>
+          </div>
         </div>
+
+        <VChartLazy :option="revenueChartOption" height="320px" />
       </div>
 
       <!-- ═══ BẢNG GIAO DỊCH MỚI NHẤT (NẾU CÓ DỮ LIỆU) ═══ -->

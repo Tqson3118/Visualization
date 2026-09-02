@@ -5,7 +5,8 @@
 // đổi border); mã mời = block-token tối canvas-ink (quyết định #4/#5).
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { BarChart3, GraduationCap, KeyRound, Plus, UserRound, Users } from 'lucide-vue-next';
+import { BarChart3, GraduationCap, KeyRound, Plus, Search, UserRound, Users } from 'lucide-vue-next';
+import { normalizeVi } from '@/utils/searchNormalize';
 
 import { useClassStore } from '@/stores/classStore';
 import { useAuthStore } from '@/stores/auth';
@@ -55,13 +56,30 @@ const stripLabel = computed(() => {
   return messages.classes.stripLabel(total, members);
 });
 
-// Phân trang danh sách lớp
+// Tìm kiếm và phân trang danh sách lớp
 const PAGE_SIZE = 6;
 const page = ref(1);
-const totalPages = computed(() => Math.max(1, Math.ceil(classStore.classes.length / PAGE_SIZE)));
+const searchQuery = ref('');
+
+const filteredClasses = computed(() => {
+  const q = normalizeVi(searchQuery.value.trim());
+  if (!q) return classStore.classes;
+  return classStore.classes.filter(
+    (c) =>
+      normalizeVi(c.name || '').includes(q) ||
+      normalizeVi(c.inviteCode || '').includes(q) ||
+      normalizeVi(c.description || '').includes(q),
+  );
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredClasses.value.length / PAGE_SIZE)));
 const pagedClasses = computed(() => {
   const start = (page.value - 1) * PAGE_SIZE;
-  return classStore.classes.slice(start, start + PAGE_SIZE);
+  return filteredClasses.value.slice(start, start + PAGE_SIZE);
+});
+
+watch(searchQuery, () => {
+  page.value = 1;
 });
 
 /** Empty state học viên: nêu rõ mã mời 6 ký tự (ghép từ i18n sẵn có — goal 3.6 #1). */
@@ -147,7 +165,10 @@ async function createClass(): Promise<void> {
           <h1 class="classes__hero-title">{{ messages.classes.title }}</h1>
           <p class="classes__hero-desc">{{ messages.classes.subtitle }}</p>
           <div class="classes__hero-actions">
-            <Button v-if="isTeacher" size="lg" @click="createOpen = true">
+            <Button v-if="auth.role === 'ADMIN'" size="lg" variant="secondary" @click="router.push({ name: 'admin-classes' })">
+              <GraduationCap :size="16" aria-hidden="true" /> Quản lý toàn bộ lớp hệ thống
+            </Button>
+            <Button v-else-if="isTeacher" size="lg" @click="createOpen = true">
               <Plus :size="16" aria-hidden="true" /> {{ messages.classes.createBtn }}
             </Button>
             <Button v-else size="lg" @click="joinOpen = true">
@@ -193,7 +214,26 @@ async function createClass(): Promise<void> {
     />
 
     <div v-else class="classes__content-wrap">
-      <div class="classes__grid">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <div class="relative max-w-sm w-full">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Tìm kiếm lớp theo tên hoặc mã mời..."
+            class="w-full pl-9 pr-4 py-2 bg-vdsa-surface-elevated/80 border border-vdsa-border rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+          />
+          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        </div>
+        <span class="text-xs text-slate-400 shrink-0 font-medium">
+          {{ filteredClasses.length }} lớp
+        </span>
+      </div>
+
+      <div v-if="filteredClasses.length === 0" class="py-12 text-center text-xs text-slate-400">
+        Không tìm thấy lớp học phù hợp với từ khóa "{{ searchQuery }}".
+      </div>
+
+      <div v-else class="classes__grid">
         <Card
           v-for="cls in pagedClasses"
           :key="cls.id"
@@ -397,8 +437,24 @@ async function createClass(): Promise<void> {
   background: var(--data-core);
   opacity: 0;
   transform: translateY(6px);
-  animation: classes-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--i) * 45ms + 60ms);
+  animation: classes-strip-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards, classes-strip-pulse 3s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * 45ms + 60ms), calc(var(--i) * 350ms + 600ms);
+}
+
+@keyframes classes-strip-pulse {
+  0% {
+    filter: brightness(0.95);
+    transform: translateY(0);
+  }
+  50% {
+    filter: brightness(1.35);
+    box-shadow: 0 0 10px rgba(66, 85, 255, 0.6);
+    transform: translateY(-2px);
+  }
+  100% {
+    filter: brightness(0.95);
+    transform: translateY(0);
+  }
 }
 
 .classes__strip-block--empty {

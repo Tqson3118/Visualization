@@ -273,7 +273,7 @@ function onRowClick(): void {
         :ref="focusRenameInput"
         v-model="renameValue"
         type="text"
-        class="flex-1 min-w-0 px-1.5 py-0.5 text-xs font-bold bg-[#0e0d16] border border-purple-500 rounded text-white focus:outline-none"
+        class="flex-1 min-w-[60px] px-1.5 py-0.5 text-xs font-bold bg-[#0e0d16] border border-purple-500 rounded text-white focus:outline-none"
         :data-testid="'rename-input-' + item.id"
         :aria-label="'Tên mới cho ' + (item.title || 'mục')"
         @click.stop
@@ -281,12 +281,17 @@ function onRowClick(): void {
         @keydown.esc.prevent="cancelRename"
         @blur="commitRename"
       />
-      <span v-else class="flex-1 min-w-0 text-xs font-bold truncate text-slate-200 group-hover:text-white">
+      <span
+        v-else
+        class="flex-1 min-w-0 text-xs font-bold truncate text-slate-200 group-hover:text-white"
+        :title="item.title || 'Mục chưa đặt tên'"
+      >
         {{ item.title || 'Mục chưa đặt tên' }}
       </span>
 
       <span
-        class="text-[10px] font-extrabold px-1.5 py-0.5 rounded border shrink-0"
+        v-if="depth === 0 || !isFolder"
+        class="text-[9px] font-extrabold px-1.5 py-0.5 rounded border shrink-0"
         :class="badge.color"
       >
         {{ badge.label }}
@@ -294,9 +299,9 @@ function onRowClick(): void {
 
       <span
         v-if="isFolder && hasChildren"
-        class="text-[10px] font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded shrink-0"
+        class="text-[9px] font-bold text-slate-400 bg-white/5 px-1 py-0.5 rounded shrink-0"
       >
-        {{ childCount }} mục
+        {{ childCount }}
       </span>
 
       <!-- Right: node actions -->

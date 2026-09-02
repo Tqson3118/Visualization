@@ -31,7 +31,7 @@ const ui = useUiStore();
 
 const loading = ref(true);
 const subscriptions = ref<AdminSubscriptionDto[]>([]);
-const filterStatus = ref<'all' | 'active' | 'expired'>('all');
+const filterStatus = ref<'all' | 'active' | 'pending' | 'expired'>('all');
 const searchQuery = ref('');
 
 // Grant Modal
@@ -46,8 +46,7 @@ const grantForm = reactive({
 async function loadSubscriptions(): Promise<void> {
   loading.value = true;
   try {
-    const statusParam = filterStatus.value === 'all' ? undefined : filterStatus.value;
-    const data = await adminApi.fetchAdminSubscriptions(statusParam);
+    const data = await adminApi.fetchAdminSubscriptions();
     subscriptions.value = data || [];
   } catch (err) {
     ui.showToast('Không thể tải danh sách giao dịch & đăng ký Pro.', 'error');
@@ -69,17 +68,22 @@ const filteredSubs = computed(() => {
       s.userDisplayName.toLowerCase().includes(q) ||
       (s.orderRef && s.orderRef.toLowerCase().includes(q));
 
+    const isPending = s.status === 2;
+    const isExpired = s.status === 1 || (!isPending && !s.isActive);
+
     const matchStatus =
       filterStatus.value === 'all' ||
-      (filterStatus.value === 'active' && s.isActive) ||
-      (filterStatus.value === 'expired' && !s.isActive);
+      (filterStatus.value === 'active' && s.isActive && !isPending) ||
+      (filterStatus.value === 'pending' && isPending) ||
+      (filterStatus.value === 'expired' && isExpired);
 
     return matchSearch && matchStatus;
   });
 });
 
-const activeCount = computed(() => subscriptions.value.filter((s) => s.isActive).length);
-const expiredCount = computed(() => subscriptions.value.filter((s) => !s.isActive).length);
+const activeCount = computed(() => subscriptions.value.filter((s) => s.isActive && s.status !== 2).length);
+const pendingCount = computed(() => subscriptions.value.filter((s) => s.status === 2).length);
+const expiredCount = computed(() => subscriptions.value.filter((s) => s.status === 1 || (s.status !== 2 && !s.isActive)).length);
 
 function openGrantModal(): void {
   grantForm.email = '';
@@ -131,10 +135,12 @@ function planLabel(planId: string | null): string {
 }
 
 function formatDate(dateStr: string | null, isActive?: boolean, status?: number): string {
-  if (status === 2) return 'Chưa kích hoạt';
+  if (status === 2) return 'Hủy kích hoạt';
   if (!dateStr) return 'Vĩnh viễn';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('vi-VN', {
+  const iso = dateStr.includes('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+  const d = new Date(iso);
+  return d.toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -226,12 +232,12 @@ function formatDate(dateStr: string | null, isActive?: boolean, status?: number)
           />
         </div>
 
-        <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <button
             type="button"
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
             :class="filterStatus === 'all' ? 'bg-purple-600 text-white' : 'bg-vdsa-surface text-slate-400 hover:text-white'"
-            @click="filterStatus = 'all'; loadSubscriptions()"
+            @click="filterStatus = 'all'"
           >
             Tất cả ({{ subscriptions.length }})
           </button>
@@ -239,15 +245,23 @@ function formatDate(dateStr: string | null, isActive?: boolean, status?: number)
             type="button"
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
             :class="filterStatus === 'active' ? 'bg-emerald-600 text-white' : 'bg-vdsa-surface text-slate-400 hover:text-white'"
-            @click="filterStatus = 'active'; loadSubscriptions()"
+            @click="filterStatus = 'active'"
           >
             Đang hoạt động ({{ activeCount }})
           </button>
           <button
             type="button"
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            :class="filterStatus === 'pending' ? 'bg-amber-600 text-white' : 'bg-vdsa-surface text-slate-400 hover:text-white'"
+            @click="filterStatus = 'pending'"
+          >
+            Hủy kích hoạt ({{ pendingCount }})
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
             :class="filterStatus === 'expired' ? 'bg-rose-600 text-white' : 'bg-vdsa-surface text-slate-400 hover:text-white'"
-            @click="filterStatus = 'expired'; loadSubscriptions()"
+            @click="filterStatus = 'expired'"
           >
             Đã hết hạn ({{ expiredCount }})
           </button>
@@ -292,7 +306,7 @@ function formatDate(dateStr: string | null, isActive?: boolean, status?: number)
               </td>
               <td class="p-3">
                 <Badge :variant="sub.isActive ? 'success' : (!sub.expiresAt && sub.status === 0 ? 'success' : (sub.status === 2 ? 'warning' : 'muted'))">
-                  {{ sub.isActive ? (sub.expiresAt ? '✨ Đang kích hoạt' : '✨ Vĩnh viễn') : (!sub.expiresAt && sub.status === 0 ? '✨ Vĩnh viễn' : (sub.status === 2 ? '⏳ Chưa kích hoạt' : 'Đã hết hạn')) }}
+                  {{ sub.isActive ? (sub.expiresAt ? '✨ Đang kích hoạt' : '✨ Vĩnh viễn') : (!sub.expiresAt && sub.status === 0 ? '✨ Vĩnh viễn' : (sub.status === 2 ? '🚫 Hủy kích hoạt' : 'Đã hết hạn')) }}
                 </Badge>
               </td>
               <td class="p-3 text-right">

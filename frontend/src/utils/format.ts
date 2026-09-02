@@ -34,14 +34,10 @@ export function formatNumber(value: number | null | undefined): string {
   return numberFormat.format(value);
 }
 
-function parseDateSafely(value: Date | string | number): Date {
+export function parseDateSafely(value: Date | string | number): Date {
   if (value instanceof Date) return value;
   if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed) && !trimmed.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(trimmed)) {
-      return new Date(trimmed + 'Z');
-    }
-    return new Date(trimmed);
+    return new Date(value.trim());
   }
   return new Date(value);
 }

@@ -37,17 +37,36 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 /** Tổng bài nộp (đúng hạn + trễ) vs kỳ vọng (bài gán × thành viên) → % hoàn thành. */
 const totals = computed(() => {
   const r = report.value;
-  if (!r) return { submitted: 0, expected: 0, pct: 0 };
+  if (!r || r.totalMembers === 0) return { submitted: 0, expected: 0, pct: 0 };
   const submitted = r.assignments.reduce((sum, a) => sum + a.onTime + a.late, 0);
   const expected = r.assignments.length * r.totalMembers;
   return { submitted, expected, pct: expected > 0 ? Math.round((submitted / expected) * 100) : 0 };
 });
 
-const avgScore = computed(() => {
+function getItemType(assign: ClassReportAssignmentDto): 'theory' | 'quiz' | 'code' {
+  if (assign.itemType === 'code' || assign.itemType === 'quiz' || assign.itemType === 'theory') {
+    return assign.itemType;
+  }
+  const title = (assign.title || '').toLowerCase();
+  if (title.includes('code') || title.includes('lab')) return 'code';
+  if (title.includes('quiz') || title.includes('trắc nghiệm') || title.includes('test') || title.includes('kiểm tra')) return 'quiz';
+  return 'theory';
+}
+
+function getItemTypeMeta(assign: ClassReportAssignmentDto): { label: string; variant: 'primary' | 'muted' | 'warning' } {
+  const type = getItemType(assign);
+  if (type === 'code') return { label: 'Code Lab', variant: 'warning' };
+  if (type === 'quiz') return { label: 'Quiz', variant: 'primary' };
+  return { label: 'Lý thuyết', variant: 'muted' };
+}
+
+const quizAvgScore = computed(() => {
   const r = report.value;
-  if (!r || r.assignments.length === 0) return '—';
-  const avg = r.assignments.reduce((sum, a) => sum + a.avgScore, 0) / r.assignments.length;
-  return avg.toFixed(1);
+  if (!r) return '—';
+  const quizAssignments = r.assignments.filter((a) => getItemType(a) === 'quiz' && a.avgScore > 0);
+  if (quizAssignments.length === 0) return '—';
+  const avg = quizAssignments.reduce((sum, a) => sum + a.avgScore, 0) / quizAssignments.length;
+  return `${avg.toFixed(1)}/10`;
 });
 
 /** KPI phụ (level-1 — KHÔNG icon tròn, không shadow; tối đa 1 hero-stat/màn). */
@@ -56,15 +75,19 @@ const secondaryKpis = computed(() => {
   if (!r) return [];
   return [
     { label: messages.classes.reportKpiAssignments, value: formatNumber(r.assignments.length) },
-    { label: messages.classes.reportKpiAvgScore, value: avgScore.value },
+    { label: 'Điểm TB Quiz', value: quizAvgScore.value },
     { label: messages.classes.reportKpiSubmissions, value: formatNumber(totals.value.submitted) },
   ];
 });
 
 function assignmentStatus(assign: ClassReportAssignmentDto): { label: string; variant: 'success' | 'warning' | 'muted' } {
+  const total = report.value?.totalMembers ?? 0;
+  if (total === 0) return { label: 'Chưa có học viên', variant: 'muted' };
+  const done = assign.onTime + assign.late;
+  if (done === 0) return { label: messages.classes.statusNotStarted, variant: 'muted' };
   if (assign.late > 0) return { label: messages.classes.statusLate, variant: 'warning' };
-  if (assign.notSubmitted === 0) return { label: messages.classes.statusCompleted, variant: 'success' };
-  return { label: messages.classes.statusNotStarted, variant: 'muted' };
+  if (done >= total) return { label: messages.classes.statusCompleted, variant: 'success' };
+  return { label: 'Đang tiến hành', variant: 'muted' };
 }
 
 onMounted(load);
@@ -196,10 +219,11 @@ function printReport(): void {
                 <tr>
                   <th scope="col">#</th>
                   <th scope="col">{{ messages.classes.reportColContent }}</th>
+                  <th scope="col">Phân loại</th>
                   <th scope="col">{{ messages.classes.reportColOnTime }}</th>
                   <th scope="col">{{ messages.classes.reportColLate }}</th>
-                  <th scope="col">{{ messages.classes.reportColNotSubmitted }}</th>
-                  <th scope="col">{{ messages.classes.reportColBest }}</th>
+                  <th scope="col">Chưa hoàn thành</th>
+                  <th scope="col">Kết quả / Đánh giá</th>
                   <th scope="col">{{ messages.classes.reportColStatus }}</th>
                 </tr>
               </thead>
@@ -216,10 +240,32 @@ function printReport(): void {
                       {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
                     </p>
                   </td>
+                  <td data-label="Phân loại">
+                    <Badge :variant="getItemTypeMeta(assign).variant" class="text-[11px] uppercase tracking-wider font-semibold">
+                      {{ getItemTypeMeta(assign).label }}
+                    </Badge>
+                  </td>
                   <td class="class-report__num" :data-label="messages.classes.reportColOnTime">{{ assign.onTime }}</td>
                   <td class="class-report__num" :data-label="messages.classes.reportColLate">{{ assign.late }}</td>
-                  <td class="class-report__num" :data-label="messages.classes.reportColNotSubmitted">{{ assign.notSubmitted }}</td>
-                  <td class="class-report__num" :data-label="messages.classes.reportColBest">{{ assign.avgScore.toFixed(1) }}</td>
+                  <td class="class-report__num" data-label="Chưa hoàn thành">{{ assign.notSubmitted }}</td>
+                  <td class="class-report__num text-left" data-label="Kết quả / Đánh giá">
+                    <template v-if="getItemType(assign) === 'theory'">
+                      <span class="inline-flex items-center gap-1.5 text-xs font-mono text-emerald-400 font-semibold">
+                        ✓ Đã học: {{ assign.onTime + assign.late }}/{{ report.totalMembers }}
+                      </span>
+                    </template>
+                    <template v-else-if="getItemType(assign) === 'quiz'">
+                      <span class="inline-flex items-center gap-1.5 text-xs font-mono text-cyan-400 font-semibold">
+                        {{ assign.avgScore > 0 ? `Điểm TB: ${assign.avgScore.toFixed(1)}/10` : 'Chưa có điểm' }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span class="inline-flex items-center gap-1.5 text-xs font-mono text-purple-300 font-semibold">
+                        Đã nộp: {{ assign.onTime + assign.late }}/{{ report.totalMembers }}
+                        <span class="text-[10px] text-muted-foreground font-sans ml-1">(Pass Tests)</span>
+                      </span>
+                    </template>
+                  </td>
                   <td :data-label="messages.classes.reportColStatus">
                     <Badge :variant="assignmentStatus(assign).variant">
                       {{ assignmentStatus(assign).label }}
