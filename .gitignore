@@ -28,3 +28,9 @@ publish/
 backend/publish/
 backend_publish/
 *.zip
+
+# QA & Local test artifacts
+qa/
+implement_plan.md
+PROMPT_QA_PLAYWRIGHT.md
+

@@ -1,4 +1,0 @@
-question,option_a,option_b,option_c,option_d,correct_option,explanation,points
-"Hai đặc trưng cốt lõi của bài toán Quy hoạch động là gì?","Bài toán con gối nhau và Cấu trúc con tối ưu","Chia để trị và Tham lam","Đệ quy vô hạn và Quay lui","Tìm kiếm nhị phân và Cây nhị phân","A","Quy hoạch động áp dụng khi có Overlapping Subproblems và Optimal Substructure.",2
-"Độ phức tạp thời gian khi tính số Fibonacci thứ n bằng Quy hoạch động (Tabulation) là gì?","O(N)","O(2^N)","O(log N)","O(1)","A","Tabulation tính từ 0 đến N chỉ mất một vòng lặp tuyến tính O(N).",2
-"Kỹ thuật Memoization trong Quy hoạch động áp dụng theo hướng tiếp cận nào?","Top-down (Từ trên xuống)","Bottom-up (Từ dưới lên)","Random Access","Greedy Choice","A","Memoization lưu kết quả đệ quy từ trên xuống (Top-down).",2
