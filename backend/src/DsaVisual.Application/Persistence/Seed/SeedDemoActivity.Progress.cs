@@ -498,11 +498,12 @@ public static partial class SeedDemoActivity
                 _ => null
             };
 
-            if (status == 2 && pass is not null)
+            if (status == 2 && (pass is not null || kind == NodeKind.Practice))
             {
-                var passedAt = pass.SubmittedAt;
+                var passedAt = pass?.SubmittedAt ?? ClampAfter(now.AddDays(-rng.Next(2, 5)), user.CreatedAt.AddHours(2));
                 var unlockedAt = ClampAfter(passedAt.AddDays(-rng.Next(1, 4)), user.CreatedAt.AddHours(1));
-                result.Add(new PlannedNodeRow(node, 2, pass.Exercise.MaxScore, 3, unlockedAt, passedAt, passedAt));
+                var score = pass?.Exercise.MaxScore ?? 100;
+                result.Add(new PlannedNodeRow(node, 2, score, 3, unlockedAt, passedAt, passedAt));
             }
             else
             {

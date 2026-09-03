@@ -54,11 +54,23 @@ export function createMergeGenerator(): SimulationGenerator {
       const trace = new Trace();
       const doneMap: StatusMap = {};
 
-      // Bản đồ trạng thái cho đoạn [lo..hi]: phần tử done giữ nguyên, còn lại active.
+      // Bản đồ trạng thái cho đoạn [lo..hi]:
+      // - Nếu phần tử đã done toàn cục: giữ 'done'
+      // - Phần tử nằm ngoài đoạn [lo..hi]: gán 'muted' (màu xám mờ để thể hiện chia để trị)
+      // - Phần tử nằm trong đoạn [lo..hi]: gán 'active'
       const segMap = (lo: number, hi: number, extra: StatusMap = {}): StatusMap => {
-        const m: StatusMap = { ...doneMap, ...extra };
-        for (let k = lo; k <= hi; k++) {
-          if (doneMap[k] !== 'done' && !(k in extra)) m[k] = 'active';
+        const m: StatusMap = {};
+        for (let k = 0; k < n; k++) {
+          if (doneMap[k] === 'done') {
+            m[k] = 'done';
+          } else if (k >= lo && k <= hi) {
+            m[k] = 'active';
+          } else {
+            m[k] = 'muted';
+          }
+        }
+        for (const [k, v] of Object.entries(extra)) {
+          m[Number(k)] = v as any;
         }
         return m;
       };
@@ -166,20 +178,26 @@ export function createMergeGenerator(): SimulationGenerator {
         const isGlobalDone = lo === 0 && hi === n - 1;
         for (let p = lo; p <= hi; p++) {
           a[p] = t[p - lo];
-          doneMap[p] = 'done';
+          if (isGlobalDone) {
+            doneMap[p] = 'done';
+          }
           trace.stats.writes++;
           trace.push({
             line: 14,
-            explanation: `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]} (đoạn [${lo}..${hi}] đã hợp nhất xong).`,
-            structure: arrayStructure(a, segMap(lo, hi, { [p]: 'highlight' })),
+            explanation: isGlobalDone
+              ? `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]} (hoàn tất sắp xếp toàn bộ mảng!).`
+              : `Ghi t về mảng: a[${p}] ← t[${p - lo}] = ${a[p]} (đoạn con [${lo}..${hi}] đã hợp nhất tạm thời).`,
+            structure: arrayStructure(a, segMap(lo, hi, isGlobalDone ? { [p]: 'done' } : { [p]: 'highlight' })),
             annotations: [`a[${p}]=${a[p]}`, `t=[${t.join(', ')}]`],
           });
         }
         trace.push({
           line: 14,
-          explanation: `Hoàn tất trộn đoạn a[${lo}..${hi}] = [${a.slice(lo, hi + 1).join(', ')}].`,
+          explanation: isGlobalDone
+            ? `Hoàn tất thuật toán Merge Sort: mảng đã được sắp xếp tăng dần hoàn chỉnh [${a.join(', ')}].`
+            : `Hoàn tất trộn đoạn con a[${lo}..${hi}] = [${a.slice(lo, hi + 1).join(', ')}].`,
           structure: arrayStructure(a, segMap(lo, hi)),
-          annotations: [`Đoạn [${lo}..${hi}] đã có thứ tự`],
+          annotations: [isGlobalDone ? 'Toàn bộ mảng đã sắp xếp xong' : `Đoạn con [${lo}..${hi}] đã có thứ tự`],
         });
       };
 

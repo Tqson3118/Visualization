@@ -558,36 +558,42 @@ async function loadCourseDetail() {
       await autoEnrollFromClass();
     }
 
-    // Related courses: ưu tiên cùng topicId -> cùng category -> trùng từ khóa tiêu đề
-    try {
-      const all = await courseApi.getCourses() as Array<{ id: string; title: string; description: string; xpReward: number; topicId?: number; category?: string }>;
-      const currentTopicId = (course.value as any)?.topicId;
-      const currentCategory = course.value?.category?.toLowerCase() || '';
-      const titleWords = (course.value?.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
-
-      const others = (all || []).filter(c => String(c.id) !== courseId);
-      const scored = others.map(c => {
-        let score = 0;
-        if (currentTopicId && c.topicId === currentTopicId) score += 10;
-        if (currentCategory && c.category?.toLowerCase() === currentCategory) score += 5;
-        const cTitleLower = (c.title || '').toLowerCase();
-        for (const word of titleWords) {
-          if (cTitleLower.includes(word)) score += 2;
-        }
-        return { course: c, score };
-      });
-
-      const relevant = scored.filter(s => s.score > 0);
-      relevant.sort((a, b) => b.score - a.score);
-      relatedCourses.value = relevant.slice(0, 3).map(s => s.course);
-    } catch {
-      relatedCourses.value = [];
-    }
+    // Related courses: ưu tiên cùng topicId -> cùng category -> trùng từ khóa tiêu đề (chạy ngầm không chặn tải trang)
+    void loadRelatedCourses(courseId);
   } catch (err) {
     console.error('Failed to load course detail:', err);
     error.value = 'Không tìm thấy lộ trình này (Lỗi kết nối máy chủ).';
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadRelatedCourses(courseId: string) {
+  try {
+    const all = (courseStore.courses.length > 0
+      ? courseStore.courses
+      : await courseApi.getCourses()) as Array<{ id: string; title: string; description: string; xpReward: number; topicId?: number; category?: string }>;
+    const currentTopicId = (course.value as any)?.topicId;
+    const currentCategory = course.value?.category?.toLowerCase() || '';
+    const titleWords = (course.value?.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+
+    const others = (all || []).filter(c => String(c.id) !== courseId);
+    const scored = others.map(c => {
+      let score = 0;
+      if (currentTopicId && c.topicId === currentTopicId) score += 10;
+      if (currentCategory && c.category?.toLowerCase() === currentCategory) score += 5;
+      const cTitleLower = (c.title || '').toLowerCase();
+      for (const word of titleWords) {
+        if (cTitleLower.includes(word)) score += 2;
+      }
+      return { course: c, score };
+    });
+
+    const relevant = scored.filter(s => s.score > 0);
+    relevant.sort((a, b) => b.score - a.score);
+    relatedCourses.value = relevant.slice(0, 3).map(s => s.course);
+  } catch {
+    relatedCourses.value = [];
   }
 }
 
@@ -635,7 +641,7 @@ async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
   const firstLesson = playableLessons[0];
   const isFirstNode = firstLesson && (String(firstLesson.id) === String(lesson.id) || (firstLesson.nodeId && firstLesson.nodeId === lesson.nodeId));
   const isAlreadyDone = lesson.status === 'Completed';
-  const shouldChargeHeart = false; // Option B: chỉ trừ 1 tim khi đăng ký lộ trình, không trừ khi vào từng bài
+  const shouldChargeHeart = !isFirstNode && !isAlreadyDone;
 
   if (courseId && nodeId && shouldChargeHeart) {
     const ok = await heartSystem.enterLessonNode(courseId, nodeId, false, isOwnCourse.value);

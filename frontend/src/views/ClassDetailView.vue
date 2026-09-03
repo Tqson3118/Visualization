@@ -150,19 +150,17 @@ const classModules = computed<PathModuleGroup[]>(() => {
   if (items.length === 0) return [];
 
   const modules: PathModuleGroup[] = [];
-  let current: PathModuleGroup | null = null;
   let allPrecedingCompleted = true; // First lesson is unlocked
   const isTeacherOrAdmin = isManager.value;
+  const hasAnyFolder = items.some((i) => isFolderItem(i.itemType));
 
-  const pushLesson = (item: ClassCurriculumItemDto): void => {
-    if (!current) {
-      current = { title: item.topicName || 'Nội dung lộ trình', lessons: [] };
-      modules.push(current);
-    }
+  const createLessonEntry = (item: ClassCurriculumItemDto): PathModuleLesson => {
     const isDone = item.status === 'completed' || (item.status as string) === 'Completed';
     const isLocked = !isTeacherOrAdmin && !isDone && !allPrecedingCompleted;
-
-    current.lessons.push({
+    if (!isDone) {
+      allPrecedingCompleted = false;
+    }
+    return {
       id: item.pathItemId ?? item.assignmentId ?? item.lessonId ?? item.exerciseId ?? item.title,
       pathItemId: item.pathItemId ?? item.assignmentId,
       lessonId: item.lessonId ?? undefined,
@@ -177,17 +175,21 @@ const classModules = computed<PathModuleGroup[]>(() => {
       allowLateSubmission: item.allowLateSubmission,
       bestScore: item.bestScore,
       xpReward: item.xpReward,
-    });
-
-    if (!isDone) {
-      allPrecedingCompleted = false;
-    }
+    };
   };
 
-  const walk = (list: ClassCurriculumItemDto[]): void => {
+  if (!hasAnyFolder) {
+    const singleGroup: PathModuleGroup = {
+      title: items[0]?.topicName || 'Nội dung lộ trình',
+      lessons: items.map(createLessonEntry),
+    };
+    return [singleGroup];
+  }
+
+  const walk = (list: ClassCurriculumItemDto[], parentGroup: PathModuleGroup | null = null): void => {
     for (const item of list) {
       if (isFolderItem(item.itemType)) {
-        current = {
+        const folderGroup: PathModuleGroup = {
           id: item.pathItemId ?? item.assignmentId,
           pathItemId: item.pathItemId ?? item.assignmentId,
           title: item.title || item.topicName || 'Chủ đề bài học',
@@ -195,11 +197,28 @@ const classModules = computed<PathModuleGroup[]>(() => {
           allowLateSubmission: item.allowLateSubmission,
           lessons: [],
         };
-        modules.push(current);
-        if (Array.isArray(item.children) && item.children.length) walk(item.children);
+        modules.push(folderGroup);
+        if (Array.isArray(item.children) && item.children.length) {
+          walk(item.children, folderGroup);
+        }
         continue;
       }
-      pushLesson(item);
+
+      // Non-folder item
+      if (parentGroup) {
+        parentGroup.lessons.push(createLessonEntry(item));
+      } else {
+        // Bài học độc lập ở cấp gốc: tạo module riêng, không bị gộp vào folder trước
+        const standaloneGroup: PathModuleGroup = {
+          id: item.pathItemId ?? item.assignmentId,
+          pathItemId: item.pathItemId ?? item.assignmentId,
+          title: item.title || item.topicName || 'Bài học',
+          dueAt: item.dueAt,
+          allowLateSubmission: item.allowLateSubmission,
+          lessons: [createLessonEntry(item)],
+        };
+        modules.push(standaloneGroup);
+      }
     }
   };
 
@@ -875,29 +894,6 @@ function cleanTitle(title?: string): string {
           <Skeleton v-for="i in 5" :key="i" height="60px" class="rounded-xl" />
         </div>
 
-        <!-- Guided Empty State -->
-        <div
-          v-else-if="!classStore.curriculum?.items || classStore.curriculum.items.length === 0 || !classStore.currentClass?.learningPathId"
-          class="p-8 sm:p-12 rounded-2xl border-2 border-dashed border-vdsa-border bg-card/40 text-center space-y-4 max-w-xl mx-auto my-4"
-        >
-          <div class="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-300 flex items-center justify-center mx-auto">
-            <BookOpen :size="24" />
-          </div>
-          <div class="space-y-1">
-            <h3 class="text-base font-bold text-white">Lớp học chưa có Lộ trình giảng dạy</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-              {{ isManager ? 'Hãy chọn một Lộ trình học (Course) từ thư viện của bạn hoặc toàn sàn để gán cho lớp. Mọi học sinh trong lớp sẽ học theo lộ trình này.' : 'Giáo viên chưa gán lộ trình học cho lớp này. Vui lòng quay lại sau.' }}
-            </p>
-          </div>
-          <div v-if="isManager" class="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
-            <Button variant="primary" size="md" class="w-full sm:w-auto gap-1.5 bg-purple-600 hover:bg-purple-500" @click="openSelectPathModal">
-              <Layers :size="15" /> Chọn Lộ trình cho lớp ngay
-            </Button>
-            <Button variant="secondary" size="md" class="w-full sm:w-auto gap-1.5" @click="router.push('/studio?tab=curriculum')">
-              <Plus :size="15" /> Tạo Lộ trình mới tại Studio
-            </Button>
-          </div>
-        </div>
 
         <!-- Student View: Unified Module Tree List & Nearest deadline banner -->
         <div v-else-if="!isManager" class="space-y-4">

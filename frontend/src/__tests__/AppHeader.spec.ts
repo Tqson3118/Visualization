@@ -274,7 +274,7 @@ describe('AppHeader — Unit Tests (Modules A ~ H)', () => {
       expect(img.attributes('src')).toBe('https://example.com/avatar.png');
     });
 
-    it('U-AVT-004: Hiện avatar từ equipped item (ưu tiên hơn user.avatarUrl)', () => {
+    it('U-AVT-004: Hiện avatar từ user.avatarUrl (ưu tiên hơn equipped item)', () => {
       authWithUser('Minh', 'https://example.com/avatar.png');
       const gmf = useGamificationStore();
       gmf.inventory = [
@@ -283,7 +283,7 @@ describe('AppHeader — Unit Tests (Modules A ~ H)', () => {
 
       const wrapper = mount(AppHeader);
       const img = wrapper.find('.app-header__user-avatar-image');
-      expect(img.attributes('src')).toBe('/assets/avatars/cyber-hacker.svg');
+      expect(img.attributes('src')).toBe('https://example.com/avatar.png');
     });
 
     it('U-AVT-005: Avatar img error ẩn img display:none', async () => {

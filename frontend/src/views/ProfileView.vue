@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Flame, Pencil } from 'lucide-vue-next';
 
@@ -33,6 +33,13 @@ const tab = ref<'overview' | 'progress' | 'achievements' | 'inventory' | 'feedba
 const loading = ref(true);
 const loadError = ref('');
 const avatarImgFailed = ref(false);
+
+watch(
+  () => auth.user?.avatarUrl,
+  () => {
+    avatarImgFailed.value = false;
+  },
+);
 
 const level = computed(() => gamification.level);
 const xp = computed(() => gamification.xp);
@@ -105,17 +112,17 @@ onMounted(async () => {
       <div class="profile__user">
         <span class="profile__avatar-frame" :class="frameThemeClass">
           <img
-            v-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
-            :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
-            :alt="auth.user?.displayName ?? 'Avatar'"
-            class="profile__avatar profile__avatar-image"
-          />
-          <img
-            v-else-if="auth.user?.avatarUrl && !avatarImgFailed"
+            v-if="auth.user?.avatarUrl && !avatarImgFailed"
             :src="auth.user.avatarUrl"
             :alt="auth.user?.displayName ?? 'Avatar'"
             class="profile__avatar profile__avatar-image"
             @error="avatarImgFailed = true"
+          />
+          <img
+            v-else-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
+            :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
+            :alt="auth.user?.displayName ?? 'Avatar'"
+            class="profile__avatar profile__avatar-image"
           />
           <span v-else class="profile__avatar" :class="avatarThemeClass" aria-hidden="true">
             {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}

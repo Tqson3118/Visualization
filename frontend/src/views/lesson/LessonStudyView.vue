@@ -199,6 +199,7 @@
             v-else-if="lessonStore.lessonMeta?.sandboxType === 'quiz'"
             :questions="lessonStore.currentLesson.quizQuestions ?? []"
             :initial-submission="lessonStore.currentLesson.lastQuizSubmission ?? lessonStore.lessonMeta?.lastQuizSubmission ?? null"
+            :exercise-id="lessonStore.lessonMeta?.quizId ?? lessonStore.lessonMeta?.exerciseId ?? null"
             @submit="onQuizSubmit"
             @completeStep="onQuizComplete"
           />
@@ -259,6 +260,7 @@
       :show="showCourseCompletedModal"
       :course-title="course?.title || 'Lộ trình DSA'"
       :total-xp="totalRoadmapXp"
+      :lesson-xp="lessonStore.currentLesson?.xpReward ?? 50"
       @close="goBackToCourse"
       @explore-more="onExploreMoreCourses"
     />
@@ -266,7 +268,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LessonStepTheory from './components/LessonStepTheory.vue';
 import LessonStepQuiz from './components/LessonStepQuiz.vue';
@@ -705,7 +707,7 @@ function onExploreMoreCourses(): void {
   showCourseCompletedModal.value = false;
   const fromClassId = route.query.classId;
   if (fromClassId) {
-    void router.push(`/classes/${fromClassId}`);
+    void router.push(`/path`);
     return;
   }
   void router.push('/path');
@@ -723,10 +725,39 @@ function autoExpandCurrentModule(currLessonId: string): void {
   }
 }
 
-watch(lessonId, (id) => {
+function scrollToTopContainers() {
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+  const scrollSelectors = [
+    'main',
+    '.lesson-step-theory',
+    '.lesson-step-quiz',
+    '.lesson-step-codelab',
+    '.theory-content-container',
+    '.custom-scrollbar',
+    '.lesson-study__body',
+  ];
+  scrollSelectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      el.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    });
+  });
+}
+
+watch(lessonId, async (id) => {
   if (id) {
-    void lessonStore.loadLesson(id);
     autoExpandCurrentModule(id);
+    scrollToTopContainers();
+    await lessonStore.loadLesson(id);
+    await nextTick();
+    scrollToTopContainers();
   }
 }, { immediate: true });
+
+watch(() => lessonStore.activeStep, () => {
+  void nextTick(() => {
+    scrollToTopContainers();
+  });
+});
 </script>

@@ -1,46 +1,44 @@
 <template>
   <div class="lesson-step-quiz relative flex flex-col h-full overflow-hidden font-sans bg-vdsa-bg">
     <!-- Animated background accents -->
-    <div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-      <div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-[120px] mix-blend-screen animate-pulse"></div>
-      <div class="absolute top-[60%] -right-[10%] w-[60%] h-[60%] rounded-full bg-indigo-600/10 blur-[150px] mix-blend-screen" style="animation: pulse 8s infinite alternate;"></div>
+    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+      <div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-600/20 blur-[120px] mix-blend-screen animate-pulse"></div>
+      <div class="absolute top-[30%] -right-[10%] w-[40%] h-[40%] rounded-full bg-indigo-600/15 blur-[100px] mix-blend-screen"></div>
     </div>
 
-    <!-- Header & Progress -->
-    <header class="relative z-10 px-8 pt-8 pb-4 shrink-0 flex flex-col items-center">
-      <div class="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-bold text-accent uppercase tracking-widest mb-4 shadow-xl">
-        <BaseIcon name="puzzle" class="w-4 h-4 text-accent" />
-        <span>Kiểm Tra Trắc Nghiệm</span>
-      </div>
-
-      <div class="w-full max-w-3xl flex flex-col gap-3">
-        <div class="flex justify-between items-end">
-          <h2 class="text-2xl font-black text-white tracking-tight">
-            Câu {{ currentIndex + 1 }} <span class="text-vdsa-muted font-medium text-lg">/ {{ questions.length }}</span>
-          </h2>
-          <span class="text-xs font-semibold" :class="answeredCount === questions.length ? 'text-vdsa-green' : 'text-vdsa-yellow'">
-            Đã hoàn thành {{ Math.round((answeredCount / questions.length) * 100) || 0 }}%
+    <!-- Top Floating Progress Bar & Nav -->
+    <header class="relative z-10 w-full px-4 pt-4 pb-2 shrink-0">
+      <div class="max-w-3xl mx-auto flex flex-col gap-3">
+        <!-- Badge -->
+        <div class="flex items-center justify-between">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-xs font-bold text-purple-300">
+            <BaseIcon name="puzzle" class="w-3.5 h-3.5 text-purple-400" />
+            <span>Thử Thách Trắc Nghiệm</span>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-300">
+            Đã chọn: <strong class="text-purple-300">{{ answeredCount }}</strong>/{{ questions.length }} câu
           </span>
         </div>
-        <!-- Sleek Progress Bar -->
-        <div class="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-white/10 h-2.5 rounded-full overflow-hidden backdrop-blur-md p-0.5 border border-white/10">
           <div
-            class="h-full rounded-full transition-all duration-700 ease-out"
-            :class="answeredCount === questions.length ? 'bg-gradient-to-r from-vdsa-accent-green to-vdsa-green' : 'bg-gradient-to-r from-vdsa-accent to-indigo-400'"
+            class="h-full rounded-full transition-all duration-500 ease-out shadow-lg"
+            :class="answeredCount === questions.length ? 'bg-gradient-to-r from-vdsa-accent-green to-vdsa-green' : 'bg-gradient-to-r from-purple-500 to-indigo-500'"
             :style="{ width: `${(answeredCount / questions.length) * 100}%` }"
           ></div>
         </div>
 
-        <!-- Question Navigator Dots -->
-        <div v-if="questions.length > 0" class="mt-4 flex gap-2 flex-wrap justify-center sm:justify-start">
+        <!-- Question Number Navigator -->
+        <div class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
           <button
             v-for="(q, idx) in questions"
             :key="q.id"
             @click="goToQuestion(idx)"
             class="group relative w-8 h-8 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center cursor-pointer overflow-hidden backdrop-blur-md"
             :class="[
-              idx === currentIndex ? 'ring-2 ring-vdsa-accent ring-offset-2 ring-offset-vdsa-bg text-white bg-accent/80' : '',
-              idx !== currentIndex && hasUserAnswered(q.id) && !isSubmitted ? 'bg-accent/20 text-accent border border-accent/30 hover:bg-vdsa-accent/30' : '',
+              idx === currentIndex ? 'ring-2 ring-purple-400 ring-offset-2 ring-offset-vdsa-bg text-white bg-purple-600 shadow-md shadow-purple-600/40' : '',
+              idx !== currentIndex && hasUserAnswered(q.id) && !isSubmitted ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30' : '',
               idx !== currentIndex && hasUserAnswered(q.id) && isSubmitted && isQuestionCorrect(q) ? 'bg-vdsa-green/20 border-vdsa-green/50 text-vdsa-green' : '',
               idx !== currentIndex && hasUserAnswered(q.id) && isSubmitted && !isQuestionCorrect(q) ? 'bg-vdsa-red/20 border-vdsa-red/50 text-vdsa-red' : '',
               idx !== currentIndex && !hasUserAnswered(q.id) ? 'bg-white/5 border border-white/10 text-vdsa-muted hover:bg-white/10 hover:text-white' : '',
@@ -66,7 +64,7 @@
           </div>
           <button
             @click="resetQuiz"
-            class="px-3 py-1 rounded-xl bg-accent/20 hover:bg-accent/40 text-accent text-xs font-bold transition-colors cursor-pointer border border-accent/30"
+            class="px-3 py-1 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs font-bold transition-colors cursor-pointer border border-purple-500/30"
           >
             Làm lại bài
           </button>
@@ -116,8 +114,8 @@
                 @click="!isSubmitted && selectAnswer(currentQuestion.id, oIdx)"
                 class="group relative w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-center gap-4 overflow-hidden"
                 :class="[
-                  isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-accent/20 border-accent/50 ring-1 ring-vdsa-accent shadow-[0_0_20px_rgba(99,102,241,0.2)] text-white' : '',
-                  !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-white/5 border-white/10 text-vdsa-secondary hover:bg-white/10 hover:border-white/20 hover:text-white cursor-pointer hover:-translate-y-0.5' : '',
+                  isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-purple-600/20 border-purple-500 ring-2 ring-purple-500/80 shadow-[0_0_25px_rgba(168,85,247,0.3)] text-white font-semibold' : '',
+                  !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10 hover:border-purple-500/40 hover:text-white cursor-pointer hover:-translate-y-0.5' : '',
                   isSubmitted && isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-green/20 border-vdsa-green/50 ring-1 ring-vdsa-accent-green shadow-[0_0_20px_rgba(16,185,129,0.2)] text-white' : '',
                   isSubmitted && isOptionSelected(currentQuestion.id, oIdx) && !isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-red/20 border-vdsa-red/50 ring-1 ring-vdsa-accent-red text-white' : '',
                   isSubmitted && !isOptionCorrect(currentQuestion, oIdx) && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/20 border-transparent text-vdsa-muted opacity-40 cursor-default' : '',
@@ -128,8 +126,8 @@
                 <div
                   class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300"
                   :class="[
-                    isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-accent text-white shadow-lg shadow-vdsa-accent/40' : '',
-                    !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/30 text-vdsa-muted group-hover:bg-white/10 group-hover:text-white' : '',
+                    isOptionSelected(currentQuestion.id, oIdx) && !isSubmitted ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/50' : '',
+                    !isSubmitted && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/30 text-vdsa-muted group-hover:bg-purple-900/30 group-hover:text-purple-300' : '',
                     isSubmitted && isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-green text-white shadow-lg shadow-vdsa-accent-green/40' : '',
                     isSubmitted && isOptionSelected(currentQuestion.id, oIdx) && !isOptionCorrect(currentQuestion, oIdx) ? 'bg-vdsa-red text-white' : '',
                     isSubmitted && !isOptionCorrect(currentQuestion, oIdx) && !isOptionSelected(currentQuestion.id, oIdx) ? 'bg-black/40 text-vdsa-disabled' : '',
@@ -144,7 +142,7 @@
 
                 <!-- Multi-choice checkbox indicator when not submitted -->
                 <div v-if="isQuestionMulti(currentQuestion) && !isSubmitted" class="w-5 h-5 rounded-md border flex items-center justify-center transition-all"
-                     :class="isOptionSelected(currentQuestion.id, oIdx) ? 'bg-accent border-accent text-white' : 'border-white/20 bg-black/20'">
+                     :class="isOptionSelected(currentQuestion.id, oIdx) ? 'bg-purple-600 border-purple-400 text-white' : 'border-white/20 bg-black/20'">
                   <BaseIcon v-if="isOptionSelected(currentQuestion.id, oIdx)" name="check" class="w-3.5 h-3.5" />
                 </div>
               </button>
@@ -220,6 +218,15 @@
       <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
         <div class="flex items-center gap-2">
           <button
+            @click="showHistoryModal = true"
+            class="px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300 bg-white/10 hover:bg-white/20 text-white cursor-pointer border border-white/15 shadow-lg hover:-translate-y-0.5"
+            title="Lịch sử làm bài"
+          >
+            <BaseIcon name="clock" class="w-4 h-4 text-vdsa-purple-light" />
+            <span class="hidden sm:inline">Lịch sử</span>
+          </button>
+
+          <button
             @click="prevQuestion"
             :disabled="currentIndex === 0"
             class="px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300"
@@ -233,7 +240,7 @@
           <button
             v-if="currentIndex < questions.length - 1"
             @click="nextQuestion"
-            class="px-4 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300 bg-accent hover:bg-vdsa-accent-light text-white border border-accent/40 cursor-pointer shadow-lg shadow-vdsa-accent/20 hover:-translate-y-0.5"
+            class="px-4 py-2.5 rounded-2xl flex items-center gap-1.5 text-xs font-bold transition-all duration-300 bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/40 cursor-pointer shadow-lg shadow-purple-600/30 hover:-translate-y-0.5"
             title="Câu tiếp theo"
           >
             <span>Câu tiếp theo</span>
@@ -255,8 +262,8 @@
           v-if="!isSubmitted"
           @click="submitQuiz"
           :disabled="answeredCount !== questions.length"
-          class="px-8 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 shadow-lg flex items-center gap-2 group whitespace-nowrap shrink-0"
-          :class="answeredCount === questions.length ? 'bg-accent hover:bg-vdsa-accent-light text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:-translate-y-1 cursor-pointer' : 'bg-white/5 text-vdsa-disabled opacity-60 cursor-not-allowed'"
+          class="px-8 py-2.5 rounded-2xl text-sm font-extrabold transition-all duration-300 shadow-lg flex items-center gap-2 group whitespace-nowrap shrink-0"
+          :class="answeredCount === questions.length ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_25px_rgba(168,85,247,0.5)] hover:-translate-y-1 cursor-pointer' : 'bg-white/5 text-vdsa-disabled opacity-60 cursor-not-allowed'"
         >
           <span>Nộp Bài</span>
           <BaseIcon name="check" class="w-4 h-4 transition-transform" :class="answeredCount === questions.length ? 'group-hover:scale-125' : ''" />
@@ -271,6 +278,16 @@
         </button>
       </div>
     </div>
+
+    <!-- Modal Lịch sử làm bài Quiz -->
+    <QuizHistoryModal
+      :is-open="showHistoryModal"
+      :exercise-id="props.exerciseId"
+      :questions="props.questions"
+      :initial-submission="props.initialSubmission"
+      @close="showHistoryModal = false"
+      @restore="handleRestoreAnswers"
+    />
   </div>
 </template>
 
@@ -278,6 +295,7 @@
 import { ref, computed, watch } from 'vue';
 import type { QuizQuestion } from '../../../features/lesson/types/lesson.types';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
+import QuizHistoryModal from './QuizHistoryModal.vue';
 
 const props = withDefaults(defineProps<{
   questions?: QuizQuestion[];
@@ -289,15 +307,25 @@ const props = withDefaults(defineProps<{
     resultJson?: string | null;
     submittedAt?: string | null;
   } | null;
+  exerciseId?: string | number | null;
 }>(), {
   questions: () => [],
   initialSubmission: null,
+  exerciseId: null,
 });
 
 const emit = defineEmits<{
   (e: 'submit', answers: Record<string, number | number[]>): void;
   (e: 'completeStep'): void;
 }>();
+
+const showHistoryModal = ref(false);
+
+function handleRestoreAnswers(restoredAnswers: Record<string, number[]>): void {
+  userAnswers.value = { ...restoredAnswers };
+  isSubmitted.value = true;
+  saveDraftAnswers();
+}
 
 const PASS_THRESHOLD = 0.7;
 

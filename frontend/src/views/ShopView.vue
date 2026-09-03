@@ -942,6 +942,8 @@ const slotLabel = (slot: string | null): string => {
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 220px;
   gap: var(--space-xs);
   position: relative;
   transition: all 180ms ease;
@@ -987,6 +989,11 @@ const slotLabel = (slot: string | null): string => {
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
+  min-height: 1.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shop__desc {
@@ -994,7 +1001,11 @@ const slotLabel = (slot: string | null): string => {
   color: var(--color-text-secondary);
   line-height: 1.5;
   margin: 0;
-  flex: 1;
+  min-height: 2.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shop__owned-qty {
@@ -1007,8 +1018,8 @@ const slotLabel = (slot: string | null): string => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-sm);
-  padding-top: var(--space-xs);
+  margin-top: auto;
+  padding-top: var(--space-sm);
   border-top: 1px solid var(--color-border-subtle);
   gap: 8px;
 }

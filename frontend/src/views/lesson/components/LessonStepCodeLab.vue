@@ -146,15 +146,6 @@
               <BaseIcon name="terminal" class="w-3.5 h-3.5 text-vdsa-purple-light" />
               Test Result
             </button>
-            <button
-              @click.stop="isConsoleExpanded = true; activeConsoleTab = 'trace'"
-              class="flex items-center gap-1.5 text-xs font-semibold transition-colors"
-              :class="activeConsoleTab === 'trace' && isConsoleExpanded ? 'text-white' : 'text-vdsa-muted hover:text-white'"
-            >
-              <Sparkles class="w-3.5 h-3.5 text-amber-400" />
-              <span>Visual Trace</span>
-              <span v-if="hasTrace" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-            </button>
             <div class="flex-1"></div>
             <button @click.stop="isConsoleExpanded = !isConsoleExpanded" class="text-vdsa-muted hover:text-white">
               <BaseIcon :name="isConsoleExpanded ? 'chevron-down' : 'chevron-up'" class="w-4 h-4" />
@@ -240,39 +231,6 @@
                </div>
             </div>
 
-            <!-- Visual Trace Tab -->
-            <div v-show="activeConsoleTab === 'trace'" class="h-full flex flex-col justify-between">
-              <div v-if="!hasTrace" class="text-vdsa-muted text-xs flex flex-col items-center justify-center h-full text-center py-6">
-                <Sparkles class="w-7 h-7 text-amber-400/40 mb-2" />
-                <p>Nhấn <strong class="text-white">"Run"</strong> để sinh vết thực thi trực quan từ code của bạn.</p>
-              </div>
-              <div v-else class="flex flex-col h-full gap-2">
-                <div class="h-[140px] w-full rounded-lg overflow-hidden border border-vdsa-border bg-[#0D1020]">
-                  <CanvasArea
-                    :structure="playbackStructure"
-                    empty-text="Visual Trace Canvas"
-                  />
-                </div>
-                <div class="flex items-center justify-between gap-2 px-1 pb-1">
-                  <span class="text-[11px] font-mono text-vdsa-muted">
-                    Bước {{ playbackIndex + 1 }}/{{ playbackFrames }}
-                  </span>
-                  <ControlBar
-                    :current-index="playbackIndex"
-                    :total-frames="playbackFrames"
-                    :status="playbackStatus"
-                    :speed="playbackSpeed"
-                    @play="playback.play()"
-                    @pause="playback.pause()"
-                    @step-forward="playback.stepForward()"
-                    @step-back="playback.stepBack()"
-                    @reset="playback.reset()"
-                    @jump="playback.jumpTo($event)"
-                    @set-speed="playback.setSpeed($event)"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -310,12 +268,7 @@
 import { ref, onMounted, onUnmounted, shallowRef, computed, watch } from 'vue';
 import * as monaco from 'monaco-editor';
 import loader from '@monaco-editor/loader';
-import { Sparkles } from 'lucide-vue-next';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
-import CanvasArea from '@/components/simulator/CanvasArea.vue';
-import ControlBar from '@/components/simulator/ControlBar.vue';
-import { useCodeTracePlayback } from '@/composables/useCodeTracePlayback';
-import { runCode } from '@/engines/core/stepExecutor';
 import type { CodeLabTask } from '../../../features/lesson/types/lesson.types';
 import { runCodelabTask, type CodelabCaseResult } from '../../../features/lesson/utils/codelabExecutor';
 import { submitCodelab } from '../../../features/lesson/services/lessonApi';
@@ -347,21 +300,10 @@ const activeTask = computed(() => {
 });
 
 const activeLeftTab = ref<'description' | 'hints'>('description');
-const activeConsoleTab = ref<'testcase' | 'result' | 'trace'>('testcase');
+const activeConsoleTab = ref<'testcase' | 'result'>('testcase');
 const isConsoleExpanded = ref(true);
 const activeTestCaseIndex = ref(0);
 const activeTestResultIndex = ref(0);
-
-const playback = useCodeTracePlayback();
-const {
-  currentIndex: playbackIndex,
-  totalFrames: playbackFrames,
-  currentStructure: playbackStructure,
-} = playback;
-
-const playbackStatus = computed<'idle' | 'running'>(() => (playback.isPlaying.value ? 'running' : 'idle'));
-const playbackSpeed = computed(() => Math.round(1000 / playback.durationPerStep.value));
-const hasTrace = computed(() => playbackFrames.value > 0);
 
 const shownHints = ref<number[]>([]);
 const isRunning = ref(false);
@@ -498,33 +440,6 @@ async function runTestcases(): Promise<void> {
       if (!result.ok && !result.results) {
         runError.value = result.error ?? 'Execution Error';
       }
-    }
-
-    // Tự động sinh trace cho tab Visual Trace
-    try {
-      const currentInput = sampleTestcases.value[activeTestCaseIndex.value]?.input;
-      let parsedArray: number[] = [5, 3, 8, 1, 9, 2];
-      if (currentInput) {
-        try {
-          const parsed = JSON.parse(currentInput);
-          if (Array.isArray(parsed) && parsed.every((x: unknown) => typeof x === 'number')) {
-            parsedArray = parsed;
-          } else if (Array.isArray(parsed) && Array.isArray(parsed[0]) && parsed[0].every((x: unknown) => typeof x === 'number')) {
-            parsedArray = parsed[0];
-          }
-        } catch {}
-      }
-      const code = currentCode();
-      const simResult = runCode({
-        code,
-        entry: activeTask.value?.entryFunction || 'solution',
-        bindings: [{ variable: 'array', structure: 'array' }],
-      }, parsedArray);
-      if (simResult && Array.isArray(simResult.trace) && simResult.trace.length > 0) {
-        playback.init(simResult.trace, parsedArray);
-      }
-    } catch (traceErr) {
-      console.warn('Trace generation skipped:', traceErr);
     }
   } catch (err: unknown) {
     runError.value = err instanceof Error ? err.message : String(err);
@@ -682,7 +597,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  playback.dispose();
   resizeObserver?.disconnect();
   resizeObserver = null;
   editorInstance.value?.dispose();

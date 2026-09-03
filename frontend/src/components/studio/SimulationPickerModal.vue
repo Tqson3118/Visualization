@@ -156,12 +156,8 @@
         </div>
       </div>
 
-      <!-- C2 fix: Footer hành động sticky — luôn hiển thị dù list dài, kèm đếm số đã chọn -->
+      <!-- Footer: Một nút chèn mô phỏng đang xem trước theo vị trí con trỏ -->
       <div class="px-5 py-3 bg-[#131524] border-t border-slate-800/80 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
-        <span v-if="selectedCount > 0" class="mr-auto text-[11px] font-extrabold text-purple-300 flex items-center gap-1.5">
-          <Check class="w-3.5 h-3.5" />
-          Đã chọn {{ selectedCount }} mô phỏng
-        </span>
         <button
           type="button"
           class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
@@ -170,23 +166,23 @@
           Đóng
         </button>
         <button
+          v-if="selectedCount > 0"
           type="button"
           class="px-4 py-2 rounded-xl bg-[#231e38] hover:bg-purple-950 border border-purple-500/40 text-purple-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-          title="Chèn thẻ [Mô phỏng] của mô phỏng đang xem trước vào nội dung bài giảng"
-          @click="insertIntoMarkdown(activeSimKey)"
+          @click="attachSelected"
         >
-          <FileCode class="w-3.5 h-3.5 text-purple-400" />
-          <span>Chèn [Mô phỏng] vào bài giảng</span>
+          <Check class="w-3.5 h-3.5 text-emerald-400" />
+          <span>Gắn {{ selectedCount }} mô phỏng đã chọn</span>
         </button>
         <button
           type="button"
-          data-testid="btn-attach-selected"
-          class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-purple-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="selectedCount === 0"
-          @click="attachSelected"
+          data-testid="btn-insert-sim"
+          class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-purple-600/30"
+          title="Chèn trực tiếp mô phỏng đang xem trước vào vị trí con trỏ soạn thảo"
+          @click="insertIntoMarkdown(activeSimKey); emit('close')"
         >
-          <Plus class="w-3.5 h-3.5" />
-          <span>{{ selectedCount > 0 ? 'Đính kèm ' + selectedCount + ' mô phỏng' : 'Đính kèm mô phỏng' }}</span>
+          <Sparkles class="w-4 h-4 text-purple-200" />
+          <span>Chèn mô phỏng này vào bài giảng</span>
         </button>
       </div>
     </div>

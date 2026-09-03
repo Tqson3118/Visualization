@@ -5,7 +5,7 @@
     "name": "Cyber Hacker",
     "description": "Avatar phong cách Cyberpunk, bóng mờ xanh neon.",
     "price": 100,
-    "imageUrl": "/assets/avatars/cyber-hacker.png"
+    "imageUrl": "/assets/avatars/cyber-hacker.svg"
   },
   {
     "id": "avatar-gold-knight",
@@ -13,7 +13,7 @@
     "name": "Golden Knight",
     "description": "Hiệp sĩ hoàng kim sáng chói.",
     "price": 200,
-    "imageUrl": "/assets/avatars/gold-knight.png"
+    "imageUrl": "/assets/avatars/gold-knight.svg"
   },
   {
     "id": "avatar-neon-ninja",
@@ -21,7 +21,7 @@
     "name": "Neon Ninja",
     "description": "Ninja ẩn mình trong bóng tối với viền neon hồng.",
     "price": 150,
-    "imageUrl": "/assets/avatars/neon-ninja.png"
+    "imageUrl": "/assets/avatars/neon-ninja.svg"
   },
   {
     "id": "avatar-wizard",
@@ -29,7 +29,7 @@
     "name": "Code Wizard",
     "description": "Pháp sư code có khả năng debug thần sầu.",
     "price": 250,
-    "imageUrl": "/assets/avatars/wizard.png"
+    "imageUrl": "/assets/avatars/wizard.svg"
   },
   {
     "id": "avatar-ai-bot",
@@ -37,7 +37,7 @@
     "name": "AI Companion",
     "description": "Trợ lý AI siêu cấp dễ thương.",
     "price": 50,
-    "imageUrl": "/assets/avatars/ai-bot.png"
+    "imageUrl": "/assets/avatars/ai-bot.svg"
   },
   {
     "id": "frame-neon",

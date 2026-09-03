@@ -15,10 +15,12 @@ const props = withDefaults(
     contentHtml?: string;
     /** Alias của contentHtml — auto-detect (có <tag> thường & không có tag nguy hiểm → HTML). */
     content?: string;
+    /** Alias html tương thích với :html trong ItemEditorSlideOver.vue. */
+    html?: string;
     /** Ép kiểu render; bỏ trống → auto-detect. */
     format?: 'html' | 'text' | 'markdown';
   }>(),
-  { contentHtml: '', content: '', format: undefined },
+  { contentHtml: '', content: '', html: '', format: undefined },
 );
 
 const HAS_HTML_TAG = /<[a-z][^>]*>/i;
@@ -46,7 +48,7 @@ function textToParagraphs(escaped: string): string {
     .join('');
 }
 
-const source = computed<string>(() => props.contentHtml || props.content || '');
+const source = computed<string>(() => props.html || props.contentHtml || props.content || '');
 
 const rendered = computed<string>(() => {
   const raw = source.value;
@@ -75,41 +77,64 @@ const rendered = computed<string>(() => {
   line-height: 1.75;
   color: var(--color-text-primary);
   min-width: 0;
+  width: 100% !important;
+  max-width: 100% !important;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.prose :deep(table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.prose :deep(th),
+.prose :deep(td) {
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  padding: 8px 12px;
 }
 
 .prose > :first-child { margin-top: 0; }
 .prose > :last-child { margin-bottom: 0; }
 
 /* ── Headings ── */
-.prose :deep(h1) {
-  font-size: 1.875rem;
-  font-weight: 800;
-  line-height: 1.3;
-  margin-block: 1.5rem 0.75rem;
-  color: #ffffff;
+.prose :deep(h1),
+:deep(.prose h1) {
+  font-size: 1.875rem !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
+  margin-block: 1.5rem 0.75rem !important;
+  color: #ffffff !important;
+  display: block !important;
 }
-.prose :deep(h2) {
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.35;
-  margin-block: 1.25rem 0.5rem;
-  color: #ffffff;
+.prose :deep(h2),
+:deep(.prose h2) {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  margin-block: 1.25rem 0.5rem !important;
+  color: #ffffff !important;
+  display: block !important;
 }
-.prose :deep(h3) {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.4;
-  margin-block: 1rem 0.5rem;
-  color: #f1f5f9;
+.prose :deep(h3),
+:deep(.prose h3) {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  margin-block: 1rem 0.5rem !important;
+  color: #f1f5f9 !important;
+  display: block !important;
 }
-.prose :deep(h4) {
-  font-size: 1.1rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-block: 0.875rem 0.375rem;
-  color: #e2e8f0;
+.prose :deep(h4),
+:deep(.prose h4) {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-block: 0.875rem 0.375rem !important;
+  color: #e2e8f0 !important;
+  display: block !important;
 }
 
 /* ── Đoạn văn — ngắt dòng thoáng ── */

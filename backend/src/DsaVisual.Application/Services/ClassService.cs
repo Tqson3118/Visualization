@@ -17,8 +17,10 @@ namespace DsaVisual.Application.Services;
 public sealed class ClassService(
     AppDbContext db,
     IDateTimeProvider clock,
-    ILogger<ClassService> logger) : IClassService
+    ILogger<ClassService> logger,
+    IGamificationConfigService? gamificationConfig = null) : IClassService
 {
+    private readonly IGamificationConfigService _configService = gamificationConfig ?? new GamificationConfigService();
     private const string RoleTeacher = "TEACHER";
     private const string RoleAdmin = "ADMIN";
     private const string InviteAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -1070,7 +1072,7 @@ public sealed class ClassService(
                     TopicId = lesson?.TopicId,
                     TopicName = lesson is not null ? topicTitles.GetValueOrDefault(lesson.TopicId) : null,
                     SimulationCount = 0,
-                    XpReward = 20
+                    XpReward = !isFolder ? GetNodeXpReward(itemTypeStr, node) : 0
                 });
             }
 
@@ -1196,7 +1198,8 @@ public sealed class ClassService(
                 Status = "not_started",
                 BestScore = assignment.LessonId is { } lid2 && fallbackLessonProgressByLesson.TryGetValue(lid2, out var up)
                     ? up.BestScore
-                    : null
+                    : null,
+                XpReward = assignment.LessonId != null ? _configService.GetTheoryBaseXp() : _configService.GetQuizBaseXp()
             });
         }
 
@@ -1228,6 +1231,19 @@ public sealed class ClassService(
         });
     }
 
+    private int GetNodeXpReward(string? itemType, LearningPathNode node)
+    {
+        if (itemType == "lab" || node.ItemType == PathItemType.Lab || node.LabExerciseId != null)
+        {
+            return _configService.GetCodelabBaseXp();
+        }
+        if (itemType == "quiz" || node.ItemType == PathItemType.Quiz || node.FinalTestId != null)
+        {
+            return _configService.GetQuizBaseXp();
+        }
+        return _configService.GetTheoryBaseXp();
+    }
+
     // ── Báo cáo lớp ───────────────────────────────────────────
 
     public async Task<Result<ClassReportDto>> GetReportAsync(int userId, string role, int id, CancellationToken ct)
@@ -1252,12 +1268,47 @@ public sealed class ClassService(
 
         if (classRoom.LearningPathId is { } activePathId)
         {
-            var pageNodes = await db.LearningPathNodes.AsNoTracking()
-                .Where(n => n.PathId == activePathId && n.ItemType != PathItemType.Folder)
+            var allNodes = await db.LearningPathNodes.AsNoTracking()
+                .Where(n => n.PathId == activePathId)
                 .OrderBy(n => n.SortOrder)
                 .ToListAsync(ct);
 
+            // Sắp xếp các trang/bài học theo đúng thứ tự phân cấp cây (DFS Pre-order) của lộ trình
+            var orderedPageNodes = new List<(LearningPathNode Node, string? ModuleName)>();
+            void Traverse(int? parentId, string? currentModule)
+            {
+                var children = allNodes.Where(n => n.ParentId == parentId).OrderBy(n => n.SortOrder).ToList();
+                foreach (var child in children)
+                {
+                    if (child.ItemType == PathItemType.Folder)
+                    {
+                        var nextModule = string.IsNullOrEmpty(currentModule) ? child.Title : $"{currentModule} > {child.Title}";
+                        Traverse(child.Id, nextModule);
+                    }
+                    else
+                    {
+                        orderedPageNodes.Add((child, currentModule));
+                        Traverse(child.Id, currentModule);
+                    }
+                }
+            }
+
+            Traverse(null, null);
+
+            // Xử lý các node mồ côi (nếu có)
+            if (orderedPageNodes.Count < allNodes.Count(n => n.ItemType != PathItemType.Folder))
+            {
+                var visitedNodeIds = orderedPageNodes.Select(x => x.Node.Id).ToHashSet();
+                foreach (var orphan in allNodes.Where(n => n.ItemType != PathItemType.Folder && !visitedNodeIds.Contains(n.Id)).OrderBy(n => n.SortOrder))
+                {
+                    orderedPageNodes.Add((orphan, null));
+                }
+            }
+
+            var pageNodes = orderedPageNodes.Select(x => x.Node).ToList();
+            var moduleNameByNodeId = orderedPageNodes.ToDictionary(x => x.Node.Id, x => x.ModuleName);
             var pageNodeIds = pageNodes.Select(n => n.Id).ToList();
+
             var overlayAssignments = await db.ClassAssignments.AsNoTracking()
                 .Where(a => a.ClassId == id && !a.Archived)
                 .ToListAsync(ct);
@@ -1273,12 +1324,34 @@ public sealed class ClassService(
             var lessonIds = pageNodes.Where(n => n.LessonId != null).Select(n => n.LessonId!.Value).Distinct().ToList();
             var exerciseIds = pageNodes.Select(n => n.FinalTestId ?? n.LabExerciseId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
 
+            var exercisesList = await db.Exercises.AsNoTracking()
+                .Where(e => (exerciseIds.Contains(e.Id)
+                          || (e.NodeId != null && pageNodeIds.Contains(e.NodeId.Value))
+                          || (lessonIds.Contains(e.LessonId)))
+                          && e.DeletedAt == null)
+                .ToListAsync(ct);
+
             var lessonsMap = lessonIds.Count > 0
                 ? await db.Lessons.AsNoTracking().Where(l => lessonIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Title, ct)
                 : new Dictionary<int, string>();
-            var exercisesMap = exerciseIds.Count > 0
-                ? await db.Exercises.AsNoTracking().Where(e => exerciseIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Title, ct)
-                : new Dictionary<int, string>();
+            var exercisesMap = exercisesList.ToDictionary(e => e.Id, e => e.Title);
+
+            // Đồng bộ cả tiến độ lý thuyết từ UserProgress (đảm bảo đồng nhất với GetCurriculumAsync)
+            var lessonProgresses = lessonIds.Count > 0 && memberIds.Count > 0
+                ? await db.UserProgress.AsNoTracking()
+                    .Where(p => memberIds.Contains(p.UserId) && lessonIds.Contains(p.LessonId) && (p.CompletedAt != null || (p.BestScore ?? 0) > 0))
+                    .ToListAsync(ct)
+                : [];
+
+            var completedByUserAndNode = nodeProgresses.Select(p => (p.UserId, p.NodeId)).ToHashSet();
+            var completedByUserAndLesson = lessonProgresses.Select(p => (p.UserId, p.LessonId)).ToHashSet();
+
+            bool IsMemberCompleted(int mId, LearningPathNode n)
+            {
+                if (completedByUserAndNode.Contains((mId, n.Id))) return true;
+                if (n.LessonId is { } chkLessonId && completedByUserAndLesson.Contains((mId, chkLessonId))) return true;
+                return false;
+            }
 
             var reportAssignments = new List<ClassReportAssignmentDto>();
             var completedAssignmentsByUser = memberIds.ToDictionary(mId => mId, _ => 0);
@@ -1286,21 +1359,39 @@ public sealed class ClassService(
             foreach (var node in pageNodes)
             {
                 var overlay = (node.Id > 0 && overlayByPathItem.TryGetValue(node.Id, out var o1)) ? o1
-                    : (node.LessonId is { } lid && overlayByLesson.TryGetValue(lid, out var o2)) ? o2 : null;
+                    : (node.LessonId is { } lid && overlayByLesson.TryGetValue(lid, out var o2)) ? o2
+                    : (node.ParentId is { } pId && overlayByPathItem.TryGetValue(pId, out var o3)) ? o3
+                    : null;
 
-                var completedList = nodeProgresses.Where(p => p.NodeId == node.Id).ToList();
-                int onTime = completedList.Count(p => (overlay?.DueAt == null) || (p.PassedAt <= overlay.DueAt.Value));
-                int late = completedList.Count - onTime;
-                int notSubmitted = totalMembers - completedList.Count;
-                double avg = completedList.Count > 0 ? completedList.Average(p => (double)(p.NodeScore > 0 ? p.NodeScore : 100)) : 0;
+                var completedNodeProgressList = nodeProgresses.Where(p => p.NodeId == node.Id).ToList();
 
-                foreach (var p in completedList)
+                var overlayDueUtc = overlay?.DueAt != null ? DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc) : (DateTime?)null;
+
+                int onTime = 0;
+                int late = 0;
+                foreach (var mId in memberIds)
                 {
-                    if (completedAssignmentsByUser.ContainsKey(p.UserId))
+                    var np = completedNodeProgressList.FirstOrDefault(p => p.UserId == mId);
+                    if (np != null)
                     {
-                        completedAssignmentsByUser[p.UserId]++;
+                        var completedTime = DateTime.SpecifyKind(np.PassedAt ?? np.UpdatedAt, DateTimeKind.Utc);
+                        if (overlayDueUtc == null || completedTime <= overlayDueUtc.Value) onTime++;
+                        else late++;
+                        if (completedAssignmentsByUser.ContainsKey(mId)) completedAssignmentsByUser[mId]++;
+                    }
+                    else if (node.LessonId is { } curLessonId && lessonProgresses.FirstOrDefault(p => p.UserId == mId && p.LessonId == curLessonId) is { } lp)
+                    {
+                        var completedTime = DateTime.SpecifyKind(lp.CompletedAt ?? lp.UpdatedAt, DateTimeKind.Utc);
+                        if (overlayDueUtc == null || completedTime <= overlayDueUtc.Value) onTime++;
+                        else late++;
+                        if (completedAssignmentsByUser.ContainsKey(mId)) completedAssignmentsByUser[mId]++;
                     }
                 }
+
+                int notSubmitted = totalMembers - (onTime + late);
+                double avg = completedNodeProgressList.Count > 0
+                    ? completedNodeProgressList.Average(p => (double)(p.NodeScore > 0 ? p.NodeScore : 100))
+                    : 0;
 
                 string itemType = node.ItemType switch
                 {
@@ -1310,16 +1401,41 @@ public sealed class ClassService(
                     _ => (node.LessonId != null ? "theory" : (node.FinalTestId != null ? "quiz" : (node.LabExerciseId != null ? "code" : "theory")))
                 };
 
+                int? targetExerciseId = null;
+                if (itemType == "code")
+                {
+                    var codeEx = exercisesList.FirstOrDefault(e => (node.LabExerciseId != null && e.Id == node.LabExerciseId.Value)
+                        || (e.Type == ExerciseType.Code && (e.NodeId == node.Id || (node.LessonId != null && e.LessonId == node.LessonId))));
+                    targetExerciseId = codeEx?.Id ?? node.LabExerciseId;
+                }
+                else if (itemType == "quiz")
+                {
+                    var quizEx = exercisesList.FirstOrDefault(e => (node.FinalTestId != null && e.Id == node.FinalTestId.Value)
+                        || (e.Type == ExerciseType.Mcq && (e.NodeId == node.Id || (node.LessonId != null && e.LessonId == node.LessonId))));
+                    targetExerciseId = quizEx?.Id ?? node.FinalTestId;
+                }
+                else
+                {
+                    var anyEx = exercisesList.FirstOrDefault(e => (node.LabExerciseId != null && e.Id == node.LabExerciseId.Value)
+                        || (node.FinalTestId != null && e.Id == node.FinalTestId.Value)
+                        || e.NodeId == node.Id
+                        || (node.LessonId != null && e.LessonId == node.LessonId));
+                    targetExerciseId = anyEx?.Id ?? node.LabExerciseId ?? node.FinalTestId;
+                }
+
                 var resolvedTitle = !string.IsNullOrWhiteSpace(node.Title)
                     ? node.Title
-                    : (node.LessonId is { } lId && lessonsMap.TryGetValue(lId, out var lt) ? lt
+                    : (node.LessonId is { } nodeLessonId && lessonsMap.TryGetValue(nodeLessonId, out var lt) ? lt
                     : (node.FinalTestId is { } fId && exercisesMap.TryGetValue(fId, out var ft) ? ft
                     : (node.LabExerciseId is { } leId && exercisesMap.TryGetValue(leId, out var letitle) ? letitle : "Bài học")));
 
                 reportAssignments.Add(new ClassReportAssignmentDto
                 {
                     AssignmentId = overlay?.Id ?? node.Id,
+                    ExerciseId = targetExerciseId,
+                    LessonId = node.LessonId,
                     Title = resolvedTitle,
+                    ModuleName = moduleNameByNodeId.GetValueOrDefault(node.Id),
                     DueAt = overlay?.DueAt != null ? DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc) : null,
                     OnTime = onTime,
                     Late = late,
@@ -1329,7 +1445,6 @@ public sealed class ClassService(
                 });
             }
 
-            var completedByUserAndNode = nodeProgresses.Select(p => (p.UserId, p.NodeId)).ToHashSet();
             var now = clock.UtcNow;
 
             var lagging = memberIds
@@ -1339,13 +1454,17 @@ public sealed class ClassService(
                     Missing = pageNodes.Count(node =>
                     {
                         var overlay = (node.Id > 0 && overlayByPathItem.TryGetValue(node.Id, out var o1)) ? o1
-                            : (node.LessonId is { } lid && overlayByLesson.TryGetValue(lid, out var o2)) ? o2 : null;
+                            : (node.LessonId is { } lid && overlayByLesson.TryGetValue(lid, out var o2)) ? o2
+                            : (node.ParentId is { } pId && overlayByPathItem.TryGetValue(pId, out var o3)) ? o3
+                            : null;
                         // Chỉ tính thiếu khi bài gán CÓ deadline VÀ deadline ĐÃ QUA
-                        if (overlay?.DueAt == null || overlay.DueAt.Value > now) return false;
-                        return !completedByUserAndNode.Contains((memberId, node.Id));
+                        if (overlay?.DueAt == null) return false;
+                        var dueUtc = DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc);
+                        if (dueUtc > now) return false;
+                        return !IsMemberCompleted(memberId, node);
                     })
                 })
-                .Where(x => x.Missing >= 2)
+                .Where(x => x.Missing > 0)
                 .OrderByDescending(x => x.Missing)
                 .ToList();
 
@@ -1458,6 +1577,8 @@ public sealed class ClassService(
                 fallbackReportAssignments.Add(new ClassReportAssignmentDto
                 {
                     AssignmentId = assignment.Id,
+                    ExerciseId = assignment.ExerciseId,
+                    LessonId = assignment.LessonId,
                     Title = title,
                     DueAt = assignment.DueAt != null ? DateTime.SpecifyKind(assignment.DueAt.Value, DateTimeKind.Utc) : null,
                     OnTime = onTime,
@@ -1479,7 +1600,7 @@ public sealed class ClassService(
                         return !completedFallbackByUserAndAsg.Contains((memberId, a.Id));
                     })
                 })
-                .Where(x => x.Missing >= 2)
+                .Where(x => x.Missing > 0)
                 .OrderByDescending(x => x.Missing)
                 .ToList();
 
@@ -1544,7 +1665,7 @@ public sealed class ClassService(
         sb.AppendLine();
 
         // Bảng 2 — học viên chậm tiến độ
-        sb.AppendLine("Bảng 2: Học viên chậm tiến độ (thiếu ≥ 2 bài)");
+        sb.AppendLine("Bảng 2: Học viên chậm tiến độ");
         sb.AppendLine("STT,Tên học viên,Số bài còn thiếu");
         var idx2 = 1;
         foreach (var learner in data.LaggingLearners)

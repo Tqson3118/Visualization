@@ -257,8 +257,9 @@ public sealed class ExerciseService(
             return Result<ExerciseDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền sửa bài tập này");
         }
 
+        var targetLessonId = request.LessonId > 0 ? request.LessonId : exercise.LessonId;
         var lesson = await db.Lessons.AsNoTracking()
-            .FirstOrDefaultAsync(l => l.Id == request.LessonId && l.DeletedAt == null, ct);
+            .FirstOrDefaultAsync(l => l.Id == targetLessonId && l.DeletedAt == null, ct);
         if (lesson is null)
         {
             return Result<ExerciseDto>.Fail(ErrorCodes.NOT_FOUND, "Bài học không tồn tại");
@@ -270,7 +271,7 @@ public sealed class ExerciseService(
             return Result<ExerciseDto>.Fail(ErrorCodes.FORBIDDEN, "Bạn không có quyền tạo bài tập trong bài học này");
         }
 
-        exercise.LessonId = request.LessonId;
+        exercise.LessonId = targetLessonId;
         exercise.NodeId = request.NodeId;
         exercise.Stage = request.NodeId is null ? null : request.Stage;
         exercise.ConfigJson = request.ConfigJson;
@@ -1700,7 +1701,9 @@ public sealed class ExerciseService(
                 Score = s.Score,
                 DurationSeconds = s.DurationSeconds,
                 ClassAssignmentId = s.ClassAssignmentId,
-                SubmittedAt = s.SubmittedAt
+                SubmittedAt = s.SubmittedAt,
+                AnswersJson = s.AnswersJson,
+                ResultJson = s.ResultJson
             })
             .ToListAsync(ct);
 

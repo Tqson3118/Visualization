@@ -85,9 +85,21 @@ export const useLessonStore = defineStore('lessonStudy', () => {
   // Cờ "đã bấm Hoàn thành bài học" — gửi lên backend (SaveProgress → node pass → mở khoá node sau).
   const lessonFinished = ref(false);
 
+  function getCompletedStorageKey(): string {
+    try {
+      const authStore = useAuthStore();
+      const uId = authStore.user?.id;
+      return uId ? `dsa.completedLessons_u${uId}` : 'dsa.completedLessons';
+    } catch {
+      return 'dsa.completedLessons';
+    }
+  }
+
   function loadCompletedLessonIds(): string[] {
     try {
-      return JSON.parse(localStorage.getItem('dsa.completedLessons') ?? '[]') as string[];
+      const key = getCompletedStorageKey();
+      const raw = localStorage.getItem(key) ?? (key !== 'dsa.completedLessons' ? localStorage.getItem('dsa.completedLessons') : null);
+      return JSON.parse(raw ?? '[]') as string[];
     } catch {
       return [];
     }
@@ -96,7 +108,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
   async function markLessonCompleted(id: string) {
     if (!completedLessonIds.value.includes(id)) {
       completedLessonIds.value.push(id);
-      localStorage.setItem('dsa.completedLessons', JSON.stringify(completedLessonIds.value));
+      localStorage.setItem(getCompletedStorageKey(), JSON.stringify(completedLessonIds.value));
     }
     if (lessonMeta.value?.courseId) {
       try {
@@ -198,7 +210,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     isOnline.value = false;
   });
   window.addEventListener('storage', (e) => {
-    if (e.key === 'dsa.completedLessons' && e.newValue) {
+    if ((e.key === 'dsa.completedLessons' || e.key === getCompletedStorageKey()) && e.newValue) {
       try {
         completedLessonIds.value = JSON.parse(e.newValue);
       } catch {}
@@ -413,6 +425,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     xpAwarded.value = 0;
     lessonFinished.value = false;
     lessonMeta.value = null;
+    completedLessonIds.value = loadCompletedLessonIds();
     // KHÔNG null currentLesson ngay — giữ bài cũ hiển thị trong lúc fetch bài mới
     // (chuyển bài mượt, không nháy spinner; spinner chỉ hiện khi chưa có bài nào).
 

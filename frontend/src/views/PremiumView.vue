@@ -157,9 +157,32 @@ watch([step, checkoutPlan, transferContent], () => {
 
 const isPremiumActive = computed(() => gamification.isPremium);
 
+const activePlanDisplayName = computed(() => {
+  if (!gamification.premium) return 'Gói Pro';
+  const p = (gamification.premium.plan || gamification.premium.planId || '').toLowerCase();
+  if (p.includes('12m') || p.includes('yearly') || p.includes('12')) return 'Gói 12 tháng (1 năm)';
+  if (p.includes('3m') || p.includes('quarterly') || p.includes('3')) return 'Gói 3 tháng';
+  if (p.includes('1m') || p.includes('monthly') || p.includes('1')) return 'Gói 1 tháng';
+  return gamification.premium.plan || 'Gói Pro';
+});
+
+function isCurrentPlan(plan: (typeof PLANS)[number]): boolean {
+  if (!isPremiumActive.value) return false;
+  const cur = (gamification.premium?.planId || gamification.premium?.plan || '').toLowerCase();
+  if (plan.id.toLowerCase() === cur) return true;
+  if (plan.months === 12 && (cur.includes('12') || cur.includes('year'))) return true;
+  if (plan.months === 3 && (cur.includes('3') || cur.includes('quarter'))) return true;
+  if (plan.months === 1 && (cur.includes('1') || cur.includes('month'))) return true;
+  return false;
+}
+
 function openCheckout(plan: (typeof PLANS)[number]): void {
   if (userId.value === null) {
     ui.showToast(messages.premium.needLogin, 'error');
+    return;
+  }
+  if (isCurrentPlan(plan)) {
+    ui.showToast('Bạn hiện đang sử dụng gói này. Vui lòng chọn gói có kỳ hạn khác nếu muốn chuyển đổi!', 'warning');
     return;
   }
   // Gia hạn cộng dồn thời hạn tự động trên hệ thống — không cần confirm thay thế
@@ -304,7 +327,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-bold text-white flex items-center gap-2">
-          Gói đang dùng: <span class="text-amber-400 font-extrabold">{{ gamification.premium.plan || 'Pro' }}</span>
+          Gói đang dùng: <span class="text-amber-400 font-extrabold">{{ activePlanDisplayName }}</span>
         </p>
         <p class="text-xs text-vdsa-muted mt-0.5">
           Hạn sử dụng: {{ gamification.premium.expiresAt
@@ -326,7 +349,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
           <h3 class="premium__plan-name">{{ plan.name }}</h3>
           <Badge v-if="plan.badge" variant="warning">{{ plan.badge }}</Badge>
           <Badge
-            v-if="isPremiumActive && (gamification.premium?.planId === plan.id || gamification.premium?.plan?.toLowerCase().includes(plan.name.toLowerCase()))"
+            v-if="isCurrentPlan(plan)"
             variant="success"
           >
             Đang dùng
@@ -335,8 +358,15 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
         <p class="premium__plan-price">{{ plan.price }}</p>
         <p class="premium__plan-per">{{ messages.premium.perMonth(planPerMonth(plan)) }}</p>
         <p class="premium__plan-sub">{{ messages.premium.daysLabel(plan.months * 30) }}</p>
-        <Button :variant="plan.highlight ? 'primary' : 'secondary'" block @click="openCheckout(plan)">
-          {{ isPremiumActive ? 'Gia hạn' : messages.premium.choose }}
+        <Button
+          :variant="isCurrentPlan(plan) ? 'secondary' : (plan.highlight ? 'primary' : 'secondary')"
+          :disabled="isCurrentPlan(plan)"
+          block
+          @click="openCheckout(plan)"
+        >
+          <template v-if="isCurrentPlan(plan)">✓ Đang sử dụng (Không thể mua trùng)</template>
+          <template v-else-if="isPremiumActive">Gia hạn / Đổi sang gói này</template>
+          <template v-else>{{ messages.premium.choose }}</template>
         </Button>
       </article>
     </div>

@@ -69,29 +69,19 @@ describe('OutlineTree.vue', () => {
     expect(wrapper.emitted('select')![0][0]).toEqual(mockItems[0]);
   });
 
-  it('emits add with parentId null when toolbar add popover options are clicked', async () => {
+  it('emits add folder with parentId null when toolbar add-item-trigger is clicked', async () => {
     const wrapper = mount(OutlineTree, {
       props: { items: mockItems },
     });
 
-    // Mở popover "Thêm mục"
     await wrapper.find('[data-testid="add-item-trigger"]').trigger('click');
-
-    await wrapper.find('[data-testid="add-item-folder"]').trigger('click');
     expect(wrapper.emitted('add')).toBeTruthy();
     expect(wrapper.emitted('add')![0]).toEqual(['folder', null]);
 
-    await wrapper.find('[data-testid="add-item-trigger"]').trigger('click');
-    await wrapper.find('[data-testid="add-item-theory"]').trigger('click');
-    expect(wrapper.emitted('add')![1]).toEqual(['theory', null]);
-
-    await wrapper.find('[data-testid="add-item-trigger"]').trigger('click');
-    await wrapper.find('[data-testid="add-item-quiz"]').trigger('click');
-    expect(wrapper.emitted('add')![2]).toEqual(['quiz', null]);
-
-    await wrapper.find('[data-testid="add-item-trigger"]').trigger('click');
-    await wrapper.find('[data-testid="add-item-lab"]').trigger('click');
-    expect(wrapper.emitted('add')![3]).toEqual(['lab', null]);
+    // Bài học (lý thuyết, quiz, lab) không thể thêm trực tiếp ở cấp gốc
+    expect(wrapper.find('[data-testid="add-item-theory"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="add-item-quiz"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="add-item-lab"]').exists()).toBe(false);
   });
 
   it('emits add with folder parentId when using the node "+" popover', async () => {
@@ -116,13 +106,13 @@ describe('OutlineTree.vue', () => {
     expect(input.exists()).toBe(true);
     expect((input.element as HTMLInputElement).value).toBe('Bài 1.1: Giới thiệu Mảng động');
 
-    await input.setValue('  Bài 1.1 (bản mới)  ');
+    await input.setValue('   Bài 1.1 Mới   ');
     await input.trigger('keydown.enter');
 
     expect(wrapper.emitted('rename')).toBeTruthy();
     const [emittedItem, emittedTitle] = wrapper.emitted('rename')![0];
     expect((emittedItem as PathItemDto).id).toBe(2);
-    expect(emittedTitle).toBe('Bài 1.1 (bản mới)');
+    expect(emittedTitle).toBe('Bài 1.1 Mới');
   });
 
   it('rename flow: Escape cancels without emitting', async () => {
@@ -144,8 +134,8 @@ describe('OutlineTree.vue', () => {
     await wrapper.find('[data-testid="node-menu-2"]').trigger('click');
     await wrapper.find('[data-testid="node-menu-move"]').trigger('click');
 
-    // Đích "Cấp gốc" + đích folder "Chương 1"
-    expect(wrapper.find('[data-testid="move-target-root"]').exists()).toBe(true);
+    // Đích "Cấp gốc" KHÔNG được phép cho bài học (chỉ cho phép chuyển vào folder "Chương 1")
+    expect(wrapper.find('[data-testid="move-target-root"]').exists()).toBe(false);
     await wrapper.find('[data-testid="move-target-1"]').trigger('click');
 
     expect(wrapper.emitted('moveItem')).toBeTruthy();
@@ -255,17 +245,17 @@ describe('OutlineTree.vue', () => {
     expect(wrapper.find('[data-testid="add-item-trigger"]').exists()).toBe(false);
   });
 
-  it('closes add-item menu when clicking outside', async () => {
+  it('closes node context menu when clicking outside', async () => {
     const wrapper = mount(OutlineTree, { props: { items: mockItems } });
 
-    await wrapper.find('[data-testid="add-item-trigger"]').trigger('click');
-    expect(wrapper.find('[data-testid="add-item-folder"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="node-menu-1"]').trigger('click');
+    expect(wrapper.find('[data-testid="node-menu-rename"]').exists()).toBe(true);
 
     // Simulate clicking outside on document
     document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await nextTick();
 
-    expect(wrapper.find('[data-testid="add-item-folder"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="node-menu-rename"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

@@ -35,11 +35,6 @@ const auth = useAuthStore();
 const ui = useUiStore();
 const router = useRouter();
 
-function handleViewAllCurriculum(): void {
-  void router.push({ path: '/studio', query: { tab: 'curriculum' } });
-  emit('switchTab', 'curriculum');
-}
-
 const loading = ref(true);
 const totalLessons = ref(0);
 const totalTopics = ref(0);
@@ -128,8 +123,6 @@ const workflowSteps: WorkflowStepItem[] = [
   },
 ];
 
-const recentLessons = ref<lessonsApi.LessonSummary[]>([]);
-
 async function loadStudioData(): Promise<void> {
   loading.value = true;
   try {
@@ -147,28 +140,32 @@ async function loadStudioData(): Promise<void> {
     );
     myCoursesCount.value = myCourses.length;
 
-    // Lọc chủ đề / topic thuộc quyền của giảng viên
-    const myTopics = topicTree.filter(
-      (t) => auth.role === 'ADMIN' || !currentUserId || (t as any).createdBy === currentUserId || (t as any).authorId === currentUserId || (t as any).createdBy == null || (t as any).createdBy <= 1,
-    );
-    myTopicsCount.value = myTopics.length;
+    // Lọc chủ đề kiến thức DSA chính thức (loại bỏ các module con)
+    const knowledgeTopics = topicTree.filter((t) => !t.name.startsWith('Module '));
+    myTopicsCount.value = knowledgeTopics.length;
 
     // Lọc bài học thuộc quyền của giảng viên
     const myLessons = lessonData.items.filter(
       (l) => auth.role === 'ADMIN' || !currentUserId || (l as any).createdBy === currentUserId || (l as any).authorId === currentUserId || (l as any).createdBy == null || (l as any).createdBy <= 1,
     );
     myLessonsCount.value = (auth.role === 'ADMIN' && (lessonData.total ?? 0) > 0) ? lessonData.total : myLessons.length;
-
-    myLessons.sort((a, b) => {
-      const timeA = new Date((a as any).updatedAt || (a as any).createdAt || 0).getTime();
-      const timeB = new Date((b as any).updatedAt || (b as any).createdAt || 0).getTime();
-      return timeB - timeA;
-    });
-    recentLessons.value = myLessons.slice(0, 8);
   } catch {
     ui.showToast('Không thể tải một số dữ liệu tổng quan.', 'warning');
   } finally {
     loading.value = false;
+  }
+}
+
+function handleStepClick(st: WorkflowStepItem): void {
+  if (st.step === '01') {
+    void router.push({ path: '/studio', query: { tab: 'curriculum', openTopics: '1' } });
+    emit('switchTab', 'curriculum');
+    return;
+  }
+  if (st.tab) {
+    emit('switchTab', st.tab);
+  } else if (st.to) {
+    void router.push(st.to);
   }
 }
 
@@ -309,92 +306,14 @@ onActivated(() => {
             <p class="text-[11px] text-vdsa-muted mt-1 leading-relaxed">{{ st.desc }}</p>
           </div>
           <Button
-            v-if="st.tab"
             variant="ghost"
             size="sm"
             class="text-xs h-7 w-full justify-center text-purple-300 hover:text-white"
-            @click="emit('switchTab', st.tab)"
-          >
-            {{ st.btnText }} →
-          </Button>
-          <Button
-            v-else-if="st.to"
-            variant="ghost"
-            size="sm"
-            class="text-xs h-7 w-full justify-center text-purple-300 hover:text-white"
-            @click="router.push(st.to)"
+            @click="handleStepClick(st)"
           >
             {{ st.btnText }} →
           </Button>
         </div>
-      </div>
-    </div>
-
-    <!-- Table 5 cột: Bài học cập nhật gần đây -->
-    <div class="p-6 rounded-3xl bg-vdsa-surface border border-vdsa-border space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-          <BookOpen :size="16" class="text-vdsa-purple" /> Bài học cập nhật gần đây
-        </h3>
-        <Button variant="ghost" size="sm" class="text-xs" @click="handleViewAllCurriculum">
-          Xem toàn bộ bài học →
-        </Button>
-      </div>
-
-      <div class="overflow-x-auto rounded-xl border border-vdsa-border">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-vdsa-bg-secondary border-b border-vdsa-border text-[11px] uppercase font-bold text-vdsa-muted">
-              <th class="p-3">Bài học</th>
-              <th class="p-3">Mô tả tóm tắt</th>
-              <th class="p-3">Trạng thái</th>
-              <th class="p-3">Mô phỏng</th>
-              <th class="p-3 text-right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-vdsa-border text-xs">
-            <tr v-for="l in recentLessons" :key="l.id" class="hover:bg-white/5 transition-colors">
-              <td class="p-3 font-bold text-white max-w-[200px] truncate">
-                <span class="font-mono text-purple-300 mr-1.5">#{{ l.id }}</span>
-                {{ l.title }}
-              </td>
-              <td class="p-3 text-slate-400 max-w-[280px] truncate">
-                {{ l.description || 'Chưa có mô tả' }}
-              </td>
-              <td class="p-3">
-                <Badge :variant="l.status === 'active' ? 'success' : l.status === 'pendingreview' ? 'warning' : 'muted'" class="text-[10px]">
-                  {{ l.status === 'active' ? 'Kích hoạt' : l.status === 'pendingreview' ? 'Chờ duyệt' : 'Bản nháp' }}
-                </Badge>
-              </td>
-              <td class="p-3 font-mono text-[11px] text-slate-400">
-                {{ l.simulationCount || 0 }} animations
-              </td>
-              <td class="p-3 text-right space-x-2">
-                <button
-                  type="button"
-                  class="px-2.5 py-1 rounded bg-vdsa-bg-secondary hover:bg-slate-700 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1 transition-colors"
-                  @click="router.push({ path: '/studio', query: { tab: 'curriculum', lessonId: l.id, courseId: (l as any).courseId || (l as any).topicId } })"
-                  title="Chỉnh sửa bài học trên cây lộ trình"
-                >
-                  <Edit :size="12" /> Sửa bài
-                </button>
-                <router-link
-                  :to="{ name: 'lesson-study', params: { id: l.id }, query: { courseId: (l as any).courseId || (l as any).topicId || 1, preview: 'true' } }"
-                  target="_blank"
-                  class="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs font-medium inline-flex items-center gap-1 transition-colors"
-                  title="Xem trước giao diện bài học (kể cả bản nháp)"
-                >
-                  <Eye :size="12" /> Xem trước
-                </router-link>
-              </td>
-            </tr>
-            <tr v-if="recentLessons.length === 0">
-              <td colspan="5" class="p-6 text-center text-xs text-slate-500">
-                Chưa có bài học nào. Hãy bắt đầu bằng cách tạo bài giảng đầu tiên!
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>

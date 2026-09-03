@@ -154,17 +154,17 @@ async function onLogout(): Promise<void> {
               @click="menuOpen = !menuOpen"
             >
               <img
-                v-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
-                :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
-                :alt="equippedAvatar.name"
-                class="app-header__user-avatar-image"
-              />
-              <img
-                v-else-if="auth.user?.avatarUrl && !avatarImgFailed"
+                v-if="auth.user?.avatarUrl && !avatarImgFailed"
                 :src="auth.user.avatarUrl"
                 :alt="auth.user.displayName ?? 'Avatar'"
                 class="app-header__user-avatar-image"
                 @error="avatarImgFailed = true"
+              />
+              <img
+                v-else-if="equippedAvatar && (equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey))"
+                :src="equippedAvatar.imageUrl || avatarImageUrl(equippedAvatar.itemKey)"
+                :alt="equippedAvatar.name"
+                class="app-header__user-avatar-image"
               />
               <span v-else>{{ avatarInitial }}</span>
               <img

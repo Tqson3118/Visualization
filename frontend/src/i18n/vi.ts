@@ -1024,7 +1024,7 @@ export const messages = {
     reportKpiMembers: 'Thành viên',
     reportKpiCompletion: 'Hoàn thành',
     reportKpiAvgScore: 'Điểm TB',
-    reportKpiSubmissions: 'Bài nộp',
+    reportKpiSubmissions: 'Nội dung hoàn thành',
     reportKpiAssignments: 'Bài gán',
     reportColContent: 'Nội dung',
     reportColOnTime: 'Đúng hạn',

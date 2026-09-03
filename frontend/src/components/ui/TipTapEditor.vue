@@ -28,7 +28,7 @@
       <div class="flex items-center gap-0.5 px-2 border-r border-vdsa-border/60">
         <button
           type="button"
-          @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()"
+          @click="handleToggleHeading(1)"
           :class="{ 'bg-vdsa-accent/20 text-vdsa-accent-light font-bold': editor?.isActive('heading', { level: 1 }) }"
           class="px-2 py-1 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors font-bold"
           title="Tiêu đề 1 (H1)"
@@ -37,7 +37,7 @@
         </button>
         <button
           type="button"
-          @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()"
+          @click="handleToggleHeading(2)"
           :class="{ 'bg-vdsa-accent/20 text-vdsa-accent-light font-bold': editor?.isActive('heading', { level: 2 }) }"
           class="px-2 py-1 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors font-bold"
           title="Tiêu đề 2 (H2)"
@@ -46,7 +46,7 @@
         </button>
         <button
           type="button"
-          @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()"
+          @click="handleToggleHeading(3)"
           :class="{ 'bg-vdsa-accent/20 text-vdsa-accent-light font-bold': editor?.isActive('heading', { level: 3 }) }"
           class="px-2 py-1 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors font-bold"
           title="Tiêu đề 3 (H3)"
@@ -99,7 +99,7 @@
       <div class="flex items-center gap-0.5 px-2 border-r border-vdsa-border/60">
         <button
           type="button"
-          @click="editor?.chain().focus().toggleBulletList().run()"
+          @click="handleToggleBulletList"
           :class="{ 'bg-vdsa-accent/20 text-vdsa-accent-light': editor?.isActive('bulletList') }"
           class="p-1.5 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
           title="Danh sách gạch đầu dòng"
@@ -108,7 +108,7 @@
         </button>
         <button
           type="button"
-          @click="editor?.chain().focus().toggleOrderedList().run()"
+          @click="handleToggleOrderedList"
           :class="{ 'bg-vdsa-accent/20 text-vdsa-accent-light': editor?.isActive('orderedList') }"
           class="p-1.5 rounded-lg text-vdsa-muted hover:text-white hover:bg-vdsa-hover transition-colors"
           title="Danh sách đánh số"
@@ -163,79 +163,6 @@
         </button>
       </div>
 
-      <!-- Nhúng Mô phỏng Thuật toán (Visualizer) -->
-      <div class="flex items-center gap-1 px-2 border-r border-vdsa-border/60">
-        <div class="relative flex items-center">
-          <select
-            data-testid="tiptap-simulation-select"
-            class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#231e38] text-purple-200 border border-purple-500/40 hover:bg-purple-500/25 transition-colors cursor-pointer outline-none max-w-[190px] truncate shadow-sm"
-            @change="(e) => {
-              const target = e.target as HTMLSelectElement;
-              if (target.value) {
-                insertSimulation(target.value);
-                target.value = '';
-              }
-            }"
-          >
-            <option value="" disabled selected>🎮 Nhúng Mô phỏng...</option>
-            <optgroup label="📊 Sắp xếp (Sorting)">
-              <option value="sort.bubble">Sắp xếp nổi bọt (Bubble Sort)</option>
-              <option value="sort.selection">Sắp xếp chọn (Selection Sort)</option>
-              <option value="sort.insertion">Sắp xếp chèn (Insertion Sort)</option>
-              <option value="sort.merge">Sắp xếp trộn (Merge Sort)</option>
-              <option value="sort.quick">Sắp xếp nhanh (Quick Sort)</option>
-              <option value="sort.heap">Sắp xếp vun đống (Heap Sort)</option>
-            </optgroup>
-            <optgroup label="🔍 Tìm kiếm (Searching)">
-              <option value="search.linear">Tìm kiếm tuyến tính</option>
-              <option value="search.binary">Tìm kiếm nhị phân (Binary Search)</option>
-            </optgroup>
-            <optgroup label="🥞 Ngăn xếp & Hàng đợi (Stack / Queue)">
-              <option value="structure.stack">Ngăn xếp (Stack)</option>
-              <option value="stack.push">Stack — Push</option>
-              <option value="stack.pop">Stack — Pop</option>
-              <option value="structure.queue">Hàng đợi (Queue)</option>
-              <option value="queue.enqueue">Queue — Enqueue</option>
-              <option value="queue.dequeue">Queue — Dequeue</option>
-            </optgroup>
-            <optgroup label="🔗 Danh sách liên kết (Linked List)">
-              <option value="structure.linkedlist">Danh sách liên kết đơn</option>
-              <option value="list.insert">Linked List — Chèn</option>
-              <option value="list.delete">Linked List — Xóa</option>
-              <option value="list.search">Linked List — Tìm kiếm</option>
-            </optgroup>
-            <optgroup label="🌳 Cây & BST & AVL (Trees)">
-              <option value="structure.bst">Cây BST</option>
-              <option value="tree.bst-insert">BST — Chèn</option>
-              <option value="tree.bst-delete">BST — Xóa</option>
-              <option value="tree.bst-search">BST — Tìm kiếm</option>
-              <option value="tree.bst-inorder">BST — Duyệt Inorder</option>
-              <option value="tree.bst-preorder">BST — Duyệt Preorder</option>
-              <option value="tree.bst-postorder">BST — Duyệt Postorder</option>
-              <option value="tree.avl-insert">Cây AVL — Chèn & Xoay</option>
-            </optgroup>
-            <optgroup label="🏔️ Đống nhị phân (Heap)">
-              <option value="structure.heap">Đống nhị phân (Heap)</option>
-              <option value="heap.insert">Heap — Chèn (Bubble up)</option>
-              <option value="heap.extract">Heap — Trích xuất Max</option>
-              <option value="heap.heapify">Heap — Heapify</option>
-            </optgroup>
-            <optgroup label="🔑 Bảng băm (Hash Table)">
-              <option value="structure.hashtable">Bảng băm (Hash Table)</option>
-              <option value="hash.insert">Hash Table — Chèn</option>
-              <option value="hash.search">Hash Table — Tìm kiếm</option>
-              <option value="hash.delete">Hash Table — Xóa</option>
-            </optgroup>
-            <optgroup label="🕸️ Đồ thị (Graph)">
-              <option value="structure.graph">Đồ thị (Graph)</option>
-              <option value="graph.bfs">Đồ thị — Duyệt BFS</option>
-              <option value="graph.dfs">Đồ thị — Duyệt DFS</option>
-              <option value="graph.dijkstra">Đồ thị — Dijkstra ngắn nhất</option>
-            </optgroup>
-          </select>
-        </div>
-      </div>
-
       <!-- Table Controls (appears when cursor is inside a table) -->
       <div v-if="editor?.isActive('table')" class="flex items-center gap-0.5 px-2 border-r border-vdsa-border/60 bg-vdsa-surface/50 rounded-lg py-0.5">
         <button
@@ -279,33 +206,13 @@
           Xóa bảng
         </button>
       </div>
-
-      <!-- Mode switcher: WYSIWYG vs Raw Code -->
-      <div class="ml-auto flex items-center gap-1">
-        <button
-          type="button"
-          @click="showRawCode = !showRawCode"
-          :class="showRawCode ? 'bg-vdsa-purple/20 text-vdsa-purple-light' : 'text-vdsa-muted hover:text-white'"
-          class="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-vdsa-border/60 hover:bg-vdsa-hover transition-colors"
-        >
-          <FileText :size="13" />
-          <span>{{ showRawCode ? 'Xem Trực quan' : 'Xem mã' }}</span>
-        </button>
-      </div>
     </div>
 
     <!-- ═══ EDITOR BODY ═══ -->
     <div class="tiptap-content flex-1 p-5 min-h-[300px] overflow-y-auto custom-scrollbar">
-      <div v-show="!showRawCode" class="prose prose-invert max-w-none focus:outline-none min-h-[260px]">
+      <div class="prose prose-invert max-w-none focus:outline-none min-h-[260px]">
         <EditorContent :editor="editor" />
       </div>
-      <textarea
-        v-show="showRawCode"
-        :value="modelValue"
-        @input="onRawInput"
-        class="w-full h-full min-h-[260px] p-3 rounded-xl bg-vdsa-bg border border-vdsa-border font-mono text-xs text-white resize-none outline-none focus:border-vdsa-accent"
-        placeholder="Nhập mã HTML hoặc Markdown..."
-      ></textarea>
     </div>
 
     <!-- ═══ FOOTER STATS ═══ -->
@@ -443,13 +350,48 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void;
 }>();
 
-const showRawCode = ref(false);
 const showImageModal = ref(false);
 const imageTab = ref<'file' | 'url'>('file');
 const imageUrlInput = ref('');
 const imageFileInput = ref<HTMLInputElement | null>(null);
 const imageError = ref('');
 let isInternalUpdate = false;
+
+function handleToggleHeading(level: 1 | 2 | 3) {
+  if (!editor.value) return;
+  const ed = editor.value.chain().focus();
+  if (editor.value.isActive('bulletList')) {
+    ed.toggleBulletList();
+  }
+  if (editor.value.isActive('orderedList')) {
+    ed.toggleOrderedList();
+  }
+  ed.toggleHeading({ level }).run();
+}
+
+function handleToggleBulletList() {
+  if (!editor.value) return;
+  const ed = editor.value.chain().focus();
+  if (editor.value.isActive('orderedList')) {
+    ed.toggleOrderedList();
+  }
+  if (editor.value.isActive('heading')) {
+    ed.setParagraph();
+  }
+  ed.toggleBulletList().run();
+}
+
+function handleToggleOrderedList() {
+  if (!editor.value) return;
+  const ed = editor.value.chain().focus();
+  if (editor.value.isActive('bulletList')) {
+    ed.toggleBulletList();
+  }
+  if (editor.value.isActive('heading')) {
+    ed.setParagraph();
+  }
+  ed.toggleOrderedList().run();
+}
 
 const editor = useEditor({
   content: props.modelValue,
@@ -565,17 +507,6 @@ function insertUrlImage(): void {
   }
 }
 
-function onRawInput(event: Event): void {
-  const value = (event.target as HTMLTextAreaElement).value;
-  isInternalUpdate = true;
-  emit('update:modelValue', value);
-  if (editor.value) {
-    editor.value.commands.setContent(value, { emitUpdate: false });
-  }
-  queueMicrotask(() => {
-    isInternalUpdate = false;
-  });
-}
 
 const charCount = computed(() => {
   if (!editor.value) return 0;
@@ -603,6 +534,13 @@ onBeforeUnmount(() => {
 
 <style>
 /* TipTap Prose Custom Styling */
+.tiptap-content,
+.tiptap-content .prose,
+.tiptap-content .ProseMirror {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;

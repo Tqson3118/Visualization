@@ -449,13 +449,21 @@ public sealed class AuthService(
 
         if (request.AvatarUrl is not null)
         {
-            if (request.AvatarUrl.Length > 500)
+            var trimmed = request.AvatarUrl.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
             {
-                return Result<UserSummary>.Fail(ErrorCodes.VALIDATION_FAILED,
-                    "AvatarUrl không được vượt quá 500 ký tự", new() { ["avatarUrl"] = ["AvatarUrl không được vượt quá 500 ký tự"] });
+                user.AvatarUrl = null;
             }
+            else
+            {
+                if (trimmed.Length > 500)
+                {
+                    return Result<UserSummary>.Fail(ErrorCodes.VALIDATION_FAILED,
+                        "AvatarUrl không được vượt quá 500 ký tự", new() { ["avatarUrl"] = ["AvatarUrl không được vượt quá 500 ký tự"] });
+                }
 
-            user.AvatarUrl = request.AvatarUrl;
+                user.AvatarUrl = trimmed;
+            }
         }
 
         user.UpdatedAt = clock.UtcNow;
@@ -1434,7 +1442,7 @@ public sealed class AuthService(
         DisplayName = user.DisplayName,
         Email = maskEmail ? EmailMasker.Mask(user.Email) : user.Email,
         Role = RoleNames.ToApi(user.Role),
-        AvatarUrl = (user.AvatarUrl != null && user.AvatarUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)) ? "/assets/avatars/ai-bot.svg" : user.AvatarUrl,
+        AvatarUrl = user.AvatarUrl,
         CreatedAt = user.CreatedAt,
         Xp = user.Xp,
         Level = 1 + (int)Math.Floor(Math.Sqrt(user.Xp / 100.0)),

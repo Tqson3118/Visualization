@@ -8,7 +8,10 @@ export const EXERCISE_ENDPOINTS = {
   submit: (id: number) => `/exercises/${id}/submit`,
   practice: (id: number) => `/exercises/${id}/practice`,
   mySubmissions: (id: number) => `/exercises/${id}/submissions/me`,
+  submissions: (id: number) => `/exercises/${id}/submissions`,
   codeSubmit: (id: number) => `/exercises/${id}/code-submit`,
+  codeSubmissions: (id: number) => `/exercises/${id}/code-submissions`,
+  myCodeSubmissions: (id: number) => `/exercises/${id}/code-submissions/me`,
   create: '/exercises',
   update: (id: number) => `/exercises/${id}`,
   remove: (id: number) => `/exercises/${id}`,
@@ -94,6 +97,20 @@ export interface SubmissionSummaryDto {
   durationSeconds?: number | null;
   classAssignmentId?: number | null;
   submittedAt: string;
+  answersJson?: string | null;
+  resultJson?: string | null;
+}
+
+/** Dòng trong GET /exercises/{id}/code-submissions. */
+export interface CodeSubmissionSummaryDto {
+  id: number;
+  userId: number;
+  userDisplayName?: string | null;
+  code?: string | null;
+  score: number;
+  passedTests: number;
+  totalTests: number;
+  submittedAt: string;
 }
 
 // ── CRUD (API_REFERENCE §4.6) ──
@@ -138,6 +155,36 @@ export async function fetchMySubmissions(id: number, params: { page?: number; pa
   const paged = await getData<PagedResponse<SubmissionSummaryDto>>({
     method: 'GET',
     url: EXERCISE_ENDPOINTS.mySubmissions(id),
+    params,
+  });
+  return Array.isArray(paged.items) ? paged.items : [];
+}
+
+/** Giáo viên: Lịch sử nộp bài Quiz của cả lớp/bài tập — GET /exercises/{id}/submissions */
+export async function fetchExerciseSubmissions(id: number, params: { page?: number; pageSize?: number } = {}): Promise<SubmissionSummaryDto[]> {
+  const paged = await getData<PagedResponse<SubmissionSummaryDto>>({
+    method: 'GET',
+    url: EXERCISE_ENDPOINTS.submissions(id),
+    params,
+  });
+  return Array.isArray(paged.items) ? paged.items : [];
+}
+
+/** Giáo viên: Lịch sử nộp Code Lab của cả lớp — GET /exercises/{id}/code-submissions */
+export async function fetchExerciseCodeSubmissions(id: number, params: { page?: number; pageSize?: number } = {}): Promise<CodeSubmissionSummaryDto[]> {
+  const paged = await getData<PagedResponse<CodeSubmissionSummaryDto>>({
+    method: 'GET',
+    url: EXERCISE_ENDPOINTS.codeSubmissions(id),
+    params,
+  });
+  return Array.isArray(paged.items) ? paged.items : [];
+}
+
+/** Học viên: Lịch sử nộp Code Lab của tôi — GET /exercises/{id}/code-submissions/me */
+export async function fetchMyCodeSubmissions(id: number, params: { page?: number; pageSize?: number } = {}): Promise<CodeSubmissionSummaryDto[]> {
+  const paged = await getData<PagedResponse<CodeSubmissionSummaryDto>>({
+    method: 'GET',
+    url: EXERCISE_ENDPOINTS.myCodeSubmissions(id),
     params,
   });
   return Array.isArray(paged.items) ? paged.items : [];

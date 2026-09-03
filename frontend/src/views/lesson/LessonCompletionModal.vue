@@ -16,7 +16,7 @@
 
         <h3 class="text-2xl font-black text-white tracking-tight">Xuất Sắc!</h3>
         <p class="text-slate-300 mt-1.5 text-xs sm:text-sm leading-relaxed">
-          Bạn đã hoàn thành bài học và mở khóa nội dung tiếp theo trong lộ trình.
+          Bạn đã hoàn thành bài học.
         </p>
 
         <div class="my-5 p-4 rounded-2xl bg-[#1a182c] border border-purple-500/20 inline-flex flex-col items-center w-full shadow-inner">

@@ -20,6 +20,7 @@ public class TopicsController(
     private readonly ITopicService _service = service;
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<List<TopicDto>>> GetTree(CancellationToken ct)
     {
         var result = await _service.GetTreeAsync(ct);
@@ -27,6 +28,7 @@ public class TopicsController(
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<TopicDto>> GetTopic([FromRoute] int id, CancellationToken ct)
     {
         var result = await _service.GetByIdAsync(id, ct);

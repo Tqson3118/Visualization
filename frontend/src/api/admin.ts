@@ -82,6 +82,7 @@ export interface BugReportDto {
   userId: number | null;
   description: string;
   context: string | null;
+  category?: string;
   status: 'NEW' | 'PROCESSING' | 'RESOLVED' | 'CLOSED';
   adminNote: string | null;
   createdAt: string;

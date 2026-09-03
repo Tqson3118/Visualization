@@ -51,6 +51,7 @@ export interface CourseDetailDto {
   reviewedBy?: number | null;
   reviewedAt?: string | null;
   submittedAt?: string | null;
+  createdAt?: string;
   authorName?: string | null;
   createdBy?: number;
   authorId?: number | null;

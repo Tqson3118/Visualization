@@ -172,6 +172,11 @@ public class SeedDemoActivityTests
                 exercise = exercises.FirstOrDefault(e =>
                     e.NodeId == node.Id && e.Type == ExerciseType.Mcq);
             }
+            else if (node.LessonId == null && node.FinalTestId == null)
+            {
+                // Node luyện tập tổng hợp không gắn exercise riêng mà là node thực hành trực tiếp
+                continue;
+            }
 
             Assert.True(exercise is not null,
                 $"User {row.UserId} pass node '{node.Title}' (Id={node.Id}) nhưng không xác định được exercise gắn node");

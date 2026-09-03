@@ -129,10 +129,15 @@ export function parseMarkdownToHtml(markdown: string): string {
     return `<div class="overflow-x-auto my-4 not-prose"><table class="w-full border-collapse border border-vdsa-border rounded-xl text-left"><thead><tr>${headers}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
   });
 
-  // Step 4: Headings
+  // Step 4: Headings (Markdown # & raw HTML tags)
   html = html.replace(/^### (.*$)/gim, '<h3 class="text-base font-bold text-vdsa-purple-light mt-6 mb-2 flex items-center gap-2">$1</h3>');
   html = html.replace(/^## (.*$)/gim, '<h2 class="text-lg font-extrabold text-white mt-8 mb-3 pb-1 border-b border-vdsa-border/60 flex items-center gap-2">$1</h2>');
   html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black text-white mt-4 mb-4 pb-2 border-b border-vdsa-border/60">$1</h1>');
+
+  html = html.replace(/<h1(?![^>]*class=)>/gi, '<h1 class="text-2xl font-black text-white mt-4 mb-4 pb-2 border-b border-vdsa-border/60">');
+  html = html.replace(/<h2(?![^>]*class=)>/gi, '<h2 class="text-lg font-extrabold text-white mt-8 mb-3 pb-1 border-b border-vdsa-border/60 flex items-center gap-2">');
+  html = html.replace(/<h3(?![^>]*class=)>/gi, '<h3 class="text-base font-bold text-vdsa-purple-light mt-6 mb-2 flex items-center gap-2">');
+  html = html.replace(/<h4(?![^>]*class=)>/gi, '<h4 class="text-sm font-bold text-slate-200 mt-4 mb-1">');
 
   // Step 5: Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="bg-[#1a1826] text-vdsa-purple-light px-1.5 py-0.5 rounded font-mono text-xs border border-vdsa-border/60 font-semibold">$1</code>');

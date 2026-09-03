@@ -79,7 +79,13 @@ export function setCustomShopAsset(key: string, url: string): void {
 }
 
 export function avatarImageUrl(itemKey: string, fallbackUrl?: string | null): string {
-  if (fallbackUrl && fallbackUrl.trim()) return fallbackUrl.trim();
+  if (fallbackUrl && fallbackUrl.trim()) {
+    let url = fallbackUrl.trim();
+    if (url.startsWith('/assets/avatars/') && url.endsWith('.png')) {
+      url = url.replace('.png', '.svg');
+    }
+    return url;
+  }
   if (!itemKey) return '';
   const normKey = itemKey.toLowerCase().trim();
 

@@ -101,6 +101,7 @@ builder.Services.AddApiVersioning(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 // CORS — policy "frontend" (SDD §5.8 bước 3)
 var allowedOrigins = builder.Configuration.GetSection("DSA:Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -433,6 +434,8 @@ using (var startupScope = app.Services.CreateScope())
             Log.Information("Teacher demo data and courses verified.");
             await SeedRunner.CleanModulePrefixesAsync(startupDb, startupLogger);
             Log.Information("Module name prefixes sanitized.");
+            await SeedRunner.ReconcileSequentialNodeProgressAsync(startupDb, startupLogger);
+            Log.Information("Sequential node progress reconciled and verified.");
         }
         catch (Exception ex)
         {

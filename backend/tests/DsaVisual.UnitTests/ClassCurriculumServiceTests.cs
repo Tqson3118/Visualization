@@ -202,4 +202,106 @@ public sealed class ClassCurriculumServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCodes.FORBIDDEN, result.ErrorCode);
     }
+
+    [Fact]
+    public async Task GetCurriculum_LearningPath_ReturnsConfiguredXpReward()
+    {
+        var (service, db, teacher, student) = await SetupAsync(nameof(GetCurriculum_LearningPath_ReturnsConfiguredXpReward));
+
+        var path = new LearningPath
+        {
+            Id = 100,
+            Title = "Path DSA",
+            CreatedBy = teacher,
+            TopicId = 1,
+            Status = LearningPathStatus.Active
+        };
+        db.LearningPaths.Add(path);
+
+        var nodeFolder = new LearningPathNode { Id = 101, PathId = 100, ItemType = PathItemType.Folder, Title = "Chương 1", SortOrder = 1 };
+        var nodeTheory = new LearningPathNode { Id = 102, PathId = 100, ParentId = 101, ItemType = PathItemType.Theory, Title = "Bài 1", SortOrder = 2, LessonId = 1 };
+        var nodeQuiz = new LearningPathNode { Id = 103, PathId = 100, ParentId = 101, ItemType = PathItemType.Quiz, Title = "Quiz 1", SortOrder = 3, FinalTestId = 1 };
+        var nodeLab = new LearningPathNode { Id = 104, PathId = 100, ParentId = 101, ItemType = PathItemType.Lab, Title = "Lab 1", SortOrder = 4, LabExerciseId = 2 };
+        db.LearningPathNodes.AddRange(nodeFolder, nodeTheory, nodeQuiz, nodeLab);
+
+        var classRoom = await db.Classes.FirstAsync(c => c.Id == 1);
+        classRoom.LearningPathId = 100;
+        classRoom.CurriculumPublished = true;
+        db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = student, JoinedAt = _clock.UtcNow });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetCurriculumAsync(student, RoleNames.Student, 1, CancellationToken.None);
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Single(result.Value!.Items);
+        var folder = result.Value.Items[0];
+        Assert.Equal(0, folder.XpReward);
+        Assert.Equal(3, folder.Children.Count);
+
+        var theoryItem = folder.Children.First(c => c.PathItemId == 102);
+        Assert.Equal(50, theoryItem.XpReward);
+
+        var quizItem = folder.Children.First(c => c.PathItemId == 103);
+        Assert.Equal(50, quizItem.XpReward);
+
+        var labItem = folder.Children.First(c => c.PathItemId == 104);
+        Assert.Equal(100, labItem.XpReward);
+    }
+
+    [Fact]
+    public async Task GetReport_HierarchicalSort_And_LaggingLearnerSingleMissing()
+    {
+        var (service, db, teacher, student) = await SetupAsync(nameof(GetReport_HierarchicalSort_And_LaggingLearnerSingleMissing));
+
+        var path = new LearningPath
+        {
+            Id = 200,
+            Title = "Path Multi-Chapter",
+            CreatedBy = teacher,
+            TopicId = 1,
+            Status = LearningPathStatus.Active
+        };
+        db.LearningPaths.Add(path);
+
+        // Chương 1 (SortOrder 1) có Bài 1.1 (SortOrder 1)
+        var chap1 = new LearningPathNode { Id = 201, PathId = 200, ItemType = PathItemType.Folder, Title = "Chương 1", SortOrder = 1 };
+        var les1 = new LearningPathNode { Id = 202, PathId = 200, ParentId = 201, ItemType = PathItemType.Theory, Title = "Bài 1.1", SortOrder = 1, LessonId = 1 };
+
+        // Chương 2 (SortOrder 2) có Bài 2.1 (SortOrder 1)
+        var chap2 = new LearningPathNode { Id = 203, PathId = 200, ItemType = PathItemType.Folder, Title = "Chương 2", SortOrder = 2 };
+        var les2 = new LearningPathNode { Id = 204, PathId = 200, ParentId = 203, ItemType = PathItemType.Theory, Title = "Bài 2.1", SortOrder = 1 };
+
+        db.LearningPathNodes.AddRange(chap1, les1, chap2, les2);
+
+        var classRoom = await db.Classes.FirstAsync(c => c.Id == 1);
+        classRoom.LearningPathId = 200;
+        classRoom.CurriculumPublished = true;
+        db.ClassMembers.Add(new ClassMember { ClassId = 1, UserId = student, JoinedAt = _clock.UtcNow });
+
+        // Bài 1.1 có deadline trong quá khứ (đã quá hạn)
+        db.ClassAssignments.Add(new ClassAssignment
+        {
+            ClassId = 1,
+            PathItemId = 202,
+            DueAt = _clock.UtcNow.AddHours(-2),
+            AllowLateSubmission = true
+        });
+
+        await db.SaveChangesAsync();
+
+        var result = await service.GetReportAsync(teacher, RoleNames.Teacher, 1, CancellationToken.None);
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        var report = result.Value!;
+
+        // 1. Kiểm tra sắp xếp theo thứ tự phân cấp cây (Chương 1 trước rồi tới Chương 2)
+        Assert.Equal(2, report.Assignments.Count);
+        Assert.Equal("Bài 1.1", report.Assignments[0].Title);
+        Assert.Equal("Chương 1", report.Assignments[0].ModuleName);
+        Assert.Equal("Bài 2.1", report.Assignments[1].Title);
+        Assert.Equal("Chương 2", report.Assignments[1].ModuleName);
+
+        // 2. Học viên chưa học Bài 1.1 (quá hạn) -> Phải hiển thị trong LaggingLearners dù chỉ thiếu 1 bài
+        Assert.Single(report.LaggingLearners);
+        Assert.Equal(student, report.LaggingLearners[0].UserId);
+        Assert.Equal(1, report.LaggingLearners[0].MissingCount);
+    }
 }

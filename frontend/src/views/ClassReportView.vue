@@ -9,11 +9,11 @@
 //    block lagging learners (dữ liệu thật, block-token + index mono).
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Check, Download, Printer } from 'lucide-vue-next';
+import { Check, Download, Printer, Eye, Folder } from 'lucide-vue-next';
 
 import * as classesApi from '@/api/classes';
 import * as XLSX from 'xlsx';
-import type { ClassReportAssignmentDto, ClassReportDto } from '@/api/types';
+import type { ClassMemberDto, ClassReportAssignmentDto, ClassReportDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
 import { formatDate, formatNumber } from '@/utils/format';
 import { messages } from '@/i18n/vi';
@@ -23,6 +23,7 @@ import Skeleton from '@/components/ui/Skeleton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import Card from '@/components/ui/Card.vue';
+import ClassAssignmentSubmissionsModal from './ClassAssignmentSubmissionsModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -32,6 +33,15 @@ const classId = computed(() => Number(route.params.id));
 const report = ref<ClassReportDto | null>(null);
 const loading = ref(true);
 const exporting = ref(false);
+const isSubmissionsModalOpen = ref(false);
+const selectedAssignment = ref<ClassReportAssignmentDto | null>(null);
+
+function openAssignmentSubmissions(assign: ClassReportAssignmentDto): void {
+  const type = getItemType(assign);
+  if (type !== 'quiz' && type !== 'code') return;
+  selectedAssignment.value = assign;
+  isSubmissionsModalOpen.value = true;
+}
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
@@ -85,10 +95,9 @@ function assignmentStatus(assign: ClassReportAssignmentDto): { label: string; va
   const total = report.value?.totalMembers ?? 0;
   if (total === 0) return { label: 'Chưa có học viên', variant: 'muted' };
   const done = assign.onTime + assign.late;
-  if (done === 0) return { label: messages.classes.statusNotStarted, variant: 'muted' };
-  if (assign.late > 0) return { label: messages.classes.statusLate, variant: 'warning' };
-  if (done >= total) return { label: messages.classes.statusCompleted, variant: 'success' };
-  return { label: 'Đang tiến hành', variant: 'muted' };
+  if (done >= total && total > 0) return { label: 'Đã hoàn thành', variant: 'success' };
+  if (assign.late > 0) return { label: 'Có nộp muộn', variant: 'warning' };
+  return { label: 'Đang diễn ra', variant: 'muted' };
 }
 
 onMounted(load);
@@ -113,26 +122,192 @@ async function exportXlsx(): Promise<void> {
     }
     const r = report.value;
 
-    // Sheet 1: Bài gán
-    const asgHeader = ['#', 'Tên bài', 'Loại', 'Đúng hạn', 'Trễ', 'Chưa nộp', 'Điểm TB', 'Hạn nộp'];
-    const asgRows = r.assignments.map((a, i) => [
-      i + 1,
-      a.title,
-      a.itemType || 'theory',
-      a.onTime,
-      a.late,
-      a.notSubmitted,
-      a.avgScore > 0 ? Number(a.avgScore.toFixed(1)) : 0,
-      a.dueAt ? new Date(a.dueAt).toLocaleDateString('vi-VN') : '—'
-    ]);
+    // Lấy thêm danh sách thành viên lớp để bổ sung thông tin chi tiết học viên
+    let members: ClassMemberDto[] = [];
+    try {
+      members = await classesApi.fetchClassMembers(classId.value);
+    } catch {
+      // Bỏ qua nếu không tải được danh sách thành viên (fallback an toàn)
+    }
 
-    // Sheet 2: Chậm tiến độ
-    const lagHeader = ['#', 'Học viên', 'Bài còn thiếu'];
-    const lagRows = r.laggingLearners.map((l, i) => [i + 1, l.displayName, l.missingCount]);
+    const memberEmailByName = new Map<string, string>();
+    for (const m of members) {
+      if (m.displayName) {
+        memberEmailByName.set(m.displayName.trim().toLowerCase(), m.email);
+      }
+    }
+
+    const laggingMap = new Map<number, number>();
+    for (const l of r.laggingLearners) {
+      laggingMap.set(l.userId, l.missingCount);
+    }
+
+    // Sheet 1 (Mở file ra thấy ngay): Báo cáo tổng hợp — Gồm thông tin lớp ở trên và bảng bài gán chi tiết ở dưới
+    const asgHeader = [
+      '#',
+      'Chương / Module',
+      'Tên bài gán',
+      'Phân loại',
+      'Hạn nộp',
+      'Trạng thái bài',
+      'Tổng học viên',
+      'Đúng hạn',
+      'Nộp muộn',
+      'Chưa hoàn thành',
+      'Tỷ lệ hoàn thành',
+      'Kết quả / Đánh giá',
+      'Điểm TB'
+    ];
+
+    const asgRows = r.assignments.map((a, i) => {
+      const st = assignmentStatus(a);
+      const typeMeta = getItemTypeMeta(a);
+      const total = r.totalMembers;
+      const done = a.onTime + a.late;
+      const pct = total > 0 ? `${Math.round((done / total) * 100)}%` : '0%';
+
+      let evalText = '—';
+      if (typeMeta.label === 'Quiz' || typeMeta.label === 'Code Lab') {
+        evalText = a.avgScore > 0 ? `${a.avgScore.toFixed(1)}/10` : 'Chưa có điểm';
+      } else {
+        evalText = total > 0 ? `Đã học: ${done}/${total}` : 'Chưa có học viên';
+      }
+
+      return [
+        i + 1,
+        a.moduleName || '—',
+        a.title,
+        typeMeta.label,
+        a.dueAt ? new Date(a.dueAt).toLocaleDateString('vi-VN') : 'Không giới hạn',
+        st.label,
+        total,
+        a.onTime,
+        a.late,
+        a.notSubmitted,
+        pct,
+        evalText,
+        a.avgScore > 0 ? Number(a.avgScore.toFixed(1)) : 0
+      ];
+    });
+
+    const mainSheetRows = [
+      ['BÁO CÁO TIẾN ĐỘ LỚP HỌC: ' + (r.className || '—').toUpperCase()],
+      ['Tên lớp học:', r.className || '—', '', 'Mã lớp (ID):', String(classId.value)],
+      ['Tổng số học viên:', r.totalMembers, '', 'Tổng số bài gán:', r.assignments.length],
+      ['Lượt đã hoàn thành:', `${totals.value.submitted} / ${totals.value.expected} (${totals.value.pct}%)`, '', 'Điểm TB Quiz:', quizAvgScore.value],
+      ['Học viên chậm tiến độ:', r.laggingLearners.length, '', 'Thời gian xuất:', new Date().toLocaleString('vi-VN')],
+      [],
+      ['DANH SÁCH BÀI GÁN VÀ KẾT QUẢ TIẾN ĐỘ CHI TIẾT'],
+      asgHeader,
+      ...asgRows
+    ];
+
+    // Sheet 2: Danh sách học viên chậm tiến độ
+    const lagHeader = ['#', 'Mã lớp', 'Tên lớp', 'Tên học viên', 'Email liên hệ', 'Số bài quá hạn chưa nộp', 'Tình trạng'];
+    const lagRows = r.laggingLearners.length > 0
+      ? r.laggingLearners.map((l, i) => {
+          const email = memberEmailByName.get((l.displayName || '').trim().toLowerCase()) || '—';
+          return [
+            i + 1,
+            String(classId.value),
+            r.className || '—',
+            l.displayName,
+            email,
+            l.missingCount,
+            'Chậm tiến độ (Cần nhắc nhở)'
+          ];
+        })
+      : [
+          [
+            1,
+            String(classId.value),
+            r.className || '—',
+            r.totalMembers === 0 ? 'Chưa có học viên tham gia lớp' : 'Tất cả học viên đều hoàn thành đúng hạn',
+            '—',
+            0,
+            'Đúng tiến độ'
+          ]
+        ];
+
+    // Sheet 3: Danh sách học viên trong lớp & Tình trạng tiến độ
+    const memHeader = ['#', 'Mã lớp', 'Tên lớp', 'Mã học viên (ID)', 'Họ và tên', 'Email', 'Ngày tham gia', 'Trạng thái tiến độ'];
+    const memRows = members.map((m, i) => {
+      const missing = laggingMap.get(m.userId) ?? 0;
+      const statusStr = missing > 0 ? `Chậm tiến độ (Thiếu ${missing} bài quá hạn)` : 'Đúng hạn / Đang theo kịp';
+      return [
+        i + 1,
+        String(classId.value),
+        r.className || '—',
+        m.userId,
+        m.displayName,
+        m.email,
+        m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('vi-VN') : '—',
+        statusStr
+      ];
+    });
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([asgHeader, ...asgRows]), 'Bài gán');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([lagHeader, ...lagRows]), 'Chậm tiến độ');
+
+    // 1. Sheet đầu tiên luôn là Báo cáo lớp (mở file ra là thấy ngay đầy đủ số liệu và danh sách bài học)
+    const ws1 = XLSX.utils.aoa_to_sheet(mainSheetRows);
+    ws1['!cols'] = [
+      { wch: 6 },  // #
+      { wch: 24 }, // Chương / Module
+      { wch: 34 }, // Tên bài gán
+      { wch: 14 }, // Phân loại
+      { wch: 16 }, // Hạn nộp
+      { wch: 18 }, // Trạng thái bài
+      { wch: 14 }, // Tổng học viên
+      { wch: 12 }, // Đúng hạn
+      { wch: 12 }, // Nộp muộn
+      { wch: 16 }, // Chưa hoàn thành
+      { wch: 18 }, // Tỷ lệ hoàn thành
+      { wch: 22 }, // Kết quả / Đánh giá
+      { wch: 12 }, // Điểm TB
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Báo cáo lớp');
+
+    // 2. Sheet thứ 2: Chậm tiến độ
+    const ws2 = XLSX.utils.aoa_to_sheet([
+      ['DANH SÁCH HỌC VIÊN CHẬM TIẾN ĐỘ'],
+      ['Lớp:', r.className || '—', 'Mã lớp (ID):', String(classId.value)],
+      [],
+      lagHeader,
+      ...lagRows
+    ]);
+    ws2['!cols'] = [
+      { wch: 5 },  // #
+      { wch: 10 }, // Mã lớp
+      { wch: 20 }, // Tên lớp
+      { wch: 26 }, // Tên học viên
+      { wch: 28 }, // Email
+      { wch: 24 }, // Số bài quá hạn
+      { wch: 28 }, // Tình trạng
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Chậm tiến độ');
+
+    // 3. Sheet thứ 3: Danh sách toàn bộ học viên
+    if (memRows.length > 0) {
+      const ws3 = XLSX.utils.aoa_to_sheet([
+        ['DANH SÁCH TOÀN BỘ HỌC VIÊN TRONG LỚP'],
+        ['Lớp:', r.className || '—', 'Mã lớp (ID):', String(classId.value)],
+        [],
+        memHeader,
+        ...memRows
+      ]);
+      ws3['!cols'] = [
+        { wch: 5 },  // #
+        { wch: 10 }, // Mã lớp
+        { wch: 20 }, // Tên lớp
+        { wch: 16 }, // Mã học viên
+        { wch: 26 }, // Họ và tên
+        { wch: 28 }, // Email
+        { wch: 16 }, // Ngày tham gia
+        { wch: 32 }, // Trạng thái tiến độ
+      ];
+      XLSX.utils.book_append_sheet(wb, ws3, 'Học viên');
+    }
+
     XLSX.writeFile(wb, `bao-cao-lop-${classId.value}.xlsx`);
     ui.showToast('Đã xuất báo cáo Excel thành công!', 'success');
   } catch (err) {
@@ -226,7 +401,7 @@ function printReport(): void {
           :variant="totals.pct >= 100 ? 'success' : 'default'"
         />
         <p class="class-report__summary-mono">
-          {{ pad(totals.submitted) }} / {{ pad(totals.expected) }} BÀI NỘP
+          {{ pad(totals.submitted) }} / {{ pad(totals.expected) }} NỘI DUNG CẦN HOÀN THÀNH
         </p>
       </Card>
 
@@ -245,16 +420,25 @@ function printReport(): void {
                   <th scope="col">Chưa hoàn thành</th>
                   <th scope="col">Kết quả / Đánh giá</th>
                   <th scope="col">{{ messages.classes.reportColStatus }}</th>
+                  <th scope="col" class="text-center">Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="(assign, i) in report.assignments"
                   :key="assign.assignmentId"
-                  class="hover:bg-muted/50"
+                  class="transition-colors"
+                  :class="getItemType(assign) === 'quiz' || getItemType(assign) === 'code' ? 'hover:bg-muted/70 cursor-pointer' : 'hover:bg-muted/40'"
+                  @click="openAssignmentSubmissions(assign)"
                 >
                   <td class="class-report__num" data-label="#">#{{ pad(i + 1) }}</td>
                   <td :data-label="messages.classes.reportColContent">
+                    <div v-if="assign.moduleName" class="flex items-center gap-1.5 mb-1">
+                      <span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                        <Folder :size="10" />
+                        {{ assign.moduleName }}
+                      </span>
+                    </div>
                     <p class="class-report__assign-title">{{ assign.title }}</p>
                     <p class="class-report__assign-due">
                       {{ assign.dueAt ? messages.classes.detailDue(formatDate(assign.dueAt)) : messages.classes.detailDueNone }}
@@ -291,6 +475,19 @@ function printReport(): void {
                       {{ assignmentStatus(assign).label }}
                     </Badge>
                   </td>
+                  <td data-label="Chi tiết" class="text-center" @click.stop>
+                    <Button
+                      v-if="getItemType(assign) === 'quiz' || getItemType(assign) === 'code'"
+                      size="sm"
+                      variant="secondary"
+                      class="text-xs h-7 px-2.5 gap-1.5 hover:bg-accent hover:text-white"
+                      @click="openAssignmentSubmissions(assign)"
+                    >
+                      <Eye :size="13" />
+                      <span>Xem bài nộp</span>
+                    </Button>
+                    <span v-else class="text-muted-foreground text-xs">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -309,9 +506,12 @@ function printReport(): void {
       <!-- Học viên chậm tiến độ: block-token tối + index mono (quyết định #4/#5) -->
       <Card :padded="false" class="class-report__lagging">
         <h2 class="class-report__lagging-title">{{ messages.classes.reportLaggingTitle }}</h2>
-        <div v-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
+        <div v-if="report.totalMembers === 0" class="class-report__lagging-empty">
+          <span class="class-report__lagging-empty-text text-muted-foreground">Chưa có học viên tham gia lớp học</span>
+        </div>
+        <div v-else-if="report.laggingLearners.length === 0" class="class-report__lagging-empty">
           <Check :size="14" class="text-resolved" aria-hidden="true" />
-          <span class="class-report__lagging-empty-text">{{ messages.classes.reportLaggingEmpty }}</span>
+          <span class="class-report__lagging-empty-text">Không có học viên chậm tiến độ</span>
         </div>
         <ul v-else class="class-report__lagging-list">
           <li v-for="(learner, i) in report.laggingLearners" :key="learner.userId" class="class-report__lagging-row">
@@ -322,6 +522,14 @@ function printReport(): void {
         </ul>
       </Card>
     </template>
+
+    <!-- Modal chi tiết bài nộp Quiz & Code Lab của lớp -->
+    <ClassAssignmentSubmissionsModal
+      :is-open="isSubmissionsModalOpen"
+      :class-id="classId"
+      :assignment="selectedAssignment"
+      @close="isSubmissionsModalOpen = false"
+    />
   </main>
 </template>
 

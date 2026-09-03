@@ -21,6 +21,7 @@ import {
 
 import { courseApi, type CourseListDto, type CourseDetailDto } from '@/services/courseApi';
 import { fetchPathTree, fetchItemDetail, type PathItemDto, normalizeItemType } from '@/api/pathItems';
+import { fetchTopics, type Topic } from '@/api/lessons';
 import { useUiStore } from '@/stores/ui';
 import { formatDate } from '@/utils/format';
 import { normalizeVi } from '@/utils/searchNormalize';
@@ -40,6 +41,7 @@ function openDirectCurriculum(course: CourseListDto): void {
 }
 
 const pendingCourses = ref<CourseListDto[]>([]);
+const moderationTopics = ref<Topic[]>([]);
 const loading = ref(true);
 const searchQuery = ref('');
 const categoryFilter = ref('');
@@ -82,7 +84,12 @@ onMounted(loadPendingCourses);
 async function loadPendingCourses(): Promise<void> {
   loading.value = true;
   try {
-    pendingCourses.value = await courseApi.getPendingCourses();
+    const [courses, topics] = await Promise.all([
+      courseApi.getPendingCourses(),
+      fetchTopics().catch(() => [] as Topic[]),
+    ]);
+    pendingCourses.value = courses;
+    moderationTopics.value = topics.filter((t) => !t.name.startsWith('Module '));
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể tải danh sách lộ trình chờ duyệt.', 'error');
     pendingCourses.value = [];
@@ -94,7 +101,7 @@ async function loadPendingCourses(): Promise<void> {
 const filteredCourses = computed(() => {
   let list = pendingCourses.value;
   if (categoryFilter.value) {
-    list = list.filter((c) => c.category === categoryFilter.value);
+    list = list.filter((c) => c.topicName === categoryFilter.value || c.category === categoryFilter.value);
   }
   if (searchQuery.value.trim()) {
     const q = normalizeVi(searchQuery.value);
@@ -241,12 +248,8 @@ async function openNodeDetail(item: PathItemDto): Promise<void> {
         v-model="categoryFilter"
         class="px-3 py-2 text-xs font-bold bg-[#131120] border border-[#27253b] rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 cursor-pointer shrink-0"
       >
-        <option value="">Tất cả danh mục</option>
-        <option value="Cấu trúc dữ liệu">Cấu trúc dữ liệu</option>
-        <option value="Giải thuật">Giải thuật</option>
-        <option value="Sắp xếp & Tìm kiếm">Sắp xếp & Tìm kiếm</option>
-        <option value="Cây & Bảng băm">Cây & Bảng băm</option>
-        <option value="Đồ thị">Đồ thị</option>
+        <option value="">Tất cả chủ đề{{ moderationTopics.length ? ` (${moderationTopics.length})` : '' }}</option>
+        <option v-for="t in moderationTopics" :key="t.id" :value="t.name">{{ t.name }}</option>
       </select>
     </div>
 
@@ -302,7 +305,7 @@ async function openNodeDetail(item: PathItemDto): Promise<void> {
               </div>
               <div class="text-[11px] text-slate-500 flex items-center gap-1.5 justify-end">
                 <Clock :size="12" />
-                <span>{{ course.submittedAt ? formatDate(course.submittedAt) : 'Vừa gửi' }}</span>
+                <span>{{ course.submittedAt ? formatDate(course.submittedAt) : ((course as any).createdAt ? formatDate((course as any).createdAt) : 'Vừa gửi') }}</span>
               </div>
             </div>
 

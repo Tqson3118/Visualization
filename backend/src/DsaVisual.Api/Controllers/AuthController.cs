@@ -174,8 +174,21 @@ public class AuthController(
     public async Task<ActionResult<object>> UploadAvatar(
         [FromBody] UploadAvatarRequest request,
         [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        [FromServices] IGamificationService gamificationService,
+        [FromServices] DsaVisual.Application.Persistence.AppDbContext db,
         CancellationToken ct)
     {
+        var role = TryGetCurrentRole();
+        if (role != "ADMIN" && role != "TEACHER")
+        {
+            var userId = CurrentUserId();
+            var premiumResult = await gamificationService.GetPremiumStatusAsync(userId, ct);
+            if (!premiumResult.IsSuccess || !premiumResult.Value.IsPremium)
+            {
+                return StatusCode(403, new { error = "Tính năng tải ảnh đại diện từ thiết bị chỉ dành cho tài khoản Premium." });
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(request.Image))
         {
             return BadRequest(new { error = "Dữ liệu ảnh không được để trống" });
@@ -200,7 +213,7 @@ public class AuthController(
                 return BadRequest(new { error = "Kích thước ảnh không được vượt quá 3MB" });
             }
 
-            var webRoot = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
             var uploadDir = Path.Combine(webRoot, "uploads", "avatars");
             Directory.CreateDirectory(uploadDir);
 
@@ -213,6 +226,26 @@ public class AuthController(
             if (!updateResult.IsSuccess)
             {
                 return MapResultExtensions.MapResult(this, updateResult);
+            }
+
+            // Gỡ toàn bộ avatar đang trang bị trong UserInventory để tránh xung đột
+            var uid = CurrentUserId();
+            var equippedAvatars = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                db.UserInventory
+                    .Where(i => i.UserId == uid && i.IsEquipped)
+                    .Join(db.ShopItems.Where(s => s.Type == 1 || s.ItemKey.StartsWith("avatar")),
+                        inv => inv.ItemId,
+                        shop => shop.Id,
+                        (inv, shop) => inv),
+                ct);
+
+            if (equippedAvatars.Count > 0)
+            {
+                foreach (var eq in equippedAvatars)
+                {
+                    eq.IsEquipped = false;
+                }
+                await db.SaveChangesAsync(ct);
             }
 
             return Ok(new { url = avatarUrl, user = updateResult.Value });

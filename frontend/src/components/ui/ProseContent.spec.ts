@@ -69,4 +69,11 @@ describe('ProseContent', () => {
     const out = html('So sánh a < b và c > d');
     expect(out).toBe('<p>So sánh a &lt; b và c &gt; d</p>');
   });
+
+  it('render chính xác khi truyền prop html (:html="...")', () => {
+    const wrapper = mount(ProseContent, { props: { html: '<h1>Tiêu đề bài học</h1><p>Nội dung lý thuyết</p>' } });
+    const el = wrapper.element as HTMLElement;
+    expect(el.querySelector('h1')?.textContent).toBe('Tiêu đề bài học');
+    expect(el.querySelector('p')?.textContent).toBe('Nội dung lý thuyết');
+  });
 });

@@ -379,6 +379,7 @@ function onRowClick(): void {
       <div class="absolute right-2 -top-1 w-52 max-h-56 overflow-y-auto bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-[70]">
         <p class="px-2.5 pt-1 pb-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Di chuyển đến…</p>
         <button
+          v-if="isFolder"
           type="button"
           role="menuitem"
           class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-white/5 text-left cursor-pointer"
@@ -405,18 +406,12 @@ function onRowClick(): void {
       </div>
     </div>
 
-    <!-- Menu: thêm mục con -->
+    <!-- Menu: thêm mục con vào chương -->
     <div v-else-if="menuOpen && mode === 'add'" class="relative z-[70] ml-auto w-fit" role="menu" aria-label="Thêm mục con">
       <div class="absolute right-2 -top-1 w-48 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-[70]">
-        <button
-          type="button"
-          role="menuitem"
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-300 hover:bg-amber-500/10 text-left cursor-pointer"
-          :data-testid="'node-add-folder-' + item.id"
-          @click="quickAdd('folder')"
-        >
-          <Folder class="w-3.5 h-3.5" /> Chương con
-        </button>
+        <div class="px-2 py-0.5 text-[10px] font-bold text-slate-400 border-b border-[#2e2c44]/80">
+          Thêm vào chương:
+        </div>
         <button
           type="button"
           role="menuitem"

@@ -14,7 +14,10 @@ public sealed class ClassReportDto
 public sealed class ClassReportAssignmentDto
 {
     public int AssignmentId { get; set; }
+    public int? ExerciseId { get; set; }
+    public int? LessonId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? ModuleName { get; set; }
     public DateTime? DueAt { get; set; }
     public int OnTime { get; set; }
     public int Late { get; set; }

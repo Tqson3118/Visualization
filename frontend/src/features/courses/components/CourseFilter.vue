@@ -80,10 +80,8 @@
         v-for="diff in difficulties"
         :key="diff"
         @click="$emit('update:difficulty', diff)"
-        class="px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap"
-        :class="selectedDifficulty === diff
-          ? 'bg-vdsa-accent text-white shadow-md shadow-vdsa-accent/30 border border-vdsa-accent/50'
-          : 'bg-vdsa-bg-secondary text-vdsa-muted hover:text-white border border-vdsa-border-subtle hover:border-vdsa-border hover:bg-vdsa-surface'"
+        class="px-3 py-2 rounded-lg text-xs transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap"
+        :class="getDifficultyClass(diff, selectedDifficulty === diff)"
       >
         {{ diff === 'All' ? 'Tất cả' : (diff === 'Easy' || diff === 'Beginner' || diff === 'Cơ bản' || diff === 'Dễ' ? 'Cơ bản' : (diff === 'Medium' || diff === 'Intermediate' || diff === 'Trung cấp' || diff === 'Trung bình' ? 'Trung cấp' : 'Nâng cao')) }}
       </button>
@@ -124,6 +122,23 @@ onClickOutside(topicDropdownRef, () => {
 function handleSelectTopic(topic: string) {
   emit('update:topic', topic);
   isTopicOpen.value = false;
+}
+
+function getDifficultyClass(diff: string, isSelected: boolean): string {
+  if (!isSelected) {
+    return 'bg-vdsa-bg-secondary text-slate-400 font-medium hover:text-white border border-vdsa-border-subtle hover:border-slate-700 hover:bg-vdsa-surface';
+  }
+  const d = diff.toLowerCase();
+  if (d === 'all') {
+    return 'bg-purple-600 text-white font-black border-purple-400 shadow-md shadow-purple-600/30 ring-1 ring-purple-400/50 scale-105';
+  }
+  if (d === 'easy' || d === 'beginner' || d === 'cơ bản' || d === 'dễ') {
+    return 'bg-emerald-600 text-white font-black border-emerald-400 shadow-md shadow-emerald-600/30 ring-1 ring-emerald-400/50 scale-105';
+  }
+  if (d === 'medium' || d === 'intermediate' || d === 'trung cấp' || d === 'trung bình') {
+    return 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-md shadow-amber-500/30 ring-1 ring-amber-300/50 scale-105';
+  }
+  return 'bg-rose-600 text-white font-black border-rose-400 shadow-md shadow-rose-600/30 ring-1 ring-rose-400/50 scale-105';
 }
 </script>
 

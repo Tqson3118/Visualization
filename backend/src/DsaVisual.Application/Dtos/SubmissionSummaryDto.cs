@@ -10,4 +10,6 @@ public sealed class SubmissionSummaryDto
     public int? DurationSeconds { get; set; }
     public int? ClassAssignmentId { get; set; }
     public DateTime SubmittedAt { get; set; }
+    public string? AnswersJson { get; set; }
+    public string? ResultJson { get; set; }
 }

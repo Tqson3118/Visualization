@@ -245,6 +245,7 @@ public sealed class PathItemService(
                 db.Exercises.Add(createdExercise);
                 await db.SaveChangesAsync(ct);
 
+                node.LessonId = quizContainerLesson.Id;
                 node.FinalTestId = createdExercise.Id;
                 break;
 
@@ -277,12 +278,19 @@ public sealed class PathItemService(
                 db.Exercises.Add(createdExercise);
                 await db.SaveChangesAsync(ct);
 
+                node.LessonId = labContainerLesson.Id;
                 node.LabExerciseId = createdExercise.Id;
                 break;
         }
 
         db.LearningPathNodes.Add(node);
         await db.SaveChangesAsync(ct);
+
+        if (createdExercise is not null)
+        {
+            createdExercise.NodeId = node.Id;
+            await db.SaveChangesAsync(ct);
+        }
 
         if (createdExercise is not null)
         {

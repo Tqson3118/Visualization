@@ -21,6 +21,9 @@ import {
   Trash2,
   PanelLeftClose,
   PanelLeftOpen,
+  Tags,
+  Plus,
+  AlertCircle,
 } from 'lucide-vue-next';
 import { courseApi, type CourseListDto } from '@/services/courseApi';
 import {
@@ -41,7 +44,8 @@ import Button from '@/components/ui/Button.vue';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import { useConfirm } from '@/composables/useConfirm';
-import { fetchTopics, type Topic } from '@/api/lessons';
+import { fetchTopics, createTopic, updateTopic, deleteTopic, type Topic } from '@/api/lessons';
+import { formatDate } from '@/utils/format';
 
 /**
  * Studio > Lộ trình — màn curriculum tối giản theo plan §5.1 / D7 / D8:
@@ -110,6 +114,7 @@ const pathStatusLabel: Record<string, string> = {
   pending_review: 'Chờ duyệt',
   active: 'Công khai',
   rejected: 'Bị từ chối',
+  class: 'Lớp học',
   classonly: 'Lớp học',
 };
 
@@ -205,6 +210,10 @@ const DEFAULT_TITLES: Record<PathItemType, string> = {
 
 async function handleAddItem(type: PathItemType, parentId: number | null): Promise<void> {
   if (selectedPathId.value == null || busy.value) return;
+  if (parentId == null && type !== 'folder') {
+    ui.showToast('Bắt buộc phải tạo hoặc chọn một Chương (Module) trước khi thêm bài học!', 'warning');
+    return;
+  }
   busy.value = true;
   try {
     const created = await createPathItem(Number(selectedPathId.value), {
@@ -316,22 +325,143 @@ const editPathForm = ref({
   keyOutcomes: [] as string[],
 });
 
+watch(knowledgeTopics, (topics) => {
+  if (topics.length > 0 && !editPathForm.value.topicId) {
+    const dTopic = topics.find((t) => t.name.toLowerCase().includes('cấu trúc dữ liệu') || t.name.toLowerCase().includes('dsa')) || topics[0];
+    if (dTopic) editPathForm.value.topicId = dTopic.id;
+  }
+}, { immediate: true });
+
+// ── Quản lý Danh mục Chủ đề (Topic CRUD) ──
+const manageTopicsModalOpen = ref(false);
+const editingTopicId = ref<number | null>(null);
+const topicForm = ref({
+  name: '',
+  description: '',
+  sortOrder: 1,
+});
+const savingTopic = ref(false);
+const deletingTopicId = ref<number | null>(null);
+const topicError = ref('');
+
+function openManageTopicsModal(): void {
+  manageTopicsModalOpen.value = true;
+  resetTopicForm();
+}
+
+function resetTopicForm(): void {
+  editingTopicId.value = null;
+  topicForm.value = { name: '', description: '', sortOrder: knowledgeTopics.value.length + 1 };
+  topicError.value = '';
+}
+
+function startEditTopic(t: Topic): void {
+  editingTopicId.value = t.id;
+  topicForm.value = {
+    name: t.name,
+    description: t.description || '',
+    sortOrder: (t as any).sortOrder || 1,
+  };
+  topicError.value = '';
+}
+
+async function handleSaveTopic(): Promise<void> {
+  if (!topicForm.value.name.trim()) {
+    topicError.value = 'Tên chủ đề không được để trống.';
+    return;
+  }
+  savingTopic.value = true;
+  topicError.value = '';
+  try {
+    if (editingTopicId.value) {
+      await updateTopic(editingTopicId.value, {
+        name: topicForm.value.name.trim(),
+        description: topicForm.value.description.trim() || undefined,
+        sortOrder: topicForm.value.sortOrder,
+      });
+      ui.showToast('Cập nhật chủ đề thành công!', 'success');
+    } else {
+      await createTopic({
+        name: topicForm.value.name.trim(),
+        description: topicForm.value.description.trim() || undefined,
+        sortOrder: topicForm.value.sortOrder,
+      });
+      ui.showToast('Tạo chủ đề mới thành công!', 'success');
+    }
+    availableTopics.value = await fetchTopics();
+    resetTopicForm();
+  } catch (err) {
+    topicError.value = err instanceof Error ? err.message : 'Không thể lưu chủ đề.';
+  } finally {
+    savingTopic.value = false;
+  }
+}
+
+async function handleDeleteTopic(t: Topic): Promise<void> {
+  const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa chủ đề "${t.name}"?`);
+  if (!confirmed) return;
+  deletingTopicId.value = t.id;
+  try {
+    await deleteTopic(t.id);
+    ui.showToast(`Đã xóa chủ đề "${t.name}" thành công!`, 'success');
+    availableTopics.value = await fetchTopics();
+    if (editPathForm.value.topicId === t.id) {
+      editPathForm.value.topicId = knowledgeTopics.value[0]?.id || null;
+    }
+  } catch (err) {
+    ui.showToast(err instanceof Error ? err.message : 'Không thể xóa chủ đề.', 'error');
+  } finally {
+    deletingTopicId.value = null;
+  }
+}
+
+watch(
+  () => route.query.openTopics,
+  (val) => {
+    if (val === '1' || val === 'true') {
+      openManageTopicsModal();
+    }
+  },
+  { immediate: true },
+);
+
+const isPublicLocked = computed(() => {
+  if (!selectedPath.value) return false;
+  const s = String(selectedPath.value.status || '').toLowerCase();
+  const isPub = Boolean((selectedPath.value as any).isPublished);
+  return s === 'active' || s === 'pending_review' || isPub;
+});
+
+const isDraftLocked = computed(() => {
+  if (!selectedPath.value) return false;
+  const s = String(selectedPath.value.status || '').toLowerCase();
+  const isPub = Boolean((selectedPath.value as any).isPublished);
+  const vis = String((selectedPath.value as any).visibility || '').toLowerCase();
+  return s === 'active' || s === 'pending_review' || s === 'class' || s === 'classonly' || vis === 'classonly' || isPub;
+});
+
 function openEditPathModal(): void {
   if (!selectedPath.value) return;
   pathMenuOpen.value = false;
-  const currStatus = selectedPath.value.status;
+  pendingScope.value = null;
+  const currStatus = String(selectedPath.value.status || '').toLowerCase();
+  const isPub = Boolean((selectedPath.value as any).isPublished);
+  const isClass = currStatus === 'class' || currStatus === 'classonly' || String((selectedPath.value as any).visibility || '').toLowerCase() === 'classonly';
   const currScope: 'Draft' | 'ClassOnly' | 'Public' =
-    currStatus === 'active' || (selectedPath.value as any).isPublished
+    currStatus === 'active' || currStatus === 'pending_review' || isPub
       ? 'Public'
-      : currStatus === 'class' || (selectedPath.value as any).visibility === 'ClassOnly'
+      : isClass
         ? 'ClassOnly'
         : 'Draft';
+
+  const defaultTopic = knowledgeTopics.value.find((t) => t.name.toLowerCase().includes('cấu trúc dữ liệu') || t.name.toLowerCase().includes('dsa')) || knowledgeTopics.value[0];
+  const currentTopicId = (selectedPath.value as any).topicId || defaultTopic?.id || null;
 
   editPathForm.value = {
     title: selectedPath.value.title || '',
     description: selectedPath.value.description || '',
     difficulty: (selectedPath.value as any).difficulty || 'Beginner',
-    topicId: (selectedPath.value as any).topicId ?? null,
+    topicId: currentTopicId,
     scope: currScope,
     learningObjectives: [...((selectedPath.value as any).learningObjectives || [])],
     keyOutcomes: [...((selectedPath.value as any).keyOutcomes || [])],
@@ -360,19 +490,32 @@ async function handleSavePath(): Promise<void> {
   }
   savingPath.value = true;
   try {
+    const chosenScope = modalOpen
+      ? editPathForm.value.scope
+      : (pendingScope.value
+          ? (pendingScope.value === 'class' ? 'ClassOnly' : 'Draft')
+          : ((src as any).scope || undefined));
+
     await courseApi.updateCourse(path.id, {
       title: src.title.trim(),
       description: src.description.trim(),
       difficulty: src.difficulty,
       topicId: src.topicId ?? undefined,
-      scope: (src as any).scope || pendingScope.value || undefined,
+      scope: chosenScope,
       learningObjectives: src.learningObjectives,
       keyOutcomes: src.keyOutcomes,
     });
     pendingScope.value = null;
     await loadPaths();
     editPathModalOpen.value = false;
-    ui.showToast('Đã lưu lộ trình thành công!', 'success');
+    const currentSaved = paths.value.find(p => p.id === path.id);
+    const savedStatus = String((currentSaved as any)?.status || '').toLowerCase();
+    const scopeLabel = savedStatus === 'classonly' || savedStatus === '2' || chosenScope === 'ClassOnly'
+      ? 'Chế độ: Dành cho lớp học'
+      : (savedStatus === 'draft' || savedStatus === '0' || chosenScope === 'Draft'
+          ? 'Chế độ: Bản nháp'
+          : 'Chế độ: Công khai');
+    ui.showToast(`Đã lưu lộ trình (${scopeLabel}) thành công!`, 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không thể lưu lộ trình.', 'error');
   } finally {
@@ -402,6 +545,16 @@ async function handleSetVisibility(scope: 'draft' | 'class' | 'public'): Promise
   const path = selectedPath.value;
   if (!path || changingVisibility.value) return;
   pathMenuOpen.value = false;
+
+  if (scope === 'draft' && isDraftLocked.value) {
+    ui.showToast('Lộ trình đã được phát hành, không thể chuyển ngược về Bản nháp.', 'warning');
+    return;
+  }
+  if (scope === 'class' && isPublicLocked.value) {
+    ui.showToast('Lộ trình đã xuất bản công khai toàn hệ thống, không thể chuyển về phạm vi lớp riêng.', 'warning');
+    return;
+  }
+
   if (scope === 'public') {
     if (!(path as any).topicId && !editPathForm.value.topicId) {
       ui.showToast('Vui lòng chọn Chủ đề cho lộ trình trước khi gửi duyệt công khai.', 'warning');
@@ -537,7 +690,7 @@ watch(
         <span
           v-if="selectedPath"
           class="text-[10px] font-extrabold px-1.5 py-0.5 rounded border shrink-0"
-          :class="selectedPathStatus.key === 'active' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : selectedPathStatus.key === 'pending_review' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-500/20 text-slate-300 border-slate-500/30'"
+          :class="selectedPathStatus.key === 'active' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : selectedPathStatus.key === 'pending_review' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : selectedPathStatus.key === 'class' || selectedPathStatus.key === 'classonly' ? 'bg-sky-500/20 text-sky-300 border-sky-500/30' : 'bg-slate-500/20 text-slate-300 border-slate-500/30'"
         >
           {{ selectedPathStatus.label }}
         </span>
@@ -563,6 +716,16 @@ watch(
           @click="openEditPathModal"
         >
           <Settings :size="13" aria-hidden="true" /> Cài đặt lộ trình
+        </Button>
+
+        <Button
+          size="sm"
+          variant="secondary"
+          class="gap-1.5 text-xs font-bold text-purple-300 hover:text-white border-purple-500/30 hover:border-purple-500/60"
+          data-testid="manage-topics-btn"
+          @click="openManageTopicsModal"
+        >
+          <Tags :size="14" aria-hidden="true" /> Quản lý chủ đề
         </Button>
 
         <Button
@@ -604,6 +767,7 @@ watch(
               <Pencil :size="13" /> Đổi tên lộ trình
             </button>
             <button
+              v-if="!isDraftLocked"
               type="button"
               role="menuitem"
               data-testid="path-visibility-draft"
@@ -613,6 +777,7 @@ watch(
               <Lock :size="13" /> Nháp — chỉ tôi thấy
             </button>
             <button
+              v-if="!isPublicLocked"
               type="button"
               role="menuitem"
               data-testid="path-visibility-public"
@@ -758,46 +923,39 @@ watch(
             </p>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full max-w-xl pt-2">
+          <div class="w-full max-w-xl space-y-3 pt-2">
+            <!-- Primary Action: Chương (Module) cho cấp gốc -->
             <button
               type="button"
-              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-amber-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
+              data-testid="workbench-add-folder-hero"
+              class="w-full flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-[#171624] hover:from-amber-500/20 hover:via-purple-500/20 hover:to-[#201e33] border border-amber-500/30 hover:border-amber-500/60 text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.01]"
               @click="handleAddItem('folder', null)"
             >
-              <Folder class="w-5 h-5 text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
-              <span>+ Chương</span>
-              <span class="text-[9px] text-slate-500 font-normal">Module mới</span>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform shrink-0">
+                  <Folder class="w-5 h-5" />
+                </div>
+                <div class="text-left">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">+ Thêm Chương (Module mới)</span>
+                    <span class="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Cấp 1</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 font-normal mt-0.5">Tạo các Chương ở cấp gốc trước (Chương 1, Chương 2...), sau đó thêm bài học vào trong chương.</p>
+                </div>
+              </div>
+              <span class="text-xs font-black text-amber-400 shrink-0 pr-1">Tạo chương →</span>
             </button>
 
-            <button
-              type="button"
-              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-sky-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
-              @click="handleAddItem('theory', null)"
-            >
-              <BookOpen class="w-5 h-5 text-sky-400 mb-1.5 group-hover:scale-110 transition-transform" />
-              <span>+ Lý thuyết</span>
-              <span class="text-[9px] text-slate-500 font-normal">Kèm mô phỏng</span>
-            </button>
-
-            <button
-              type="button"
-              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-orange-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
-              @click="handleAddItem('quiz', null)"
-            >
-              <HelpCircle class="w-5 h-5 text-orange-400 mb-1.5 group-hover:scale-110 transition-transform" />
-              <span>+ Quiz</span>
-              <span class="text-[9px] text-slate-500 font-normal">Trắc nghiệm</span>
-            </button>
-
-            <button
-              type="button"
-              class="flex flex-col items-center justify-center p-3 rounded-xl bg-[#171624] hover:bg-[#201e33] border border-[#2e2c44] hover:border-emerald-500/40 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer group shadow-sm hover:scale-[1.02]"
-              @click="handleAddItem('lab', null)"
-            >
-              <Code class="w-5 h-5 text-emerald-400 mb-1.5 group-hover:scale-110 transition-transform" />
-              <span>+ Codelab</span>
-              <span class="text-[9px] text-slate-500 font-normal">Test cases</span>
-            </button>
+            <!-- Hướng dẫn quy trình soạn thảo chuẩn -->
+            <div class="p-3 bg-[#171624]/90 border border-[#27253b] rounded-xl text-left space-y-1.5">
+              <span class="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                <FolderPlus class="w-3.5 h-3.5 text-amber-400" /> Quy tắc soạn thảo giáo trình:
+              </span>
+              <ul class="text-xs text-slate-400 space-y-1 list-disc list-inside leading-relaxed">
+                <li><strong class="text-slate-200">Cấp 1:</strong> Bắt buộc là <strong class="text-amber-300">Chương (Module)</strong> để quản lý cấu trúc bài giảng rõ ràng.</li>
+                <li><strong class="text-slate-200">Trong Chương:</strong> Bấm vào Chương trên cây hoặc biểu tượng <strong class="text-purple-300">+</strong> để chọn thêm <strong class="text-sky-300">Lý thuyết</strong>, <strong class="text-orange-300">Quiz trắc nghiệm</strong>, hoặc <strong class="text-emerald-300">Codelab</strong>.</li>
+              </ul>
+            </div>
           </div>
 
           <div class="flex items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-[#262438]/80">
@@ -823,6 +981,25 @@ watch(
       @close="editPathModalOpen = false"
     >
       <div class="space-y-4 pt-1 max-h-[70vh] overflow-y-auto pr-1">
+        <!-- Trạng thái kiểm duyệt hiện tại -->
+        <div v-if="selectedPath" class="p-3 rounded-xl bg-[#141224] border border-[#2e2c44] flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 font-medium">Trạng thái:</span>
+            <span
+              class="px-2 py-0.5 rounded-md text-[11px] font-black border"
+              :class="selectedPath.status === 'active' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : selectedPath.status === 'pending_review' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : selectedPath.status === 'rejected' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-slate-500/20 text-slate-300 border-slate-500/30'"
+            >
+              {{ selectedPath.status === 'active' ? 'Đã xuất bản (Công khai)' : selectedPath.status === 'pending_review' ? 'Đang chờ Admin duyệt' : selectedPath.status === 'rejected' ? 'Bị từ chối' : (selectedPath.status === 'class' || selectedPath.status === 'classonly' ? 'Dành cho lớp học' : 'Bản nháp') }}
+            </span>
+          </div>
+          <span v-if="selectedPath.submittedAt && selectedPath.status === 'pending_review'" class="text-[11px] text-slate-400 font-medium">
+            Đã gửi: {{ formatDate(selectedPath.submittedAt) }}
+          </span>
+        </div>
+        <div v-if="selectedPath?.rejectionReason && selectedPath.status === 'rejected'" class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+          <strong>Lý do từ chối:</strong> {{ selectedPath.rejectionReason }}
+        </div>
+
         <div>
           <label for="edit-path-title" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
             Tên lộ trình <span class="text-rose-400">*</span>
@@ -838,15 +1015,24 @@ watch(
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Chủ đề kiến thức (11 Chủ đề DSA)
-            </label>
+            <div class="flex items-center justify-between mb-1">
+              <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                Chủ đề kiến thức ({{ knowledgeTopics.length }} Chủ đề)
+              </label>
+              <button
+                type="button"
+                class="text-[11px] text-purple-400 hover:text-purple-300 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                @click="openManageTopicsModal"
+              >
+                <Tags :size="12" /> Quản lý chủ đề
+              </button>
+            </div>
             <select
               id="edit-path-topic"
               v-model="editPathForm.topicId"
               class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
             >
-              <option :value="null">— Không chọn / Mặc định —</option>
+              <option v-if="knowledgeTopics.length === 0" :value="null">Cấu trúc dữ liệu &amp; Giải thuật</option>
               <option v-for="t in knowledgeTopics" :key="t.id" :value="t.id">{{ t.name }}</option>
             </select>
           </div>
@@ -874,12 +1060,29 @@ watch(
           <select
             id="edit-path-scope"
             v-model="editPathForm.scope"
-            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="isPublicLocked"
           >
-            <option value="ClassOnly">Dành cho lớp học (ClassOnly — Chỉ hiển thị trong lớp riêng)</option>
-            <option value="Public">Công khai (Public — Hiển thị toàn hệ thống / Gửi duyệt)</option>
-            <option value="Draft">Bản nháp (Draft — Chỉ tác giả thấy)</option>
+            <option value="ClassOnly" :disabled="isPublicLocked">
+              Dành cho lớp học (ClassOnly — Chỉ hiển thị trong lớp riêng)
+            </option>
+            <option value="Public">
+              {{ auth.role === 'ADMIN' ? 'Công khai (Public — Xuất bản toàn hệ thống ngay)' : 'Công khai (Public — Gửi Admin kiểm duyệt)' }}
+            </option>
+            <option value="Draft" :disabled="isDraftLocked">
+              Bản nháp (Draft — Chỉ tác giả thấy{{ isDraftLocked ? ' — Đã khóa' : '' }})
+            </option>
           </select>
+
+          <!-- Ghi chú giải thích khóa trạng thái -->
+          <p v-if="isPublicLocked" class="text-[11px] text-purple-300 mt-1.5 flex items-start gap-1.5 font-medium leading-normal bg-purple-500/10 p-2 rounded-lg border border-purple-500/20">
+            <Lock :size="13" class="shrink-0 mt-0.5 text-purple-400" />
+            <span>Lộ trình đã xuất bản công khai trên toàn hệ thống. Mọi sửa đổi nội dung giảng dạy được cập nhật trực tiếp tại Studio.</span>
+          </p>
+          <p v-else-if="isDraftLocked" class="text-[11px] text-amber-400 mt-1.5 flex items-start gap-1.5 font-medium leading-normal bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+            <Lock :size="13" class="shrink-0 mt-0.5 text-amber-400" />
+            <span>Lộ trình đang phục vụ lớp học, tùy chọn chuyển về Bản nháp đã được khóa để bảo vệ tiến độ và dữ liệu học tập của học viên.</span>
+          </p>
         </div>
       </div>
 
@@ -894,6 +1097,143 @@ watch(
           @click="handleSavePath"
         >
           <Check :size="13" aria-hidden="true" /> Lưu lộ trình
+        </Button>
+      </template>
+    </Modal>
+
+    <!-- Modal Quản lý Danh mục Chủ đề Kiến thức (CRUD) -->
+    <Modal
+      :open="manageTopicsModalOpen"
+      title="Quản lý Danh mục Chủ đề Kiến thức"
+      @close="manageTopicsModalOpen = false"
+    >
+      <div class="space-y-4 pt-1 max-h-[75vh] overflow-y-auto pr-1">
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Tạo mới và quản lý các chuyên đề kiến thức DSA. Toàn bộ giảng viên, quản trị viên và học sinh đều được đồng bộ theo danh mục chủ đề này.
+        </p>
+
+        <!-- Form Thêm / Sửa Chủ đề -->
+        <div class="p-4 rounded-xl bg-[#141224] border border-[#2e2c44] space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Tags :size="14" class="text-purple-400" />
+              {{ editingTopicId ? 'Chỉnh sửa chủ đề' : 'Thêm chủ đề mới' }}
+            </span>
+            <button
+              v-if="editingTopicId"
+              type="button"
+              class="text-[11px] text-slate-400 hover:text-white cursor-pointer"
+              @click="resetTopicForm"
+            >
+              Hủy sửa
+            </button>
+          </div>
+
+          <div v-if="topicError" class="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-1.5">
+            <AlertCircle :size="14" />
+            <span>{{ topicError }}</span>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Tên chủ đề <span class="text-rose-400">*</span>
+            </label>
+            <input
+              v-model="topicForm.name"
+              type="text"
+              placeholder="Ví dụ: Quy hoạch động, Đồ thị nâng cao, Cây Trie..."
+              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Mô tả tóm tắt
+            </label>
+            <textarea
+              v-model="topicForm.description"
+              rows="2"
+              placeholder="Mô tả phạm vi kiến thức và các thuật toán trong chủ đề..."
+              class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 resize-none"
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-1">
+            <Button
+              v-if="editingTopicId"
+              variant="ghost"
+              size="sm"
+              class="text-xs"
+              @click="resetTopicForm"
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              class="text-xs font-bold"
+              :loading="savingTopic"
+              :disabled="!topicForm.name.trim()"
+              @click="handleSaveTopic"
+            >
+              <Check :size="13" /> {{ editingTopicId ? 'Cập nhật' : 'Tạo chủ đề' }}
+            </Button>
+          </div>
+        </div>
+
+        <!-- Danh sách Chủ đề hiện có -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+              Danh sách chủ đề hiện tại ({{ knowledgeTopics.length }})
+            </span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div
+              v-for="t in knowledgeTopics"
+              :key="t.id"
+              class="p-2.5 rounded-xl bg-[#12111d] border border-[#252338] hover:border-[#383556] flex items-center justify-between gap-3 transition-colors"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white">{{ t.name }}</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                    ID: {{ t.id }}
+                  </span>
+                </div>
+                <p v-if="t.description" class="text-[11px] text-slate-400 truncate mt-0.5">
+                  {{ t.description }}
+                </p>
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#252338] transition-colors cursor-pointer"
+                  title="Chỉnh sửa chủ đề"
+                  @click="startEditTopic(t)"
+                >
+                  <Pencil :size="13" />
+                </button>
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title="Xóa chủ đề"
+                  :disabled="deletingTopicId === t.id"
+                  @click="handleDeleteTopic(t)"
+                >
+                  <Trash2 :size="13" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button variant="secondary" size="sm" @click="manageTopicsModalOpen = false">
+          Đóng
         </Button>
       </template>
     </Modal>

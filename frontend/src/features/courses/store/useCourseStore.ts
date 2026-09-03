@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { courseApi } from '@/services/courseApi';
+import * as lessonsApi from '@/api/lessons';
 import { normalizeVi } from '@/utils/searchNormalize';
 import { useAuthStore } from '@/stores/auth';
 import type { Course, CourseProgress } from '../types/course.types';
 
 export const useCourseStore = defineStore('course', () => {
 
-
   const courses = ref<Course[]>([]);
+  const rawTopics = ref<string[]>([]);
   const isLoading = ref<boolean>(false);
   const error = ref<string>('');
   const selectedTopic = ref<string>('All');
@@ -20,7 +21,11 @@ export const useCourseStore = defineStore('course', () => {
   const filteredCourses = computed(() => {
     let result = courses.value;
     if (selectedTopic.value !== 'All') {
-      result = result.filter(c => (c.topicName || c.category) === selectedTopic.value);
+      result = result.filter(c => {
+        const raw = c.topicName;
+        const name = raw ? raw.replace(/^Module\s*\d+\s*:\s*/i, '').trim() : '';
+        return name === selectedTopic.value;
+      });
     }
     if (selectedCategory.value !== 'All') {
       result = result.filter(c => c.category === selectedCategory.value);
@@ -54,11 +59,14 @@ export const useCourseStore = defineStore('course', () => {
   });
 
   const topics = computed(() => {
+    if (rawTopics.value.length > 0) {
+      return ['All', ...rawTopics.value];
+    }
     const tSet = new Set<string>();
     for (const c of courses.value) {
-      const name = c.topicName || c.category;
-      if (name && name.trim()) {
-        tSet.add(name.trim());
+      const name = c.topicName ? c.topicName.replace(/^Module\s*\d+\s*:\s*/i, '').trim() : '';
+      if (name) {
+        tSet.add(name);
       }
     }
     if (tSet.size === 0) {
@@ -93,8 +101,16 @@ export const useCourseStore = defineStore('course', () => {
     isLoading.value = true;
     error.value = '';
     try {
-      const apiCourses = await courseApi.getCourses();
+      const [apiCourses, apiTopics] = await Promise.all([
+        courseApi.getCourses(),
+        lessonsApi.fetchTopics().catch(() => [] as lessonsApi.Topic[]),
+      ]);
       const cleanPrefix = (str?: string) => str ? str.replace(/^Module\s*\d+\s*:\s*/i, '').trim() : str;
+      if (apiTopics && apiTopics.length > 0) {
+        rawTopics.value = apiTopics
+          .filter(t => !t.name.startsWith('Module '))
+          .map(t => cleanPrefix(t.name) || t.name);
+      }
       const mapped = apiCourses.map(c => ({
         ...c,
         title: cleanPrefix(c.title) || c.title,
@@ -119,10 +135,43 @@ export const useCourseStore = defineStore('course', () => {
     }
   }
 
+  function _getStoragePrefix(): string | null {
+    try {
+      const auth = useAuthStore();
+      const uid = auth.user?.id;
+      return uid ? `u${uid}_` : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Tự động quét dọn sạch các key cũ không có prefix user trên máy để tránh rò rỉ giữa các nick
+  function _cleanupLegacyStorage() {
+    try {
+      const toRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (/^enrolled_\d+$/.test(k) || /^course_progress_\d+$/.test(k) || /^course_completed_\d+$/.test(k) || /^course_done_\d+_\d+$/.test(k)) {
+          toRemove.push(k);
+        }
+      }
+      for (const k of toRemove) {
+        localStorage.removeItem(k);
+      }
+    } catch {}
+  }
+
   function _loadEnrollments() {
+    _cleanupLegacyStorage();
     const enrolled = new Set<string>();
+    const prefix = _getStoragePrefix();
+    if (!prefix) {
+      enrolledCourseIds.value = enrolled;
+      return;
+    }
     for (const c of courses.value) {
-      if (localStorage.getItem(`enrolled_${c.id}`) === 'true') {
+      if (localStorage.getItem(`enrolled_${prefix}${c.id}`) === 'true') {
         enrolled.add(c.id);
       }
     }
@@ -132,13 +181,19 @@ export const useCourseStore = defineStore('course', () => {
   function enrollCourse(courseId: string | number) {
     const sId = String(courseId);
     enrolledCourseIds.value.add(sId);
-    localStorage.setItem(`enrolled_${sId}`, 'true');
+    const prefix = _getStoragePrefix();
+    if (prefix) {
+      localStorage.setItem(`enrolled_${prefix}${sId}`, 'true');
+    }
   }
 
   function isEnrolled(courseId: string | number): boolean {
     const sId = String(courseId);
+    const prefix = _getStoragePrefix();
+    if (!prefix) return false;
+
     if (!enrolledCourseIds.value.has(sId)) {
-      if (localStorage.getItem(`enrolled_${sId}`) === 'true') {
+      if (localStorage.getItem(`enrolled_${prefix}${sId}`) === 'true') {
         enrolledCourseIds.value.add(sId);
         return true;
       }
@@ -176,27 +231,31 @@ export const useCourseStore = defineStore('course', () => {
       };
     }
 
-    const storedCourseProgress = localStorage.getItem(`course_progress_${courseId}`);
-    const storedCompleted = localStorage.getItem(`course_completed_${courseId}`);
+    const authStore = useAuthStore();
+    const uId = authStore.user?.id;
+    if (uId == null) {
+      return {
+        courseId,
+        completedLessonIds: [],
+        totalLessons: course.totalLessons || 0,
+        progressPercent: 0,
+        xpEarned: 0,
+        isCompleted: false,
+      };
+    }
 
-    let dsaCompleted: (string | number)[] = [];
-    try {
-      dsaCompleted = JSON.parse(localStorage.getItem('dsa.completedLessons') || '[]');
-    } catch {}
+    const storedCourseProgress = localStorage.getItem(`course_progress_u${uId}_${courseId}`);
+    const storedCompleted = localStorage.getItem(`course_completed_u${uId}_${courseId}`);
 
     const lessons = course.lessons ?? [];
-    let completedCount = (course as any).completedLessons || 0;
+    let completedCount = 0;
     const completedLessonIds: string[] = [];
     let xpEarned = 0;
 
-    const authStore = useAuthStore();
-    const uId = authStore.user?.id;
-
     if (lessons.length > 0) {
-      completedCount = 0;
       for (const lesson of lessons) {
         let isDone = (lesson as any).status === 'Completed' ||
-          (uId != null && localStorage.getItem(`course_done_u${uId}_${courseId}_${lesson.id}`) === 'true');
+          localStorage.getItem(`course_done_u${uId}_${courseId}_${lesson.id}`) === 'true';
         if (isDone) {
           completedCount++;
           completedLessonIds.push(lesson.id);
@@ -204,14 +263,12 @@ export const useCourseStore = defineStore('course', () => {
       }
     } else {
       let localDoneCount = 0;
-      if (uId != null) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith(`course_done_u${uId}_${courseId}_`) && localStorage.getItem(k) === 'true') {
-            localDoneCount++;
-            const lessonId = k.replace(`course_done_u${uId}_${courseId}_`, '');
-            completedLessonIds.push(lessonId);
-          }
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(`course_done_u${uId}_${courseId}_`) && localStorage.getItem(k) === 'true') {
+          localDoneCount++;
+          const lessonId = k.replace(`course_done_u${uId}_${courseId}_`, '');
+          completedLessonIds.push(lessonId);
         }
       }
       if (localDoneCount > 0) {

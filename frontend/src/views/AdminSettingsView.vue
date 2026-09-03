@@ -136,6 +136,7 @@ const reports = ref<adminApi.BugReportDto[]>([]);
 const reportsLoading = ref(false);
 const reportsError = ref('');
 const statusFilter = ref<string>('');
+const typeFilter = ref<string>('');
 const searchQuery = ref<string>('');
 
 const replyTexts = reactive<Record<number, string>>({});
@@ -145,6 +146,13 @@ const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'OPEN', label: 'Đang xử lý' },
   { value: 'DONE', label: 'Đã xử lý' },
+];
+
+const TYPE_OPTIONS = [
+  { value: '', label: 'Tất cả phân loại' },
+  { value: 'BUG', label: 'Báo lỗi' },
+  { value: 'FEEDBACK', label: 'Góp ý' },
+  { value: 'SUGGESTION', label: 'Đề xuất' },
 ];
 
 function isOpenStatus(status: string): boolean {
@@ -166,10 +174,40 @@ function parseContext(ctx: string | null): Record<string, unknown> | null {
   }
 }
 
+function getReportCategoryKey(report: adminApi.BugReportDto): 'BUG' | 'FEEDBACK' | 'SUGGESTION' {
+  const cat = (report.category || '').toUpperCase();
+  const ctx = parseContext(report.context);
+  const typeFromCtx = String(ctx?.type || ctx?.category || '').toUpperCase();
+  const rawType = cat || typeFromCtx;
+
+  if (rawType) {
+    if (rawType === 'REQUEST' || rawType.includes('DE_XUAT') || rawType.includes('FEATURE')) return 'SUGGESTION';
+    if (rawType === 'SUGGESTION' || rawType.includes('FEEDBACK') || rawType.includes('GOP_Y')) return 'FEEDBACK';
+    if (rawType === 'BUG' || rawType.includes('LOI')) return 'BUG';
+  }
+
+  const desc = (report.description || '').toLowerCase();
+  if (desc.includes('đề xuất') || desc.includes('de xuat') || desc.includes('thêm tính năng') || desc.includes('tính năng mới') || desc.includes('request')) {
+    return 'SUGGESTION';
+  }
+  if (desc.includes('góp ý') || desc.includes('gop y') || desc.includes('ý kiến') || desc.includes('y kien') || desc.includes('phản hồi') || desc.includes('suggestion')) {
+    return 'FEEDBACK';
+  }
+  return 'BUG';
+}
+
+function getReportCategoryMeta(report: adminApi.BugReportDto): { label: string; variant: 'danger' | 'primary' | 'warning' } {
+  const cat = getReportCategoryKey(report);
+  if (cat === 'SUGGESTION') return { label: 'Đề xuất', variant: 'warning' };
+  if (cat === 'FEEDBACK') return { label: 'Góp ý', variant: 'primary' };
+  return { label: 'Báo lỗi', variant: 'danger' };
+}
+
 const filteredReports = computed(() => {
   return reports.value.filter((r) => {
     if (statusFilter.value === 'OPEN' && !isOpenStatus(r.status)) return false;
     if (statusFilter.value === 'DONE' && isOpenStatus(r.status)) return false;
+    if (typeFilter.value && getReportCategoryKey(r) !== typeFilter.value) return false;
     if (searchQuery.value.trim()) {
       const q = normalizeVi(searchQuery.value);
       const matchContent = normalizeVi(r.description).includes(q);
@@ -475,6 +513,11 @@ onMounted(() => {
           />
         </div>
         <div class="filter-bar__controls">
+          <select v-model="typeFilter" class="form-select">
+            <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
           <select v-model="statusFilter" class="form-select">
             <option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -515,7 +558,10 @@ onMounted(() => {
           :class="`report-card--${item.status.toLowerCase()}`"
         >
           <div class="report-card__top">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <Badge :variant="getReportCategoryMeta(item).variant">
+                {{ getReportCategoryMeta(item).label }}
+              </Badge>
               <Badge :variant="getStatusBadgeVariant(item.status)">
                 {{ getStatusLabel(item.status) }}
               </Badge>

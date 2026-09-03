@@ -33,4 +33,5 @@ backend_publish/
 qa/
 implement_plan.md
 PROMPT_QA_PLAYWRIGHT.md
+*.db
 

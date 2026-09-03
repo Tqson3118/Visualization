@@ -29,16 +29,16 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="p-3 rounded-xl bg-[#1f1c34] border border-emerald-500/20 flex flex-col items-center justify-center">
               <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Tiến độ
+                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Bài hoàn thành
               </span>
-              <span class="text-xl font-black text-emerald-400 mt-0.5">100% Hoàn Tất</span>
+              <span class="text-xl font-black text-emerald-400 mt-0.5">+{{ lessonXp ?? 50 }} XP</span>
             </div>
 
             <div class="p-3 rounded-xl bg-[#1f1c34] border border-amber-500/20 flex flex-col items-center justify-center">
               <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Zap class="w-3.5 h-3.5 text-amber-400" /> Điểm tích lũy
+                <Zap class="w-3.5 h-3.5 text-amber-400" /> Tổng điểm lộ trình
               </span>
-              <span class="text-xl font-black text-amber-400 mt-0.5">+{{ totalXp }} XP</span>
+              <span class="text-xl font-black text-amber-400 mt-0.5">{{ totalXp }} XP</span>
             </div>
           </div>
         </div>
@@ -75,6 +75,7 @@ defineProps<{
   show: boolean;
   courseTitle: string;
   totalXp?: number;
+  lessonXp?: number;
 }>();
 
 defineEmits<{

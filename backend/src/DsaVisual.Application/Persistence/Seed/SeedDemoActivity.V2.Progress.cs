@@ -266,16 +266,11 @@ public static partial class SeedDemoActivity
             .Select(g => g.OrderBy(n => n.SortOrder).ToList())
             .ToList();
 
-        // Node có exercise (có thể pass): node bài học theo SortOrder, rồi node kiểm tra cuối của path.
+        // Node có thể học/pass: các node playable (không phải folder) theo SortOrder của từng path.
         var exercisable = new List<LearningPathNode>();
         foreach (var pathNodes in byPath)
         {
-            exercisable.AddRange(pathNodes.Where(n => n.LessonId != null));
-            var finalNode = pathNodes.FirstOrDefault(n => n.FinalTestId != null);
-            if (finalNode is not null)
-            {
-                exercisable.Add(finalNode);
-            }
+            exercisable.AddRange(pathNodes.Where(n => n.ItemType != PathItemType.Folder).OrderBy(n => n.SortOrder));
         }
 
         // Exercise "pass" của node: kiểm tra cuối → FinalTestId; node bài học → Quiz (NodeId = node.Id).
@@ -361,16 +356,20 @@ public static partial class SeedDemoActivity
             var nodeRows = new List<PlannedNodeRow>(passNodes.Count + activeNodes.Count);
             foreach (var node in passNodes)
             {
-                var pass = submissions.FirstOrDefault(s =>
-                    s.Exercise.Id == PassExercise(node)?.Id && s.Score == s.Exercise.MaxScore);
-                if (pass is null)
+                var passEx = PassExercise(node);
+                var pass = passEx != null
+                    ? submissions.FirstOrDefault(s => s.Exercise.Id == passEx.Id && s.Score == s.Exercise.MaxScore)
+                    : null;
+
+                if (pass is null && passEx != null)
                 {
-                    continue;   // an toàn: không có bài full → bỏ qua node pass (không tạo Status=2 trơ)
+                    continue;   // an toàn: node có exercise nhưng không có bài full → bỏ qua
                 }
 
-                var passedAt = pass.SubmittedAt;
+                var passedAt = pass?.SubmittedAt ?? ClampAfter(now.AddDays(-rng.Next(2, 5)), user.CreatedAt.AddHours(2));
                 var unlockedAt = ClampAfter(passedAt.AddDays(-rng.Next(1, 4)), user.CreatedAt.AddHours(1));
-                nodeRows.Add(new PlannedNodeRow(node, 2, pass.Exercise.MaxScore, 3, unlockedAt, passedAt, passedAt));
+                var score = pass?.Exercise.MaxScore ?? 100;
+                nodeRows.Add(new PlannedNodeRow(node, 2, score, 3, unlockedAt, passedAt, passedAt));
             }
 
             foreach (var node in activeNodes)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { BookOpen, ChevronsDownUp, ChevronsUpDown, Code, Folder, HelpCircle, Layers, Network, Plus, Search, X } from 'lucide-vue-next';
+import { ChevronsDownUp, ChevronsUpDown, Folder, FolderPlus, Layers, Network, Search, X } from 'lucide-vue-next';
 import { type PathItemDto, type PathItemType, normalizeItemType } from '@/api/pathItems';
 import { normalizeVi } from '@/utils/searchNormalize';
 import OutlineNode from './OutlineNode.vue';
@@ -199,21 +199,32 @@ function dropOn(target: PathItemDto, zone: OutlineDropZone): void {
 
   if (zone === 'into') {
     if (normalizeItemType(target.itemType) !== 'folder') return;
+    // Bắt buộc: Không cho phép lồng Chương vào trong Chương khác
+    if (normalizeItemType(dragged.itemType) === 'folder') return;
     emit('moveItem', dragged, { parentId: target.id, sortOrder: target.children?.length ?? 0 });
     return;
   }
   const parentId = target.parentId ?? null;
+  // Bắt buộc: Bài học (không phải folder) không được kéo thả ra cấp gốc
+  if (parentId === null && normalizeItemType(dragged.itemType) !== 'folder') {
+    return;
+  }
   const base = target.sortOrder ?? 1;
   emit('moveItem', dragged, { parentId, sortOrder: zone === 'before' ? base : base + 1 });
 }
 
 // ── Đích "Di chuyển đến…" ──
 function moveTargets(item: PathItemDto): OutlineFolderOption[] {
-  const folders: OutlineFolderOption[] = [{ id: null, title: 'Cấp gốc' }];
+  const folders: OutlineFolderOption[] = [];
+  // Bắt buộc: Chương (Folder) chỉ ở cấp gốc, không lồng vào chương khác
+  if (normalizeItemType(item.itemType) === 'folder') {
+    folders.push({ id: null, title: 'Cấp gốc' });
+    return folders;
+  }
+  // Bài học chỉ di chuyển giữa các Chương (không thể chuyển ra cấp gốc)
   for (const { item: candidate } of flat.value) {
     if (candidate.id === item.id) continue;
     if (normalizeItemType(candidate.itemType) !== 'folder') continue;
-    if (contains(item, candidate.id)) continue;
     folders.push({ id: candidate.id, title: candidate.title || 'Chương chưa đặt tên' });
   }
   return folders;
@@ -253,20 +264,13 @@ function handleDelete(item: PathItemDto): void {
   emit('delete', item);
 }
 
-// ── Popover "Thêm mục" ở thanh công cụ ──
-const showAddMenu = ref(false);
-const addMenuContainerRef = ref<HTMLElement | null>(null);
-
-function quickAdd(type: PathItemType): void {
-  showAddMenu.value = false;
-  emit('add', type, null);
+// ── Thao tác thêm nhanh chương ở cấp gốc ──
+function quickAddFolder(): void {
+  emit('add', 'folder', null);
 }
 
 function handleDocumentClick(e: MouseEvent): void {
   const target = e.target as Node | null;
-  if (showAddMenu.value && addMenuContainerRef.value && !addMenuContainerRef.value.contains(target)) {
-    showAddMenu.value = false;
-  }
   if (openMenuId.value !== null) {
     const isInsideNodeMenu = target && (target as HTMLElement).closest?.('[role="menu"], [data-testid^="node-menu-"], [data-testid^="node-add-trigger-"]');
     if (!isInsideNodeMenu) {
@@ -282,13 +286,6 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
 });
-
-const toolbarAddOptions: { type: PathItemType; label: string; testid: string; color: string }[] = [
-  { type: 'folder', label: 'Chương (Module)', testid: 'add-item-folder', color: 'text-amber-300' },
-  { type: 'theory', label: 'Bài lý thuyết', testid: 'add-item-theory', color: 'text-sky-300' },
-  { type: 'quiz', label: 'Quiz trắc nghiệm', testid: 'add-item-quiz', color: 'text-orange-300' },
-  { type: 'lab', label: 'Lab thực hành', testid: 'add-item-lab', color: 'text-emerald-300' },
-];
 
 // ── Context cho OutlineNode ──
 const selectedIdRef = computed<number | null>(() => props.selectedItemId ?? null);
@@ -344,41 +341,16 @@ provideOutlineTreeContext(context);
           <ChevronsUpDown v-else class="w-4 h-4" />
         </button>
 
-        <div v-if="!readonly" ref="addMenuContainerRef" class="relative">
+        <div v-if="!readonly" class="relative">
           <button
             type="button"
             data-testid="add-item-trigger"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-colors cursor-pointer"
-            aria-haspopup="menu"
-            :aria-expanded="showAddMenu"
-            @click.stop="showAddMenu = !showAddMenu"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-950/40 cursor-pointer"
+            title="Thêm Chương (Module mới) vào cấp gốc"
+            @click="quickAddFolder"
           >
-            <Plus class="w-3.5 h-3.5" /> Thêm mục
+            <FolderPlus class="w-3.5 h-3.5" /> + Thêm chương
           </button>
-
-          <div
-            v-if="showAddMenu"
-            class="absolute right-0 top-full mt-1.5 w-48 bg-[#1e1d2c] border border-[#36344d] rounded-xl shadow-2xl p-1.5 space-y-1 z-50"
-            role="menu"
-            aria-label="Thêm mục mới vào cấp gốc"
-          >
-            <button
-              v-for="opt in toolbarAddOptions"
-              :key="opt.type"
-              type="button"
-              role="menuitem"
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-white/5 text-left cursor-pointer"
-              :class="opt.color"
-              :data-testid="opt.testid"
-              @click="quickAdd(opt.type)"
-            >
-              <Folder v-if="opt.type === 'folder'" class="w-3.5 h-3.5" />
-              <BookOpen v-else-if="opt.type === 'theory'" class="w-3.5 h-3.5" />
-              <HelpCircle v-else-if="opt.type === 'quiz'" class="w-3.5 h-3.5" />
-              <Code v-else class="w-3.5 h-3.5" />
-              {{ opt.label }}
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -427,7 +399,7 @@ provideOutlineTreeContext(context);
             type="button"
             data-testid="add-first-folder"
             class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition-colors cursor-pointer"
-            @click="quickAdd('folder')"
+            @click="quickAddFolder"
           >
             <Folder class="w-3.5 h-3.5" aria-hidden="true" /> Thêm chương đầu tiên
           </button>

@@ -115,7 +115,10 @@ export interface ClassCurriculumDto {
 /** Thống kê 1 bài gán trong báo cáo lớp — khớp backend ClassReportAssignmentDto. */
 export interface ClassReportAssignmentDto {
   assignmentId: number;
+  exerciseId?: number | null;
+  lessonId?: number | null;
   title: string;
+  moduleName?: string | null;
   dueAt: string | null;
   onTime: number;
   late: number;
@@ -124,7 +127,7 @@ export interface ClassReportAssignmentDto {
   itemType?: 'theory' | 'quiz' | 'code' | string;
 }
 
-/** Học viên chậm tiến độ (thiếu ≥ 2 bài gán) — khớp backend LaggingLearnerDto. */
+/** Học viên chậm tiến độ (có bài quá hạn chưa hoàn thành) — khớp backend LaggingLearnerDto. */
 export interface LaggingLearnerDto {
   userId: number;
   displayName: string;

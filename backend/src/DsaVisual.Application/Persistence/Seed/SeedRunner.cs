@@ -236,6 +236,87 @@ public static class SeedRunner
         }
     }
 
+    public static async Task ReconcileSequentialNodeProgressAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    {
+        try
+        {
+            var userIds = await db.UserNodeProgress.Select(p => p.UserId).Distinct().ToListAsync(ct);
+            var paths = await db.LearningPaths.AsNoTracking().ToListAsync(ct);
+            var allNodes = await db.LearningPathNodes.AsNoTracking().OrderBy(n => n.SortOrder).ToListAsync(ct);
+            var nodesByPath = allNodes.GroupBy(n => n.PathId).ToDictionary(g => g.Key, g => g.OrderBy(n => n.SortOrder).ToList());
+
+            var repairedCount = 0;
+            foreach (var uid in userIds)
+            {
+                var progresses = await db.UserNodeProgress.Where(p => p.UserId == uid).ToListAsync(ct);
+                var progressByNode = progresses.ToDictionary(p => p.NodeId);
+
+                foreach (var path in paths)
+                {
+                    if (!nodesByPath.TryGetValue(path.Id, out var pathNodes)) continue;
+
+                    int highestPassedIndex = -1;
+                    for (int i = 0; i < pathNodes.Count; i++)
+                    {
+                        if (progressByNode.TryGetValue(pathNodes[i].Id, out var prog) && prog.Status == 2)
+                        {
+                            highestPassedIndex = i;
+                        }
+                    }
+
+                    if (highestPassedIndex > 0)
+                    {
+                        for (int i = 0; i < highestPassedIndex; i++)
+                        {
+                            var priorNode = pathNodes[i];
+                            if (priorNode.ItemType == PathItemType.Folder) continue;
+
+                            if (progressByNode.TryGetValue(priorNode.Id, out var priorProg))
+                            {
+                                if (priorProg.Status != 2)
+                                {
+                                    priorProg.Status = 2;
+                                    priorProg.Stars = Math.Max(priorProg.Stars, 3);
+                                    priorProg.NodeScore = Math.Max(priorProg.NodeScore, 100);
+                                    priorProg.PassedAt ??= DateTime.UtcNow;
+                                    priorProg.UpdatedAt = DateTime.UtcNow;
+                                    repairedCount++;
+                                }
+                            }
+                            else
+                            {
+                                var newProg = new UserNodeProgress
+                                {
+                                    UserId = uid,
+                                    NodeId = priorNode.Id,
+                                    Status = 2,
+                                    Stars = 3,
+                                    NodeScore = 100,
+                                    UnlockedAt = DateTime.UtcNow.AddDays(-7),
+                                    PassedAt = DateTime.UtcNow.AddDays(-6),
+                                    UpdatedAt = DateTime.UtcNow
+                                };
+                                db.UserNodeProgress.Add(newProg);
+                                progressByNode[priorNode.Id] = newProg;
+                                repairedCount++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (repairedCount > 0)
+            {
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("ReconcileSequentialNodeProgress: Đã tự sửa chữa {Count} bản ghi tiến độ node để đảm bảo tính tuần tự không bị khóa nhảy cóc.", repairedCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "ReconcileSequentialNodeProgress: Không thể tự sửa chữa tiến độ node.");
+        }
+    }
+
     public static async Task CleanModulePrefixesAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
     {
         try
@@ -355,7 +436,7 @@ public static class SeedRunner
     {
         if (db.Database.IsRelational())
         {
-            await db.Database.ExecuteSqlRawAsync("UPDATE Users SET AvatarUrl = '/assets/avatars/ai-bot.svg' WHERE AvatarUrl LIKE '%pngtree%' OR AvatarUrl LIKE 'http%'", ct);
+            await db.Database.ExecuteSqlRawAsync("UPDATE Users SET AvatarUrl = '/assets/avatars/ai-bot.svg' WHERE AvatarUrl LIKE '%pngtree%'", ct);
         }
 
         var adminId = 0;
@@ -372,12 +453,6 @@ public static class SeedRunner
                 if (user.IsPrimaryAdmin)
                 {
                     adminId = user.Id;
-                }
-
-                // Teacher & Student demo avatar cục bộ
-                if (user.AvatarUrl != null && (user.AvatarUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || user.AvatarUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
-                {
-                    user.AvatarUrl = email == "teacher@demo.local" ? "/assets/avatars/cyber-hacker.svg" : "/assets/avatars/ai-bot.svg";
                 }
                 if (email == "teacher@demo.local")
                 {

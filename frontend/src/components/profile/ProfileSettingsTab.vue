@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
-import { Check, Crown, Save, ShieldCheck, Upload } from 'lucide-vue-next';
+import { Check, Crown, ShieldCheck, Trash2, Upload } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import { messages } from '@/i18n/vi';
 import * as authApi from '@/api/auth';
+import { equippedItem } from '@/utils/equipment';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Input from '@/components/ui/Input.vue';
@@ -28,7 +29,6 @@ const passwordError = ref('');
 const passwordBusy = ref(false);
 
 // Avatar management
-const avatarUrlInput = ref('');
 const avatarError = ref('');
 const avatarUploading = ref(false);
 const avatarFileInput = ref<HTMLInputElement | null>(null);
@@ -98,6 +98,7 @@ async function uploadLocalAvatar(): Promise<void> {
 
     if (res.data?.url) {
       await auth.fetchMe();
+      await gamification.fetchInventory();
       ui.showToast('Tải lên và cập nhật ảnh đại diện từ thiết bị thành công!', 'success');
       cancelLocalAvatar();
     } else {
@@ -110,7 +111,15 @@ async function uploadLocalAvatar(): Promise<void> {
   }
 }
 
+onMounted(() => {
+  void gamification.fetchPremium();
+});
+
 async function updateAvatarUrl(url: string | null): Promise<void> {
+  if (url && !isPremiumUser.value) {
+    avatarError.value = 'Tính năng sử dụng ảnh đại diện tùy chỉnh chỉ dành cho tài khoản Premium.';
+    return;
+  }
   if (url) {
     const trimmed = url.trim();
     if (trimmed.length > 500) {
@@ -126,10 +135,20 @@ async function updateAvatarUrl(url: string | null): Promise<void> {
   avatarUploading.value = true;
   avatarError.value = '';
   try {
-    await authApi.updateProfile({ avatarUrl: url ? url.trim() : null });
+    if (!url) {
+      const equippedAv = equippedItem(gamification.inventory, 'avatar');
+      if (equippedAv) {
+        try {
+          await gamification.equipItem(equippedAv.itemId, false);
+          await gamification.fetchInventory();
+        } catch {
+          // ignore unequip error
+        }
+      }
+    }
+    await authApi.updateProfile({ avatarUrl: url ? url.trim() : '' });
     await auth.fetchMe();
     ui.showToast(url ? 'Cập nhật ảnh đại diện thành công!' : 'Đã xóa ảnh đại diện về mặc định.', 'success');
-    avatarUrlInput.value = '';
     cancelLocalAvatar();
   } catch (err) {
     avatarError.value = err instanceof Error ? err.message : 'Không thể cập nhật ảnh.';
@@ -312,18 +331,27 @@ async function handleConfirmDisable2Fa(): Promise<void> {
 
       <!-- Main Avatar Settings Box -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-vdsa-surface border border-vdsa-border mb-5">
-        <div class="profile__avatar-preview shrink-0">
-          <img
-            v-if="auth.user?.avatarUrl"
-            :src="auth.user.avatarUrl"
-            alt="Avatar"
-            class="profile__avatar-preview-img"
-            @error="avatarError = 'Không thể tải ảnh từ URL này. Vui lòng kiểm tra lại liên kết.'"
-          />
-          <span v-else class="profile__avatar-preview-placeholder font-bold text-white text-lg">
-            {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
-          </span>
-        </div>
+          <div class="profile__avatar-preview shrink-0 flex flex-col items-center">
+            <img
+              v-if="auth.user?.avatarUrl"
+              :src="auth.user.avatarUrl"
+              alt="Avatar"
+              class="profile__avatar-preview-img"
+              @error="avatarError = 'Không thể tải ảnh từ URL này. Vui lòng kiểm tra lại liên kết.'"
+            />
+            <span v-else class="profile__avatar-preview-placeholder font-bold text-white text-lg">
+              {{ auth.user?.displayName?.charAt(0)?.toUpperCase() ?? 'U' }}
+            </span>
+            <button
+              v-if="auth.user?.avatarUrl"
+              type="button"
+              class="mt-2 text-[11px] font-semibold text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+              :disabled="avatarUploading"
+              @click="updateAvatarUrl(null)"
+            >
+              <Trash2 :size="12" /> Xóa ảnh
+            </button>
+          </div>
 
         <div class="flex-1 w-full space-y-3">
           <!-- Upload from device button (Only for Premium / VIP) -->
@@ -337,6 +365,17 @@ async function handleConfirmDisable2Fa(): Promise<void> {
               @click="triggerDeviceUpload"
             >
               <Upload :size="14" /> Tải ảnh từ thiết bị
+            </Button>
+            <Button
+              v-if="auth.user?.avatarUrl"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :disabled="avatarUploading"
+              class="gap-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/25"
+              @click="updateAvatarUrl(null)"
+            >
+              <Trash2 :size="13" /> Đặt lại ảnh mặc định
             </Button>
             <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
               <Crown :size="11" /> VIP
@@ -352,30 +391,18 @@ async function handleConfirmDisable2Fa(): Promise<void> {
               <span>Tải ảnh từ thiết bị</span>
               <span class="text-[10px] uppercase tracking-wider bg-amber-500 text-black px-1.5 py-0.2 rounded font-black">PRO</span>
             </RouterLink>
+            <Button
+              v-if="auth.user?.avatarUrl"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :disabled="avatarUploading"
+              class="gap-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/25"
+              @click="updateAvatarUrl(null)"
+            >
+              <Trash2 :size="13" /> Đặt lại ảnh mặc định
+            </Button>
             <span class="text-[11px] text-vdsa-muted">Chỉ dành cho tài khoản Premium. Hãy nâng cấp để tải ảnh tùy biến!</span>
-          </div>
-
-          <!-- Direct URL input -->
-          <div>
-            <label class="block text-[11px] font-bold text-vdsa-secondary uppercase mb-1">Hoặc dán URL ảnh trực tiếp</label>
-            <div class="flex gap-2">
-              <input
-                v-model="avatarUrlInput"
-                type="url"
-                placeholder="https://example.com/my-avatar.png hoặc /assets/avatars/..."
-                class="flex-1 px-3 py-1.5 bg-vdsa-bg-secondary border border-vdsa-border rounded-xl text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-vdsa-accent"
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                class="gap-1.5 shrink-0 font-bold shadow-md shadow-purple-950/40"
-                :loading="avatarUploading"
-                :disabled="!avatarUrlInput.trim()"
-                @click="updateAvatarUrl(avatarUrlInput.trim())"
-              >
-                <Save :size="14" /> Lưu Avatar
-              </Button>
-            </div>
           </div>
         </div>
       </div>

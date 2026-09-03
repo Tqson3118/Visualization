@@ -19,13 +19,17 @@ namespace DsaVisual.Api.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v1/concepts")]
 [Authorize]
-public class ConceptsController(AppDbContext db, IGamificationConfigService configService) : ApiControllerBase
+public class ConceptsController(
+    AppDbContext db,
+    IGamificationConfigService configService,
+    Microsoft.Extensions.Caching.Memory.IMemoryCache cache) : ApiControllerBase
 {
     // true = bỏ hết khóa node; false = bật lại khóa tuần tự bình thường.
     private static readonly bool DisableNodeLocks = false;
 
     private readonly AppDbContext _db = db;
     private readonly IGamificationConfigService _configService = configService;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache = cache;
 
     // ── Courses (list + detail) ────────────────────────────────
 
@@ -357,16 +361,16 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             return NotFound(new { message = "Khóa học không tồn tại." });
         }
 
-        var isEnrolledViaClass = userId != null && await _db.Classes.AsNoTracking()
-            .Where(c => c.LearningPathId == id && c.DeletedAt == null)
-            .Join(_db.ClassMembers.AsNoTracking(), c => c.Id, m => m.ClassId, (c, m) => m.UserId)
-            .AnyAsync(uId => uId == userId.Value, ct);
-
         var isOwnerOrAuthor = userId != null && (path.CreatedBy == userId.Value || (path.AuthorId.HasValue && path.AuthorId.Value == userId.Value));
         var isTeacherOrAdmin = role == "ADMIN" || (role == "TEACHER" && isOwnerOrAuthor);
-        var canView = isTeacherOrAdmin
-            || path.Status == LearningPathStatus.Active
-            || isEnrolledViaClass;
+        var canView = isTeacherOrAdmin || path.Status == LearningPathStatus.Active;
+        if (!canView && userId != null)
+        {
+            canView = await _db.Classes.AsNoTracking()
+                .Where(c => c.LearningPathId == id && c.DeletedAt == null)
+                .Join(_db.ClassMembers.AsNoTracking(), c => c.Id, m => m.ClassId, (c, m) => m.UserId)
+                .AnyAsync(uId => uId == userId.Value, ct);
+        }
 
         if (!canView)
         {
@@ -390,7 +394,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
 
         var completed = playableNodes.Count(n => passedNodeIds.Contains(n.Id));
         var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && (path.CreatedBy == userId || path.AuthorId == userId));
-        var lessons = await BuildLessonsAsync(userId, role, nodes, isOwnerOrTeacher, ct);
+        var lessons = await BuildLessonsAsync(userId, role, nodes, isOwnerOrTeacher, ct, passedNodeIds);
         var (rating, ratingCount) = await CourseRatingAsync(nodes, ct);
         var meta = ParseMetadata(path.HighlightsJson, path.Title);
         var author = await CourseAuthorAsync(path.AuthorId, ct);
@@ -490,6 +494,10 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             path.ReviewedBy = userId;
             path.ReviewedAt = DateTime.UtcNow;
         }
+        else if (status == LearningPathStatus.PendingReview)
+        {
+            path.SubmittedAt = DateTime.UtcNow;
+        }
 
         _db.LearningPaths.Add(path);
         await _db.SaveChangesAsync(ct);
@@ -546,28 +554,46 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var requestedScope = (request.Scope ?? request.Status ?? "").ToLowerInvariant();
         if (requestedScope == "class" || requestedScope == "classonly")
         {
+            if (path.Status == LearningPathStatus.Active || path.Status == LearningPathStatus.PendingReview)
+            {
+                return BadRequest(new { message = "Lộ trình đã xuất bản công khai toàn hệ thống, không thể chuyển về phạm vi lớp riêng." });
+            }
             path.Status = LearningPathStatus.ClassOnly;
+            path.IsActive = true;
         }
         else if (requestedScope == "draft")
         {
+            if (path.Status == LearningPathStatus.Active || path.Status == LearningPathStatus.PendingReview || path.Status == LearningPathStatus.ClassOnly)
+            {
+                return BadRequest(new { message = "Lộ trình đã được phát hành (vào lớp học hoặc công khai), không thể chuyển ngược về Bản nháp." });
+            }
             path.Status = LearningPathStatus.Draft;
+            path.IsActive = false;
         }
-        else if (requestedScope == "public" || requestedScope == "pending_review")
+        else if (requestedScope == "public" || requestedScope == "pending_review" || requestedScope == "active")
         {
             if (role == "ADMIN")
             {
                 path.Status = LearningPathStatus.Active;
                 path.IsActive = true;
+                path.RejectionReason = null;
+                path.ReviewedBy = userId;
+                path.ReviewedAt = DateTime.UtcNow;
+                await ActivateAllLessonsInPath(path.Id, userId, ct);
             }
             else
             {
-                path.Status = LearningPathStatus.PendingReview;
-                path.SubmittedAt = DateTime.UtcNow;
-                path.RejectionReason = null;
+                // Nếu lộ trình đã được Admin phê duyệt (Active), Giảng viên cập nhật metadata
+                // thì giữ nguyên Active, không tự động giáng cấp về PendingReview!
+                if (path.Status != LearningPathStatus.Active)
+                {
+                    path.Status = LearningPathStatus.PendingReview;
+                    path.SubmittedAt = DateTime.UtcNow;
+                    path.RejectionReason = null;
+                }
             }
         }
-
-        if (role == "ADMIN")
+        else if (role == "ADMIN" && string.IsNullOrWhiteSpace(request.Scope) && string.IsNullOrWhiteSpace(request.Status))
         {
             path.IsActive = request.IsActive;
             if (request.IsActive && path.Status != LearningPathStatus.Active)
@@ -1198,7 +1224,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
     }
 
     private async Task<List<ConceptsLessonDto>> BuildLessonsAsync(
-        int? userId, string? role, List<LearningPathNode> nodes, bool isOwnerOrTeacher = false, CancellationToken ct = default)
+        int? userId, string? role, List<LearningPathNode> nodes, bool isOwnerOrTeacher = false, CancellationToken ct = default, HashSet<int>? preloadedPassedNodeIds = null)
     {
         if (nodes.Count == 0)
         {
@@ -1223,13 +1249,23 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var finalTestIds = nodes.Where(n => n.FinalTestId != null).Select(n => n.FinalTestId!.Value).Distinct().ToList();
         var labExerciseIds = nodes.Where(n => n.LabExerciseId != null).Select(n => n.LabExerciseId!.Value).Distinct().ToList();
 
-        var exercisesList = await _db.Exercises.AsNoTracking()
-            .Where(e => (e.NodeId != null && nodeIds.Contains(e.NodeId.Value))
-                     || (lessonIds.Contains(e.LessonId))
-                     || (finalTestIds.Contains(e.Id))
-                     || (labExerciseIds.Contains(e.Id)))
-            .Where(e => e.DeletedAt == null)
-            .ToListAsync(ct);
+        var exByNode = nodeIds.Count > 0
+            ? await _db.Exercises.AsNoTracking()
+                .Where(e => e.NodeId != null && nodeIds.Contains(e.NodeId.Value) && e.DeletedAt == null)
+                .ToListAsync(ct)
+            : [];
+        var exByLesson = lessonIds.Count > 0
+            ? await _db.Exercises.AsNoTracking()
+                .Where(e => lessonIds.Contains(e.LessonId) && e.DeletedAt == null)
+                .ToListAsync(ct)
+            : [];
+        var otherIds = finalTestIds.Concat(labExerciseIds).Distinct().ToList();
+        var exById = otherIds.Count > 0
+            ? await _db.Exercises.AsNoTracking()
+                .Where(e => otherIds.Contains(e.Id) && e.DeletedAt == null)
+                .ToListAsync(ct)
+            : [];
+        var exercisesList = exByNode.Concat(exByLesson).Concat(exById).DistinctBy(e => e.Id).ToList();
         var exercisesByNode = exercisesList
             .Where(e => e.NodeId != null)
             .GroupBy(e => e.NodeId!.Value)
@@ -1246,13 +1282,13 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var simsByLesson = lessonSims.GroupBy(s => s.LessonId)
             .ToDictionary(g => g.Key, g => g.Select(s => s.SimulationKey).ToList());
 
-        var passedNodeIds = userId is null
+        var passedNodeIds = preloadedPassedNodeIds ?? (userId is null
             ? new HashSet<int>()
             : (await _db.UserNodeProgress.AsNoTracking()
                 .Where(p => p.UserId == userId.Value && nodeIds.Contains(p.NodeId) && p.Status == 2)
                 .Select(p => p.NodeId)
                 .ToListAsync(ct))
-                .ToHashSet();
+                .ToHashSet());
 
         // Duyệt cây pre-order depth-first (ToLookup hỗ trợ null/0 key an toàn cho root nodes)
         var childrenByParent = nodes.ToLookup(n => (n.ParentId == null || n.ParentId <= 0) ? (int?)null : n.ParentId);
@@ -1511,17 +1547,17 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         if (courseId.HasValue && courseId.Value > 0)
         {
             node = await _db.LearningPathNodes.AsNoTracking()
-                .FirstOrDefaultAsync(n => n.PathId == courseId.Value && (n.Id == id || n.LessonId == id), ct);
-        }
-        if (node is null)
-        {
-            node = await _db.LearningPathNodes.AsNoTracking()
-                .FirstOrDefaultAsync(n => n.Id == id, ct);
+                .FirstOrDefaultAsync(n => n.PathId == courseId.Value && (n.LessonId == id || n.Id == id), ct);
         }
         if (node is null)
         {
             node = await _db.LearningPathNodes.AsNoTracking()
                 .FirstOrDefaultAsync(n => n.LessonId == id, ct);
+        }
+        if (node is null)
+        {
+            node = await _db.LearningPathNodes.AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == id, ct);
         }
         if (node is null)
         {
@@ -2207,16 +2243,14 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             return BadRequest(new { message = "Số XP không hợp lệ." });
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null, ct);
-        if (user is null)
-        {
-            return NotFound(new { message = "Tài khoản không tồn tại." });
-        }
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE Users SET Xp = Xp + {request.Amount}, UpdatedAt = {DateTime.UtcNow} WHERE Id = {userId}", ct);
 
-        user.Xp += request.Amount;
-        user.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        var newXp = await _db.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.Xp)
+            .FirstOrDefaultAsync(ct);
 
-        return Ok(new { success = true, xp = user.Xp, amount = request.Amount });
+        return Ok(new { success = true, xp = newXp, amount = request.Amount });
     }
 }
