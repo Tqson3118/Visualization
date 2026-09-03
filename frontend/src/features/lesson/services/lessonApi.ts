@@ -37,6 +37,15 @@ export interface LessonDetailResponse {
   status: string;
   lastActiveFrameIndex: number;
   lastScrollPercent: number;
+  lastSubmittedCode?: string | null;
+  lastQuizSubmission?: {
+    score: number;
+    maxScore: number;
+    passed: boolean;
+    answersJson?: string | null;
+    resultJson?: string | null;
+    submittedAt?: string | null;
+  } | null;
 }
 
 export async function fetchLessonDetail(lessonId: string, courseId?: string | number | null): Promise<LessonDetailResponse> {

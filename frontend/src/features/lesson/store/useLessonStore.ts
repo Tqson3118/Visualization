@@ -19,6 +19,15 @@ export interface LessonMeta {
   sandboxType: string;
   sandboxConfig: string;
   orderIndex: number;
+  lastSubmittedCode?: string | null;
+  lastQuizSubmission?: {
+    score: number;
+    maxScore: number;
+    passed: boolean;
+    answersJson?: string | null;
+    resultJson?: string | null;
+    submittedAt?: string | null;
+  } | null;
 }
 
 function mapBackendQuizQuestions(questions: Array<{ id: string; text: string; type?: string; options: string[]; correctIndex?: number; correctIndices?: number[]; explanation?: string }>): QuizQuestion[] {
@@ -364,6 +373,16 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       };
     }
 
+    if (detail.lastSubmittedCode && codelabTask) {
+      if (Array.isArray(codelabTask)) {
+        if (codelabTask.length > 0) {
+          codelabTask[0].initialCode = detail.lastSubmittedCode;
+        }
+      } else {
+        codelabTask.initialCode = detail.lastSubmittedCode;
+      }
+    }
+
     return {
       id: detail.id,
       title: detail.title,
@@ -372,6 +391,8 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       theoryContent: detail.contentMd || '',
       quizQuestions,
       codelabTask,
+      lastQuizSubmission: detail.lastQuizSubmission,
+      lastSubmittedCode: detail.lastSubmittedCode,
     };
   }
 
@@ -418,6 +439,8 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           sandboxType: detail.sandboxType,
           sandboxConfig: detail.sandboxConfig,
           orderIndex: detail.orderIndex,
+          lastSubmittedCode: detail.lastSubmittedCode,
+          lastQuizSubmission: detail.lastQuizSubmission,
         };
 
         if (detail.sandboxType === 'quiz') {
@@ -607,6 +630,20 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     quizScore.value = correct;
     if (correct > bestScore.value) {
       bestScore.value = correct;
+    }
+
+    const subObj = {
+      score: correct,
+      maxScore: questions.length,
+      passed: quizPassed.value,
+      answersJson: JSON.stringify(answers),
+      submittedAt: new Date().toISOString(),
+    };
+    if (currentLesson.value) {
+      currentLesson.value.lastQuizSubmission = subObj;
+    }
+    if (lessonMeta.value) {
+      lessonMeta.value.lastQuizSubmission = subObj;
     }
 
     saveToLocalStorage();

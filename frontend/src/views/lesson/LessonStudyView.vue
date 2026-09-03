@@ -198,6 +198,7 @@
           <LessonStepQuiz
             v-else-if="lessonStore.lessonMeta?.sandboxType === 'quiz'"
             :questions="lessonStore.currentLesson.quizQuestions ?? []"
+            :initial-submission="lessonStore.currentLesson.lastQuizSubmission ?? lessonStore.lessonMeta?.lastQuizSubmission ?? null"
             @submit="onQuizSubmit"
             @completeStep="onQuizComplete"
           />
@@ -614,6 +615,14 @@ function resolveNextLessonId(): string | null {
 }
 
 async function finishLesson(): Promise<void> {
+  if (lessonStore.lessonMeta?.sandboxType === 'quiz') {
+    const sub = lessonStore.currentLesson?.lastQuizSubmission ?? lessonStore.lessonMeta?.lastQuizSubmission;
+    if (sub && !sub.passed) {
+      uiStore.showToast('Bạn cần đạt tối thiểu 70% điểm để hoàn thành bài trắc nghiệm này.', 'warning');
+      return;
+    }
+  }
+
   const rewardXp = lessonStore.currentLesson?.xpReward ?? 0;
   const strCurId = String(lessonId.value);
   await lessonStore.markLessonCompleted(lessonId.value);

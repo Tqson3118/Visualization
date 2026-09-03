@@ -1485,6 +1485,18 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         public string Status { get; set; } = "NotStarted";
         public int LastActiveFrameIndex { get; set; }
         public int LastScrollPercent { get; set; }
+        public string? LastSubmittedCode { get; set; }
+        public LastQuizSubmissionDto? LastQuizSubmission { get; set; }
+    }
+
+    public sealed class LastQuizSubmissionDto
+    {
+        public int Score { get; set; }
+        public int MaxScore { get; set; }
+        public bool Passed { get; set; }
+        public string? AnswersJson { get; set; }
+        public string? ResultJson { get; set; }
+        public DateTime? SubmittedAt { get; set; }
     }
 
     [HttpGet("lessons/{id:int}")]
@@ -1662,6 +1674,42 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var passed = await _db.UserNodeProgress.AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
 
+        LastQuizSubmissionDto? lastQuizSub = null;
+        if (quizEx != null && userId > 0)
+        {
+            var latestSub = await _db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == quizEx.Id)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (latestSub != null)
+            {
+                var qCount = await _db.Questions.AsNoTracking().CountAsync(q => q.ExerciseId == quizEx.Id, ct);
+                var maxQ = qCount > 0 ? qCount : Math.Max(1, latestSub.Score);
+                lastQuizSub = new LastQuizSubmissionDto
+                {
+                    Score = latestSub.Score,
+                    MaxScore = maxQ,
+                    Passed = maxQ > 0 ? (latestSub.Score * 1.0 / maxQ >= 0.7) : (latestSub.Score > 0),
+                    AnswersJson = latestSub.AnswersJson,
+                    ResultJson = latestSub.ResultJson,
+                    SubmittedAt = latestSub.SubmittedAt
+                };
+            }
+        }
+
+        string? lastCode = null;
+        if (codeEx != null && userId > 0)
+        {
+            var latestCodeSub = await _db.CodeSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.ExerciseId == codeEx.Id)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefaultAsync(ct);
+            if (latestCodeSub != null && !string.IsNullOrWhiteSpace(latestCodeSub.Code))
+            {
+                lastCode = latestCodeSub.Code;
+            }
+        }
+
         return Ok(new LessonDetailResponse
         {
             Id = node.Id.ToString(),
@@ -1677,7 +1725,9 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             SimulationKeys = simKeys,
             XpReward = GetNodeXpReward(sandboxType, codeEx != null, quizEx != null),
             OrderIndex = node.SortOrder,
-            Status = passed ? "Completed" : "NotStarted"
+            Status = passed ? "Completed" : "NotStarted",
+            LastSubmittedCode = lastCode,
+            LastQuizSubmission = lastQuizSub
         });
     }
 
@@ -2090,6 +2140,20 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         // Node pass khi "Hoàn thành bài học" (cờ Completed hoặc CodelabCompleted)
         if (payload.Completed == true || payload.CodelabCompleted == true)
         {
+            // Nghiệp vụ Quiz: Không cho phép hoàn thành nếu chưa đạt tối thiểu 70%
+            if (node.ItemType == PathItemType.Quiz && node.FinalTestId.HasValue)
+            {
+                var qCount = await _db.Questions.AsNoTracking().CountAsync(q => q.ExerciseId == node.FinalTestId.Value, ct);
+                var bestSub = await _db.ExerciseSubmissions.AsNoTracking()
+                    .Where(s => s.UserId == userId && s.ExerciseId == node.FinalTestId.Value)
+                    .OrderByDescending(s => s.Score)
+                    .FirstOrDefaultAsync(ct);
+                var quizPassed = bestSub != null && qCount > 0 && (bestSub.Score * 1.0 / qCount >= 0.7);
+                if (!quizPassed)
+                {
+                    return BadRequest(new { message = "Điểm bài trắc nghiệm chưa đạt yêu cầu (cần tối thiểu 70%) để hoàn thành." });
+                }
+            }
             var nodeProgress = await _db.UserNodeProgress
                 .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
             var isFirstPass = nodeProgress is null || nodeProgress.Status != 2;

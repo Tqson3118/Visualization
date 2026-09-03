@@ -52,6 +52,25 @@
             <span v-else>{{ idx + 1 }}</span>
           </button>
         </div>
+
+        <!-- Previous Submission Info Banner -->
+        <div v-if="props.initialSubmission && isSubmitted" class="mt-2 flex items-center justify-between px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs backdrop-blur-md">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1 font-bold" :class="quizPassed ? 'text-vdsa-green' : 'text-amber-400'">
+              <BaseIcon :name="quizPassed ? 'check' : 'warning'" class="w-4 h-4" />
+              {{ quizPassed ? 'Lần làm trước: ĐÃ ĐẠT' : 'Lần làm trước: CHƯA ĐẠT (Cần ≥ 70%)' }}
+            </span>
+            <span class="text-white/80 font-mono">
+              ({{ quizScore }}/{{ questions.length }} câu đúng)
+            </span>
+          </div>
+          <button
+            @click="resetQuiz"
+            class="px-3 py-1 rounded-xl bg-accent/20 hover:bg-accent/40 text-accent text-xs font-bold transition-colors cursor-pointer border border-accent/30"
+          >
+            Làm lại bài
+          </button>
+        </div>
       </div>
     </header>
 
@@ -262,8 +281,17 @@ import BaseIcon from '../../../shared/components/BaseIcon.vue';
 
 const props = withDefaults(defineProps<{
   questions?: QuizQuestion[];
+  initialSubmission?: {
+    score: number;
+    maxScore: number;
+    passed: boolean;
+    answersJson?: string | null;
+    resultJson?: string | null;
+    submittedAt?: string | null;
+  } | null;
 }>(), {
   questions: () => [],
+  initialSubmission: null,
 });
 
 const emit = defineEmits<{
@@ -369,9 +397,50 @@ function clearDraftAnswers(): void {
   } catch {}
 }
 
-// Khôi phục đáp án nháp khi câu hỏi thay đổi / khởi tạo
-watch(() => props.questions, () => {
-  if (!isSubmitted.value) {
+function restoreFromInitialSubmission(): boolean {
+  if (!props.initialSubmission || !props.initialSubmission.answersJson) return false;
+  try {
+    const raw = props.initialSubmission.answersJson;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(parsed)) {
+      const mapping: Record<string, number[]> = {};
+      props.questions.forEach((q, idx) => {
+        if (parsed.length > idx) {
+          const item = parsed[idx];
+          if (Array.isArray(item)) {
+            mapping[String(q.id)] = item;
+          } else if (typeof item === 'number' && item >= 0) {
+            mapping[String(q.id)] = [item];
+          }
+        }
+      });
+      userAnswers.value = mapping;
+      isSubmitted.value = true;
+      return true;
+    } else if (typeof parsed === 'object' && parsed !== null) {
+      const mapping: Record<string, number[]> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (Array.isArray(v)) {
+          mapping[k] = v as number[];
+        } else if (typeof v === 'number' && (v as number) >= 0) {
+          mapping[k] = [v as number];
+        }
+      }
+      userAnswers.value = mapping;
+      isSubmitted.value = true;
+      return true;
+    }
+  } catch (e) {
+    console.warn('Error restoring initial quiz submission', e);
+  }
+  return false;
+}
+
+// Khôi phục đáp án từ kết quả đã nộp hoặc bản nháp khi câu hỏi thay đổi / khởi tạo
+watch([() => props.questions, () => props.initialSubmission], () => {
+  if (props.initialSubmission && props.initialSubmission.answersJson) {
+    restoreFromInitialSubmission();
+  } else if (!isSubmitted.value) {
     loadDraftAnswers();
   }
 }, { immediate: true });

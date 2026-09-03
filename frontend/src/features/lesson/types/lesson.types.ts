@@ -35,4 +35,13 @@ export interface Lesson {
   theoryContent: string;
   quizQuestions?: QuizQuestion[];
   codelabTask?: CodeLabTask | CodeLabTask[];
+  lastQuizSubmission?: {
+    score: number;
+    maxScore: number;
+    passed: boolean;
+    answersJson?: string | null;
+    resultJson?: string | null;
+    submittedAt?: string | null;
+  } | null;
+  lastSubmittedCode?: string | null;
 }

@@ -1753,6 +1753,7 @@ public sealed class ExerciseService(
             {
                 Id = s.Id,
                 UserId = s.UserId,
+                Code = s.Code,
                 Score = s.Score,
                 PassedTests = s.PassedTests,
                 TotalTests = s.TotalTests,
@@ -1838,7 +1839,7 @@ public sealed class ExerciseService(
     }
 
     private static bool CanManage(int userId, string role, Exercise exercise) =>
-        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) || exercise.CreatedBy == userId;
+        role.Equals(RoleAdmin, StringComparison.OrdinalIgnoreCase) || role.Equals(RoleTeacher, StringComparison.OrdinalIgnoreCase) || exercise.CreatedBy == userId;
 
     private static List<string> SplitCsvLine(string line)
     {
