@@ -1015,18 +1015,9 @@ watch(
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <div class="flex items-center justify-between mb-1">
-              <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-                Chủ đề kiến thức ({{ knowledgeTopics.length }} Chủ đề)
-              </label>
-              <button
-                type="button"
-                class="text-[11px] text-purple-400 hover:text-purple-300 font-bold hover:underline cursor-pointer flex items-center gap-1"
-                @click="openManageTopicsModal"
-              >
-                <Tags :size="12" /> Quản lý chủ đề
-              </button>
-            </div>
+            <label for="edit-path-topic" class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              Chủ đề kiến thức
+            </label>
             <select
               id="edit-path-topic"
               v-model="editPathForm.topicId"
