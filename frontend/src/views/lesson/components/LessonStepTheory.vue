@@ -49,13 +49,6 @@
           <BaseIcon name="check-circle" class="w-4 h-4 text-vdsa-green" />
           <span>Đã hoàn thành</span>
         </div>
-        <button
-          @click="$emit('completeStep')"
-          class="px-3 py-2 rounded-xl text-xs font-medium text-vdsa-muted hover:text-white hover:bg-vdsa-hover border border-vdsa-border transition-colors cursor-pointer"
-          title="Bấm để đồng bộ lại tiến độ hoàn thành lên máy chủ nếu bài sau chưa mở khóa"
-        >
-          <span>Đồng bộ lại</span>
-        </button>
       </div>
 
       <button
