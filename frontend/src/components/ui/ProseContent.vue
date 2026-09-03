@@ -83,10 +83,34 @@ const rendered = computed<string>(() => {
 .prose > :last-child { margin-bottom: 0; }
 
 /* ── Headings ── */
-.prose :deep(h1) { font-size: var(--text-xl); line-height: 1.3; margin-block: var(--space-lg) var(--space-md); }
-.prose :deep(h2) { font-size: var(--text-lg); line-height: 1.3; margin-block: var(--space-lg) var(--space-sm); }
-.prose :deep(h3) { font-size: var(--text-md); line-height: 1.4; margin-block: var(--space-md) var(--space-sm); }
-.prose :deep(h4) { font-size: var(--text-base); line-height: 1.4; margin-block: var(--space-md) var(--space-sm); }
+.prose :deep(h1) {
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.3;
+  margin-block: 1.5rem 0.75rem;
+  color: #ffffff;
+}
+.prose :deep(h2) {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-block: 1.25rem 0.5rem;
+  color: #ffffff;
+}
+.prose :deep(h3) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-block: 1rem 0.5rem;
+  color: #f1f5f9;
+}
+.prose :deep(h4) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-block: 0.875rem 0.375rem;
+  color: #e2e8f0;
+}
 
 /* ── Đoạn văn — ngắt dòng thoáng ── */
 .prose :deep(p) { margin-block: 0 var(--space-md); }

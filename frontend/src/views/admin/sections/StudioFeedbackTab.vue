@@ -10,6 +10,7 @@ import {
 
 import { courseApi, type CourseListDto, type CourseFeedbackDto } from '@/services/courseApi';
 import { useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import { formatDate } from '@/utils/format';
 import { normalizeVi } from '@/utils/searchNormalize';
 import Button from '@/components/ui/Button.vue';
@@ -18,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 
 const ui = useUiStore();
+const auth = useAuthStore();
 const route = useRoute();
 
 const courses = ref<CourseListDto[]>([]);
@@ -28,6 +30,7 @@ const selectedCourseId = ref<string | number | 'all'>(
   typeof route.query.courseId === 'string' ? route.query.courseId : 'all',
 );
 const feedbackStatusFilter = ref<string>('');
+const feedbackTypeFilter = ref<string>('');
 const feedbackSearchQuery = ref('');
 const replyTexts = ref<Record<number, string>>({});
 const replySaving = ref<Record<number, boolean>>({});
@@ -69,6 +72,14 @@ onMounted(() => {
 
 const filteredFeedbacks = computed(() => {
   let list = feedbackItems.value;
+  // #19: Giáo viên chỉ thấy Góp ý & Đề xuất, Báo lỗi chuyển Admin kỹ thuật
+  if (auth.user?.role === 'TEACHER') {
+    list = list.filter((i) => i.type !== 'Bug');
+  }
+  // #28: Filter theo phân loại
+  if (feedbackTypeFilter.value) {
+    list = list.filter((i) => i.type === feedbackTypeFilter.value);
+  }
   if (selectedCourseId.value !== 'all') {
     list = list.filter((i) => i.courseId === Number(selectedCourseId.value));
   }
@@ -124,7 +135,13 @@ async function sendFeedbackReply(item: CourseFeedbackDto): Promise<void> {
           </option>
         </select>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <select v-model="feedbackTypeFilter" class="course-bar__select text-xs py-1.5 w-auto">
+          <option value="">Tất cả Phân loại</option>
+          <option value="Suggestion">💡 Góp ý</option>
+          <option value="Request">📝 Đề xuất nội dung</option>
+          <option v-if="auth.user?.role !== 'TEACHER'" value="Bug">🐛 Báo lỗi</option>
+        </select>
         <select v-model="feedbackStatusFilter" class="course-bar__select text-xs py-1.5 w-auto">
           <option value="">Tất cả Trạng thái</option>
           <option value="OPEN">Đang xử lý</option>

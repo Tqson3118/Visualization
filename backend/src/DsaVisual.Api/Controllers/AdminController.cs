@@ -20,7 +20,7 @@ public class AdminController(AppDbContext db, IDateTimeProvider clock) : ApiCont
     private readonly IDateTimeProvider _clock = clock;
 
     [HttpGet("stats")]
-    public async Task<ActionResult<StatsDto>> GetStats(CancellationToken ct)
+    public async Task<ActionResult<StatsDto>> GetStats([FromQuery] string? period, CancellationToken ct)
     {
         // "Hôm nay" theo UTC+7 (ngày địa phương) — khớp cách GamificationService ghi LastActivityDate.
         var today = _clock.UtcNow.AddHours(7).Date;
@@ -66,12 +66,33 @@ public class AdminController(AppDbContext db, IDateTimeProvider clock) : ApiCont
             .Where(s => s.Status == 0 || s.Status == 1)
             .Sum(s => (s.PlanId ?? "").Contains("yearly") ? 799000L : 99000L);
 
-        // 3. Doanh thu và số đơn hàng 7 ngày gần nhất
-        var last7Days = Enumerable.Range(0, 7)
-            .Select(i => today.AddDays(-6 + i))
+        // 3. Doanh thu và số đơn hàng theo khoảng thời gian thực tế (không dùng mock data)
+        int daysCount = 7;
+        if (period == "30d") daysCount = 30;
+        else if (period == "all")
+        {
+            var earliestSubDate = subscriptions
+                .Where(s => s.Status == 0 || s.Status == 1)
+                .OrderBy(s => s.CreatedAt)
+                .Select(s => s.CreatedAt.Date)
+                .FirstOrDefault();
+
+            if (earliestSubDate != default)
+            {
+                var diff = (today - earliestSubDate).Days + 1;
+                daysCount = Math.Clamp(diff, 7, 90);
+            }
+            else
+            {
+                daysCount = 30;
+            }
+        }
+
+        var dateRange = Enumerable.Range(0, daysCount)
+            .Select(i => today.AddDays(-daysCount + 1 + i))
             .ToList();
 
-        stats.RevenueByDay = last7Days.Select(day =>
+        stats.RevenueByDay = dateRange.Select(day =>
         {
             var daySubs = subscriptions
                 .Where(s => s.CreatedAt.Date == day.Date && (s.Status == 0 || s.Status == 1))
@@ -83,19 +104,6 @@ public class AdminController(AppDbContext db, IDateTimeProvider clock) : ApiCont
                 Orders = daySubs.Count
             };
         }).ToList();
-
-        // Nếu các đơn trong DB cách xa hơn 7 ngày, dựng biểu đồ phân bổ các mốc gần nhất cho demo trực quan
-        if (stats.RevenueByDay.All(d => d.Revenue == 0) && stats.TotalRevenue > 0)
-        {
-            stats.RevenueByDay[1].Revenue = 99000L;
-            stats.RevenueByDay[1].Orders = 1;
-            stats.RevenueByDay[3].Revenue = 198000L;
-            stats.RevenueByDay[3].Orders = 2;
-            stats.RevenueByDay[5].Revenue = 99000L;
-            stats.RevenueByDay[5].Orders = 1;
-            stats.RevenueByDay[6].Revenue = 99000L;
-            stats.RevenueByDay[6].Orders = 1;
-        }
 
         return Ok(stats);
     }

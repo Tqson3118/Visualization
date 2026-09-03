@@ -688,7 +688,7 @@ watch(
       <!-- Cột cây nội dung đầy đủ (420px - 520px linh hoạt) -->
       <div
         v-else
-        class="w-full lg:w-[420px] xl:w-[480px] 2xl:w-[520px] shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:max-h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-0 transition-all"
+        class="w-full lg:w-[420px] xl:w-[480px] 2xl:w-[520px] shrink-0 lg:sticky lg:top-[calc(var(--app-header-h,68px)+16px)] flex flex-col h-auto lg:h-[calc(100vh-var(--app-header-h,68px)-32px)] min-h-0 transition-all"
       >
         <div class="relative min-w-0 flex-1 flex flex-col min-h-0">
           <div

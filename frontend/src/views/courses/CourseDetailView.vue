@@ -436,7 +436,7 @@ const modules = computed<PathModuleGroup[]>(() => {
         quizId: l.quizId ? Number(l.quizId) : undefined,
         status: l.status,
         isCompleted: l.status === 'Completed',
-        locked: !!l.locked,
+        locked: l.status === 'Completed' ? false : !!l.locked,
         xpReward: l.xpReward,
       });
     }
@@ -635,7 +635,7 @@ async function startLesson(lesson: CourseLessonDto, skipHeartCharge = false) {
   const firstLesson = playableLessons[0];
   const isFirstNode = firstLesson && (String(firstLesson.id) === String(lesson.id) || (firstLesson.nodeId && firstLesson.nodeId === lesson.nodeId));
   const isAlreadyDone = lesson.status === 'Completed';
-  const shouldChargeHeart = !skipHeartCharge && !isFirstNode && !isAlreadyDone && !isOwnCourse.value;
+  const shouldChargeHeart = false; // Option B: chỉ trừ 1 tim khi đăng ký lộ trình, không trừ khi vào từng bài
 
   if (courseId && nodeId && shouldChargeHeart) {
     const ok = await heartSystem.enterLessonNode(courseId, nodeId, false, isOwnCourse.value);

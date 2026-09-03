@@ -49,3 +49,15 @@ public sealed class EquipRequest
     public int ItemId { get; set; }
     public string? Slot { get; set; }        // null = dùng Type làm nhóm slot
 }
+
+/// <summary>Kết quả sử dụng vật phẩm tiêu hao — POST /me/inventory/{itemId}/use.</summary>
+public sealed class UseInventoryItemResultDto
+{
+    public int ItemId { get; set; }
+    public string ItemKey { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int RemainingQuantity { get; set; }
+    public int Hearts { get; set; }
+    public int HeartsMax { get; set; }
+    public string Message { get; set; } = string.Empty;
+}

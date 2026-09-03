@@ -1787,6 +1787,11 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
     public async Task<ActionResult<QuizAttemptResult>> SubmitQuiz([FromBody] QuizSubmitRequest request, CancellationToken ct)
     {
         var userId = CurrentUserId();
+        var role = TryGetCurrentRole();
+        if (role == "TEACHER")
+        {
+            return StatusCode(403, new { message = "Giảng viên chỉ được xem lộ trình, không được hoàn thành bài thay học viên." });
+        }
         if (!int.TryParse(request.QuizId, out var quizId))
         {
             return BadRequest(new { message = "QuizId không hợp lệ." });
@@ -1987,7 +1992,11 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
 
         var path = await _db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
         var role = TryGetCurrentRole();
-        var isOwnerOrTeacher = role == "ADMIN" || (role == "TEACHER" && path != null && (path.CreatedBy == userId || path.AuthorId == userId));
+        if (role == "TEACHER")
+        {
+            return StatusCode(403, new { message = "Giảng viên chỉ được xem lộ trình, không được hoàn thành bài thay học viên." });
+        }
+        var isOwnerOrTeacher = role == "ADMIN";
 
         var isEnrolledViaClass = path != null && await _db.Classes.AsNoTracking()
             .Where(c => c.LearningPathId == path.Id && c.DeletedAt == null)

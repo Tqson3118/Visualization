@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
-import { Check, Crown, ShieldCheck, Upload } from 'lucide-vue-next';
+import { Check, Crown, Save, ShieldCheck, Upload } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
@@ -366,13 +366,14 @@ async function handleConfirmDisable2Fa(): Promise<void> {
                 class="flex-1 px-3 py-1.5 bg-vdsa-bg-secondary border border-vdsa-border rounded-xl text-xs text-white placeholder:text-vdsa-disabled focus:outline-none focus:border-vdsa-accent"
               />
               <Button
-                variant="secondary"
+                variant="primary"
                 size="sm"
+                class="gap-1.5 shrink-0 font-bold shadow-md shadow-purple-950/40"
                 :loading="avatarUploading"
                 :disabled="!avatarUrlInput.trim()"
                 @click="updateAvatarUrl(avatarUrlInput.trim())"
               >
-                Lưu URL
+                <Save :size="14" /> Lưu Avatar
               </Button>
             </div>
           </div>

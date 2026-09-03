@@ -80,6 +80,7 @@ const form = reactive({
   title: '',
   description: '',
 });
+const lessonScope = ref<'draft' | 'class'>('draft');
 
 // Theory Specific
 const theoryContentHtml = ref('');
@@ -220,6 +221,7 @@ function snapshot(): string {
   return JSON.stringify({
     title: form.title,
     description: form.description,
+    scope: lessonScope.value,
     theory: theoryContentHtml.value,
     simulations: attachedSimulations.value,
     quiz: quizQuestions.value,
@@ -262,10 +264,12 @@ function confirmClose(): void {
   emit('close');
 }
 
+let latestFetchId = 0;
 watch(
   () => props.item,
   async (newItem) => {
     if (!newItem) return;
+    const currentFetch = ++latestFetchId;
     form.title = newItem.title || '';
     form.description = newItem.description || '';
     theoryContentHtml.value = '';
@@ -276,16 +280,22 @@ watch(
     loadingDetail.value = true;
     try {
       const detail = await fetchItemDetail(newItem.id);
+      if (currentFetch !== latestFetchId) return;
       form.title = detail.title || '';
       form.description = detail.description || '';
 
       if (normalizeItemType(detail.itemType) === 'theory' && detail.lesson) {
         let content = detail.lesson.contentHtml || '';
+        const PLACEHOLDER_TEXT = '<p>Nội dung bài học đang được biên soạn.</p>';
+        if (content.trim() === PLACEHOLDER_TEXT) {
+          content = '';
+        }
         if (content && !content.includes('<p>') && !content.includes('<div>') && !content.includes('<h') && (content.includes('#') || content.includes('```') || content.includes('> [!'))) {
           content = parseMarkdownToHtml(content);
         }
         theoryContentHtml.value = content;
         attachedSimulations.value = (detail.lesson.simulations || []).map((s: any) => s.simulationKey || s);
+        lessonScope.value = detail.lesson.isClassOnly ? 'class' : (detail.lesson.status === 'active' ? 'class' : 'draft');
       } else if (normalizeItemType(detail.itemType) === 'quiz' && detail.exercise) {
         if (detail.exercise.questions && detail.exercise.questions.length > 0) {
           quizQuestions.value = detail.exercise.questions.map((q: any) => {
@@ -317,9 +327,10 @@ watch(
         } else {
           quizQuestions.value = [
             {
-              content: 'Câu hỏi trắc nghiệm số 1?',
+              id: 1,
+              content: 'Nội dung câu hỏi trắc nghiệm...',
               type: 'Single',
-              options: ['Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D'],
+              options: ['Lựa chọn A', 'Lựa chọn B', 'Lựa chọn C', 'Lựa chọn D'],
               correctIndex: 0,
               correctIndices: [0],
               explanation: 'Giải thích chi tiết đáp án đúng.',
@@ -342,10 +353,13 @@ watch(
         }
       }
     } catch {
+      if (currentFetch !== latestFetchId) return;
       // Use props item as fallback
     } finally {
-      loadingDetail.value = false;
-      dirtyBaseline.value = snapshot();
+      if (currentFetch === latestFetchId) {
+        loadingDetail.value = false;
+        dirtyBaseline.value = snapshot();
+      }
     }
   },
   { immediate: true, deep: true },
@@ -397,6 +411,16 @@ async function handleWordUpload(e: Event): Promise<void> {
   }
 }
 
+function downloadSampleTheoryDocx(): void {
+  const link = document.createElement('a');
+  link.href = '/templates/mau_bai_giang_ly_thuyet_dsa.docx';
+  link.download = 'mau_bai_giang_ly_thuyet_dsa.docx';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  ui.showToast('Đã tải xuống file Word (.docx) bài giảng mẫu!', 'success');
+}
+
 function handleAiFormat(): void {
   if (!theoryContentHtml.value || !theoryContentHtml.value.trim()) {
     ui.showToast('Vui lòng nhập hoặc tải nội dung bài giảng trước khi AI format', 'warning');
@@ -413,6 +437,7 @@ function handleAiFormat(): void {
   ui.showToast('AI đã chuẩn hóa cấu trúc đề mục và khối kiến thức thành công!', 'success');
 }
 
+const tiptapRef = ref<InstanceType<typeof TipTapEditor> | null>(null);
 const showSimPicker = ref(false);
 const pickerInitialKey = ref('sort.bubble');
 
@@ -424,10 +449,14 @@ function openPickerModal(key?: string): void {
 }
 
 function insertSimulationTag(key: string): void {
-  const sim = CATALOG.find((c) => c.key === key);
-  const title = sim ? sim.title : key;
-  const tag = `<p><strong>🎮 Mô phỏng trực quan: ${title}</strong></p><p>[Mô phỏng: ${key}]</p>`;
-  theoryContentHtml.value += tag;
+  if (tiptapRef.value && typeof tiptapRef.value.insertSimulation === 'function') {
+    tiptapRef.value.insertSimulation(key);
+  } else {
+    const sim = CATALOG.find((c) => c.key === key);
+    const title = sim ? sim.title : key;
+    const tag = `<p><strong>🎮 Mô phỏng trực quan: ${title}</strong></p><p>[Mô phỏng: ${key}]</p>`;
+    theoryContentHtml.value += tag;
+  }
   if (!attachedSimulations.value.includes(key)) {
     attachedSimulations.value.push(key);
   }
@@ -438,10 +467,12 @@ function addSimulations(keys: string[]): void {
   const added = keys.filter((k) => k && !attachedSimulations.value.includes(k));
   if (added.length === 0) {
     ui.showToast('Các mô phỏng đã được gắn vào bài học từ trước.', 'info');
+    showSimPicker.value = false;
     return;
   }
   attachedSimulations.value.push(...added);
   ui.showToast('Đã gắn ' + added.length + ' mô phỏng vào bài học!', 'success');
+  showSimPicker.value = false;
 }
 
 function addSimulation(key: string): void {
@@ -894,9 +925,9 @@ async function handleSave() {
             title: form.title.trim(),
             description: form.description.trim(),
             contentHtml: contentHtmlToSave,
-            status: currentLesson.status ?? 'active',
+            status: lessonScope.value === 'class' ? 'active' : 'draft',
             sortOrder: currentLesson.sortOrder ?? 1,
-            isClassOnly: currentLesson.isClassOnly ?? false,
+            isClassOnly: lessonScope.value === 'class',
             simulationKeys: simKeysToSave,
           });
           await updatePathItem(props.item.id, {
@@ -912,9 +943,9 @@ async function handleSave() {
             title: form.title.trim(),
             description: form.description.trim(),
             contentHtml: contentHtmlToSave,
-            status: 'draft',
+            status: lessonScope.value === 'class' ? 'active' : 'draft',
             sortOrder: 1,
-            isClassOnly: false,
+            isClassOnly: lessonScope.value === 'class',
             simulationKeys: simKeysToSave,
           });
           props.item.lessonId = created.id;
@@ -931,9 +962,9 @@ async function handleSave() {
           title: form.title.trim(),
           description: form.description.trim(),
           contentHtml: contentHtmlToSave,
-          status: 'draft',
+          status: lessonScope.value === 'class' ? 'active' : 'draft',
           sortOrder: 1,
-          isClassOnly: false,
+          isClassOnly: lessonScope.value === 'class',
           simulationKeys: simKeysToSave,
         });
         props.item.lessonId = created.id;
@@ -1115,6 +1146,18 @@ async function handleSave() {
             class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
           />
         </div>
+        <div v-if="currentItemType !== 'folder'">
+          <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Phạm vi bài học
+          </label>
+          <select
+            v-model="lessonScope"
+            class="w-full px-3 py-2 text-xs font-medium bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500"
+          >
+            <option value="draft">Bản nháp (Đang biên soạn)</option>
+            <option value="class">Dành cho lớp học (Học viên lớp được học)</option>
+          </select>
+        </div>
       </div>
 
       <!-- Folder Specific: Quick Actions & Child Summary -->
@@ -1220,6 +1263,17 @@ async function handleSave() {
               @change="handleWordUpload"
             />
 
+            <!-- Nút Tải mẫu Word (.docx) -->
+            <button
+              type="button"
+              class="px-2.5 py-1 text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Tải file Word (.docx) bài giảng mẫu về máy để điền nội dung"
+              @click="downloadSampleTheoryDocx"
+            >
+              <Download class="w-3.5 h-3.5 text-blue-400" />
+              <span>Tải mẫu Word</span>
+            </button>
+
             <!-- Nút Upload Word -->
             <button
               type="button"
@@ -1228,7 +1282,7 @@ async function handleSave() {
               @click="fileInputRef?.click()"
             >
               <Upload class="w-3.5 h-3.5 text-purple-400" />
-              <span>Tải Word (.docx)</span>
+              <span>Nhập từ Word</span>
             </button>
 
             <!-- Nút AI Format -->
@@ -1294,6 +1348,7 @@ async function handleSave() {
 
         <TipTapEditor
           v-if="activeViewMode === 'edit'"
+          ref="tiptapRef"
           v-model="theoryContentHtml"
           class="min-h-[360px]"
         />

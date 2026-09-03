@@ -31,8 +31,8 @@ function activate(event: MouseEvent | KeyboardEvent): void {
 }
 
 const isFinal = computed(() => props.data.final === true);
-const isPassed = computed(() => props.data.status === 'passed');
-const isLocked = computed(() => props.data.status === 'locked');
+const isPassed = computed(() => props.data.status === 'passed' || (props.data.status as string) === 'Completed' || Boolean((props.data as any).isCompleted));
+const isLocked = computed(() => props.data.status === 'locked' && !isPassed.value);
 
 const chipLabel = computed(() => {
   if (isFinal.value) return isPassed.value ? 'MỞ ĐƯỢC' : 'KHÓA';

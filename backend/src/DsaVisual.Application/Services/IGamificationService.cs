@@ -24,6 +24,7 @@ public interface IGamificationService
     Task<Result<ShopBuyResultDto>> BuyItemAsync(int userId, int itemId, CancellationToken ct);
     Task<Result<List<InventoryItemDto>>> GetInventoryAsync(int userId, CancellationToken ct);
     Task<Result> EquipItemAsync(int userId, EquipRequest request, CancellationToken ct);
+    Task<Result<UseInventoryItemResultDto>> UseItemAsync(int userId, int itemId, CancellationToken ct);
     Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(int userId, CancellationToken ct);
     Task<Result<PremiumUpgradeResultDto>> UpgradePremiumAsync(int userId, PremiumUpgradeRequest request, CancellationToken ct);
     Task<Result<PremiumStatusDto>> MockPayAsync(int userId, PremiumMockPayRequest request, CancellationToken ct);

@@ -1111,7 +1111,110 @@ public sealed class ClassService(
             });
         }
 
-        // Nếu lớp chưa gán Lộ trình học (LearningPathId == null), trả về danh sách bài học rỗng
+        if (assignments.Count == 0)
+        {
+            return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
+            {
+                ClassId = id,
+                LearningPathId = null,
+                LearningPathTitle = null,
+                Title = displayTitle,
+                Description = displayDesc,
+                Published = classRoom.CurriculumPublished,
+                ProgressPct = 0,
+                Items = []
+            });
+        }
+
+        // Fallback: Lớp chưa liên kết LearningPath nhưng có assignments gán trực tiếp (hỗ trợ test và legacy)
+        var fallbackLessonIds = assignments.Where(a => a.LessonId != null).Select(a => a.LessonId!.Value).Distinct().ToList();
+        var fallbackExerciseIds = assignments.Where(a => a.ExerciseId != null).Select(a => a.ExerciseId!.Value).Distinct().ToList();
+
+        var fallbackLessonTitles = fallbackLessonIds.Count > 0
+            ? await db.Lessons.AsNoTracking().Where(l => fallbackLessonIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Title, ct)
+            : new Dictionary<int, string>();
+        var fallbackExerciseTitles = fallbackExerciseIds.Count > 0
+            ? await db.Exercises.AsNoTracking().Where(e => fallbackExerciseIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, e => e.Title, ct)
+            : new Dictionary<int, string>();
+
+        var fallbackLessonProgress = fallbackLessonIds.Count > 0
+            ? await db.UserProgress.AsNoTracking()
+                .Where(p => p.UserId == userId && fallbackLessonIds.Contains(p.LessonId))
+                .ToListAsync(ct)
+            : new List<UserProgress>();
+        var fallbackLessonProgressByLesson = fallbackLessonProgress.ToDictionary(p => p.LessonId);
+
+        var fallbackExerciseDone = fallbackExerciseIds.Count > 0
+            ? await db.ExerciseSubmissions.AsNoTracking()
+                .Where(s => s.UserId == userId && fallbackExerciseIds.Contains(s.ExerciseId) && s.Score > 0)
+                .Select(s => s.ExerciseId)
+                .Distinct()
+                .ToListAsync(ct)
+            : new List<int>();
+        var fallbackExerciseDoneSet = fallbackExerciseDone.ToHashSet();
+
+        var fallbackCompletedAssignments = new HashSet<int>();
+        foreach (var assignment in assignments)
+        {
+            if (assignment.LessonId is { } lid && fallbackLessonProgressByLesson.TryGetValue(lid, out var progress)
+                && (progress.CompletedAt != null || (progress.BestScore ?? 0) > 0))
+            {
+                fallbackCompletedAssignments.Add(assignment.Id);
+            }
+            else if (assignment.ExerciseId is { } eid && fallbackExerciseDoneSet.Contains(eid))
+            {
+                fallbackCompletedAssignments.Add(assignment.Id);
+            }
+        }
+
+        var firstIncompleteIdx = -1;
+        var fallbackItemDtos = new List<ClassCurriculumItemDto>();
+        for (var i = 0; i < assignments.Count; i++)
+        {
+            var assignment = assignments[i];
+            var isCompleted = fallbackCompletedAssignments.Contains(assignment.Id);
+            if (!isCompleted && firstIncompleteIdx < 0)
+            {
+                firstIncompleteIdx = i;
+            }
+
+            var title = assignment.LessonId is { } lid ? (fallbackLessonTitles.GetValueOrDefault(lid) ?? string.Empty)
+                : assignment.ExerciseId is { } eid ? (fallbackExerciseTitles.GetValueOrDefault(eid) ?? string.Empty)
+                : string.Empty;
+
+            fallbackItemDtos.Add(new ClassCurriculumItemDto
+            {
+                AssignmentId = assignment.Id,
+                LessonId = assignment.LessonId,
+                ExerciseId = assignment.ExerciseId,
+                Title = title,
+                ItemType = assignment.LessonId != null ? "lesson" : "exercise",
+                SortOrder = assignment.SortOrder,
+                DueAt = assignment.DueAt,
+                Status = "not_started",
+                BestScore = assignment.LessonId is { } lid2 && fallbackLessonProgressByLesson.TryGetValue(lid2, out var up)
+                    ? up.BestScore
+                    : null
+            });
+        }
+
+        for (var i = 0; i < fallbackItemDtos.Count; i++)
+        {
+            if (fallbackCompletedAssignments.Contains(fallbackItemDtos[i].AssignmentId))
+            {
+                fallbackItemDtos[i].Status = "completed";
+            }
+            else if (i == firstIncompleteIdx)
+            {
+                fallbackItemDtos[i].Status = "in_progress";
+            }
+        }
+
+        var fallbackCompletedCount = fallbackCompletedAssignments.Count;
+        var fallbackProgressPct = (int)Math.Round(fallbackCompletedCount * 100.0 / assignments.Count);
+
         return Result<ClassCurriculumDto>.Ok(new ClassCurriculumDto
         {
             ClassId = id,
@@ -1120,8 +1223,8 @@ public sealed class ClassService(
             Title = displayTitle,
             Description = displayDesc,
             Published = classRoom.CurriculumPublished,
-            ProgressPct = 0,
-            Items = []
+            ProgressPct = fallbackProgressPct,
+            Items = fallbackItemDtos
         });
     }
 
@@ -1226,11 +1329,21 @@ public sealed class ClassService(
                 });
             }
 
+            var completedByUserAndNode = nodeProgresses.Select(p => (p.UserId, p.NodeId)).ToHashSet();
+            var now = clock.UtcNow;
+
             var lagging = memberIds
                 .Select(memberId => new
                 {
                     MemberId = memberId,
-                    Missing = pageNodes.Count - completedAssignmentsByUser.GetValueOrDefault(memberId, 0)
+                    Missing = pageNodes.Count(node =>
+                    {
+                        var overlay = (node.Id > 0 && overlayByPathItem.TryGetValue(node.Id, out var o1)) ? o1
+                            : (node.LessonId is { } lid && overlayByLesson.TryGetValue(lid, out var o2)) ? o2 : null;
+                        // Chỉ tính thiếu khi bài gán CÓ deadline VÀ deadline ĐÃ QUA
+                        if (overlay?.DueAt == null || overlay.DueAt.Value > now) return false;
+                        return !completedByUserAndNode.Contains((memberId, node.Id));
+                    })
                 })
                 .Where(x => x.Missing >= 2)
                 .OrderByDescending(x => x.Missing)
@@ -1291,6 +1404,7 @@ public sealed class ClassService(
 
             var fallbackReportAssignments = new List<ClassReportAssignmentDto>();
             var fallbackCompletedByUser = memberIds.ToDictionary(mId => mId, _ => 0);
+            var completedFallbackByUserAndAsg = new HashSet<(int UserId, int AssignmentId)>();
 
             foreach (var assignment in fallbackAssignments)
             {
@@ -1331,6 +1445,7 @@ public sealed class ClassService(
                 int notSubmitted = totalMembers - completedUserIds.Count;
                 foreach (var uId in completedUserIds)
                 {
+                    completedFallbackByUserAndAsg.Add((uId, assignment.Id));
                     if (fallbackCompletedByUser.ContainsKey(uId))
                     {
                         fallbackCompletedByUser[uId]++;
@@ -1353,11 +1468,16 @@ public sealed class ClassService(
                 });
             }
 
+            var fallbackNow = clock.UtcNow;
             var laggingFallback = memberIds
                 .Select(memberId => new
                 {
                     MemberId = memberId,
-                    Missing = fallbackAssignments.Count - fallbackCompletedByUser.GetValueOrDefault(memberId, 0)
+                    Missing = fallbackAssignments.Count(a =>
+                    {
+                        if (a.DueAt == null || a.DueAt.Value > fallbackNow) return false;
+                        return !completedFallbackByUserAndAsg.Contains((memberId, a.Id));
+                    })
                 })
                 .Where(x => x.Missing >= 2)
                 .OrderByDescending(x => x.Missing)

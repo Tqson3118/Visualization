@@ -1159,6 +1159,75 @@ public sealed class GamificationService(
         return Result.Ok();
     }
 
+    public async Task<Result<UseInventoryItemResultDto>> UseItemAsync(int userId, int itemId, CancellationToken ct)
+    {
+        var inv = await db.UserInventory
+            .FirstOrDefaultAsync(i => i.UserId == userId && i.ItemId == itemId, ct);
+        if (inv is null || inv.Quantity <= 0)
+        {
+            return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.NOT_FOUND, "Vật phẩm không có trong kho hoặc đã hết số lượng");
+        }
+
+        var item = await db.ShopItems.AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == itemId, ct);
+        if (item is null)
+        {
+            return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.NOT_FOUND, "Vật phẩm không tồn tại");
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null)
+        {
+            return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
+        }
+
+        // Trừ 1 số lượng vật phẩm
+        inv.Quantity -= 1;
+        var remainingQty = inv.Quantity;
+        if (inv.Quantity <= 0)
+        {
+            db.UserInventory.Remove(inv);
+            remainingQty = 0;
+        }
+
+        string msg;
+        // Nếu là vật phẩm hồi tim
+        if (item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || item.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase))
+        {
+            var refillAmount = item.ItemKey.Contains("10") ? 10 : 5;
+            user.Hearts = Math.Min(user.HeartsMax, user.Hearts + refillAmount);
+            user.LastHeartAt = clock.UtcNow;
+            msg = $"Đã sử dụng {item.Name}! Bạn được hồi {refillAmount} tim (hiện có {user.Hearts}/{user.HeartsMax} tim).";
+        }
+        else
+        {
+            msg = $"Đã sử dụng thành công 1 {item.Name}.";
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, vui lòng thử lại");
+        }
+
+        logger.LogInformation("User {UserId} used item {ItemId} ({ItemKey}), remaining: {Remaining}, hearts: {Hearts}",
+            userId, itemId, item.ItemKey, remainingQty, user.Hearts);
+
+        return Result<UseInventoryItemResultDto>.Ok(new UseInventoryItemResultDto
+        {
+            ItemId = itemId,
+            ItemKey = item.ItemKey,
+            Name = item.Name,
+            RemainingQuantity = remainingQty,
+            Hearts = user.Hearts,
+            HeartsMax = user.HeartsMax,
+            Message = msg
+        });
+    }
+
     // ── Premium ───────────────────────────────────────────────
 
     public async Task<Result<PremiumStatusDto>> GetPremiumStatusAsync(int userId, CancellationToken ct)

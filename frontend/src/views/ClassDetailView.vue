@@ -159,8 +159,8 @@ const classModules = computed<PathModuleGroup[]>(() => {
       current = { title: item.topicName || 'Nội dung lộ trình', lessons: [] };
       modules.push(current);
     }
-    const isDone = item.status === 'completed';
-    const isLocked = !isTeacherOrAdmin && !allPrecedingCompleted;
+    const isDone = item.status === 'completed' || (item.status as string) === 'Completed';
+    const isLocked = !isTeacherOrAdmin && !isDone && !allPrecedingCompleted;
 
     current.lessons.push({
       id: item.pathItemId ?? item.assignmentId ?? item.lessonId ?? item.exerciseId ?? item.title,
@@ -171,8 +171,8 @@ const classModules = computed<PathModuleGroup[]>(() => {
       sandboxType: mapItemType(item.itemType),
       status: isDone ? 'Completed' : (isLocked ? 'Locked' : (item.status || 'NotStarted')),
       isCompleted: isDone,
-      locked: isLocked,
-      isLocked: isLocked,
+      locked: isDone ? false : isLocked,
+      isLocked: isDone ? false : isLocked,
       dueAt: item.dueAt,
       allowLateSubmission: item.allowLateSubmission,
       bestScore: item.bestScore,
@@ -329,7 +329,8 @@ function continueLearning(): void {
 }
 
 function handleSelectModuleLesson(lesson: PathModuleLesson): void {
-  if (!isManager.value && (lesson.locked || lesson.isLocked)) {
+  const isDone = lesson.status === 'Completed' || Boolean(lesson.isCompleted);
+  if (!isManager.value && !isDone && (lesson.locked || lesson.isLocked)) {
     ui.showToast('Bạn cần hoàn thành bài học trước để mở khóa bài học này.', 'warning');
     return;
   }

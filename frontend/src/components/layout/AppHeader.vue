@@ -86,9 +86,11 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
 });
 
+const isAdmin = computed(() => auth.role === 'ADMIN');
+const isTeacher = computed(() => auth.role === 'TEACHER');
 const isTeacherOrAdmin = computed(() => auth.role === 'TEACHER' || auth.role === 'ADMIN');
 
-// Quản trị & Soạn bài: TEACHER & ADMIN thống nhất hạ cánh tại /studio
+// Quản trị & Soạn bài: TEACHER vào /studio, ADMIN vào /admin
 const studioTarget = computed(() => ({ path: '/studio' }));
 
 const equippedFrame = computed(() => equippedItem(gamification.inventory, 'frame'));
@@ -126,7 +128,10 @@ async function onLogout(): Promise<void> {
         <RouterLink :to="{ name: 'quests' }" class="app-header__link">Thử thách</RouterLink>
         <RouterLink :to="{ name: 'shop' }" class="app-header__link">Cửa hàng</RouterLink>
         <RouterLink :to="{ name: 'classes' }" class="app-header__link">Lớp học</RouterLink>
-        <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__link">
+        <RouterLink v-if="isAdmin" :to="{ path: '/admin' }" class="app-header__link font-semibold text-purple-400 hover:text-purple-300">
+          Quản lý
+        </RouterLink>
+        <RouterLink v-else-if="isTeacher" :to="{ path: '/studio' }" class="app-header__link">
           Studio
         </RouterLink>
       </nav>
@@ -174,6 +179,12 @@ async function onLogout(): Promise<void> {
           </span>
           <Transition name="app-menu">
             <div v-if="menuOpen" class="app-header__menu">
+              <RouterLink v-if="isAdmin" :to="{ path: '/admin' }" class="app-header__menu-item font-semibold text-purple-400" @click="menuOpen = false">
+                Bảng quản trị
+              </RouterLink>
+              <RouterLink v-else-if="isTeacher" :to="{ path: '/studio' }" class="app-header__menu-item font-semibold text-purple-400" @click="menuOpen = false">
+                Studio giáo viên
+              </RouterLink>
               <RouterLink :to="{ name: 'profile' }" class="app-header__menu-item" @click="menuOpen = false">
                 {{ messages.nav.profile }}
               </RouterLink>
@@ -227,7 +238,10 @@ async function onLogout(): Promise<void> {
           <RouterLink :to="{ name: 'classes' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Lớp học
           </RouterLink>
-          <RouterLink v-if="isTeacherOrAdmin" :to="studioTarget" class="app-header__mobile-link" @click="mobileNavOpen = false">
+          <RouterLink v-if="isAdmin" :to="{ path: '/admin' }" class="app-header__mobile-link font-semibold text-purple-400" @click="mobileNavOpen = false">
+            Quản lý
+          </RouterLink>
+          <RouterLink v-else-if="isTeacher" :to="{ path: '/studio' }" class="app-header__mobile-link" @click="mobileNavOpen = false">
             Studio
           </RouterLink>
 

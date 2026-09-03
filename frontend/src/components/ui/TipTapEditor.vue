@@ -593,6 +593,7 @@ defineExpose({
   getText: () => editor.value?.getText() || '',
   getHTML: () => editor.value?.getHTML() || '',
   insertTable,
+  insertSimulation,
 });
 
 onBeforeUnmount(() => {

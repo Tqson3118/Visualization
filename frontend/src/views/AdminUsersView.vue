@@ -315,7 +315,22 @@ const hasReviewInfo = computed(() => {
   return Boolean(u && (u.department || u.staffCode || u.academicDegree || u.profileLink || u.teacherBio));
 });
 
-onMounted(load);
+const pendingCountServer = ref(0);
+const pendingCount = computed(() => pendingCountServer.value);
+
+async function fetchPendingCount(): Promise<void> {
+  try {
+    const page = await adminApi.fetchUsers({ role: 'TEACHER_PENDING', page: 1 });
+    pendingCountServer.value = page.total ?? page.items?.length ?? 0;
+  } catch {
+    // ignore
+  }
+}
+
+onMounted(() => {
+  void load();
+  void fetchPendingCount();
+});
 
 async function load(): Promise<void> {
   loading.value = true;
@@ -327,6 +342,9 @@ async function load(): Promise<void> {
       page: 1,
     });
     users.value = page.items;
+    if (tab.value === 'pending') {
+      pendingCountServer.value = page.total ?? page.items?.length ?? 0;
+    }
   } catch {
     loadError.value = true;
     users.value = [];
@@ -340,11 +358,9 @@ function switchTab(next: string): void {
   void load();
 }
 
-const pendingCount = computed(() => users.value.filter((u) => u.role === 'TEACHER_PENDING').length);
-
 const userTabs = computed(() => [
   { key: 'all', label: messages.admin.users.tabAll },
-  { key: 'pending', label: messages.admin.users.tabPending, badge: pendingCount.value > 0 ? pendingCount.value : undefined },
+  { key: 'pending', label: messages.admin.users.tabPending, badge: pendingCountServer.value > 0 ? pendingCountServer.value : undefined },
 ]);
 
 const filtered = computed(() => {
@@ -404,6 +420,7 @@ async function submitReview(): Promise<void> {
     ui.showToast(reviewAction.value === 'approve' ? messages.admin.users.toastApproved : messages.admin.users.toastRejected, 'success');
     reviewTarget.value = null;
     await load();
+    void fetchPendingCount();
     if (drawerUser.value?.id === targetId) {
       await loadDrawerDetail(targetId);
     }

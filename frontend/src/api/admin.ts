@@ -90,8 +90,8 @@ export interface BugReportDto {
 
 // ── CRUD (API_REFERENCE §4.8, §4.10) ──
 
-export async function fetchStats(): Promise<AdminStatsDto> {
-  return getData<AdminStatsDto>({ method: 'GET', url: ADMIN_ENDPOINTS.stats });
+export async function fetchStats(period?: string): Promise<AdminStatsDto> {
+  return getData<AdminStatsDto>({ method: 'GET', url: ADMIN_ENDPOINTS.stats, params: period ? { period } : undefined });
 }
 
 /** Danh sách báo cáo lỗi/vi phạm (v2.15) — GET /admin/bug-reports */

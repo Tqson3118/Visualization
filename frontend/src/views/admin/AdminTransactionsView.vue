@@ -59,6 +59,28 @@ onMounted(() => {
   void loadSubscriptions();
 });
 
+function isSubscriptionActive(sub: AdminSubscriptionDto): boolean {
+  if (sub.status === 2) return false;
+  if (sub.isActive) return true;
+  if (!sub.expiresAt && sub.status === 0) return true;
+  if (sub.expiresAt && new Date(sub.expiresAt) > new Date()) return true;
+  return false;
+}
+
+function getSubBadgeVariant(sub: AdminSubscriptionDto): 'success' | 'warning' | 'muted' {
+  if (sub.status === 2) return 'warning';
+  if (isSubscriptionActive(sub)) return 'success';
+  return 'muted';
+}
+
+function getSubBadgeLabel(sub: AdminSubscriptionDto): string {
+  if (sub.status === 2) return '🚫 Hủy kích hoạt';
+  if (isSubscriptionActive(sub)) {
+    return sub.expiresAt ? '✨ Đang kích hoạt' : '✨ Vĩnh viễn';
+  }
+  return 'Đã hết hạn';
+}
+
 const filteredSubs = computed(() => {
   return subscriptions.value.filter((s) => {
     const q = searchQuery.value.trim().toLowerCase();
@@ -69,11 +91,12 @@ const filteredSubs = computed(() => {
       (s.orderRef && s.orderRef.toLowerCase().includes(q));
 
     const isPending = s.status === 2;
-    const isExpired = s.status === 1 || (!isPending && !s.isActive);
+    const isActive = isSubscriptionActive(s);
+    const isExpired = s.status === 1 || (!isPending && !isActive);
 
     const matchStatus =
       filterStatus.value === 'all' ||
-      (filterStatus.value === 'active' && s.isActive && !isPending) ||
+      (filterStatus.value === 'active' && isActive) ||
       (filterStatus.value === 'pending' && isPending) ||
       (filterStatus.value === 'expired' && isExpired);
 
@@ -81,9 +104,9 @@ const filteredSubs = computed(() => {
   });
 });
 
-const activeCount = computed(() => subscriptions.value.filter((s) => s.isActive && s.status !== 2).length);
+const activeCount = computed(() => subscriptions.value.filter((s) => isSubscriptionActive(s)).length);
 const pendingCount = computed(() => subscriptions.value.filter((s) => s.status === 2).length);
-const expiredCount = computed(() => subscriptions.value.filter((s) => s.status === 1 || (s.status !== 2 && !s.isActive)).length);
+const expiredCount = computed(() => subscriptions.value.filter((s) => s.status === 1 || (s.status !== 2 && !isSubscriptionActive(s))).length);
 
 function openGrantModal(): void {
   grantForm.email = '';
@@ -305,13 +328,13 @@ function formatDate(dateStr: string | null, isActive?: boolean, status?: number)
                 {{ formatDate(sub.expiresAt, sub.isActive, sub.status) }}
               </td>
               <td class="p-3">
-                <Badge :variant="sub.isActive ? 'success' : (!sub.expiresAt && sub.status === 0 ? 'success' : (sub.status === 2 ? 'warning' : 'muted'))">
-                  {{ sub.isActive ? (sub.expiresAt ? '✨ Đang kích hoạt' : '✨ Vĩnh viễn') : (!sub.expiresAt && sub.status === 0 ? '✨ Vĩnh viễn' : (sub.status === 2 ? '🚫 Hủy kích hoạt' : 'Đã hết hạn')) }}
+                <Badge :variant="getSubBadgeVariant(sub)">
+                  {{ getSubBadgeLabel(sub) }}
                 </Badge>
               </td>
               <td class="p-3 text-right">
                 <button
-                  v-if="sub.isActive"
+                  v-if="isSubscriptionActive(sub)"
                   type="button"
                   class="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 text-[11px] font-bold transition-colors cursor-pointer"
                   title="Thu hồi / Hủy quyền Pro thủ công"

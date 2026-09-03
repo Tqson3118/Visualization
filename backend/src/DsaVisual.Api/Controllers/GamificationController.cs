@@ -195,6 +195,13 @@ public class GamificationController(
         return MapResultExtensions.MapResult(this, result);
     }
 
+    [HttpPost("me/inventory/{itemId:int}/use")]
+    public async Task<ActionResult<UseInventoryItemResultDto>> UseItem([FromRoute] int itemId, CancellationToken ct)
+    {
+        var result = await _service.UseItemAsync(CurrentUserId(), itemId, ct);
+        return MapResultExtensions.MapResult(this, result);
+    }
+
     // ── Premium ──
     [HttpGet("premium/status")]
     public async Task<ActionResult<PremiumStatusDto>> GetPremiumStatus(CancellationToken ct)

@@ -150,9 +150,22 @@ async function handleCreateItem(): Promise<void> {
     ui.showToast('Vui lòng điền đầy đủ Mã định danh và Tên vật phẩm.', 'warning');
     return;
   }
+  if (Number(form.priceGems) < 0) {
+    ui.showToast('Giá Gems không được nhỏ hơn 0.', 'warning');
+    return;
+  }
+  if (Number(form.maxStack) < 1) {
+    ui.showToast('Max Stack phải từ 1 trở lên.', 'warning');
+    return;
+  }
+  const normKey = form.itemKey.trim().toLowerCase();
+  const existingKeys = items.value.map(i => i.itemKey.toLowerCase());
+  if (existingKeys.includes(normKey)) {
+    ui.showToast('Mã định danh này đã tồn tại, vui lòng nhập mã khác.', 'error');
+    return;
+  }
   saving.value = true;
   try {
-    const normKey = form.itemKey.trim().toLowerCase();
     await adminApi.createAdminShopItem({
       itemKey: normKey,
       name: form.name.trim(),
@@ -182,6 +195,14 @@ async function handleCreateItem(): Promise<void> {
 
 async function handleUpdateItem(): Promise<void> {
   if (!editingItem.value || !form.name.trim()) return;
+  if (Number(form.priceGems) < 0) {
+    ui.showToast('Giá Gems không được nhỏ hơn 0.', 'warning');
+    return;
+  }
+  if (Number(form.maxStack) < 1) {
+    ui.showToast('Max Stack phải từ 1 trở lên.', 'warning');
+    return;
+  }
   saving.value = true;
   try {
     const normKey = editingItem.value.itemKey.trim().toLowerCase();
@@ -220,6 +241,36 @@ async function handleDeleteItem(item: AdminShopItemDto): Promise<void> {
   } catch (err: any) {
     ui.showToast(err.response?.data?.message || err.message || 'Không thể xóa vật phẩm.', 'error');
   }
+}
+
+function refTypeLabel(type: string | null): string {
+  if (!type) return 'Hệ thống';
+  const key = type.trim().toLowerCase();
+  const map: Record<string, string> = {
+    purchase: 'Mua vật phẩm',
+    admin_grant: 'Admin cấp',
+    quest: 'Nhiệm vụ',
+    lesson: 'Hoàn thành bài',
+    premium: 'Gói Premium',
+    shop: 'Cửa hàng vật phẩm',
+  };
+  return map[key] ?? type;
+}
+
+function refActivityLabel(tx: { refType: string | null; refId: string | null }): string {
+  if (!tx.refType && !tx.refId) return 'Hệ thống';
+  const typeText = refTypeLabel(tx.refType);
+  if (!tx.refId) return typeText;
+
+  const lowerType = (tx.refType ?? '').trim().toLowerCase();
+  if (lowerType === 'shop' || lowerType === 'purchase') {
+    const rawRef = String(tx.refId).trim();
+    const item = items.value.find(i => String(i.id) === rawRef || i.itemKey.toLowerCase() === rawRef.toLowerCase());
+    if (item?.itemKey) {
+      return `${typeText} (${item.itemKey})`;
+    }
+  }
+  return `${typeText} · ${tx.refId}`;
 }
 
 function typeBadge(type: number): { label: string; variant: 'primary' | 'success' | 'warning' | 'secondary' | 'muted' } {
@@ -385,17 +436,19 @@ function formatDate(dateStr: string): string {
                   <span class="text-purple-400 font-bold mr-1">#{{ item.id }}</span>
                   <span class="text-slate-300 font-medium">{{ item.itemKey }}</span>
                 </td>
-                <td class="p-3 font-bold text-white flex items-center gap-2.5">
-                  <div class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                    <img
-                      v-if="item.imageUrl || avatarImageUrl(item.itemKey)"
-                      :src="item.imageUrl || avatarImageUrl(item.itemKey)"
-                      :alt="item.name"
-                      class="w-full h-full object-cover"
-                    />
-                    <component :is="item.type === 1 ? Image : item.type === 2 ? Frame : Heart" v-else :size="15" class="text-purple-400" />
+                <td class="p-3 font-bold text-white">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                      <img
+                        v-if="item.imageUrl || avatarImageUrl(item.itemKey)"
+                        :src="item.imageUrl || avatarImageUrl(item.itemKey)"
+                        :alt="item.name"
+                        class="w-full h-full object-cover"
+                      />
+                      <component :is="item.type === 1 ? Image : item.type === 2 ? Frame : Heart" v-else :size="15" class="text-purple-400" />
+                    </div>
+                    <span>{{ item.name }}</span>
                   </div>
-                  <span>{{ item.name }}</span>
                 </td>
                 <td class="p-3">
                   <Badge :variant="typeBadge(item.type).variant">{{ typeBadge(item.type).label }}</Badge>
@@ -466,7 +519,7 @@ function formatDate(dateStr: string): string {
                   </span>
                 </td>
                 <td class="p-3 text-slate-300 font-medium">
-                  {{ tx.refType || 'Hệ thống' }} <span v-if="tx.refId" class="text-slate-500">({{ tx.refId }})</span>
+                  {{ refActivityLabel(tx) }}
                 </td>
                 <td class="p-3 text-slate-400 text-[11px]">
                   {{ formatDate(tx.createdAt) }}
@@ -611,15 +664,14 @@ function formatDate(dateStr: string): string {
             />
           </div>
           <div>
-            <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">Phân loại</label>
-            <select
-              v-model="form.type"
+            <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">Max Stack *</label>
+            <input
+              v-model.number="form.maxStack"
+              type="number"
+              min="1"
               class="w-full px-3 py-2 text-xs bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-white focus:outline-none focus:border-purple-500"
-            >
-              <option :value="1">Avatar (Type 1)</option>
-              <option :value="2">Khung viền (Type 2)</option>
-              <option :value="0">Tiêu hao / Tim (Type 0)</option>
-            </select>
+              required
+            />
           </div>
         </div>
 

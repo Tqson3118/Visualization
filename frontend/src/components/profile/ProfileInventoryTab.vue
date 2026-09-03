@@ -6,6 +6,7 @@ import { useGamificationStore } from '@/stores/gamification';
 import { useUiStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import type { InventoryItemDto } from '@/api/gamification';
+import { useInventoryItem } from '@/api/gamification';
 import { avatarImageUrl, equipGroup } from '@/utils/equipment';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -17,6 +18,7 @@ const ui = useUiStore();
 const auth = useAuthStore();
 
 const equippingId = ref<number | null>(null);
+const usingItemId = ref<number | null>(null);
 
 const avatarItems = computed(() => gamification.inventory.filter((item) => equipGroup(item) === 'avatar'));
 const frameItems = computed(() => gamification.inventory.filter((item) => equipGroup(item) === 'frame'));
@@ -39,6 +41,21 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
     ui.showToast(err instanceof Error ? err.message : 'Không thể trang bị vật phẩm.', 'error');
   } finally {
     equippingId.value = null;
+  }
+}
+
+async function useConsumable(item: InventoryItemDto): Promise<void> {
+  usingItemId.value = item.itemId;
+  try {
+    const res = await useInventoryItem(item.itemId);
+    item.quantity = res.remainingQuantity;
+    await gamification.fetchInventory();
+    await gamification.fetchHearts();
+    ui.showToast(res.message || `Đã sử dụng ${item.name}!`, 'success');
+  } catch (err: any) {
+    ui.showToast(err?.response?.data?.message || err?.message || 'Không thể sử dụng vật phẩm.', 'error');
+  } finally {
+    usingItemId.value = null;
   }
 }
 </script>
@@ -92,7 +109,18 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
               <Package :size="16" class="text-vdsa-purple" aria-hidden="true" />
               <span class="profile__inv-name">{{ item.name }}</span>
             </div>
-            <Badge variant="primary">Số lượng: {{ item.quantity }}</Badge>
+            <div class="flex items-center gap-2.5">
+              <Badge variant="primary">Số lượng: {{ item.quantity }}</Badge>
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="item.quantity <= 0 || usingItemId === item.itemId"
+                :loading="usingItemId === item.itemId"
+                @click="useConsumable(item)"
+              >
+                Sử dụng
+              </Button>
+            </div>
           </li>
         </ul>
       </section>

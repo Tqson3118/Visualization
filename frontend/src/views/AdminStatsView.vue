@@ -34,14 +34,20 @@ const stats = ref<AdminStatsDto | null>(null);
 const loading = ref(true);
 const loadError = ref(false);
 const chartMetric = ref<'revenue' | 'orders'>('revenue');
+const chartPeriod = ref<'7d' | '30d' | 'all'>('7d');
 
 onMounted(load);
+
+async function setPeriod(period: '7d' | '30d' | 'all'): Promise<void> {
+  chartPeriod.value = period;
+  await load();
+}
 
 async function load(): Promise<void> {
   loading.value = true;
   loadError.value = false;
   try {
-    stats.value = await adminApi.fetchStats();
+    stats.value = await adminApi.fetchStats(chartPeriod.value);
   } catch {
     loadError.value = true;
   } finally {
@@ -81,8 +87,15 @@ const chartLabels = computed(() =>
 
 const revenueValues = computed(() => revenueDays.value.map((d) => d.revenue));
 const orderValues = computed(() => revenueDays.value.map((d) => d.orders));
-const totalRevenue7d = computed(() => revenueValues.value.reduce((a, b) => a + b, 0));
-const totalOrders7d = computed(() => orderValues.value.reduce((a, b) => a + b, 0));
+const totalRevenueRange = computed(() => revenueValues.value.reduce((a, b) => a + b, 0));
+const totalOrdersRange = computed(() => orderValues.value.reduce((a, b) => a + b, 0));
+const periodLabel = computed(() =>
+  chartPeriod.value === '7d'
+    ? '7 Ngày Gần Nhất'
+    : chartPeriod.value === '30d'
+      ? '30 Ngày Gần Nhất'
+      : 'Tất Cả Thời Gian',
+);
 
 const revenueChartOption = computed(() => {
   const isRev = chartMetric.value === 'revenue';
@@ -322,7 +335,7 @@ const roleChartOption = computed(() => {
             </div>
           </div>
           <div class="flex items-center justify-between mt-4 pt-3 border-t border-vdsa-border/60 text-xs text-vdsa-secondary font-medium">
-            <span>7 ngày qua: <strong class="text-white">{{ formatCurrency(totalRevenue7d) }}</strong></span>
+            <span>Theo biểu đồ: <strong class="text-white">{{ formatCurrency(totalRevenueRange) }}</strong></span>
           </div>
         </div>
 
@@ -350,29 +363,62 @@ const roleChartOption = computed(() => {
           <div>
             <h3 class="text-base font-extrabold text-white flex items-center gap-2">
               <TrendingUp :size="18" class="text-vdsa-accent" />
-              Biểu Đồ Doanh Thu &amp; Giao Dịch (7 Ngày Gần Nhất)
+              Biểu Đồ Doanh Thu &amp; Giao Dịch ({{ periodLabel }})
             </h3>
-            <p class="text-xs text-vdsa-muted mt-0.5">Tổng 7 ngày: {{ formatCurrency(totalRevenue7d) }} ({{ totalOrders7d }} đơn)</p>
+            <p class="text-xs text-vdsa-muted mt-0.5">
+              Tổng {{ chartPeriod === '7d' ? '7 ngày' : chartPeriod === '30d' ? '30 ngày' : 'toàn thời gian' }}: {{ formatCurrency(totalRevenueRange) }} ({{ totalOrdersRange }} đơn)
+            </p>
           </div>
 
-          <!-- Metric Toggle Pill -->
-          <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs self-start sm:self-auto">
-            <button
-              type="button"
-              class="px-3 py-1 rounded font-semibold transition-colors"
-              :class="chartMetric === 'revenue' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
-              @click="chartMetric = 'revenue'"
-            >
-              Doanh thu (VNĐ)
-            </button>
-            <button
-              type="button"
-              class="px-3 py-1 rounded font-semibold transition-colors"
-              :class="chartMetric === 'orders' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
-              @click="chartMetric = 'orders'"
-            >
-              Số đơn hàng
-            </button>
+          <!-- Controls: Period Selector & Metric Toggle -->
+          <div class="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+            <!-- Period Selector -->
+            <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs">
+              <button
+                type="button"
+                class="px-2.5 py-1 rounded font-semibold transition-colors cursor-pointer"
+                :class="chartPeriod === '7d' ? 'bg-vdsa-surface text-white border border-vdsa-border' : 'text-vdsa-muted hover:text-white'"
+                @click="setPeriod('7d')"
+              >
+                7 Ngày
+              </button>
+              <button
+                type="button"
+                class="px-2.5 py-1 rounded font-semibold transition-colors cursor-pointer"
+                :class="chartPeriod === '30d' ? 'bg-vdsa-surface text-white border border-vdsa-border' : 'text-vdsa-muted hover:text-white'"
+                @click="setPeriod('30d')"
+              >
+                30 Ngày
+              </button>
+              <button
+                type="button"
+                class="px-2.5 py-1 rounded font-semibold transition-colors cursor-pointer"
+                :class="chartPeriod === 'all' ? 'bg-vdsa-surface text-white border border-vdsa-border' : 'text-vdsa-muted hover:text-white'"
+                @click="setPeriod('all')"
+              >
+                Tất cả
+              </button>
+            </div>
+
+            <!-- Metric Toggle Pill -->
+            <div class="flex bg-vdsa-bg p-1 rounded-lg border border-vdsa-border text-xs">
+              <button
+                type="button"
+                class="px-3 py-1 rounded font-semibold transition-colors cursor-pointer"
+                :class="chartMetric === 'revenue' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+                @click="chartMetric = 'revenue'"
+              >
+                Doanh thu
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1 rounded font-semibold transition-colors cursor-pointer"
+                :class="chartMetric === 'orders' ? 'bg-vdsa-accent text-white' : 'text-vdsa-muted hover:text-white'"
+                @click="chartMetric = 'orders'"
+              >
+                Đơn hàng
+              </button>
+            </div>
           </div>
         </div>
 

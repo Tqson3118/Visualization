@@ -285,6 +285,23 @@ export async function equipItem(itemId: number, isEquipped: boolean): Promise<vo
   await client.put(GAMIFICATION_ENDPOINTS.equip, { itemId, isEquipped });
 }
 
+export interface UseInventoryItemResultDto {
+  itemId: number;
+  itemKey: string;
+  name: string;
+  remainingQuantity: number;
+  hearts: number;
+  heartsMax: number;
+  message: string;
+}
+
+export async function useInventoryItem(itemId: number): Promise<UseInventoryItemResultDto> {
+  return getData<UseInventoryItemResultDto>({
+    method: 'POST',
+    url: `/me/inventory/${itemId}/use`,
+  });
+}
+
 export async function fetchAchievements(): Promise<AchievementDto[]> {
   return getData<AchievementDto[]>({ method: 'GET', url: GAMIFICATION_ENDPOINTS.achievements });
 }

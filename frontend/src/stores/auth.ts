@@ -116,6 +116,19 @@ export const useAuthStore = defineStore('auth', () => {
         const { useSimulationStore } = await import('./simulation');
         useSimulationStore().resetAll();
       } catch {}
+
+      // Dọn sạch rác tiến độ trong localStorage để không rò rỉ sang tài khoản khác đăng nhập sau
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('dsa.completedLessons');
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('course_done_') || k.startsWith('lesson_progress_') || k.startsWith('quiz_done_') || k.startsWith('class_progress_'))) {
+              localStorage.removeItem(k);
+            }
+          }
+        } catch {}
+      }
     }
   }
 

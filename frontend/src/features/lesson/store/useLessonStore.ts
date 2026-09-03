@@ -726,6 +726,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       codelabCompleted.value = false;
       xpAwarded.value = 0;
       lessonFinished.value = false;
+      completedLessonIds.value = [];
     },
   };
 });

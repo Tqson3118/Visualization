@@ -162,9 +162,7 @@ function openCheckout(plan: (typeof PLANS)[number]): void {
     ui.showToast(messages.premium.needLogin, 'error');
     return;
   }
-  if (isPremiumActive.value) {
-    if (!window.confirm(messages.premium.confirmReplace)) return;
-  }
+  // Gia hạn cộng dồn thời hạn tự động trên hệ thống — không cần confirm thay thế
   checkoutPlan.value = plan;
   step.value = 1;
   success.value = false;
@@ -296,6 +294,27 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
       </div>
     </header>
 
+    <!-- Banner hiển thị thông tin gói Premium đang hoạt động -->
+    <div
+      v-if="isPremiumActive && gamification.premium"
+      class="card flex items-center gap-3 p-4 border border-amber-500/30 bg-amber-500/10 mb-6 rounded-2xl shadow-lg"
+    >
+      <div class="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+        <Crown :size="20" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold text-white flex items-center gap-2">
+          Gói đang dùng: <span class="text-amber-400 font-extrabold">{{ gamification.premium.plan || 'Pro' }}</span>
+        </p>
+        <p class="text-xs text-vdsa-muted mt-0.5">
+          Hạn sử dụng: {{ gamification.premium.expiresAt
+            ? new Date(gamification.premium.expiresAt).toLocaleDateString('vi-VN')
+            : 'Vĩnh viễn' }}
+        </p>
+      </div>
+      <Badge variant="warning" class="shrink-0">Đang hoạt động</Badge>
+    </div>
+
     <div class="premium__plans">
       <article
         v-for="plan in PLANS"
@@ -306,12 +325,18 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
         <div class="premium__plan-head">
           <h3 class="premium__plan-name">{{ plan.name }}</h3>
           <Badge v-if="plan.badge" variant="warning">{{ plan.badge }}</Badge>
+          <Badge
+            v-if="isPremiumActive && (gamification.premium?.planId === plan.id || gamification.premium?.plan?.toLowerCase().includes(plan.name.toLowerCase()))"
+            variant="success"
+          >
+            Đang dùng
+          </Badge>
         </div>
         <p class="premium__plan-price">{{ plan.price }}</p>
         <p class="premium__plan-per">{{ messages.premium.perMonth(planPerMonth(plan)) }}</p>
         <p class="premium__plan-sub">{{ messages.premium.daysLabel(plan.months * 30) }}</p>
         <Button :variant="plan.highlight ? 'primary' : 'secondary'" block @click="openCheckout(plan)">
-          {{ messages.premium.choose }}
+          {{ isPremiumActive ? 'Gia hạn' : messages.premium.choose }}
         </Button>
       </article>
     </div>

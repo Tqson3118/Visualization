@@ -180,7 +180,7 @@ function cleanTitle(title: string): string {
           :key="lesson.id"
           class="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors"
           :class="[
-            lesson.locked || lesson.isLocked
+            !(lesson.status === 'Completed' || lesson.isCompleted) && (lesson.locked || lesson.isLocked)
               ? 'bg-[#0f0e17] opacity-60'
               : (lesson.status === 'Completed' || lesson.isCompleted
                 ? 'bg-emerald-950/20 hover:bg-emerald-950/30'
@@ -213,7 +213,7 @@ function cleanTitle(title: string): string {
               </span>
               <div class="flex items-center gap-2 mt-1 flex-wrap">
                 <span
-                  v-if="lesson.locked || lesson.isLocked"
+                  v-if="!(lesson.status === 'Completed' || lesson.isCompleted) && (lesson.locked || lesson.isLocked)"
                   class="font-extrabold uppercase text-[9px] tracking-wider text-slate-500 flex items-center gap-1"
                 >
                   <Lock class="w-3 h-3" /> Bị khóa

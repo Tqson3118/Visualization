@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Check, Download, Printer } from 'lucide-vue-next';
 
 import * as classesApi from '@/api/classes';
+import * as XLSX from 'xlsx';
 import type { ClassReportAssignmentDto, ClassReportDto } from '@/api/types';
 import { useUiStore } from '@/stores/ui';
 import { formatDate, formatNumber } from '@/utils/format';
@@ -103,20 +104,39 @@ async function load(): Promise<void> {
   }
 }
 
-async function exportCsv(): Promise<void> {
+async function exportXlsx(): Promise<void> {
   exporting.value = true;
   try {
-    const csv = await classesApi.exportClassReportCsv(classId.value);
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `class-report-${classId.value}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    ui.showToast(messages.classes.reportCsvDone, 'success');
-  } catch {
-    ui.showToast(messages.classes.reportCsvFail, 'error');
+    if (!report.value) {
+      ui.showToast('Chưa có dữ liệu báo cáo để xuất.', 'warning');
+      return;
+    }
+    const r = report.value;
+
+    // Sheet 1: Bài gán
+    const asgHeader = ['#', 'Tên bài', 'Loại', 'Đúng hạn', 'Trễ', 'Chưa nộp', 'Điểm TB', 'Hạn nộp'];
+    const asgRows = r.assignments.map((a, i) => [
+      i + 1,
+      a.title,
+      a.itemType || 'theory',
+      a.onTime,
+      a.late,
+      a.notSubmitted,
+      a.avgScore > 0 ? Number(a.avgScore.toFixed(1)) : 0,
+      a.dueAt ? new Date(a.dueAt).toLocaleDateString('vi-VN') : '—'
+    ]);
+
+    // Sheet 2: Chậm tiến độ
+    const lagHeader = ['#', 'Học viên', 'Bài còn thiếu'];
+    const lagRows = r.laggingLearners.map((l, i) => [i + 1, l.displayName, l.missingCount]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([asgHeader, ...asgRows]), 'Bài gán');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([lagHeader, ...lagRows]), 'Chậm tiến độ');
+    XLSX.writeFile(wb, `bao-cao-lop-${classId.value}.xlsx`);
+    ui.showToast('Đã xuất báo cáo Excel thành công!', 'success');
+  } catch (err) {
+    ui.showToast('Xuất Excel thất bại.', 'error');
   } finally {
     exporting.value = false;
   }
@@ -149,8 +169,8 @@ function printReport(): void {
           </p>
         </div>
         <div class="class-report__actions">
-          <Button size="md" :loading="exporting" @click="exportCsv">
-            <Download :size="14" aria-hidden="true" /> {{ messages.classes.reportExportCsv }}
+          <Button size="md" :loading="exporting" @click="exportXlsx">
+            <Download :size="14" aria-hidden="true" /> Xuất Excel
           </Button>
           <Button size="md" variant="secondary" @click="printReport">
             <Printer :size="14" aria-hidden="true" /> {{ messages.classes.reportPrint }}
