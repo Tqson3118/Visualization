@@ -27,6 +27,7 @@ obj/
 publish/
 backend/publish/
 backend_publish/
+backend/publish-deploy/
 *.zip
 
 # QA & Local test artifacts
