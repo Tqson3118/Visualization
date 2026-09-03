@@ -1273,9 +1273,21 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                 }
                 else
                 {
+                    var isFinalAssessment = child.FinalTestId != null
+                        || child.Title.Contains("Final-Quiz", StringComparison.OrdinalIgnoreCase)
+                        || child.Title.Contains("Final-Quizz", StringComparison.OrdinalIgnoreCase)
+                        || child.Title.Contains("Kiểm tra cuối", StringComparison.OrdinalIgnoreCase);
+
                     var mod = !string.IsNullOrEmpty(currentModule) ? currentModule
                         : (!hasFolders && child.LessonId is { } lid && lessonsMap.TryGetValue(lid, out var l) && topicsMap.TryGetValue(l.TopicId, out var t)) ? t.Name
+                        : isFinalAssessment ? "Module 9: Đánh giá & Kiểm tra cuối khóa"
                         : "Nội dung bài học";
+
+                    if (isFinalAssessment && topicsMap.Count > 1 && (mod.StartsWith("Module 1", StringComparison.OrdinalIgnoreCase) || mod == "Nội dung bài học"))
+                    {
+                        mod = "Module 9: Đánh giá & Kiểm tra cuối khóa";
+                    }
+
                     orderedPageNodes.Add((child, mod));
                     Traverse(child.Id, mod);
                 }
@@ -1290,7 +1302,20 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             foreach (var node in nodes.Where(n => n.ItemType != PathItemType.Folder).OrderBy(n => n.SortOrder))
             {
                 Lesson? lesson = node.LessonId is { } lessonId ? lessonsMap.GetValueOrDefault(lessonId) : null;
-                string mod = (lesson?.TopicId is { } topicId && topicsMap.TryGetValue(topicId, out var topic)) ? topic.Name : "Nội dung bài học";
+                var isFinalAssessment = node.FinalTestId != null
+                    || node.Title.Contains("Final-Quiz", StringComparison.OrdinalIgnoreCase)
+                    || node.Title.Contains("Final-Quizz", StringComparison.OrdinalIgnoreCase)
+                    || node.Title.Contains("Kiểm tra cuối", StringComparison.OrdinalIgnoreCase);
+
+                string mod = (lesson?.TopicId is { } topicId && topicsMap.TryGetValue(topicId, out var topic)) ? topic.Name
+                    : isFinalAssessment ? "Module 9: Đánh giá & Kiểm tra cuối khóa"
+                    : "Nội dung bài học";
+
+                if (isFinalAssessment && topicsMap.Count > 1 && (mod.StartsWith("Module 1", StringComparison.OrdinalIgnoreCase) || mod == "Nội dung bài học"))
+                {
+                    mod = "Module 9: Đánh giá & Kiểm tra cuối khóa";
+                }
+
                 orderedPageNodes.Add((node, mod));
             }
         }

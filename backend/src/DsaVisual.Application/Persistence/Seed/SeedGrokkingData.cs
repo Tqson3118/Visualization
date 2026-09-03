@@ -370,7 +370,7 @@ public static partial class SeedGrokkingData
             }
             else
             {
-                practiceNode = new LearningPathNode { PathId = path.Id, Title = practiceNodeTitle, LessonId = null, SortOrder = sortOrder };
+                practiceNode = new LearningPathNode { PathId = path.Id, Title = practiceNodeTitle, LessonId = null, ItemType = PathItemType.Quiz, SortOrder = sortOrder };
                 db.LearningPathNodes.Add(practiceNode);
                 await db.SaveChangesAsync(ct);
                 logger.LogInformation("SeedGrokking: Nodes thêm {Node} (path={Path})", practiceNodeTitle, pathTitle);
@@ -383,7 +383,7 @@ public static partial class SeedGrokkingData
         var finalNode = await db.LearningPathNodes.FirstOrDefaultAsync(n => n.PathId == path.Id && n.Title == finalNodeTitle, ct);
         if (finalNode is null)
         {
-            finalNode = new LearningPathNode { PathId = path.Id, Title = finalNodeTitle, LessonId = null, SortOrder = sortOrder };
+            finalNode = new LearningPathNode { PathId = path.Id, Title = finalNodeTitle, LessonId = null, ItemType = PathItemType.Quiz, SortOrder = sortOrder };
             db.LearningPathNodes.Add(finalNode);
             await db.SaveChangesAsync(ct);
         }

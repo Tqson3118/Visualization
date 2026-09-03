@@ -207,6 +207,14 @@ public static class SeedRunner
 
             foreach (var node in orphanNodes)
             {
+                if (node.Title.Contains("Final", StringComparison.OrdinalIgnoreCase)
+                    || node.Title.Contains("Kiểm tra", StringComparison.OrdinalIgnoreCase)
+                    || node.Title.Contains("Quiz", StringComparison.OrdinalIgnoreCase)
+                    || node.Title.Contains("Luyện tập", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var path = await db.LearningPaths.AsNoTracking().FirstOrDefaultAsync(p => p.Id == node.PathId, ct);
                 var lesson = new Lesson
                 {
