@@ -44,12 +44,18 @@
         </template>
       </span>
 
-      <div
-        v-if="isCompleted"
-        class="px-5 py-2.5 bg-vdsa-green/15 text-vdsa-green border border-vdsa-green/30 rounded-xl text-xs font-bold flex items-center gap-2 select-none shrink-0"
-      >
-        <BaseIcon name="check-circle" class="w-4 h-4 text-vdsa-green" />
-        <span>Đã hoàn thành</span>
+      <div v-if="isCompleted" class="flex items-center gap-2 shrink-0">
+        <div class="px-4 py-2 bg-vdsa-green/15 text-vdsa-green border border-vdsa-green/30 rounded-xl text-xs font-bold flex items-center gap-2 select-none">
+          <BaseIcon name="check-circle" class="w-4 h-4 text-vdsa-green" />
+          <span>Đã hoàn thành</span>
+        </div>
+        <button
+          @click="$emit('completeStep')"
+          class="px-3 py-2 rounded-xl text-xs font-medium text-vdsa-muted hover:text-white hover:bg-vdsa-hover border border-vdsa-border transition-colors cursor-pointer"
+          title="Bấm để đồng bộ lại tiến độ hoàn thành lên máy chủ nếu bài sau chưa mở khóa"
+        >
+          <span>Đồng bộ lại</span>
+        </button>
       </div>
 
       <button

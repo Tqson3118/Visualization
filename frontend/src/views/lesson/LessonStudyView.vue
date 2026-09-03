@@ -410,7 +410,8 @@ function isLessonCompleted(lesson: LessonDto): boolean {
   if (completedLessonIds.value.has(key)) return true;
   if (lesson.status === 'Completed') return true;
   const cId = courseId.value;
-  if (cId && localStorage.getItem(`course_done_${cId}_${key}`) === 'true') {
+  const uId = authStore.user?.id;
+  if (cId && uId && localStorage.getItem(`course_done_u${uId}_${cId}_${key}`) === 'true') {
     completedLessonIds.value.add(key);
     return true;
   }
@@ -541,11 +542,12 @@ watch(courseId, async (id) => {
         }
 
         // Đồng bộ các bài đã hoàn thành vào reactive set
+        const uId = authStore.user?.id;
         course.value.lessons.forEach(l => {
           if (l.status === 'Completed') {
             completedLessonIds.value.add(String(l.id));
           }
-          if (localStorage.getItem(`course_done_${id}_${l.id}`) === 'true') {
+          if (uId && localStorage.getItem(`course_done_u${uId}_${id}_${l.id}`) === 'true') {
             completedLessonIds.value.add(String(l.id));
           }
         });
@@ -615,7 +617,11 @@ async function finishLesson(): Promise<void> {
   const rewardXp = lessonStore.currentLesson?.xpReward ?? 0;
   const strCurId = String(lessonId.value);
   await lessonStore.markLessonCompleted(lessonId.value);
-  void lessonStore.syncToServer(true);
+  try {
+    await lessonStore.syncToServer(true);
+  } catch (err) {
+    console.warn('Sync lesson progress error', err);
+  }
 
   // Cập nhật đúng bài đang học
   const currentL = course.value?.lessons?.find(l => 
@@ -628,8 +634,9 @@ async function finishLesson(): Promise<void> {
   if (currentL) {
     currentL.status = 'Completed';
   }
-  if (courseId.value) {
-    localStorage.setItem(`course_done_${courseId.value}_${targetKey}`, 'true');
+  const uId = authStore.user?.id;
+  if (courseId.value && uId) {
+    localStorage.setItem(`course_done_u${uId}_${courseId.value}_${targetKey}`, 'true');
   }
   completedLessonIds.value = new Set(completedLessonIds.value);
 

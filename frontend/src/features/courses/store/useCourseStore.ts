@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { courseApi } from '@/services/courseApi';
 import { normalizeVi } from '@/utils/searchNormalize';
+import { useAuthStore } from '@/stores/auth';
 import type { Course, CourseProgress } from '../types/course.types';
 
 export const useCourseStore = defineStore('course', () => {
@@ -188,26 +189,14 @@ export const useCourseStore = defineStore('course', () => {
     const completedLessonIds: string[] = [];
     let xpEarned = 0;
 
+    const authStore = useAuthStore();
+    const uId = authStore.user?.id;
+
     if (lessons.length > 0) {
       completedCount = 0;
       for (const lesson of lessons) {
-        const key = `lesson_progress_${lesson.id}`;
-        const saved = localStorage.getItem(key);
         let isDone = (lesson as any).status === 'Completed' ||
-          dsaCompleted.includes(Number(lesson.id)) ||
-          dsaCompleted.includes(String(lesson.id)) ||
-          localStorage.getItem(`course_done_${courseId}_${lesson.id}`) === 'true';
-        if (saved) {
-          try {
-            const data = JSON.parse(saved);
-            if (data.completed === true || data.codelabCompleted === true) {
-              isDone = true;
-            }
-            xpEarned += data.xpAwarded ?? 0;
-          } catch (e) {
-            console.warn(`Không đọc được dữ liệu tiến độ lesson "${lesson.id}" từ localStorage:`, e);
-          }
-        }
+          (uId != null && localStorage.getItem(`course_done_u${uId}_${courseId}_${lesson.id}`) === 'true');
         if (isDone) {
           completedCount++;
           completedLessonIds.push(lesson.id);
@@ -215,12 +204,14 @@ export const useCourseStore = defineStore('course', () => {
       }
     } else {
       let localDoneCount = 0;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(`course_done_${courseId}_`) && localStorage.getItem(k) === 'true') {
-          localDoneCount++;
-          const lessonId = k.replace(`course_done_${courseId}_`, '');
-          completedLessonIds.push(lessonId);
+      if (uId != null) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(`course_done_u${uId}_${courseId}_`) && localStorage.getItem(k) === 'true') {
+            localDoneCount++;
+            const lessonId = k.replace(`course_done_u${uId}_${courseId}_`, '');
+            completedLessonIds.push(lessonId);
+          }
         }
       }
       if (localDoneCount > 0) {

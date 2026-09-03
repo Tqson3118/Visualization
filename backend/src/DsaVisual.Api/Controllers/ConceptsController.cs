@@ -1188,6 +1188,12 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         var prevPassed = await _db.UserNodeProgress.AsNoTracking()
             .AnyAsync(p => p.UserId == userId.Value && p.NodeId == prevNode.Id && p.Status == 2, ct);
 
+        if (!prevPassed && prevNode.LessonId != null)
+        {
+            prevPassed = await _db.UserProgress.AsNoTracking()
+                .AnyAsync(p => p.UserId == userId.Value && p.LessonId == prevNode.LessonId.Value && (p.CompletedAt != null || (p.BestScore ?? 0) > 0), ct);
+        }
+
         return !prevPassed;
     }
 
@@ -2031,7 +2037,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                     LessonId = lessonId,
                     Viewed = true,
                     BestScore = payload.BestScore > 0 ? payload.BestScore : null,
-                    CompletedAt = payload.CodelabCompleted ? now : null,
+                    CompletedAt = (payload.Completed == true || payload.CodelabCompleted) ? now : null,
                     UpdatedAt = DateTime.UtcNow
                 });
             }
@@ -2043,7 +2049,7 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
                     progress.BestScore = payload.BestScore;
                 }
 
-                if (payload.CodelabCompleted && progress.CompletedAt is null)
+                if ((payload.Completed == true || payload.CodelabCompleted) && progress.CompletedAt is null)
                 {
                     progress.CompletedAt = now;
                 }
