@@ -1353,12 +1353,12 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
             {
                 sandboxType = "folder";
             }
-            else if (node.ItemType == PathItemType.Quiz || (!hasFolders && isQuizNaming))
+            else if (node.ItemType == PathItemType.Quiz || (quizEx != null && !isLabNaming) || isQuizNaming)
             {
                 sandboxType = "quiz";
                 sandboxConfig = quizEx != null ? $"{{\"quizId\": {quizEx.Id}}}" : string.Empty;
             }
-            else if (node.ItemType == PathItemType.Lab || (!hasFolders && isLabNaming))
+            else if (node.ItemType == PathItemType.Lab || (codeEx != null && !isQuizNaming) || isLabNaming)
             {
                 sandboxType = "codelab";
                 sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
@@ -1612,12 +1612,16 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         string sandboxType = "dsa";
         string sandboxConfig = string.Empty;
 
-        if (node.ItemType == PathItemType.Quiz)
+        var titleLower = ((lesson?.Title ?? node.Title) ?? string.Empty).ToLowerInvariant();
+        var isQuizNaming = titleLower.Contains("quiz") || titleLower.Contains("quizz") || titleLower.Contains("trắc nghiệm") || titleLower.Contains("kiểm tra");
+        var isLabNaming = titleLower.Contains("assignment") || titleLower.Contains("lab") || titleLower.Contains("thực hành") || titleLower.Contains("bài tập");
+
+        if (node.ItemType == PathItemType.Quiz || (quizEx != null && !isLabNaming) || isQuizNaming)
         {
             sandboxType = "quiz";
             sandboxConfig = quizEx != null ? $"{{ \"quizId\": {quizEx.Id} }}" : string.Empty;
         }
-        else if (node.ItemType == PathItemType.Lab)
+        else if (node.ItemType == PathItemType.Lab || (codeEx != null && !isQuizNaming) || isLabNaming)
         {
             sandboxType = "codelab";
             sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
@@ -1637,11 +1641,11 @@ public class ConceptsController(AppDbContext db, IGamificationConfigService conf
         else if (codeEx is not null)
         {
             sandboxType = "codelab";
-            sandboxConfig = codeEx.ConfigJson ?? string.Empty;
+            sandboxConfig = codeEx.ConfigJson ?? $"{{\"exerciseId\": {codeEx.Id}}}";
         }
         else if (quizEx is not null)
         {
-            sandboxType = (lesson?.ContentHtml?.Length ?? 0) >= 300 ? "dsa" : "quiz";
+            sandboxType = "quiz";
             sandboxConfig = $"{{ \"quizId\": {quizEx.Id} }}";
         }
         else if (labEx is not null)
