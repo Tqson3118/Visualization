@@ -361,4 +361,84 @@ public class CodelabJudgeTests
         var progress = await db.UserNodeProgress.AsNoTracking().FirstAsync(p => p.NodeId == nodeId);
         Assert.NotEqual(2, progress.Status);
     }
+
+    [Fact]
+    public async Task SubmitCode_EmptyCode_ServerJudge_DoesNotPass()
+    {
+        var (db, service, exerciseId, nodeId) = await SeedAsmExerciseAsync(nameof(SubmitCode_EmptyCode_ServerJudge_DoesNotPass));
+
+        var result = await service.SubmitCodeAsync(1, exerciseId, SubmitRequest("", "asm-1-a"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value!.Error);
+        Assert.Equal("Mã nguồn trống.", result.Value.Error);
+        Assert.Equal(0, result.Value.Passed);
+        Assert.Equal(0, result.Value.Score);
+        var progress = await db.UserNodeProgress.AsNoTracking().FirstOrDefaultAsync(p => p.NodeId == nodeId);
+        Assert.True(progress is null || progress.Status != 2);
+    }
+
+    [Fact]
+    public async Task SubmitCode_EmptyCode_Whitespace_DoesNotPass()
+    {
+        var (db, service, exerciseId, nodeId) = await SeedAsmExerciseAsync(nameof(SubmitCode_EmptyCode_Whitespace_DoesNotPass));
+
+        var result = await service.SubmitCodeAsync(1, exerciseId, SubmitRequest("   \n\t  ", "asm-1-a"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value!.Error);
+        Assert.Equal(0, result.Value.Passed);
+        Assert.Equal(0, result.Value.Score);
+        var progress = await db.UserNodeProgress.AsNoTracking().FirstOrDefaultAsync(p => p.NodeId == nodeId);
+        Assert.True(progress is null || progress.Status != 2);
+    }
+
+    [Fact]
+    public async Task SubmitCode_ZeroMaxScore_DoesNotPass_PreventZeroZeroPass()
+    {
+        var db = TestServices.CreateInMemoryDb(nameof(SubmitCode_ZeroMaxScore_DoesNotPass_PreventZeroZeroPass));
+        var now = Clock.UtcNow;
+        db.Topics.Add(new Topic { Id = 1, Name = "CTDL", CreatedBy = 1, CreatedAt = now });
+        db.Lessons.Add(new Lesson { Id = 1, TopicId = 1, Title = "No Score Test", ContentHtml = "<p>x</p>", Status = LessonStatus.Active, CreatedBy = 1, CreatedAt = now });
+        db.Users.Add(new User { Id = 1, Email = "student2@university.edu.vn", PasswordHash = "x", DisplayName = "S2", CreatedAt = now });
+        var path = new LearningPath { Title = "Test Path 2", Description = "x", TopicId = 1, SortOrder = 1, IsActive = true, CreatedBy = 1 };
+        db.LearningPaths.Add(path);
+        await db.SaveChangesAsync();
+        var node = new LearningPathNode { PathId = path.Id, Title = "Học: No Score", LessonId = 1, SortOrder = 1 };
+        db.LearningPathNodes.Add(node);
+        await db.SaveChangesAsync();
+
+        var exercise = new Exercise
+        {
+            LessonId = 1,
+            NodeId = node.Id,
+            Stage = 3,
+            Title = "Code: Zero Max Score",
+            Type = ExerciseType.Code,
+            MaxScore = 0,
+            Status = ExerciseStatus.Active,
+            CreatedBy = 1,
+            CreatedAt = now,
+            ConfigJson = null // no server judge config
+        };
+        db.Exercises.Add(exercise);
+        await db.SaveChangesAsync();
+
+        var service = TestServices.CreateExerciseService(db, Clock);
+        var req = new CodeSubmitRequest
+        {
+            Code = "",
+            Score = 0,
+            Passed = 0,
+            Total = 0
+        };
+
+        var result = await service.SubmitCodeAsync(1, exercise.Id, req, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.Value!.Passed);
+        Assert.Equal(0, result.Value.Score);
+        var progress = await db.UserNodeProgress.AsNoTracking().FirstOrDefaultAsync(p => p.NodeId == node.Id);
+        Assert.True(progress is null || progress.Status != 2);
+    }
 }

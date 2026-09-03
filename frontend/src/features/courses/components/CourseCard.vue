@@ -86,12 +86,13 @@ const authStore = useAuthStore();
 const courseStore = useCourseStore();
 
 const progressPercent = computed(() => {
-  const progress = courseStore.getCourseProgress(props.course.id);
-  return progress.progressPercent;
+  const serverVal = props.course.progressPercent ?? 0;
+  const localVal = courseStore.getCourseProgress(props.course.id).progressPercent ?? 0;
+  return Math.max(serverVal, localVal);
 });
 
 const isEnrolled = computed(() => {
-  return courseStore.isEnrolled(props.course.id);
+  return courseStore.isEnrolled(props.course.id) || progressPercent.value > 0 || (props.course.completedLessons ?? 0) > 0;
 });
 
 const difficultyLabel = computed(() => {

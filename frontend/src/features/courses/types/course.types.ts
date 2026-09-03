@@ -17,6 +17,8 @@ export interface Course {
   isPremium: boolean;
   lessons?: LessonReference[];
   totalLessons: number;
+  completedLessons?: number;
+  progressPercent?: number;
   isPublished: boolean;
   topicId?: number;
   topicName?: string;

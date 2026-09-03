@@ -66,8 +66,8 @@ const localState = reactive<CodeLabFormState>({
  * @return {any}
  */
 function solve(input) {
-  // Viết mã nguồn giải thuật của bạn ở đây
-  return input;
+  // TODO: Viết mã nguồn giải thuật của bạn ở đây
+  return null;
 }`,
   solutionCode:
     props.modelValue?.solutionCode ||

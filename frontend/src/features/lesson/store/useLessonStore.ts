@@ -135,22 +135,15 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       const totalXp = currentLesson.value.xpReward ?? 0;
       if (xpAwarded.value < totalXp) {
         const diff = totalXp - xpAwarded.value;
+        xpAwarded.value += diff;
+        saveToLocalStorage();
         try {
-          await awardXp(diff, `Hoàn thành bài học: ${currentLesson.value.title}`);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
-          try {
-            const authStore = useAuthStore();
-            if (authStore.user) {
-              authStore.user.xp = (authStore.user.xp ?? 0) + diff;
-            }
-          } catch {
-            // Pinia store update
+          const authStore = useAuthStore();
+          if (authStore.user) {
+            authStore.user.xp = (authStore.user.xp ?? 0) + diff;
           }
-        } catch (e) {
-          console.warn('API award-xp lỗi, lưu XP local', e);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
+        } catch {
+          // Pinia store update
         }
       }
     }
@@ -376,7 +369,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       const taskDesc = detail.contentMd || 'Cài đặt và hoàn thành giải thuật theo yêu cầu của bài tập.';
       codelabTask = {
         description: `${taskTitle}\n\n${taskDesc}`,
-        initialCode: `function solution() {\n  // Viết mã giải thuật tại đây\n  \n  return true;\n}`,
+        initialCode: `function solution() {\n  // TODO: Viết mã giải thuật tại đây\n  \n  return null;\n}`,
         solution: '',
         entryFunction: 'solution',
         testCases: [
@@ -669,21 +662,14 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         : currentLesson.value.xpReward;
       if (xpAwarded.value < quizXpCap) {
         const diff = quizXpCap - xpAwarded.value;
+        xpAwarded.value += diff;
+        saveToLocalStorage();
+        await syncToServer(true);
         try {
-          await awardXp(diff, `Hoàn thành Quiz: ${currentLesson.value.title}`);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
-          await syncToServer(true);
-          try {
-            const authStore = useAuthStore();
-            if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
-          } catch {
-            // Pinia store update
-          }
-        } catch (e) {
-          console.warn('API award-xp lỗi, lưu XP local', e);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
+          const authStore = useAuthStore();
+          if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
+        } catch {
+          // Pinia store update
         }
       }
     }
@@ -705,21 +691,14 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       const totalXp = currentLesson.value.xpReward;
       if (xpAwarded.value < totalXp) {
         const diff = totalXp - xpAwarded.value;
+        xpAwarded.value += diff;
+        saveToLocalStorage();
+        await syncToServer(true);
         try {
-          await awardXp(diff, `Hoàn thành CodeLab: ${currentLesson.value.title}`);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
-          await syncToServer(true);
-          try {
-            const authStore = useAuthStore();
-            if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
-          } catch {
-            // Pinia store update
-          }
-        } catch (e) {
-          console.warn('API award-xp lỗi, lưu XP local', e);
-          xpAwarded.value += diff;
-          saveToLocalStorage();
+          const authStore = useAuthStore();
+          if (authStore.user) authStore.user.xp = (authStore.user.xp ?? 0) + diff;
+        } catch {
+          // Pinia store update
         }
       }
     }

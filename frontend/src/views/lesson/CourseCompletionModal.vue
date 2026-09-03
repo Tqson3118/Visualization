@@ -29,7 +29,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="p-3 rounded-xl bg-[#1f1c34] border border-emerald-500/20 flex flex-col items-center justify-center">
               <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Bài hoàn thành
+                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Điểm bài này
               </span>
               <span class="text-xl font-black text-emerald-400 mt-0.5">+{{ lessonXp ?? 50 }} XP</span>
             </div>

@@ -420,6 +420,14 @@ function debouncedSaveDraft(code: string) {
 
 async function runTestcases(): Promise<void> {
   if (!activeTask.value || isRunning.value) return;
+  const code = currentCode().trim();
+  if (!code) {
+    runError.value = 'Mã nguồn không được để trống. Hãy viết giải thuật trước khi chạy.';
+    caseResults.value = [];
+    isConsoleExpanded.value = true;
+    activeConsoleTab.value = 'result';
+    return;
+  }
   isRunning.value = true;
   runError.value = null;
   isConsoleExpanded.value = true;
@@ -450,12 +458,21 @@ async function runTestcases(): Promise<void> {
 
 async function submitSolution(): Promise<void> {
   if (isSubmitting.value || !allPassed.value) return;
+  const code = currentCode().trim();
+  if (!code) {
+    runError.value = 'Mã nguồn không được để trống.';
+    caseResults.value = [];
+    activeConsoleTab.value = 'result';
+    isConsoleExpanded.value = true;
+    return;
+  }
   isSubmitting.value = true;
   try {
     // Nghiệp vụ 15/08: bài ASM ưu tiên MÁY CHỦ chấm code chạy (Jint).
-    if (props.exerciseId && Array.isArray(props.codelabTask)) {
+    if (props.exerciseId && props.codelabTask) {
       try {
-        const serverResult = await submitCodelab(props.exerciseId, currentCode(), activeTask.value?.id ?? '');
+        const taskId = Array.isArray(props.codelabTask) ? (activeTask.value?.id ?? '') : (activeTask.value?.id || 'default');
+        const serverResult = await submitCodelab(props.exerciseId, currentCode(), taskId);
         if (serverResult.error) {
           runError.value = `Máy chủ chấm: ${serverResult.error}`;
           caseResults.value = [];
@@ -568,10 +585,16 @@ onMounted(async () => {
 
       editorInstance.value = createdEditor;
 
-      // Lắng nghe thay đổi nội dung code để lưu nháp
+      // Lắng nghe thay đổi nội dung code để lưu nháp và reset kết quả chạy cũ
       createdEditor.onDidChangeModelContent(() => {
         const val = createdEditor.getValue();
         debouncedSaveDraft(val);
+        if (caseResults.value.length > 0) {
+          caseResults.value = [];
+        }
+        if (runError.value) {
+          runError.value = null;
+        }
       });
 
       monacoInstance.editor.defineTheme('dsa-dark', {

@@ -117,6 +117,13 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
         }
       }
 
+      const rawCode = editorCode.value.trim();
+      if (!rawCode) {
+        runState.value = 'error';
+        runError.value = 'Mã nguồn không được để trống. Hãy viết code trước khi chạy.';
+        return null;
+      }
+
       const result = await Promise.resolve(
         runCode({ code: editorCode.value, entry: 'solve', bindings: [] }, targetArray),
       );
@@ -207,11 +214,21 @@ export const useCodeRunnerStore = defineStore('codeRunner', () => {
   }
 
   async function submit(exerciseId: number, classAssignmentId?: number | null): Promise<CodeSubmitResult> {
+    const rawCode = editorCode.value.trim();
+    if (!rawCode) {
+      runState.value = 'error';
+      runError.value = 'Mã nguồn không được để trống.';
+      throw new Error('Mã nguồn không được để trống.');
+    }
     runState.value = 'running';
     runError.value = null;
     try {
       const result = await codeRunnerApi.submitCode(exerciseId, editorCode.value, classAssignmentId);
-      runState.value = 'passed';
+      const isPassed = result.total > 0 && result.passed >= result.total && result.score > 0;
+      runState.value = isPassed ? 'passed' : 'failed';
+      if (!isPassed) {
+        runError.value = `Chưa đạt: đúng ${result.passed}/${result.total} test case (Điểm: ${result.score}).`;
+      }
       await fetchHistory(exerciseId);
       return result;
     } catch (err) {

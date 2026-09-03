@@ -333,7 +333,7 @@ public class ConceptsController(
                 TotalLessons = totalLessons,
                 CompletedLessons = completed,
                 ProgressPercent = totalLessons == 0 ? 0 : (int)Math.Round(completed * 100.0 / totalLessons),
-                XpReward = totalLessons * _configService.GetTheoryBaseXp(),
+                XpReward = playableNodes.Sum(n => GetNodeXpReward(n)),
                 LearningObjectives = meta.LearningObjectives,
                 KeyOutcomes = meta.KeyOutcomes,
                 Rating = rating,
@@ -403,6 +403,8 @@ public class ConceptsController(
             Id = path.Id.ToString(),
             Title = path.Title,
             Description = path.Description ?? string.Empty,
+            TopicId = path.TopicId,
+            TopicName = path.TopicId != null ? CleanPrefix(await _db.Topics.Where(t => t.Id == path.TopicId.Value).Select(t => t.Name).FirstOrDefaultAsync(ct)) : null,
             Category = DetermineCategory(path, meta),
             Difficulty = DetermineDifficulty(path, meta),
             IsPremium = false,
@@ -891,15 +893,86 @@ public class ConceptsController(
             return Forbid();
         }
 
-        var classes = await _db.Classes.Where(c => c.LearningPathId == id).ToListAsync(ct);
-        foreach (var cls in classes)
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
         {
-            cls.LearningPathId = null;
-        }
+            var classes = await _db.Classes.Where(c => c.LearningPathId == id).ToListAsync(ct);
+            foreach (var cls in classes)
+            {
+                cls.LearningPathId = null;
+            }
 
-        _db.LearningPaths.Remove(path);
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
+            var nodes = await _db.LearningPathNodes.Where(n => n.PathId == id).ToListAsync(ct);
+            var nodeIds = nodes.Select(n => n.Id).ToList();
+
+            if (nodeIds.Count > 0)
+            {
+                // 1. Unlink ClassAssignments
+                var assignments = await _db.ClassAssignments
+                    .Where(a => a.PathItemId != null && nodeIds.Contains(a.PathItemId.Value))
+                    .ToListAsync(ct);
+                foreach (var a in assignments)
+                {
+                    a.PathItemId = null;
+                }
+
+                // 2. Unlink Exercises pointing to these nodes
+                var exercises = await _db.Exercises
+                    .Where(e => e.NodeId != null && nodeIds.Contains(e.NodeId.Value))
+                    .ToListAsync(ct);
+                foreach (var ex in exercises)
+                {
+                    ex.NodeId = null;
+                }
+
+                // 3. Remove NodeSessions
+                var sessions = await _db.NodeSessions
+                    .Where(s => nodeIds.Contains(s.NodeId))
+                    .ToListAsync(ct);
+                if (sessions.Count > 0)
+                {
+                    _db.NodeSessions.RemoveRange(sessions);
+                }
+
+                // 4. Remove UserNodeProgress
+                var progresses = await _db.UserNodeProgress
+                    .Where(p => nodeIds.Contains(p.NodeId))
+                    .ToListAsync(ct);
+                if (progresses.Count > 0)
+                {
+                    _db.UserNodeProgress.RemoveRange(progresses);
+                }
+
+                // 5. Break self-referencing hierarchy (ParentId) to avoid SQL Server circular/self-reference restrict constraint
+                foreach (var n in nodes)
+                {
+                    n.ParentId = null;
+                }
+                await _db.SaveChangesAsync(ct);
+
+                // 6. Remove nodes
+                _db.LearningPathNodes.RemoveRange(nodes);
+            }
+
+            // 7. Remove course feedbacks
+            var feedbacks = await _db.CourseFeedback.Where(f => f.CourseId == id).ToListAsync(ct);
+            if (feedbacks.Count > 0)
+            {
+                _db.CourseFeedback.RemoveRange(feedbacks);
+            }
+
+            // 8. Remove LearningPath
+            _db.LearningPaths.Remove(path);
+            await _db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+            return NoContent();
+        }
+        catch (Exception)
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     [HttpPost("courses/{id:int}/nodes")]
@@ -1033,6 +1106,8 @@ public class ConceptsController(
                 var parsed = JsonSerializer.Deserialize<CourseContentMetadata>(trimmed, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
+                    meta.Category = parsed.Category;
+                    meta.Difficulty = parsed.Difficulty;
                     meta.Highlights = parsed.Highlights ?? [];
                     meta.LearningObjectives = parsed.LearningObjectives?.Count > 0 ? parsed.LearningObjectives : CourseLearningObjectives(courseTitle);
                     meta.KeyOutcomes = parsed.KeyOutcomes?.Count > 0 ? parsed.KeyOutcomes : CourseKeyOutcomes(courseTitle);
@@ -1369,7 +1444,9 @@ public class ConceptsController(
             var nodeExercises = exercisesByNode.GetValueOrDefault(node.Id, []);
             if (nodeExercises.Count == 0 && node.LessonId is { } lId)
             {
-                nodeExercises = exercisesByLesson.GetValueOrDefault(lId, []);
+                nodeExercises = exercisesByLesson.GetValueOrDefault(lId, [])
+                    .Where(e => e.NodeId == null || e.NodeId == node.Id)
+                    .ToList();
             }
 
             var quizEx = (node.FinalTestId is { } ftId ? exercisesList.FirstOrDefault(e => e.Id == ftId) : null)
@@ -1638,7 +1715,7 @@ public class ConceptsController(
             .Where(e => (e.NodeId == node.Id 
                       || (node.FinalTestId != null && e.Id == node.FinalTestId.Value)
                       || (node.LabExerciseId != null && e.Id == node.LabExerciseId.Value)
-                      || (node.LessonId != null && e.LessonId == node.LessonId.Value))
+                      || (node.LessonId != null && e.LessonId == node.LessonId.Value && (e.NodeId == null || e.NodeId == node.Id)))
                       && e.DeletedAt == null)
             .ToListAsync(ct);
 

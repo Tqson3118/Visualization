@@ -929,13 +929,19 @@ public sealed class ExerciseService(
             judgeError = judged.CompileError ? judged.CompileErrorText : judged.TimedOut || !string.IsNullOrWhiteSpace(judged.TimeoutError) ? judged.TimeoutError : null;
         }
 
+        var isCodeEmpty = string.IsNullOrWhiteSpace(request.Code);
+        if (isCodeEmpty && judgeError is null)
+        {
+            judgeError = "Mã nguồn trống.";
+        }
+
         // findings-security #1: clamp Score vào [0, MaxScore] — không tin điểm client mù;
         // nếu bài không có MaxScore → clamp theo Total client khai.
         // Khi serverJudged: Score = số testcase pass do MÁY CHỦ chấm.
         var maxScore = exercise.MaxScore > 0 ? exercise.MaxScore : Math.Max(request.Total, 0);
-        var passedTests = serverJudged ? judgeCases.Count(c => c.Passed) : request.Passed;
+        var passedTests = serverJudged ? judgeCases.Count(c => c.Passed) : (isCodeEmpty ? 0 : request.Passed);
         var totalTests = serverJudged ? judgeCases.Count : request.Total;
-        var score = serverJudged ? passedTests : Math.Clamp(request.Score, 0, maxScore);
+        var score = serverJudged ? passedTests : (isCodeEmpty ? 0 : Math.Clamp(request.Score, 0, maxScore));
         var resultJson = serverJudged
             ? JsonSerializer.Serialize(new
             {
@@ -1027,7 +1033,7 @@ public sealed class ExerciseService(
 
         // Nghiệp vụ ASM: node pass khi MÁY CHỦ xác nhận TẤT CẢ task con đã có bài nộp full-pass.
         var allTasksPassed = false;
-        if (serverJudged && tasks is not null)
+        if (serverJudged && tasks is not null && !isCodeEmpty)
         {
             var pastSubs = await db.CodeSubmissions.AsNoTracking()
                 .Where(s => s.UserId == userId && s.ExerciseId == id && s.PassedTests > 0)
@@ -1037,13 +1043,13 @@ public sealed class ExerciseService(
             {
                 // entryFunction bền vững hơn id (seed tạo id mới mỗi lần chạy)
                 var entry = TryReadJudgedEntry(s.ResultJson);
-                if (entry is not null && s.PassedTests >= s.TotalTests)
+                if (entry is not null && s.PassedTests >= s.TotalTests && s.TotalTests > 0)
                 {
                     coveredEntries.Add(entry);
                 }
             }
 
-            allTasksPassed = tasks.All(t => coveredEntries.Contains(t.EntryFunction));
+            allTasksPassed = tasks.Count > 0 && tasks.All(t => coveredEntries.Contains(t.EntryFunction));
         }
 
         var nodePassScore = serverJudged ? (allTasksPassed ? maxScore : score) : score;
@@ -1060,11 +1066,14 @@ public sealed class ExerciseService(
             return Result<CodeSubmitResultDto>.Fail(ErrorCodes.CONFLICT, "Dữ liệu vừa được cập nhật, hãy thử lại");
         }
 
-        // Finding #6 (FR-10.3): chạy code thành công → tăng quest code_run (cùng transaction)
-        await QuestProgressWriter.IncrementAsync(db, userId, "code_run", ct);
+        // Finding #6 (FR-10.3): chạy code thành công → tăng quest code_run (cùng transaction) - chỉ khi có code
+        if (!isCodeEmpty)
+        {
+            await QuestProgressWriter.IncrementAsync(db, userId, "code_run", ct);
+        }
 
         // findings-biz #5: node VỪA pass nhờ code-submit → quest pass_node (anti double-count)
-        var passed = serverJudged ? allTasksPassed : score >= maxScore;
+        var passed = !isCodeEmpty && (serverJudged ? allTasksPassed : (maxScore > 0 && score >= maxScore && passedTests > 0));
         if (passed && nodeJustPassed && exercise.NodeId is { })
         {
             await QuestProgressWriter.IncrementAsync(db, userId, "pass_node", ct);
@@ -1463,8 +1472,9 @@ public sealed class ExerciseService(
         int userId, Exercise exercise, int score, int maxScore, DateTime now, CodeSubmission winner,
         string resultJson, CodeSubmitRequest request, CancellationToken ct)
     {
-        var mergedScore = Math.Max(winner.Score, score);   // điểm thực cuối sau merge (max)
-        var mergedPassed = mergedScore >= maxScore;
+        var isCodeEmpty = string.IsNullOrWhiteSpace(request.Code);
+        var mergedScore = Math.Max(winner.Score, isCodeEmpty ? 0 : score);   // điểm thực cuối sau merge (max)
+        var mergedPassed = !isCodeEmpty && maxScore > 0 && mergedScore >= maxScore;
 
         var nodeJustPassed = false;
         if (exercise.NodeId is { } nodeId && mergedPassed)

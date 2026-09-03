@@ -444,7 +444,10 @@ const courseProgressPercent = computed(() => {
 });
 
 const totalRoadmapXp = computed(() => {
-  return course.value?.xpReward || (totalLessonsCount.value * 100);
+  if (course.value?.lessons && course.value.lessons.length > 0) {
+    return course.value.lessons.reduce((sum, l) => sum + ((l as any).xpReward ?? 50), 0);
+  }
+  return course.value?.xpReward || (totalLessonsCount.value * 50);
 });
 
 function isLessonLocked(lesson: LessonDto): boolean {

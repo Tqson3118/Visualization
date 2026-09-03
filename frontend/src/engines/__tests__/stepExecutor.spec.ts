@@ -198,4 +198,16 @@ describe('ADAPTER EDV — runCode phản ánh CODE (không hardcode)', () => {
     expect(bubble.output).toEqual([1, 2, 3, 5, 7, 8, 9]);
     expect(selection.output).toEqual([1, 2, 3, 5, 7, 8, 9]);
   });
+
+  it('runCode với mã nguồn rỗng hoặc chỉ có khoảng trắng phải trả về lỗi "Mã nguồn không được để trống."', () => {
+    const emptyResult = runCode({ code: '', entry: 'main', bindings: [] }, DEFAULT_ARRAY);
+    expect(emptyResult.error).toBeDefined();
+    expect(emptyResult.error?.message).toContain('Mã nguồn không được để trống');
+    expect(emptyResult.trace.length).toBe(0);
+
+    const whitespaceResult = runCode({ code: '   \n\t  ', entry: 'main', bindings: [] }, DEFAULT_ARRAY);
+    expect(whitespaceResult.error).toBeDefined();
+    expect(whitespaceResult.error?.message).toContain('Mã nguồn không được để trống');
+    expect(whitespaceResult.trace.length).toBe(0);
+  });
 });

@@ -1284,6 +1284,15 @@ function extractErrorLine(message: string): number {
  */
 export function runCode(code: CodeSimulation, input: unknown): RunResult {
   const start = performance.now();
+  const rawCode = code.code?.trim() ?? '';
+  if (!rawCode) {
+    return {
+      trace: [],
+      output: null,
+      error: { line: 1, message: 'Mã nguồn không được để trống.' },
+      stats: { comparisons: 0, swaps: 0, writes: 0, durationMs: 0 },
+    };
+  }
   const array = toNumberArray(input);
   try {
     const frames = CompilerStepExecutor.compileAlgorithm(code.code, array, { fallbackToRegex: false });

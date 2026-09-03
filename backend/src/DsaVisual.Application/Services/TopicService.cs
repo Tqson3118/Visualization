@@ -20,7 +20,7 @@ public sealed class TopicService(
     public async Task<Result<List<TopicDto>>> GetTreeAsync(CancellationToken ct)
     {
         var topics = await db.Topics.AsNoTracking()
-            .Where(t => t.DeletedAt == null)
+            .Where(t => t.DeletedAt == null && !t.Name.StartsWith("Module "))
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
             .ToListAsync(ct);
 
