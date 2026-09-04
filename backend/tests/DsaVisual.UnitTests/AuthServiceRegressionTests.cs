@@ -129,6 +129,21 @@ public class AuthServiceRegressionTests
             $"Log chứa reset token — bug security#5: {m}"));
     }
 
+    [Fact]
+    public async Task ForgotPassword_WithClientOrigin_Succeeds()
+    {
+        var (service, _, _) = await CreateAsync(nameof(ForgotPassword_WithClientOrigin_Succeeds));
+        await RegisterUserAsync(service);
+
+        var result = await service.ForgotPasswordAsync(new ForgotPasswordRequest
+        {
+            Email = Email,
+            ClientOrigin = "https://frontend-eta-ashen-89.vercel.app"
+        }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
     /// <summary>
     /// Bug: AuthService.cs:640 (SMTP thiếu) + :661 (SMTP lỗi) log mã OTP 6 số → ai đọc log bật được
     /// 2FA trên tài khoản khác. Đúng sau fix: không log mã OTP, chỉ {UserId}.

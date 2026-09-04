@@ -572,7 +572,7 @@ public sealed class AuthService(
         await tx.CommitAsync(ct);
 
         // SMTP thiếu → KHÔNG block luồng; KHÔNG log reset token (finding security#5)
-        await SendResetPasswordEmailAsync(user, rawToken, ct);
+        await SendResetPasswordEmailAsync(user, rawToken, request.ClientOrigin, ct);
         return Result.Ok();
     }
 
@@ -1256,10 +1256,54 @@ public sealed class AuthService(
         return int.TryParse(value, out var min) && min > 0 ? min : 8;
     }
 
-    private async Task SendResetPasswordEmailAsync(User user, string rawToken, CancellationToken ct)
+    private string ResolveFrontendBaseUrl(string? clientOrigin)
+    {
+        var configuredBase = config["DSA:App:BaseUrl"];
+        var fallbackBase = !string.IsNullOrWhiteSpace(configuredBase)
+            ? configuredBase.TrimEnd('/')
+            : "https://frontend-eta-ashen-89.vercel.app";
+
+        if (string.IsNullOrWhiteSpace(clientOrigin))
+        {
+            return fallbackBase;
+        }
+
+        if (Uri.TryCreate(clientOrigin, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var originBase = $"{uri.Scheme}://{uri.Authority}".TrimEnd('/');
+            var allowedOrigins = config.GetSection("DSA:Cors:AllowedOrigins").Get<string[]>() ?? [];
+            foreach (var allowed in allowedOrigins)
+            {
+                if (string.IsNullOrWhiteSpace(allowed))
+                {
+                    continue;
+                }
+
+                var trimmedAllowed = allowed.TrimEnd('/');
+                if (trimmedAllowed.Contains('*'))
+                {
+                    var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(trimmedAllowed).Replace("\\*", ".*") + "$";
+                    if (System.Text.RegularExpressions.Regex.IsMatch(originBase, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    {
+                        return originBase;
+                    }
+                }
+                else if (string.Equals(trimmedAllowed, originBase, StringComparison.OrdinalIgnoreCase))
+                {
+                    return originBase;
+                }
+            }
+        }
+
+        return fallbackBase;
+    }
+
+    private async Task SendResetPasswordEmailAsync(User user, string rawToken, string? clientOrigin, CancellationToken ct)
     {
         var emailOpts = DsaVisual.Application.Options.EmailOptions.FromConfiguration(config);
-        var resetLink = $"{config["DSA:App:BaseUrl"] ?? "http://localhost:5173"}/reset-password?token={rawToken}";
+        var baseUrl = ResolveFrontendBaseUrl(clientOrigin);
+        var resetLink = $"{baseUrl}/reset-password?token={rawToken}";
 
         if (string.IsNullOrWhiteSpace(emailOpts.SmtpHost))
         {

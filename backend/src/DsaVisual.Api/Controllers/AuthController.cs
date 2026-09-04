@@ -284,6 +284,19 @@ public class AuthController(
             return invalid;
         }
 
+        if (string.IsNullOrWhiteSpace(request.ClientOrigin))
+        {
+            var origin = Request.Headers.Origin.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(origin))
+            {
+                origin = Request.Headers.Referer.FirstOrDefault();
+            }
+            if (!string.IsNullOrWhiteSpace(origin))
+            {
+                request.ClientOrigin = origin;
+            }
+        }
+
         var result = await _service.ForgotPasswordAsync(request, ct);
         return result.IsSuccess ? Ok(new { message = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu" }) : MapResultExtensions.MapResult(this, result);
     }

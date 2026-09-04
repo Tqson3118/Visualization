@@ -4,4 +4,6 @@ namespace DsaVisual.Application.Dtos;
 public sealed class ForgotPasswordRequest
 {
     public string Email { get; set; } = string.Empty;
+    public string? ClientOrigin { get; set; }
 }
+

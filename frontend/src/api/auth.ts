@@ -199,8 +199,9 @@ export async function changePassword(payload: { currentPassword: string; newPass
   await client.put(AUTH_ENDPOINTS.changePassword, payload);
 }
 
-export async function forgotPassword(email: string): Promise<void> {
-  await client.post(AUTH_ENDPOINTS.forgotPassword, { email });
+export async function forgotPassword(email: string, clientOrigin?: string): Promise<void> {
+  const origin = clientOrigin || (typeof window !== 'undefined' ? window.location.origin : undefined);
+  await client.post(AUTH_ENDPOINTS.forgotPassword, { email, clientOrigin: origin });
 }
 
 export async function resetPassword(payload: { token: string; newPassword: string }): Promise<void> {
