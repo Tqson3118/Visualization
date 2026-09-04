@@ -332,6 +332,20 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           codelabTask = config.tasks as CodeLabTask[];
         } else if (config.id && config.testCases) {
           codelabTask = config as CodeLabTask;
+        } else if (config.testCases && Array.isArray(config.testCases) && (config.description || config.starterCode || config.entryFunction)) {
+          codelabTask = {
+            id: config.id || 'default',
+            title: config.title || detail.title,
+            description: config.description || detail.contentMd || detail.title,
+            initialCode: config.starterCode || config.initialCode || 'function solve(input) {\n  return null;\n}',
+            solution: config.solution || '',
+            entryFunction: config.entryFunction || 'solve',
+            testCases: (config.testCases ?? []).map((tc: any) => ({
+              input: tc.input ?? '',
+              expectedOutput: tc.expectedOutput ?? tc.expected ?? '',
+              isHidden: tc.isHidden ?? false,
+            })),
+          };
         } else if (config.signature && config.testCases) {
           // Check if registry has better matching data (e.g. for bubble-sort, binary-search)
           const lowerTitle = detail.title.toLowerCase();

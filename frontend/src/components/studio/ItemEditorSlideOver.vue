@@ -30,6 +30,12 @@ import {
   FileSpreadsheet,
   Maximize2,
   Minimize2,
+  Bold,
+  Italic,
+  List,
+  Table as TableIcon,
+  Lightbulb,
+  FileCode,
 } from 'lucide-vue-next';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
@@ -109,9 +115,58 @@ const labForm = reactive({
   entryFunction: 'solve',
   durationMinutes: 20,
   maxScore: 100,
+  description: '',
   starterCode: `/**\n * @param {any} input\n * @return {any}\n */\nfunction solve(input) {\n  // Viết mã nguồn giải thuật tại đây\n  return null;\n}`,
   testCases: [] as LabTestCase[],
 });
+
+const labActiveViewMode = ref<'edit' | 'preview'>('edit');
+const labDescriptionTextarea = ref<HTMLTextAreaElement | null>(null);
+
+const parsedLabMarkdown = computed(() => {
+  return parseMarkdownToHtml(labForm.description);
+});
+
+function insertLabMarkdown(prefix: string, suffix = '', defaultText = '') {
+  const el = labDescriptionTextarea.value;
+  if (!el) {
+    labForm.description += prefix + defaultText + suffix;
+    return;
+  }
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const currentText = labForm.description;
+  const selected = currentText.slice(start, end);
+  const textToInsert = selected || defaultText;
+  const replacement = prefix + textToInsert + suffix;
+
+  labForm.description = currentText.slice(0, start) + replacement + currentText.slice(end);
+
+  requestAnimationFrame(() => {
+    el.focus();
+    if (selected) {
+      el.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    } else {
+      const newPos = start + prefix.length + defaultText.length;
+      el.setSelectionRange(newPos, newPos);
+    }
+  });
+}
+
+function handleLabTextareaKeydown(e: KeyboardEvent) {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      insertLabMarkdown('**', '**', 'chữ đậm');
+    } else if (e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      insertLabMarkdown('*', '*', 'chữ nghiêng');
+    } else if (e.key === '`') {
+      e.preventDefault();
+      insertLabMarkdown('`', '`', 'mã');
+    }
+  }
+}
 
 const currentItemType = computed<PathItemType>(() => {
   return props.item ? normalizeItemType(props.item.itemType) : 'theory';
@@ -352,14 +407,17 @@ watch(
         if (detail.exercise.configJson) {
           try {
             const parsed = JSON.parse(detail.exercise.configJson);
-            labForm.starterCode = parsed.starterCode || labForm.starterCode;
+            labForm.starterCode = parsed.starterCode || parsed.initialCode || labForm.starterCode;
             labForm.entryFunction = parsed.entryFunction || 'solve';
+            labForm.description = parsed.description || detail.exercise.description || detail.description || '';
             if (Array.isArray(parsed.testCases)) {
               labForm.testCases = parsed.testCases;
             }
           } catch {
-            // fallback
+            labForm.description = detail.exercise.description || detail.description || '';
           }
+        } else {
+          labForm.description = detail.exercise.description || detail.description || '';
         }
       }
     } catch {
@@ -1043,9 +1101,14 @@ async function handleSave() {
         });
       }
       const exerciseId = props.item.labExerciseId ?? props.item.exerciseId ?? props.item.exercise?.id;
+      const summaryDescription = (form.description || labForm.description || '').trim().slice(0, 490);
       const configJson = JSON.stringify({
-        entryFunction: labForm.entryFunction,
+        id: `lab-${props.item.id}`,
+        title: form.title.trim(),
+        description: labForm.description.trim(),
+        entryFunction: labForm.entryFunction.trim() || 'solve',
         starterCode: labForm.starterCode,
+        initialCode: labForm.starterCode,
         testCases: labForm.testCases.map(tc => ({
           input: tc.input,
           expected: (tc as any).expected ?? (tc as any).expectedOutput ?? '',
@@ -1057,7 +1120,7 @@ async function handleSave() {
         lessonId: props.item.lessonId,
         nodeId: props.item.id,
         title: form.title.trim(),
-        description: form.description.trim(),
+        description: summaryDescription,
         maxScore: labForm.maxScore,
         configJson,
       };
@@ -1074,7 +1137,7 @@ async function handleSave() {
         await updatePathItem(props.item.id, {
           labExerciseId: created.id,
           title: form.title.trim(),
-          description: form.description.trim(),
+          description: summaryDescription,
         });
       }
     }
@@ -1586,11 +1649,141 @@ async function handleSave() {
         <div class="flex items-center justify-between">
           <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
             <Code class="w-3.5 h-3.5 text-emerald-400" />
-            <span>Cấu hình Codelab</span>
+            <span>Cấu hình Codelab Thử thách</span>
           </label>
         </div>
 
-        <!-- 1. Starter Code First (prominent) -->
+        <!-- 1. Đề bài & Ràng buộc (Markdown Editor with Toolbar) -->
+        <div class="space-y-2 p-3.5 bg-[#171624] border border-[#27253b] rounded-xl shadow-sm">
+          <div class="flex items-center justify-between gap-2 flex-wrap pb-1 border-b border-[#252338]">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText class="w-3.5 h-3.5 text-emerald-400" />
+              <span>Nội dung Câu hỏi / Đề bài</span>
+            </label>
+            <div class="flex items-center gap-1 bg-[#0e0d16] p-1 rounded-lg border border-[#27253b]">
+              <button
+                type="button"
+                class="px-2.5 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer"
+                :class="labActiveViewMode === 'edit' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'"
+                @click="labActiveViewMode = 'edit'"
+              >
+                Soạn thảo
+              </button>
+              <button
+                type="button"
+                class="px-2.5 py-0.5 text-[10px] font-bold rounded transition-colors cursor-pointer"
+                :class="labActiveViewMode === 'preview' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'"
+                @click="labActiveViewMode = 'preview'"
+              >
+                Xem trước
+              </button>
+            </div>
+          </div>
+
+          <!-- Toolbar for formatting -->
+          <div v-if="labActiveViewMode === 'edit'" class="space-y-2">
+            <div class="flex items-center gap-1 flex-wrap p-1.5 bg-[#0e0d16] border border-[#262438] rounded-lg text-xs">
+              <button
+                type="button"
+                title="In đậm (Ctrl+B)"
+                class="px-2 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white font-bold cursor-pointer transition-colors"
+                @click="insertLabMarkdown('**', '**', 'chữ đậm')"
+              >
+                <Bold class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                title="In nghiêng (Ctrl+I)"
+                class="px-2 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white italic cursor-pointer transition-colors"
+                @click="insertLabMarkdown('*', '*', 'chữ nghiêng')"
+              >
+                <Italic class="w-3.5 h-3.5" />
+              </button>
+              <span class="w-[1px] h-4 bg-[#2b293d] mx-0.5" />
+              <button
+                type="button"
+                title="Tiêu đề H2"
+                class="px-2 py-0.5 rounded hover:bg-white/10 text-slate-300 hover:text-white text-[11px] font-bold cursor-pointer transition-colors"
+                @click="insertLabMarkdown('## ', '\n', 'Tiêu đề')"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                title="Tiêu đề H3"
+                class="px-2 py-0.5 rounded hover:bg-white/10 text-slate-300 hover:text-white text-[11px] font-bold cursor-pointer transition-colors"
+                @click="insertLabMarkdown('### ', '\n', 'Tiêu đề con')"
+              >
+                H3
+              </button>
+              <span class="w-[1px] h-4 bg-[#2b293d] mx-0.5" />
+              <button
+                type="button"
+                title="Mã nội dòng (Inline Code)"
+                class="px-2 py-1 rounded hover:bg-white/10 text-emerald-400 font-mono text-[11px] cursor-pointer transition-colors"
+                @click="insertLabMarkdown('`', '`', 'arr')"
+              >
+                &lt;/&gt;
+              </button>
+              <button
+                type="button"
+                title="Khối mã lệnh (Code Block)"
+                class="px-2 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white cursor-pointer transition-colors"
+                @click="insertLabMarkdown('```javascript\n', '\n```', '// Mã ví dụ\n')"
+              >
+                <FileCode class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Danh sách gạch đầu dòng"
+                class="px-2 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white cursor-pointer transition-colors"
+                @click="insertLabMarkdown('- ', '', 'Mục danh sách')"
+              >
+                <List class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Chèn bảng Markdown ví dụ"
+                class="px-2 py-1 rounded hover:bg-white/10 text-slate-300 hover:text-white cursor-pointer transition-colors"
+                @click="insertLabMarkdown('\n| Tham số | Ý nghĩa |\n|---|---|\n| `input` | Giá trị đầu vào |\n', '', '')"
+              >
+                <TableIcon class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Hộp ghi chú (Note)"
+                class="px-2 py-1 rounded hover:bg-white/10 text-amber-300 cursor-pointer transition-colors flex items-center gap-1 text-[11px]"
+                @click="insertLabMarkdown('\n> [!NOTE]\n> ', '', 'Lưu ý độ phức tạp yêu cầu là O(N)')"
+              >
+                <Lightbulb class="w-3.5 h-3.5 text-amber-400" />
+                <span>Ghi chú</span>
+              </button>
+            </div>
+
+            <textarea
+              ref="labDescriptionTextarea"
+              v-model="labForm.description"
+              rows="6"
+              placeholder="Nhập nội dung câu hỏi, yêu cầu bài toán và hướng dẫn học sinh giải thuật... Bôi đen chữ rồi bấm các nút trên thanh công cụ để định dạng in đậm, in nghiêng, chèn code..."
+              class="w-full px-3 py-2 text-xs font-sans leading-relaxed bg-[#0e0d16] border border-[#2e2c44] rounded-lg text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+              @keydown="handleLabTextareaKeydown"
+            />
+            <p class="text-[10px] text-slate-500 italic">
+              * Mẹo: Bạn chỉ cần mô tả bài toán và yêu cầu. Các ví dụ Input/Output từ bộ Test Cases bên dưới sẽ được hệ thống tự động hiển thị cho học sinh.
+            </p>
+          </div>
+
+          <!-- Preview Mode -->
+          <div
+            v-else
+            class="p-4 bg-[#0e0d16] border border-[#2e2c44] rounded-xl min-h-[120px] text-slate-200 text-xs leading-relaxed"
+          >
+            <ProseContent v-if="labForm.description.trim()" :content="labForm.description" class="prose-sm" />
+            <p v-else class="text-slate-500 italic text-xs">Chưa có nội dung đề bài. Hãy chuyển sang tab Soạn thảo để viết đề bài.</p>
+          </div>
+        </div>
+
+        <!-- 2. Starter Code First (prominent) -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">

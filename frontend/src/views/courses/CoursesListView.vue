@@ -84,68 +84,30 @@
       </section>
     </template>
 
-    <!-- Mặc định (Tất cả): Hiển thị mục Tất cả ở đầu tiên, sau đó tới từng Chủ đề kiến thức -->
+    <!-- Mặc định (Tất cả): Chỉ hiển thị danh sách Tất cả lộ trình -->
     <template v-else>
-      <div v-if="groupedCourses.length > 0" class="mt-6 space-y-10">
-        <!-- 1. MỤC TẤT CẢ LỘ TRÌNH Ở ĐẦU TIÊN -->
-        <section class="course-topic-section" aria-label="Tất cả lộ trình">
-          <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/5">
-            <h2 class="flex items-center gap-2.5 text-lg md:text-xl font-bold text-white tracking-tight">
-              <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm shadow-purple-500/50" aria-hidden="true"></span>
-              Tất cả
-              <span class="text-xs font-semibold text-vdsa-muted">({{ courseStore.filteredCourses.length }} lộ trình)</span>
-            </h2>
-          </div>
+      <section class="course-topic-section mt-6" aria-label="Tất cả lộ trình">
+        <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/5">
+          <h2 class="flex items-center gap-2.5 text-lg md:text-xl font-bold text-white tracking-tight">
+            <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm shadow-purple-500/50" aria-hidden="true"></span>
+            Tất cả
+            <span class="text-xs font-semibold text-vdsa-muted">({{ courseStore.filteredCourses.length }} lộ trình)</span>
+          </h2>
+        </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list" aria-label="Danh sách tất cả lộ trình">
-            <router-link
-              v-for="course in courseStore.filteredCourses"
-              :key="'all-' + course.id"
-              :to="{ name: 'path-detail', params: { id: course.id } }"
-              class="course-card-link block"
-              :aria-label="`Xem chi tiết lộ trình ${course.title}`"
-              role="listitem"
-            >
-              <CourseCard :course="course" />
-            </router-link>
-          </div>
-        </section>
-
-        <!-- 2. CÁC PHÂN NHÓM THEO CHỦ ĐỀ Ở DƯỚI (GIỮ NGUYÊN) -->
-        <section
-          v-for="[topic, list] in groupedCourses"
-          :key="topic"
-          class="course-topic-section"
-          :aria-label="'Lộ trình chủ đề ' + topic"
-        >
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="flex items-center gap-2.5 text-lg md:text-xl font-bold text-white tracking-tight">
-              <span class="w-2 h-2 rounded-full bg-purple-500" aria-hidden="true"></span>
-              {{ topic }}
-              <span class="text-xs font-semibold text-vdsa-muted">({{ list.length }} lộ trình)</span>
-            </h2>
-            <button
-              @click="filterByTopic(topic)"
-              class="text-xs font-semibold text-purple-400 hover:text-purple-300 hover:underline transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              Lọc theo chủ đề này &rarr;
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list" :aria-label="'Danh sách lộ trình ' + topic">
-            <router-link
-              v-for="course in list"
-              :key="course.id"
-              :to="{ name: 'path-detail', params: { id: course.id } }"
-              class="course-card-link block"
-              :aria-label="`Xem chi tiết lộ trình ${course.title}`"
-              role="listitem"
-            >
-              <CourseCard :course="course" />
-            </router-link>
-          </div>
-        </section>
-      </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" role="list" aria-label="Danh sách tất cả lộ trình">
+          <router-link
+            v-for="course in courseStore.filteredCourses"
+            :key="course.id"
+            :to="{ name: 'path-detail', params: { id: course.id } }"
+            class="course-card-link block"
+            :aria-label="`Xem chi tiết lộ trình ${course.title}`"
+            role="listitem"
+          >
+            <CourseCard :course="course" />
+          </router-link>
+        </div>
+      </section>
     </template>
 
     <div v-if="courseStore.error" class="mt-6 text-center py-10 bg-vdsa-surface rounded-lg border border-vdsa-border">
@@ -163,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
+import { onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCourseStore } from '@/features/courses/store/useCourseStore';
 import CourseCard from '@/features/courses/components/CourseCard.vue';
@@ -172,22 +134,6 @@ import BaseIcon from '@/shared/components/BaseIcon.vue';
 
 const authStore = useAuthStore();
 const courseStore = useCourseStore();
-
-const groupedCourses = computed(() => {
-  const groups = new Map<string, typeof courseStore.filteredCourses>();
-  for (const c of courseStore.filteredCourses) {
-    const rawKey = ((c as any).topicName as string | undefined) || 'Chủ đề khác';
-    const key = rawKey.replace(/^Module\s*\d+\s*:\s*/i, '').trim();
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(c);
-  }
-  return Array.from(groups.entries());
-});
-
-function filterByTopic(topic: string): void {
-  courseStore.setTopic(topic);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
 function resetFilters(): void {
   courseStore.setTopic('All');

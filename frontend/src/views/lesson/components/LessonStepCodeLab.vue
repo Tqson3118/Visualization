@@ -54,8 +54,8 @@
               <span class="px-2.5 py-1 rounded-full bg-vdsa-green/20 text-vdsa-green text-[11px] font-semibold">Easy</span>
             </div>
 
-            <div class="text-[14px] leading-relaxed text-vdsa-secondary space-y-4">
-              <p class="whitespace-pre-line" v-html="formatMarkdown(activeTask?.description ?? '')"></p>
+            <div class="codelab-description text-[13px] leading-relaxed text-vdsa-secondary space-y-3">
+              <ProseContent :content="activeTask?.description ?? ''" class="prose-sm text-[13px] leading-relaxed" />
             </div>
 
             <!-- Examples -->
@@ -273,6 +273,7 @@ import type { CodeLabTask } from '../../../features/lesson/types/lesson.types';
 import { runCodelabTask, type CodelabCaseResult } from '../../../features/lesson/utils/codelabExecutor';
 import { submitCodelab } from '../../../features/lesson/services/lessonApi';
 import { sanitizeHtml } from '@/utils/sanitize';
+import ProseContent from '@/components/ui/ProseContent.vue';
 
 const props = withDefaults(defineProps<{
   problemTitle?: string;
