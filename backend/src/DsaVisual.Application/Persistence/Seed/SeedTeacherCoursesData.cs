@@ -57,6 +57,21 @@ public static class SeedTeacherCoursesData
             await db.SaveChangesAsync(ct);
         }
 
+        var student = await db.Users.FirstOrDefaultAsync(u => u.Email == "student@demo.local", ct);
+        if (student != null)
+        {
+            student.Gems = Math.Max(student.Gems, 450);
+            student.Hearts = Math.Max(student.Hearts, 10);
+            student.HeartsMax = Math.Max(student.HeartsMax, 10);
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Đảm bảo không có user nào bị âm Gems
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE Users SET Gems = 0 WHERE Gems < 0", ct);
+        }
+
         var teacherId = teacher.Id;
 
         // 2. Dọn dẹp dữ liệu rác (junk / test courses / orphan lessons do test tay trước đây tạo)

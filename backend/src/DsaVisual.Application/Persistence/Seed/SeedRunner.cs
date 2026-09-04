@@ -492,6 +492,7 @@ public static class SeedRunner
                 }
                 if (email == "student@demo.local")
                 {
+                    user.Gems = Math.Max(user.Gems, 450);
                     user.AvatarUrl ??= "/assets/avatars/ai-bot.svg";
                 }
                 user.UpdatedAt = now;
