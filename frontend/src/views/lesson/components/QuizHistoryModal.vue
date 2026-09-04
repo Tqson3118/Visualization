@@ -23,7 +23,7 @@
                 {{ selectedAttempt ? `Chi tiết bài làm - Lần ${selectedAttemptNumber}` : 'Lịch sử làm bài Quiz' }}
               </h3>
               <p class="text-xs text-vdsa-muted">
-                {{ selectedAttempt ? `Điểm: ${selectedAttempt.score}/${questions.length} (${Math.round((selectedAttempt.score / (questions.length || 1)) * 100)}%)` : `${historyList.length} lần nộp bài được ghi nhận` }}
+                {{ selectedAttempt ? `Điểm: ${getAttemptScore(selectedAttempt)}/${questions.length} (${getAttemptPercent(selectedAttempt)}%)` : `${historyList.length} lần nộp bài được ghi nhận` }}
               </p>
             </div>
           </div>
@@ -87,9 +87,9 @@
                   </div>
                   <span
                     class="shrink-0 px-2 py-0.5 rounded text-[11px] font-bold"
-                    :class="isQuestionCorrectInAttempt(q, selectedAttempt) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'"
+                    :class="isQuestionCorrectInAttempt(q, selectedAttempt, qIdx) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'"
                   >
-                    {{ isQuestionCorrectInAttempt(q, selectedAttempt) ? 'Đúng' : 'Sai' }}
+                    {{ isQuestionCorrectInAttempt(q, selectedAttempt, qIdx) ? 'Đúng' : 'Sai' }}
                   </span>
                 </div>
 
@@ -99,25 +99,25 @@
                     v-for="(opt, oIdx) in q.options"
                     :key="oIdx"
                     class="p-2.5 rounded-lg text-xs flex items-center justify-between border transition-colors"
-                    :class="getOptionClass(q, oIdx, selectedAttempt)"
+                    :class="getOptionClass(q, oIdx, selectedAttempt, qIdx)"
                   >
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-white/50 w-5">{{ String.fromCharCode(65 + oIdx) }}.</span>
-                      <span :class="isOptionSelectedInAttempt(q, oIdx, selectedAttempt) ? 'font-bold text-white' : 'text-vdsa-secondary'">
+                      <span :class="isOptionSelectedInAttempt(q, oIdx, selectedAttempt, qIdx) ? 'font-bold text-white' : 'text-vdsa-secondary'">
                         {{ opt }}
                       </span>
                     </div>
 
                     <div class="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold">
-                      <template v-if="isOptionSelectedInAttempt(q, oIdx, selectedAttempt)">
-                        <span v-if="isOptionCorrect(q, oIdx)" class="text-emerald-400 flex items-center gap-1">
+                      <template v-if="isOptionSelectedInAttempt(q, oIdx, selectedAttempt, qIdx)">
+                        <span v-if="isOptionCorrect(q, oIdx, selectedAttempt, qIdx)" class="text-emerald-400 flex items-center gap-1">
                           <BaseIcon name="check" class="w-3.5 h-3.5" /> Bạn chọn (Đúng)
                         </span>
                         <span v-else class="text-rose-400 flex items-center gap-1">
                           <BaseIcon name="close" class="w-3.5 h-3.5" /> Bạn chọn (Sai)
                         </span>
                       </template>
-                      <template v-else-if="isOptionCorrect(q, oIdx)">
+                      <template v-else-if="isOptionCorrect(q, oIdx, selectedAttempt, qIdx)">
                         <span class="text-emerald-400/80 italic">Đáp án đúng</span>
                       </template>
                     </div>
@@ -126,14 +126,14 @@
 
                 <!-- Explanation -->
                 <div
-                  v-if="attemptExplanation(q, selectedAttempt)"
+                  v-if="attemptExplanation(q, selectedAttempt, qIdx)"
                   class="mt-2 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-vdsa-muted leading-relaxed"
                 >
                   <div class="flex items-center gap-1.5 text-vdsa-yellow font-bold text-[11px] mb-1">
                     <BaseIcon name="info" class="w-3.5 h-3.5" />
                     <span>Giải thích</span>
                   </div>
-                  <p class="text-vdsa-secondary">{{ attemptExplanation(q, selectedAttempt) }}</p>
+                  <p class="text-vdsa-secondary">{{ attemptExplanation(q, selectedAttempt, qIdx) }}</p>
                 </div>
               </div>
             </div>
@@ -176,10 +176,10 @@
                 <div class="flex items-center gap-3 shrink-0">
                   <div class="text-right">
                     <div class="font-bold text-sm" :class="isAttemptPassed(item) ? 'text-emerald-400' : 'text-rose-400'">
-                      {{ item.score }} / {{ questions.length }} câu
+                      {{ getAttemptScore(item) }} / {{ questions.length }} câu
                     </div>
                     <span class="text-[11px] text-vdsa-muted">
-                      {{ Math.round((item.score / (questions.length || 1)) * 100) }}%
+                      {{ getAttemptPercent(item) }}%
                     </span>
                   </div>
 
@@ -262,9 +262,26 @@ function formatDate(isoDate?: string | null): string {
   }
 }
 
-function isAttemptPassed(item: SubmissionSummaryDto): boolean {
+function getAttemptScore(item: SubmissionSummaryDto | null): number {
+  if (!item) return 0;
   const total = props.questions.length || 1;
-  return item.score / total >= 0.7;
+  if (item.score > total) {
+    return Math.min(total, Math.round((item.score / 100) * total));
+  }
+  return item.score;
+}
+
+function getAttemptPercent(item: SubmissionSummaryDto | null): number {
+  if (!item) return 0;
+  const total = props.questions.length || 1;
+  if (item.score > total) {
+    return Math.min(100, Math.round(item.score));
+  }
+  return Math.min(100, Math.round((item.score / total) * 100));
+}
+
+function isAttemptPassed(item: SubmissionSummaryDto): boolean {
+  return getAttemptPercent(item) >= 70;
 }
 
 watch(() => props.isOpen, async (open) => {
@@ -335,20 +352,26 @@ function parseAttemptAnswers(attempt: SubmissionSummaryDto | null): Record<strin
   return {};
 }
 
-function isOptionSelectedInAttempt(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null): boolean {
+function getAttemptAnswerForQuestion(q: QuizQuestion, qIdx: number, attempt: SubmissionSummaryDto | null): number[] {
   const ansMap = parseAttemptAnswers(attempt);
-  const selected = ansMap[String(q.id)];
-  return selected ? selected.includes(optionIdx) : false;
+  if (ansMap[String(q.id)]) return ansMap[String(q.id)];
+  if (ansMap[String(qIdx)]) return ansMap[String(qIdx)];
+  return [];
 }
 
-function attemptCorrectIndices(q: QuizQuestion, attempt: SubmissionSummaryDto | null): number[] {
+function isOptionSelectedInAttempt(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null, qIdx?: number): boolean {
+  const selected = typeof qIdx === 'number' ? getAttemptAnswerForQuestion(q, qIdx, attempt) : (parseAttemptAnswers(attempt)[String(q.id)] ?? []);
+  return selected.includes(optionIdx);
+}
+
+function attemptCorrectIndices(q: QuizQuestion, attempt: SubmissionSummaryDto | null, qIdx?: number): number[] {
   if (!attempt?.resultJson) return [];
   try {
     const results = JSON.parse(attempt.resultJson);
     if (!Array.isArray(results)) return [];
-    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId) === String(q.id));
+    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId) === String(q.id)) ?? (typeof qIdx === 'number' ? results[qIdx] : undefined);
     if (!result) return [];
-    const indices = result.correctIndices ?? result.CorrectIndices;
+    const indices = result.correctIndices ?? result.CorrectIndices ?? result.correctAnswer ?? result.CorrectAnswer;
     const index = result.correctIndex ?? result.CorrectIndex;
     return Array.isArray(indices) ? indices.map(Number) : (typeof index === 'number' ? [index] : []);
   } catch {
@@ -356,25 +379,36 @@ function attemptCorrectIndices(q: QuizQuestion, attempt: SubmissionSummaryDto | 
   }
 }
 
-function isOptionCorrect(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null = selectedAttempt.value): boolean {
-  const resultCorrect = attemptCorrectIndices(q, attempt);
+function isOptionCorrect(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null = selectedAttempt.value, qIdx?: number): boolean {
+  const resultCorrect = attemptCorrectIndices(q, attempt, qIdx);
   if (resultCorrect.length > 0) return resultCorrect.includes(optionIdx);
   if (q.correctIndices && q.correctIndices.length > 0) return q.correctIndices.includes(optionIdx);
   return q.correctIndex === optionIdx;
 }
 
-function isQuestionCorrectInAttempt(q: QuizQuestion, attempt: SubmissionSummaryDto | null): boolean {
-  const ansMap = parseAttemptAnswers(attempt);
-  const selected = ansMap[String(q.id)] ?? [];
-  const resultCorrect = attemptCorrectIndices(q, attempt);
+function isQuestionCorrectInAttempt(q: QuizQuestion, attempt: SubmissionSummaryDto | null, qIdx?: number): boolean {
+  if (attempt?.resultJson) {
+    try {
+      const results = JSON.parse(attempt.resultJson);
+      if (!Array.isArray(results)) {
+        // results is not array
+      } else {
+        const result = results.find((r: any) => String(r.questionId ?? r.QuestionId) === String(q.id)) ?? (typeof qIdx === 'number' ? results[qIdx] : undefined);
+        const verdict = result?.isCorrect ?? result?.IsCorrect ?? result?.correct ?? result?.Correct;
+        if (typeof verdict === 'boolean') return verdict;
+      }
+    } catch {}
+  }
+  const selected = typeof qIdx === 'number' ? getAttemptAnswerForQuestion(q, qIdx, attempt) : (parseAttemptAnswers(attempt)[String(q.id)] ?? []);
+  const resultCorrect = attemptCorrectIndices(q, attempt, qIdx);
   const correct = resultCorrect.length > 0 ? resultCorrect : (q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []));
   if (selected.length === 0 || correct.length === 0) return false;
   return selected.length === correct.length && selected.every(idx => correct.includes(idx));
 }
 
-function getOptionClass(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null): string {
-  const isSelected = isOptionSelectedInAttempt(q, optionIdx, attempt);
-  const isCorrect = isOptionCorrect(q, optionIdx, attempt);
+function getOptionClass(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null, qIdx?: number): string {
+  const isSelected = isOptionSelectedInAttempt(q, optionIdx, attempt, qIdx);
+  const isCorrect = isOptionCorrect(q, optionIdx, attempt, qIdx);
 
   if (isSelected && isCorrect) {
     return 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300';
@@ -388,12 +422,12 @@ function getOptionClass(q: QuizQuestion, optionIdx: number, attempt: SubmissionS
   return 'bg-white/5 border-white/5 text-vdsa-muted';
 }
 
-function attemptExplanation(q: QuizQuestion, attempt: SubmissionSummaryDto | null): string {
+function attemptExplanation(q: QuizQuestion, attempt: SubmissionSummaryDto | null, qIdx?: number): string {
   if (!attempt?.resultJson) return q.explanation || '';
   try {
     const results = JSON.parse(attempt.resultJson);
     if (!Array.isArray(results)) return q.explanation || '';
-    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId ?? '') === String(q.id));
+    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId ?? '') === String(q.id)) ?? (typeof qIdx === 'number' ? results[qIdx] : undefined);
     return result?.explanation ?? result?.Explanation ?? q.explanation ?? '';
   } catch {
     return q.explanation || '';

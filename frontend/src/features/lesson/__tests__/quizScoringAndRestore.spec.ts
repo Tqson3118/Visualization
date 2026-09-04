@@ -83,4 +83,33 @@ describe('Quiz scoring and restore verification', () => {
     expect(questions[0].correctIndices).toEqual([1, 2]);
     expect(questions[0].explanation).toBe('Chọn B và C.');
   });
+
+  it('correctly applies legacy seed resultJson with CorrectAnswer and fallback by index', () => {
+    const questions: QuizQuestion[] = [
+      {
+        id: '463',
+        questionText: 'Hàm băm là gì?',
+        type: 'SINGLE',
+        options: ['Ánh xạ khóa thành chỉ số', 'Sắp xếp mảng', 'Tìm kiếm nhị phân', 'Đảo ngược'],
+        correctIndex: undefined,
+        correctIndices: [],
+        explanation: '',
+      },
+    ];
+
+    const resultJson = [
+      {
+        QuestionId: 463,
+        Correct: true,
+        CorrectAnswer: [0],
+        Explanation: 'Hàm băm ánh xạ khóa tùy ý thành chỉ số mảng.',
+      },
+    ];
+
+    applySubmissionResultsToQuestions(questions, resultJson);
+
+    expect(questions[0].correctIndex).toBe(0);
+    expect(questions[0].correctIndices).toEqual([0]);
+    expect(questions[0].explanation).toBe('Hàm băm ánh xạ khóa tùy ý thành chỉ số mảng.');
+  });
 });

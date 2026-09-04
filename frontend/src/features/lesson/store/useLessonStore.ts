@@ -39,7 +39,7 @@ export function applySubmissionResultsToQuestions(questions: QuizQuestion[], res
       const q = questions[i];
       const res = parsed.find((r: any) => String(r.questionId ?? r.QuestionId ?? '') === String(q.id)) ?? parsed[i];
       if (!res) continue;
-      const rawIndices = res.correctIndices ?? res.CorrectIndices;
+      const rawIndices = res.correctIndices ?? res.CorrectIndices ?? res.correctAnswer ?? res.CorrectAnswer;
       const rawIndex = res.correctIndex ?? res.CorrectIndex;
       if (Array.isArray(rawIndices) && rawIndices.length > 0) {
         q.correctIndices = rawIndices.map(Number).filter(n => !isNaN(n));
