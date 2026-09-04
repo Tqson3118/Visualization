@@ -226,12 +226,12 @@ public sealed class ExerciseService(
 
         if (node is not null)
         {
-            if (request.Type == ExerciseType.Mcq && node.FinalTestId == null)
+            if (request.Type == ExerciseType.Mcq && (node.ItemType == PathItemType.Quiz || node.Title.Contains("Kiểm tra", StringComparison.OrdinalIgnoreCase) || node.Title.Contains("Quiz", StringComparison.OrdinalIgnoreCase)) && node.FinalTestId == null)
             {
                 node.FinalTestId = exercise.Id;
                 await db.SaveChangesAsync(ct);
             }
-            else if (request.Type == ExerciseType.Code && node.LabExerciseId == null)
+            else if (request.Type == ExerciseType.Code && (node.ItemType == PathItemType.Lab || node.Title.Contains("Lab", StringComparison.OrdinalIgnoreCase) || node.Title.Contains("Bài tập", StringComparison.OrdinalIgnoreCase)) && node.LabExerciseId == null)
             {
                 node.LabExerciseId = exercise.Id;
                 await db.SaveChangesAsync(ct);

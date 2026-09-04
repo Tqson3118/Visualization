@@ -1461,22 +1461,13 @@ public class ConceptsController(
             var titleLower = (title ?? string.Empty).ToLowerInvariant();
             var isQuizNaming = titleLower.Contains("quiz") || titleLower.Contains("quizz") || titleLower.Contains("trắc nghiệm") || titleLower.Contains("kiểm tra");
             var isLabNaming = titleLower.Contains("assignment") || titleLower.Contains("lab") || titleLower.Contains("thực hành") || titleLower.Contains("bài tập");
+            var isTheoryNaming = titleLower.StartsWith("học:") || titleLower.StartsWith("bài ");
 
             if (node.ItemType == PathItemType.Folder)
             {
                 sandboxType = "folder";
             }
-            else if (node.ItemType == PathItemType.Quiz || (quizEx != null && !isLabNaming) || isQuizNaming)
-            {
-                sandboxType = "quiz";
-                sandboxConfig = quizEx != null ? $"{{\"quizId\": {quizEx.Id}}}" : string.Empty;
-            }
-            else if (node.ItemType == PathItemType.Lab || (codeEx != null && !isQuizNaming) || isLabNaming)
-            {
-                sandboxType = "codelab";
-                sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
-            }
-            else if (node.ItemType == PathItemType.Theory)
+            else if (node.ItemType == PathItemType.Theory || (isTheoryNaming && !isQuizNaming && !isLabNaming))
             {
                 sandboxType = "dsa";
                 var simList = node.LessonId is { } lkId ? simsByLesson.GetValueOrDefault(lkId, []) : [];
@@ -1484,20 +1475,16 @@ public class ConceptsController(
                 {
                     sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simList, simulationKey = simList[0] });
                 }
-                else if (labEx is not null)
-                {
-                    sandboxConfig = $"{{\"simulationKey\": \"{(labEx.ConfigJson is not null ? TryReadSimulationKey(labEx.ConfigJson) : string.Empty)}\"}}";
-                }
             }
-            else if (codeEx is not null)
-            {
-                sandboxType = "codelab";
-                sandboxConfig = codeEx.ConfigJson ?? $"{{\"exerciseId\": {codeEx.Id}}}";
-            }
-            else if (quizEx is not null)
+            else if (node.ItemType == PathItemType.Quiz || isQuizNaming)
             {
                 sandboxType = "quiz";
-                sandboxConfig = $"{{\"quizId\": {quizEx.Id}}}";
+                sandboxConfig = quizEx != null ? $"{{\"quizId\": {quizEx.Id}}}" : string.Empty;
+            }
+            else if (node.ItemType == PathItemType.Lab || isLabNaming || codeEx != null)
+            {
+                sandboxType = "codelab";
+                sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
             }
             else if (labEx is not null)
             {
@@ -1526,7 +1513,7 @@ public class ConceptsController(
                 ContentMd = content,
                 SandboxType = sandboxType,
                 SandboxConfig = sandboxConfig,
-                QuizId = quizEx?.Id.ToString(),
+                QuizId = sandboxType == "quiz" ? quizEx?.Id.ToString() : null,
                 XpReward = GetNodeXpReward(sandboxType, codeEx != null, quizEx != null),
                 OrderIndex = pageOrder++,
                 Status = passed ? "Completed" : "NotStarted",
@@ -1740,43 +1727,38 @@ public class ConceptsController(
         var titleLower = ((lesson?.Title ?? node.Title) ?? string.Empty).ToLowerInvariant();
         var isQuizNaming = titleLower.Contains("quiz") || titleLower.Contains("quizz") || titleLower.Contains("trắc nghiệm") || titleLower.Contains("kiểm tra");
         var isLabNaming = titleLower.Contains("assignment") || titleLower.Contains("lab") || titleLower.Contains("thực hành") || titleLower.Contains("bài tập");
+        var isTheoryNaming = titleLower.StartsWith("học:") || titleLower.StartsWith("bài ");
 
-        if (node.ItemType == PathItemType.Quiz || (quizEx != null && !isLabNaming) || isQuizNaming)
-        {
-            sandboxType = "quiz";
-            sandboxConfig = quizEx != null ? $"{{ \"quizId\": {quizEx.Id} }}" : string.Empty;
-        }
-        else if (node.ItemType == PathItemType.Lab || (codeEx != null && !isQuizNaming) || isLabNaming)
-        {
-            sandboxType = "codelab";
-            sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
-        }
-        else if (node.ItemType == PathItemType.Theory)
+        if (node.ItemType == PathItemType.Theory || (isTheoryNaming && !isQuizNaming && !isLabNaming))
         {
             sandboxType = "dsa";
             if (simKeys.Count > 0)
             {
                 sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simKeys, simulationKey = simKeys[0] });
             }
-            else if (labEx is not null)
-            {
-                sandboxConfig = $"{{ \"simulationKey\": \"{TryReadSimulationKey(labEx.ConfigJson ?? string.Empty)}\" }}";
-            }
         }
-        else if (codeEx is not null)
-        {
-            sandboxType = "codelab";
-            sandboxConfig = codeEx.ConfigJson ?? $"{{\"exerciseId\": {codeEx.Id}}}";
-        }
-        else if (quizEx is not null)
+        else if (node.ItemType == PathItemType.Quiz || isQuizNaming)
         {
             sandboxType = "quiz";
-            sandboxConfig = $"{{ \"quizId\": {quizEx.Id} }}";
+            sandboxConfig = quizEx != null ? $"{{ \"quizId\": {quizEx.Id} }}" : string.Empty;
+        }
+        else if (node.ItemType == PathItemType.Lab || isLabNaming || codeEx != null)
+        {
+            sandboxType = "codelab";
+            sandboxConfig = codeEx?.ConfigJson ?? (codeEx != null ? $"{{\"exerciseId\": {codeEx.Id}}}" : string.Empty);
         }
         else if (labEx is not null)
         {
             sandboxType = "dsa";
             sandboxConfig = $"{{ \"simulationKey\": \"{TryReadSimulationKey(labEx.ConfigJson ?? string.Empty)}\" }}";
+        }
+        else
+        {
+            sandboxType = "dsa";
+            if (simKeys.Count > 0)
+            {
+                sandboxConfig = JsonSerializer.Serialize(new { simulationKeys = simKeys, simulationKey = simKeys[0] });
+            }
         }
 
         if (simKeys.Count > 0 && string.IsNullOrEmpty(sandboxConfig))
@@ -1788,7 +1770,7 @@ public class ConceptsController(
             .AnyAsync(p => p.UserId == userId && p.NodeId == node.Id && p.Status == 2, ct);
 
         LastQuizSubmissionDto? lastQuizSub = null;
-        if (quizEx != null && userId > 0)
+        if (sandboxType == "quiz" && quizEx != null && userId > 0)
         {
             var latestSub = await _db.ExerciseSubmissions.AsNoTracking()
                 .Where(s => s.UserId == userId && s.ExerciseId == quizEx.Id)
@@ -1832,8 +1814,8 @@ public class ConceptsController(
             ContentMd = lesson?.ContentHtml ?? string.Empty,
             SandboxType = sandboxType,
             SandboxConfig = sandboxConfig,
-            QuizId = quizEx?.Id.ToString(),
-            ExerciseId = (codeEx?.Id ?? quizEx?.Id)?.ToString(),
+            QuizId = sandboxType == "quiz" ? quizEx?.Id.ToString() : null,
+            ExerciseId = sandboxType == "codelab" ? codeEx?.Id.ToString() : (sandboxType == "quiz" ? quizEx?.Id.ToString() : null),
             Simulations = simulations,
             SimulationKeys = simKeys,
             XpReward = GetNodeXpReward(sandboxType, codeEx != null, quizEx != null),

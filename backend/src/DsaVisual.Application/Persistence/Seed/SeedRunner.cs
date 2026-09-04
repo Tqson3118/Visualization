@@ -237,6 +237,32 @@ public static class SeedRunner
             }
             await db.SaveChangesAsync(ct);
         }
+
+        // Self-heal: Đảm bảo mọi node lý thuyết ("Học: ..." hoặc "Bài ...") luôn có ItemType = Theory và FinalTestId = null
+        var misclassifiedTheoryNodes = await db.LearningPathNodes
+            .Where(n => (n.Title.StartsWith("Học:") || n.Title.StartsWith("Bài "))
+                     && !n.Title.Contains("Quiz")
+                     && !n.Title.Contains("Quizz")
+                     && !n.Title.Contains("Trắc nghiệm")
+                     && !n.Title.Contains("Kiểm tra")
+                     && !n.Title.Contains("Final")
+                     && !n.Title.Contains("Assignment")
+                     && !n.Title.Contains("Thử thách")
+                     && !n.Title.Contains("Lập trình")
+                     && (n.ItemType != PathItemType.Theory || n.FinalTestId != null || n.LabExerciseId != null))
+            .ToListAsync(ct);
+
+        if (misclassifiedTheoryNodes.Count > 0)
+        {
+            foreach (var node in misclassifiedTheoryNodes)
+            {
+                node.ItemType = PathItemType.Theory;
+                node.FinalTestId = null;
+                node.LabExerciseId = null;
+                logger.LogInformation("Auto-healed misclassified theory node {NodeId} ({Title}) -> Theory", node.Id, node.Title);
+            }
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     public static async Task ReconcileSequentialNodeProgressAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
@@ -871,6 +897,7 @@ public static class SeedRunner
                         PathId = path.Id,
                         Title = nodeTitle,
                         LessonId = lesson.Id,
+                        ItemType = PathItemType.Theory,
                         SortOrder = sortOrder
                     });
                     logger.LogInformation("Seed: LearningPathNodes thêm {Node} (path={Path})", nodeTitle, spec.PathTitle);
@@ -893,6 +920,7 @@ public static class SeedRunner
                     PathId = path.Id,
                     Title = practiceNodeTitle,
                     LessonId = null,
+                    ItemType = PathItemType.Theory,
                     SortOrder = sortOrder
                 });
                 logger.LogInformation("Seed: LearningPathNodes thêm {Node} (path={Path})", practiceNodeTitle, spec.PathTitle);
@@ -910,12 +938,31 @@ public static class SeedRunner
                     PathId = path.Id,
                     Title = finalNodeTitle,
                     LessonId = null,
+                    ItemType = PathItemType.Quiz,
                     SortOrder = sortOrder
                 };
                 db.LearningPathNodes.Add(finalNode);
                 await db.SaveChangesAsync(ct);
                 logger.LogInformation("Seed: LearningPathNodes thêm {Node} (path={Path})", finalNodeTitle, spec.PathTitle);
             }
+
+            // Self-heal: Đảm bảo các node "Học: ..." luôn là Theory và không bị dính FinalTestId sai lệch
+            var allPathNodes = await db.LearningPathNodes.Where(n => n.PathId == path.Id).ToListAsync(ct);
+            foreach (var pn in allPathNodes)
+            {
+                if (pn.Title.StartsWith("Học:") || pn.Title.StartsWith("Bài "))
+                {
+                    if (pn.ItemType != PathItemType.Theory)
+                    {
+                        pn.ItemType = PathItemType.Theory;
+                    }
+                    if (pn.FinalTestId != null)
+                    {
+                        pn.FinalTestId = null;
+                    }
+                }
+            }
+            await db.SaveChangesAsync(ct);
 
             var finalTestTitle = $"Kiểm tra cuối: {spec.PathTitle}";
             var lastLessonId = pathLessonIds[^1];
@@ -1081,16 +1128,16 @@ public static class SeedRunner
             }
         }
 
+        if (selected.Count == 0 && AuthoredQuestionsByLesson.TryGetValue(lessonTitle, out var authoredFallback))
+        {
+            selected = authoredFallback;
+        }
+
+        // Không lấy câu hỏi của lesson khác làm fallback: dữ liệu sai chủ đề còn
+        // nguy hiểm hơn việc để exercise không có quiz và phát hiện qua log/validation.
         if (selected.Count == 0)
         {
-            if (AuthoredQuestionsByLesson.TryGetValue(lessonTitle, out var authoredFallback))
-            {
-                selected = authoredFallback;
-            }
-            else
-            {
-                selected = AuthoredQuestionsByLesson["Bubble Sort"];
-            }
+            // Caller decides whether an empty quiz should be created; keep this loader pure.
         }
 
         if (takeFirst > 0)

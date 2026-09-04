@@ -170,18 +170,31 @@ public static partial class SeedGrokkingAlgorithmsData
             }
 
             var title = $"Quiz: {lessonTitle}";
-            var existing = await db.Exercises.FirstOrDefaultAsync(
-                e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
-            if (existing is not null)
-            {
-                continue;
-            }
+            var existing = await db.Exercises
+                .Include(e => e.Questions)
+                .FirstOrDefaultAsync(e => e.LessonId == lesson.Id && e.Title == title && e.DeletedAt == null, ct);
 
             // Quiz nguồn gắn theo id (map title → quizId)
             var quizId = FindQuizIdForLesson(lessonTitle);
             var questions = (quizId is not null && quizByTitle.TryGetValue(quizId, out var list) ? list : [])
                 .Select((q, i) => ToQuestion(q, i + 1))
                 .ToList();
+
+            // Self-heal quizzes created by older seeds with zero questions.
+            if (existing is not null)
+            {
+                if (existing.Questions.Count == 0 && questions.Count > 0)
+                {
+                    existing.Type = ExerciseType.Mcq;
+                    existing.MaxScore = questions.Count;
+                    existing.Status = ExerciseStatus.Active;
+                    existing.NodeId = node.Id;
+                    existing.Questions = questions;
+                    await db.SaveChangesAsync(ct);
+                    logger.LogInformation("SeedGrokkingAlgorithms: Tự chữa Quiz rỗng {Title} ({Count} câu)", title, questions.Count);
+                }
+                continue;
+            }
             if (questions.Count == 0)
             {
                 logger.LogWarning("SeedGrokkingAlgorithms: Quiz bỏ qua {Title} — không có câu hỏi nguồn", title);

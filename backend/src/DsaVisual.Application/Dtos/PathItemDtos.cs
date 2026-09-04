@@ -46,6 +46,9 @@ public sealed class PathItemUpdateRequest
     public int? LessonId { get; set; }
     public int? FinalTestId { get; set; }
     public int? LabExerciseId { get; set; }
+    public PathItemType? ItemType { get; set; }
+    public bool? ClearFinalTestId { get; set; }
+    public bool? ClearLabExerciseId { get; set; }
 }
 
 public sealed class PathItemMoveRequest

@@ -30,16 +30,49 @@ export interface LessonMeta {
   } | null;
 }
 
-function mapBackendQuizQuestions(questions: Array<{ id: string; text: string; type?: string; options: string[]; correctIndex?: number; correctIndices?: number[]; explanation?: string }>): QuizQuestion[] {
-  return questions.map(q => ({
-    id: q.id,
-    questionText: q.text,
-    type: q.type || 'SINGLE',
-    options: q.options,
-    correctIndex: q.correctIndex,
-    correctIndices: q.correctIndices ?? (q.correctIndex !== undefined ? [q.correctIndex] : []),
-    explanation: q.explanation ?? '',
-  }));
+export function applySubmissionResultsToQuestions(questions: QuizQuestion[], resultJson?: string | null | any[]): void {
+  if (!resultJson || !questions || questions.length === 0) return;
+  try {
+    const parsed = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson;
+    if (!Array.isArray(parsed)) return;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const res = parsed.find((r: any) => String(r.questionId ?? r.QuestionId ?? '') === String(q.id)) ?? parsed[i];
+      if (!res) continue;
+      const rawIndices = res.correctIndices ?? res.CorrectIndices;
+      const rawIndex = res.correctIndex ?? res.CorrectIndex;
+      if (Array.isArray(rawIndices) && rawIndices.length > 0) {
+        q.correctIndices = rawIndices.map(Number).filter(n => !isNaN(n));
+        q.correctIndex = q.correctIndices[0];
+      } else if (typeof rawIndex === 'number' && !isNaN(rawIndex)) {
+        q.correctIndex = rawIndex;
+        q.correctIndices = [rawIndex];
+      }
+      const exp = res.explanation ?? res.Explanation;
+      if (typeof exp === 'string') {
+        q.explanation = exp;
+      }
+    }
+  } catch (e) {
+    console.warn('Error applying submission results to questions:', e);
+  }
+}
+
+function mapBackendQuizQuestions(questions: Array<{ id: string; text: string; type?: string; options: string[]; correctIndex?: number | null; correctIndices?: number[] | null; explanation?: string }>): QuizQuestion[] {
+  return questions.map(q => {
+    const validIndices = Array.isArray(q.correctIndices)
+      ? q.correctIndices.filter(x => typeof x === 'number' && !isNaN(x))
+      : (typeof q.correctIndex === 'number' && !isNaN(q.correctIndex) ? [q.correctIndex] : []);
+    return {
+      id: q.id,
+      questionText: q.text,
+      type: q.type || 'SINGLE',
+      options: q.options,
+      correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : (validIndices.length > 0 ? validIndices[0] : undefined),
+      correctIndices: validIndices,
+      explanation: q.explanation ?? '',
+    };
+  });
 }
 
 export function getLessonProgress(lessonId: string): {
@@ -341,6 +374,16 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       }
     }
 
+    // Chuẩn hóa: Nếu bài học có tiêu đề lý thuyết ("Học: ...", "Bài X: ...") mà không chứa từ khóa quiz/lab,
+    // đảm bảo sandboxType là 'dsa' để hiển thị giao diện lý thuyết + visualizer thay vì bị quiz chiếm quyền.
+    const titleLower = (detail.title || '').toLowerCase();
+    const isQuizNaming = titleLower.includes('quiz') || titleLower.includes('quizz') || titleLower.includes('trắc nghiệm') || titleLower.includes('kiểm tra');
+    const isLabNaming = titleLower.includes('assignment') || titleLower.includes('lab') || titleLower.includes('thực hành') || titleLower.includes('bài tập');
+    const isTheoryNaming = titleLower.startsWith('học:') || titleLower.startsWith('bài ');
+    if (isTheoryNaming && !isQuizNaming && !isLabNaming && detail.sandboxType === 'quiz') {
+      detail.sandboxType = 'dsa';
+    }
+
     let quizQuestions: QuizQuestion[] = [];
 
     let targetQuizId = detail.quizId;
@@ -358,6 +401,10 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         const quiz = await statelessQuizApi.getQuizById(targetQuizId);
         if (quiz?.questions && quiz.questions.length > 0) {
           quizQuestions = mapBackendQuizQuestions(quiz.questions);
+          // Tự động khôi phục đáp án đúng và giải thích nếu bài học đã có bài nộp trước đó
+          if (detail.lastQuizSubmission?.resultJson) {
+            applySubmissionResultsToQuestions(quizQuestions, detail.lastQuizSubmission.resultJson);
+          }
         }
       } catch (e) {
         console.warn('Không tải được quiz backend, giữ quiz trống:', e);
@@ -591,6 +638,8 @@ export const useLessonStore = defineStore('lessonStudy', () => {
     const questions = currentLesson.value.quizQuestions ?? [];
     let correct = 0;
 
+    let attemptResult: any = null;
+
     // Gửi lịch sử làm bài lên server
     try {
       const quizId = lessonMeta.value?.quizId;
@@ -600,24 +649,12 @@ export const useLessonStore = defineStore('lessonStudy', () => {
           const raw = answers[q.id];
           return raw !== undefined ? raw : -1;
         });
-        const attemptResult = await statelessQuizApi.submitAttempt(quizId, answersArray, token, true);
+        attemptResult = await statelessQuizApi.submitAttempt(quizId, answersArray, token, true);
         if (attemptResult) {
           correct = attemptResult.score;
           // Gắn lại giải thích và đáp án đúng trả về từ server vào question
           if (attemptResult.questionResults && attemptResult.questionResults.length > 0) {
-            for (let i = 0; i < questions.length; i++) {
-              const res = attemptResult.questionResults[i];
-              if (res && questions[i]) {
-                questions[i].explanation = res.explanation;
-                if (res.correctIndices && res.correctIndices.length > 0) {
-                  questions[i].correctIndices = res.correctIndices;
-                  questions[i].correctIndex = res.correctIndices[0];
-                } else if (res.correctIndex !== undefined) {
-                  questions[i].correctIndex = res.correctIndex;
-                  questions[i].correctIndices = [res.correctIndex];
-                }
-              }
-            }
+            applySubmissionResultsToQuestions(questions, attemptResult.questionResults);
           }
         }
       }
@@ -628,7 +665,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
         const userAns = answers[q.id];
         const userArr = Array.isArray(userAns) ? userAns : (userAns !== undefined ? [userAns] : []);
         const correctArr = q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []);
-        const isMatch = userArr.length === correctArr.length && userArr.every(x => correctArr.includes(x));
+        const isMatch = userArr.length > 0 && correctArr.length > 0 && userArr.length === correctArr.length && userArr.every(x => correctArr.includes(x));
         if (isMatch) correct++;
       }
     }
@@ -643,6 +680,7 @@ export const useLessonStore = defineStore('lessonStudy', () => {
       maxScore: questions.length,
       passed: quizPassed.value,
       answersJson: JSON.stringify(answers),
+      resultJson: JSON.stringify(attemptResult?.questionResults ?? []),
       submittedAt: new Date().toISOString(),
     };
     if (currentLesson.value) {

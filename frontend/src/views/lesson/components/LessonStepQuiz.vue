@@ -261,12 +261,18 @@
         <button
           v-if="!isSubmitted"
           @click="submitQuiz"
-          :disabled="answeredCount !== questions.length"
+          :disabled="answeredCount !== questions.length || isSubmitting"
           class="px-8 py-2.5 rounded-2xl text-sm font-extrabold transition-all duration-300 shadow-lg flex items-center gap-2 group whitespace-nowrap shrink-0"
-          :class="answeredCount === questions.length ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_25px_rgba(168,85,247,0.5)] hover:-translate-y-1 cursor-pointer' : 'bg-white/5 text-vdsa-disabled opacity-60 cursor-not-allowed'"
+          :class="answeredCount === questions.length && !isSubmitting ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_25px_rgba(168,85,247,0.5)] hover:-translate-y-1 cursor-pointer' : 'bg-white/5 text-vdsa-disabled opacity-60 cursor-not-allowed'"
         >
-          <span>Nộp Bài</span>
-          <BaseIcon name="check" class="w-4 h-4 transition-transform" :class="answeredCount === questions.length ? 'group-hover:scale-125' : ''" />
+          <span v-if="isSubmitting" class="flex items-center gap-2">
+            <BaseIcon name="spinner" class="w-4 h-4 animate-spin text-white" />
+            <span>Đang nộp...</span>
+          </span>
+          <template v-else>
+            <span>Nộp Bài</span>
+            <BaseIcon name="check" class="w-4 h-4 transition-transform group-hover:scale-125" />
+          </template>
         </button>
 
         <button
@@ -296,6 +302,7 @@ import { ref, computed, watch } from 'vue';
 import type { QuizQuestion } from '../../../features/lesson/types/lesson.types';
 import BaseIcon from '../../../shared/components/BaseIcon.vue';
 import QuizHistoryModal from './QuizHistoryModal.vue';
+import { applySubmissionResultsToQuestions } from '../../../features/lesson/store/useLessonStore';
 
 const props = withDefaults(defineProps<{
   questions?: QuizQuestion[];
@@ -321,8 +328,11 @@ const emit = defineEmits<{
 
 const showHistoryModal = ref(false);
 
-function handleRestoreAnswers(restoredAnswers: Record<string, number[]>): void {
+function handleRestoreAnswers(restoredAnswers: Record<string, number[]>, attempt?: any): void {
   userAnswers.value = { ...restoredAnswers };
+  if (attempt?.resultJson) {
+    applySubmissionResultsToQuestions(props.questions, attempt.resultJson);
+  }
   isSubmitted.value = true;
   saveDraftAnswers();
 }
@@ -332,6 +342,7 @@ const PASS_THRESHOLD = 0.7;
 // Lưu danh sách index các đáp án đã chọn cho từng câu hỏi
 const userAnswers = ref<Record<string, number[]>>({});
 const isSubmitted = ref(false);
+const isSubmitting = ref(false);
 const currentIndex = ref(0);
 const showUnansweredWarning = ref(false);
 
@@ -425,8 +436,14 @@ function clearDraftAnswers(): void {
   } catch {}
 }
 
+function applySubmissionResults(resultJson?: string | null): void {
+  if (!resultJson) return;
+  applySubmissionResultsToQuestions(props.questions, resultJson);
+}
+
 function restoreFromInitialSubmission(): boolean {
   if (!props.initialSubmission || !props.initialSubmission.answersJson) return false;
+  applySubmissionResults(props.initialSubmission.resultJson);
   try {
     const raw = props.initialSubmission.answersJson;
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -519,7 +536,7 @@ function nextQuestion(): void {
 }
 
 function submitQuiz(): void {
-  if (isSubmitted.value) return;
+  if (isSubmitted.value || isSubmitting.value) return;
 
   const unanswered = unansweredIndices.value;
   if (unanswered.length > 0 && !showUnansweredWarning.value) {
@@ -533,9 +550,10 @@ function submitQuiz(): void {
   doSubmit();
 }
 
-function doSubmit(): void {
+async function doSubmit(): Promise<void> {
+  if (isSubmitting.value) return;
   showUnansweredWarning.value = false;
-  isSubmitted.value = true;
+  isSubmitting.value = true;
   clearDraftAnswers();
 
   // Chuẩn hóa payload: Single choice gửi number, Multi choice gửi number[]
@@ -549,7 +567,17 @@ function doSubmit(): void {
     }
   }
 
-  emit('submit', payload);
+  try {
+    await emit('submit', payload);
+    if (props.initialSubmission?.resultJson) {
+      applySubmissionResults(props.initialSubmission.resultJson);
+    }
+    isSubmitted.value = true;
+  } catch (err) {
+    console.error('Submit quiz failed:', err);
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 
 function resetQuiz(): void {

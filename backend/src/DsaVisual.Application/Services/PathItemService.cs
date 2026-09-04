@@ -387,12 +387,25 @@ public sealed class PathItemService(
             node.LessonId = request.LessonId.Value;
         }
 
-        if (request.FinalTestId.HasValue)
+        if (request.ItemType.HasValue)
+        {
+            node.ItemType = request.ItemType.Value;
+        }
+
+        if (request.ClearFinalTestId == true || request.FinalTestId == 0)
+        {
+            node.FinalTestId = null;
+        }
+        else if (request.FinalTestId.HasValue)
         {
             node.FinalTestId = request.FinalTestId.Value;
         }
 
-        if (request.LabExerciseId.HasValue)
+        if (request.ClearLabExerciseId == true || request.LabExerciseId == 0)
+        {
+            node.LabExerciseId = null;
+        }
+        else if (request.LabExerciseId.HasValue)
         {
             node.LabExerciseId = request.LabExerciseId.Value;
         }

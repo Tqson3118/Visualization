@@ -126,14 +126,14 @@
 
                 <!-- Explanation -->
                 <div
-                  v-if="q.explanation"
+                  v-if="attemptExplanation(q, selectedAttempt)"
                   class="mt-2 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-vdsa-muted leading-relaxed"
                 >
                   <div class="flex items-center gap-1.5 text-vdsa-yellow font-bold text-[11px] mb-1">
                     <BaseIcon name="info" class="w-3.5 h-3.5" />
                     <span>Giải thích</span>
                   </div>
-                  <p class="text-vdsa-secondary">{{ q.explanation }}</p>
+                  <p class="text-vdsa-secondary">{{ attemptExplanation(q, selectedAttempt) }}</p>
                 </div>
               </div>
             </div>
@@ -238,7 +238,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'restore', answers: Record<string, number[]>): void;
+  (e: 'restore', answers: Record<string, number[]>, attempt?: SubmissionSummaryDto): void;
 }>();
 
 const loading = ref(false);
@@ -341,24 +341,40 @@ function isOptionSelectedInAttempt(q: QuizQuestion, optionIdx: number, attempt: 
   return selected ? selected.includes(optionIdx) : false;
 }
 
-function isOptionCorrect(q: QuizQuestion, optionIdx: number): boolean {
-  if (q.correctIndices && q.correctIndices.length > 0) {
-    return q.correctIndices.includes(optionIdx);
+function attemptCorrectIndices(q: QuizQuestion, attempt: SubmissionSummaryDto | null): number[] {
+  if (!attempt?.resultJson) return [];
+  try {
+    const results = JSON.parse(attempt.resultJson);
+    if (!Array.isArray(results)) return [];
+    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId) === String(q.id));
+    if (!result) return [];
+    const indices = result.correctIndices ?? result.CorrectIndices;
+    const index = result.correctIndex ?? result.CorrectIndex;
+    return Array.isArray(indices) ? indices.map(Number) : (typeof index === 'number' ? [index] : []);
+  } catch {
+    return [];
   }
+}
+
+function isOptionCorrect(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null = selectedAttempt.value): boolean {
+  const resultCorrect = attemptCorrectIndices(q, attempt);
+  if (resultCorrect.length > 0) return resultCorrect.includes(optionIdx);
+  if (q.correctIndices && q.correctIndices.length > 0) return q.correctIndices.includes(optionIdx);
   return q.correctIndex === optionIdx;
 }
 
 function isQuestionCorrectInAttempt(q: QuizQuestion, attempt: SubmissionSummaryDto | null): boolean {
   const ansMap = parseAttemptAnswers(attempt);
   const selected = ansMap[String(q.id)] ?? [];
-  const correct = q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []);
+  const resultCorrect = attemptCorrectIndices(q, attempt);
+  const correct = resultCorrect.length > 0 ? resultCorrect : (q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []));
   if (selected.length === 0 || correct.length === 0) return false;
   return selected.length === correct.length && selected.every(idx => correct.includes(idx));
 }
 
 function getOptionClass(q: QuizQuestion, optionIdx: number, attempt: SubmissionSummaryDto | null): string {
   const isSelected = isOptionSelectedInAttempt(q, optionIdx, attempt);
-  const isCorrect = isOptionCorrect(q, optionIdx);
+  const isCorrect = isOptionCorrect(q, optionIdx, attempt);
 
   if (isSelected && isCorrect) {
     return 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300';
@@ -372,9 +388,21 @@ function getOptionClass(q: QuizQuestion, optionIdx: number, attempt: SubmissionS
   return 'bg-white/5 border-white/5 text-vdsa-muted';
 }
 
+function attemptExplanation(q: QuizQuestion, attempt: SubmissionSummaryDto | null): string {
+  if (!attempt?.resultJson) return q.explanation || '';
+  try {
+    const results = JSON.parse(attempt.resultJson);
+    if (!Array.isArray(results)) return q.explanation || '';
+    const result = results.find((r: any) => String(r.questionId ?? r.QuestionId ?? '') === String(q.id));
+    return result?.explanation ?? result?.Explanation ?? q.explanation ?? '';
+  } catch {
+    return q.explanation || '';
+  }
+}
+
 function onRestore(attempt: SubmissionSummaryDto): void {
   const ansMap = parseAttemptAnswers(attempt);
-  emit('restore', ansMap);
+  emit('restore', ansMap, attempt);
   emit('close');
 }
 </script>

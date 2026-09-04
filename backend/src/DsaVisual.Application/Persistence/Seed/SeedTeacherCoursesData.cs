@@ -521,6 +521,23 @@ public static class SeedTeacherCoursesData
         var existing = await db.Exercises.Include(e => e.Questions).FirstOrDefaultAsync(e => e.Title == title && e.DeletedAt == null, ct);
         if (existing is not null)
         {
+            if (existing.Questions.Count == 0 && questions.Length > 0)
+            {
+                existing.Type = ExerciseType.Mcq;
+                existing.MaxScore = questions.Length;
+                existing.Status = ExerciseStatus.Active;
+                var sortOrder = 1;
+                foreach (var (text, opts, correct, exp) in questions)
+                {
+                    existing.Questions.Add(new Question
+                    {
+                        ExerciseId = existing.Id, Type = QuestionType.Single, Content = text,
+                        OptionsJson = JsonSerializer.Serialize(opts), AnswerJson = $"[{correct}]",
+                        Explanation = exp, KeepOrder = false, Points = 1, SortOrder = sortOrder++
+                    });
+                }
+                await db.SaveChangesAsync(ct);
+            }
             return existing;
         }
 
