@@ -904,25 +904,7 @@ public sealed class GamificationService(
             return Result<ShopBuyResultDto>.Fail(ErrorCodes.INSUFFICIENT_GEMS, "Không đủ gems để mua vật phẩm này");
         }
 
-        // Nếu là vật phẩm hồi tim tiêu hao -> cộng tim hardcode (+5 hoặc +10) theo vật phẩm và trần theo HeartsMax của user
-        if (item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || item.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase))
-        {
-            var refillAmount = item.ItemKey.Contains("10") ? 10 : 5;
-            if (db.Database.IsRelational())
-            {
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"UPDATE Users SET Hearts = CASE WHEN Hearts + {refillAmount} > HeartsMax THEN HeartsMax ELSE Hearts + {refillAmount} END WHERE Id = {userId}", ct);
-            }
-            else
-            {
-                var user = await db.Users.FindAsync([userId], ct);
-                if (user is not null)
-                {
-                    user.Hearts = Math.Min(user.HeartsMax, user.Hearts + refillAmount);
-                    await db.SaveChangesAsync(ct);
-                }
-            }
-        }
+
 
         // Finding #4: inventory tăng bằng 1 UPDATE atomic DUY NHẤT (Quantity + 1 WHERE Quantity < MaxStack)
         var invAffected = db.Database.IsRelational()
@@ -1181,6 +1163,17 @@ public sealed class GamificationService(
             return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.NOT_FOUND, "Người dùng không tồn tại");
         }
 
+        var isHeartItem = item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || item.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase);
+
+        var isPremium = user.PremiumUntil > clock.UtcNow;
+        var maxHearts = isPremium ? _configService.GetHeartsMaxPremium() : _configService.GetHeartsMaxFree();
+
+        if (isHeartItem && user.Hearts >= maxHearts)
+        {
+            return Result<UseInventoryItemResultDto>.Fail(ErrorCodes.VALIDATION_FAILED,
+                $"Tim của bạn đã đầy ({user.Hearts}/{maxHearts}). Không cần sử dụng vật phẩm này.");
+        }
+
         // Trừ 1 số lượng vật phẩm
         inv.Quantity -= 1;
         var remainingQty = inv.Quantity;
@@ -1192,10 +1185,11 @@ public sealed class GamificationService(
 
         string msg;
         // Nếu là vật phẩm hồi tim
-        if (item.Type == 0 || item.ItemKey.Contains("heart", StringComparison.OrdinalIgnoreCase) || item.ItemKey.Contains("refill", StringComparison.OrdinalIgnoreCase))
+        if (isHeartItem)
         {
             var refillAmount = item.ItemKey.Contains("10") ? 10 : 5;
-            user.Hearts = Math.Min(user.HeartsMax, user.Hearts + refillAmount);
+            user.Hearts = Math.Min(maxHearts, user.Hearts + refillAmount);
+            user.HeartsMax = maxHearts;
             user.LastHeartAt = clock.UtcNow;
             msg = $"Đã sử dụng {item.Name}! Bạn được hồi {refillAmount} tim (hiện có {user.Hearts}/{user.HeartsMax} tim).";
         }
@@ -1614,15 +1608,32 @@ public sealed class GamificationService(
     {
         var now = clock.UtcNow;
         var maxFree = _configService.GetHeartsMaxFree();
-        if (user.PremiumUntil > now || user.HeartsMax <= maxFree)
+        var maxPremium = _configService.GetHeartsMaxPremium();
+
+        if (user.PremiumUntil > now)
         {
+            if (user.HeartsMax != maxPremium)
+            {
+                if (db.Database.IsRelational())
+                {
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE Users SET HeartsMax = {maxPremium} WHERE Id = {user.Id} AND PremiumUntil > {now}", ct);
+                }
+                user.HeartsMax = maxPremium;
+            }
             return;
         }
 
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE Users SET HeartsMax = {maxFree}, Hearts = CASE WHEN Hearts > {maxFree} THEN {maxFree} ELSE Hearts END WHERE Id = {user.Id} AND PremiumUntil <= {now} AND HeartsMax > {maxFree}", ct);
-        user.HeartsMax = maxFree;
-        user.Hearts = Math.Min(user.Hearts, maxFree);
+        if (user.HeartsMax > maxFree)
+        {
+            if (db.Database.IsRelational())
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"UPDATE Users SET HeartsMax = {maxFree}, Hearts = CASE WHEN Hearts > {maxFree} THEN {maxFree} ELSE Hearts END WHERE Id = {user.Id} AND (PremiumUntil IS NULL OR PremiumUntil <= {now}) AND HeartsMax > {maxFree}", ct);
+            }
+            user.HeartsMax = maxFree;
+            user.Hearts = Math.Min(user.Hearts, maxFree);
+        }
     }
 
     /// <summary>

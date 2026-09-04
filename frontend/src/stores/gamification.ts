@@ -129,6 +129,14 @@ export const useGamificationStore = defineStore('gamification', () => {
     await fetchInventory();
   }
 
+  async function useItem(id: number): Promise<gamificationApi.UseInventoryItemResultDto> {
+    const result = await gamificationApi.useInventoryItem(id);
+    hearts.value = result.hearts;
+    heartsMax.value = result.heartsMax;
+    await fetchInventory();
+    return result;
+  }
+
   async function fetchAchievements(): Promise<void> {
     try {
       achievements.value = await gamificationApi.fetchAchievements();
@@ -213,6 +221,7 @@ export const useGamificationStore = defineStore('gamification', () => {
     fetchInventory,
     buyItem,
     equipItem,
+    useItem,
     fetchAchievements,
     fetchStreak,
     fetchPremium,

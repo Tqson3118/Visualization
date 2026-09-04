@@ -539,9 +539,11 @@ public static partial class SeedDemoActivity
     private static async Task SeedContentFeedbackCoreAsync(AppDbContext db, IDateTimeProvider clock, ILogger logger, CancellationToken ct)
     {
         var todayLocal = clock.UtcNow.AddHours(7).Date;
-        var lessons = await db.Lessons.AsNoTracking()
+        var lessons = (await db.Lessons.AsNoTracking()
             .Where(l => l.DeletedAt == null)
-            .ToDictionaryAsync(l => l.Title, ct);
+            .ToListAsync(ct))
+            .GroupBy(l => l.Title, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var users = await LoadActivityUsersAsync(db, ct);
 
         var totalAdded = 0;

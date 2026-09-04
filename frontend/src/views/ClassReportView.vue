@@ -77,7 +77,7 @@ const quizAvgScore = computed(() => {
   const quizAssignments = r.assignments.filter((a) => getItemType(a) === 'quiz' && a.avgScore > 0);
   if (quizAssignments.length === 0) return '—';
   const avg = quizAssignments.reduce((sum, a) => sum + a.avgScore, 0) / quizAssignments.length;
-  return `${avg.toFixed(1)}/10`;
+  return `${avg.toFixed(1)}/100`;
 });
 
 /** KPI phụ (level-1 — KHÔNG icon tròn, không shadow; tối đa 1 hero-stat/màn). */
@@ -168,7 +168,7 @@ async function exportXlsx(): Promise<void> {
 
       let evalText = '—';
       if (typeMeta.label === 'Quiz' || typeMeta.label === 'Code Lab') {
-        evalText = a.avgScore > 0 ? `${a.avgScore.toFixed(1)}/10` : 'Chưa có điểm';
+        evalText = a.avgScore > 0 ? `${a.avgScore.toFixed(1)}/100` : 'Chưa có điểm';
       } else {
         evalText = total > 0 ? `Đã học: ${done}/${total}` : 'Chưa có học viên';
       }
@@ -460,7 +460,7 @@ function printReport(): void {
                     </template>
                     <template v-else-if="getItemType(assign) === 'quiz'">
                       <span class="inline-flex items-center gap-1.5 text-xs font-mono text-cyan-400 font-semibold">
-                        {{ assign.avgScore > 0 ? `Điểm TB: ${assign.avgScore.toFixed(1)}/10` : 'Chưa có điểm' }}
+                        {{ assign.avgScore > 0 ? `Điểm TB: ${assign.avgScore.toFixed(1)}/100` : 'Chưa có điểm' }}
                       </span>
                     </template>
                     <template v-else>

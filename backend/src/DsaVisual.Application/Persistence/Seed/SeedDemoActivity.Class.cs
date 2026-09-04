@@ -43,12 +43,16 @@ public static partial class SeedDemoActivity
         }
 
         var studentsByEmail = students.ToDictionary(u => u.Email, StringComparer.OrdinalIgnoreCase);
-        var lessons = await db.Lessons.AsNoTracking()
+        var lessons = (await db.Lessons.AsNoTracking()
             .Where(l => l.DeletedAt == null && l.Status == LessonStatus.Active)
-            .ToDictionaryAsync(l => l.Title, StringComparer.Ordinal, ct);
-        var exercises = await db.Exercises.AsNoTracking()
+            .ToListAsync(ct))
+            .GroupBy(l => l.Title, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var exercises = (await db.Exercises.AsNoTracking()
             .Where(e => e.DeletedAt == null && e.Status == ExerciseStatus.Active)
-            .ToDictionaryAsync(e => e.Title, StringComparer.Ordinal, ct);
+            .ToListAsync(ct))
+            .GroupBy(e => e.Title, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
         var classesAdded = 0;
         var classesSkipped = 0;

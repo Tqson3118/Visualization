@@ -49,9 +49,8 @@
           class="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-72 max-h-80 overflow-y-auto z-50 bg-[#141522] border border-slate-700/80 rounded-xl shadow-2xl p-1.5 space-y-1 backdrop-blur-xl"
           role="listbox"
         >
-          <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/80 flex items-center justify-between">
+          <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/80">
             <span>Chọn chủ đề</span>
-            <span class="text-slate-500 font-normal text-[10px]">{{ topics.length }} mục</span>
           </div>
 
           <button

@@ -467,7 +467,11 @@ public static partial class SeedDemoActivity
             .Where(e => e.DeletedAt == null && e.Status == ExerciseStatus.Active)
             .OrderBy(e => e.Id)
             .ToListAsync(ct);
+        var activePathIds = await db.LearningPaths.AsNoTracking()
+            .Where(p => p.IsActive && p.Status == LearningPathStatus.Active)
+            .Select(p => p.Id).ToListAsync(ct);
         var nodes = await db.LearningPathNodes.AsNoTracking()
+            .Where(n => activePathIds.Contains(n.PathId))
             .OrderBy(n => n.PathId)
             .ThenBy(n => n.SortOrder)
             .ToListAsync(ct);

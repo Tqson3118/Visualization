@@ -55,6 +55,8 @@ describe('Lesson flow — simulationKey + "Chạy thử thuật toán" (B3)', ()
     });
   });
 
+  // UX mới (inline visualizer): LessonStepTheory KHÔNG còn nút "Chạy thử thuật toán" +
+  // SharedVisualizerShell — mô phỏng tự động nhúng inline qua InlineSimulationPlayer.
   describe('LessonStepTheory', () => {
     const mountTheory = (simulationKey?: string | null) =>
       mount(LessonStepTheory, {
@@ -67,41 +69,34 @@ describe('Lesson flow — simulationKey + "Chạy thử thuật toán" (B3)', ()
           plugins: [createPinia()],
           stubs: {
             BaseIcon: { template: '<span />' },
-            SharedVisualizerShell: {
-              name: 'SharedVisualizerShell',
-              props: ['frames', 'algorithmKey'],
-              template: '<div data-testid="shell-stub"><button data-testid="shell-close">Đóng</button></div>',
+            InlineSimulationPlayer: {
+              name: 'InlineSimulationPlayer',
+              props: ['simKey'],
+              template: '<div data-testid="inline-sim-player">{{ simKey }}</div>',
             },
           },
         },
       });
 
-    it('không hiện nút khi không có simulationKey', () => {
+    it('không nhúng mô phỏng khi không có simulationKey', () => {
       const wrapper = mountTheory(null);
-      expect(wrapper.find('[data-testid="run-simulation-btn"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="inline-sim-player"]').exists()).toBe(false);
     });
 
-    it('hiện nút "Chạy thử thuật toán" khi có simulationKey', () => {
+    it('tự nhúng InlineSimulationPlayer khi có simulationKey (không cần bấm nút)', () => {
       const wrapper = mountTheory('sort.bubble');
-      const btn = wrapper.find('[data-testid="run-simulation-btn"]');
-      expect(btn.exists()).toBe(true);
-      expect(btn.text()).toContain('Chạy thử thuật toán');
+      const player = wrapper.find('[data-testid="inline-sim-player"]');
+      expect(player.exists()).toBe(true);
+      expect(player.text()).toContain('sort.bubble');
     });
 
-    it('bấm nút → mở embedded visualizer; đóng → về lý thuyết (không mất content)', async () => {
+    it('mô phỏng inline hiển thị cùng nội dung lý thuyết — content không mất', () => {
       const wrapper = mountTheory('sort.bubble');
-      expect(wrapper.find('[data-testid="embedded-visualizer"]').exists()).toBe(false);
-
-      await wrapper.find('[data-testid="run-simulation-btn"]').trigger('click');
-      expect(wrapper.find('[data-testid="embedded-visualizer"]').exists()).toBe(true);
-
-      // Mô phỏng đóng shell (bấm nút đóng) — quay về Lý thuyết, content giữ nguyên
-      await wrapper.find('[data-testid="shell-close"]').trigger('click');
-      await wrapper.vm.$nextTick();
-      expect(wrapper.find('[data-testid="embedded-visualizer"]').exists()).toBe(false);
-      // Content Lý thuyết (render markdown h1) vẫn còn sau khi đóng shell
+      // Player hiển thị ngay không cần tương tác
+      expect(wrapper.find('[data-testid="inline-sim-player"]').exists()).toBe(true);
+      // Content Lý thuyết (render markdown h1) hiển thị đồng thời
       expect(wrapper.text()).toContain('Lý thuyết');
-      expect(wrapper.find('[data-testid="run-simulation-btn"]').exists()).toBe(true);
+      expect(wrapper.text()).toContain('Mô phỏng Trực quan');
     });
   });
 });

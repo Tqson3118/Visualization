@@ -258,11 +258,22 @@ public static partial class SeedGrokkingData
                 TopicId = topics[1000].Id,
                 SortOrder = 1,
                 IsActive = true,
+                Status = LearningPathStatus.Active,
+                Visibility = PathVisibility.Public,
                 CreatedBy = adminId
             };
             db.LearningPaths.Add(path);
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SeedGrokking: LearningPaths thêm {Title} (Id={Id})", pathTitle, path.Id);
+        }
+
+        // Reconcile cả record cũ: seed trước đây bỏ sót Status/Visibility nên fresh DB cũ có thể là Draft/Private.
+        if (path.Status != LearningPathStatus.Active || path.Visibility != PathVisibility.Public || !path.IsActive)
+        {
+            path.Status = LearningPathStatus.Active;
+            path.Visibility = PathVisibility.Public;
+            path.IsActive = true;
+            await db.SaveChangesAsync(ct);
         }
 
         // ── 4b. Tác giả (AuthorId = teacher@demo.local) + nội dung marketing tùy biến theo khóa ──
@@ -400,11 +411,10 @@ public static partial class SeedGrokkingData
         // ── 6b. Kiểm tra cuối lộ trình (3 bài code theo phong cách Assignment — Monaco + testcase) ──
         await SeedFinalCodingTestAsync(db, path, finalNode, lessonsByTitle, adminId, now, logger, ct);
 
-        // ── 7. Ẩn 5 path cũ (IsActive=false) — dữ liệu giữ nguyên ──
-        // CHỈ ẩn các path legacy (5 path chủ đề cũ từ SeedLearningPathsAsync), GIỮ nguyên
-        // mọi path "Grokking *" (Data Structures lẫn Algorithms) — tránh vô hiệu hóa path thứ 2.
+        // ── 7. Ẩn đúng các path legacy do seed cũ sở hữu; không chạm course giáo viên ──
+        var legacyTitles = new[] { "Cấu trúc dữ liệu", "Giải thuật", "Sắp xếp & Tìm kiếm", "CTDL tuyến tính", "Đồ thị" };
         var oldPaths = await db.LearningPaths
-            .Where(p => !EF.Functions.Like(p.Title, "Grokking %") && p.IsActive)
+            .Where(p => p.IsActive && legacyTitles.Contains(p.Title))
             .ToListAsync(ct);
         foreach (var oldPath in oldPaths)
         {

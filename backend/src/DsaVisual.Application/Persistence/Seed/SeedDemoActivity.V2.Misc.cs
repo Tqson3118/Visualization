@@ -94,9 +94,11 @@ public static partial class SeedDemoActivity
     {
         var baseUtc = new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc);   // mốc cố định (deterministic)
         var users = await LoadV2ActivityUsersAsync(db, ct);
-        var exercises = await db.Exercises.AsNoTracking()
+        var exercises = (await db.Exercises.AsNoTracking()
             .Where(e => e.Type == ExerciseType.Code && e.DeletedAt == null && e.Status == ExerciseStatus.Active)
-            .ToDictionaryAsync(e => e.Title, ct);
+            .ToListAsync(ct))
+            .GroupBy(e => e.Title, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
         var rows = new (string Email, string ExerciseTitle, int Score, int DaysAgo)[]
         {

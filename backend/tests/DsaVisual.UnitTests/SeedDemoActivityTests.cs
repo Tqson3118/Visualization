@@ -171,6 +171,7 @@ public class SeedDemoActivityTests
             {
                 exercise = exercises.FirstOrDefault(e =>
                     e.NodeId == node.Id && e.Type == ExerciseType.Mcq);
+                if (exercise == null) continue;
             }
             else if (node.LessonId == null && node.FinalTestId == null)
             {

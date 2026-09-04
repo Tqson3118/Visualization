@@ -428,9 +428,26 @@ public static partial class SeedDemoActivity
                     new(S(10), 3), new(S(11), 2), new(S(12), 1),
                     new(H(10), 3), new(H(11), 2), new(H(12), 1),
                 ],
-                Assignments: []
+                Assignments:
+                [
+                    new(ExerciseTitle: "Lab: BFS", LessonTitle: null, CreatedDaysAgo: 12, DueOffsetDays: -1,
+                        Submissions: [
+                            new(H(10), Late: false, NewScore: 82, NewOffsetDays: -3),
+                            new(H(11), Late: true, NewScore: 55, NewOffsetDays: 2),
+                            new(S(0), Late: false, NewScore: 0, NewOffsetDays: -1)]),
+                    new(ExerciseTitle: "Quiz: BFS", LessonTitle: null, CreatedDaysAgo: 10, DueOffsetDays: 2,
+                        Submissions: [
+                            new(H(10), Late: false, NewScore: 90, NewOffsetDays: -1),
+                            new(H(12), Late: false, NewScore: 68, NewOffsetDays: -1)]),
+                    new(ExerciseTitle: "Code: BFS", LessonTitle: null, CreatedDaysAgo: 8, DueOffsetDays: -6,
+                        Submissions: [
+                            new(H(11), Late: false, NewScore: 8, NewOffsetDays: -2),
+                            new(S(1), Late: true, NewScore: 0, NewOffsetDays: 2),
+                            new(S(2), Late: false, NewScore: 5, NewOffsetDays: -1)]),
+                    new(ExerciseTitle: null, LessonTitle: "Hash Table", CreatedDaysAgo: 2, DueOffsetDays: 12, Submissions: [])
+                ]
             ),
-            // ── SD21361NC — Giải thuật nâng cao HK1 2026 (ĐÓNG, giữ 5 member V1 + 0 assignment) ──
+            // ── SD21361NC — Giải thuật nâng cao HK1 2026 (ĐÓNG, giữ 5 member V1 + 3 assignment) ──
             new PlannedClassV2Spec(
                 Name: "SD21361NC — Giải thuật nâng cao HK1 2026",
                 InviteCode: "ADVNCE",
@@ -444,7 +461,19 @@ public static partial class SeedDemoActivity
                     new(A(0), 8), new(A(1), 7), new(A(2), 6), new(A(3), 5), new(A(4), 4),
                     new(A(5), 3), new(A(6), 2), new(A(7), 1),
                 ],
-                Assignments: []
+                Assignments:
+                [
+                    new(ExerciseTitle: "Lab: BFS", LessonTitle: null, CreatedDaysAgo: 10, DueOffsetDays: -3,
+                        Submissions: [
+                            new(H(5), Late: false, NewScore: 9, NewOffsetDays: -1),
+                            new(H(6), Late: true, NewScore: 6, NewOffsetDays: 2),
+                            new(A(0), Late: false, NewScore: 0, NewOffsetDays: -1)]),
+                    new(ExerciseTitle: "Quiz: BFS", LessonTitle: null, CreatedDaysAgo: 6, DueOffsetDays: 1,
+                        Submissions: [
+                            new(H(7), Late: false, NewScore: 78, NewOffsetDays: -1),
+                            new(A(1), Late: false, NewScore: 42, NewOffsetDays: -1)]),
+                    new(ExerciseTitle: null, LessonTitle: "BST", CreatedDaysAgo: 2, DueOffsetDays: 10, Submissions: [])
+                ]
             ),
         ];
     }

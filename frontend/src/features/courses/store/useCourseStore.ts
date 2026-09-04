@@ -234,13 +234,20 @@ export const useCourseStore = defineStore('course', () => {
     const authStore = useAuthStore();
     const uId = authStore.user?.id;
     if (uId == null) {
+      // Chưa có user local (guest/đang restore session): không đọc được progress localStorage,
+      // nhưng vẫn tôn trọng progressPercent backend trả kèm course (Plan B bug#2 — không ép 0
+      // khi danh sách bài học chưa tải).
+      const serverPercent =
+        typeof (course as any).progressPercent === 'number' && (course as any).progressPercent > 0
+          ? (course as any).progressPercent
+          : 0;
       return {
         courseId,
         completedLessonIds: [],
         totalLessons: course.totalLessons || 0,
-        progressPercent: 0,
+        progressPercent: serverPercent,
         xpEarned: 0,
-        isCompleted: false,
+        isCompleted: serverPercent >= 100,
       };
     }
 

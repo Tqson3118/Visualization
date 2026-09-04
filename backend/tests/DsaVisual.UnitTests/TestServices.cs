@@ -180,6 +180,26 @@ internal static class TestServices
     {
         var config = CreateConfig();
         var catalog = new SimulationCatalogService(config, new FakeEnvironment(), NullLogger<SimulationCatalogService>.Instance);
-        return new GamificationService(db, clock, catalog, NullLogger<GamificationService>.Instance);
+        // Config DETERMINISTIC (defaults chuẩn 10/30/30p): GamificationService mặc định self-new
+        // GamificationConfigService() đọc file gamification-settings.json theo AppContext.BaseDirectory —
+        // sau khi test project reference DsaVisual.Api, file runtime đó (admin chỉnh qua UI, VD 31)
+        // bị copy sang test bin và làm test phụ thuộc môi trường. Inject fake để test luôn deterministic.
+        return new GamificationService(db, clock, catalog, NullLogger<GamificationService>.Instance, new FixedGamificationConfig());
+    }
+
+    /// <summary>IGamificationConfigService cố định theo defaults (Free 10 / Premium 30 / regen 30p) — không đọc file runtime.</summary>
+    public sealed class FixedGamificationConfig : IGamificationConfigService
+    {
+        public DsaVisual.Application.Dtos.GamificationSettingsDto GetSettings() => new();
+        public Task<DsaVisual.Application.Dtos.GamificationSettingsDto> UpdateSettingsAsync(DsaVisual.Application.Dtos.GamificationSettingsDto newSettings, CancellationToken ct = default) => Task.FromResult(newSettings);
+        public Task<DsaVisual.Application.Dtos.GamificationSettingsDto> ResetToDefaultsAsync(CancellationToken ct = default) => Task.FromResult(new DsaVisual.Application.Dtos.GamificationSettingsDto());
+        public int GetTheoryBaseXp() => 50;
+        public int GetQuizBaseXp() => 50;
+        public int GetCodelabBaseXp() => 100;
+        public int GetStreakBonusXp() => 20;
+        public int GetHeartsMaxFree() => 10;
+        public int GetHeartsMaxPremium() => 30;
+        public int GetHeartRegenMinutes() => 30;
+        public int GetSessionHours() => 36;
     }
 }

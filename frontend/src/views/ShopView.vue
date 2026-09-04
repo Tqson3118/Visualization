@@ -102,19 +102,26 @@ function isCosmeticItem(item: ShopItemDto): boolean {
   return slot === 'avatar' || slot === 'frame';
 }
 
+const usingId = ref<number | null>(null);
+
+async function useFromShop(item: ShopItemDto): Promise<void> {
+  if (usingId.value !== null) return;
+  usingId.value = item.id;
+  try {
+    const res = await gamification.useItem(item.id);
+    ui.showToast(res.message || `Đã sử dụng ${item.name}!`, 'success');
+  } catch (err: any) {
+    ui.showToast(err?.response?.data?.message || err?.message || 'Không thể sử dụng vật phẩm.', 'error');
+  } finally {
+    usingId.value = null;
+  }
+}
+
 async function buy(item: ShopItemDto): Promise<void> {
   if (buyingId.value !== null) return;
   buyingId.value = item.id;
   try {
     await gamification.buyItem(item.id);
-    const key = ((item as any).itemKey || item.name || '').toLowerCase();
-    if (key.includes('heart-refill-10')) {
-      gamification.hearts = Math.min(gamification.heartsMax || 10, gamification.hearts + 10);
-      void gamification.fetchHearts();
-    } else if (key.includes('heart-refill-5') || key.includes('heart')) {
-      gamification.hearts = Math.min(gamification.heartsMax || 5, gamification.hearts + 5);
-      void gamification.fetchHearts();
-    }
     ui.showToast(messages.shop.bought(item.name), 'success');
   } catch (err) {
     ui.showToast(err instanceof Error ? err.message : 'Không đủ gems hoặc đã đạt tối đa.', 'error');
@@ -482,6 +489,19 @@ const slotLabel = (slot: string | null): string => {
 
                   <!-- Case 2: Standard Buy Action -->
                   <template v-else>
+                    <div v-if="!isCosmeticItem(item) && ownedQuantity(item) > 0" class="w-full mb-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        class="w-full text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-semibold"
+                        :loading="usingId === item.id"
+                        :disabled="usingId !== null || (gamification.hearts >= (gamification.heartsMax || 10))"
+                        :title="gamification.hearts >= (gamification.heartsMax || 10) ? 'Tim của bạn đã đầy' : 'Hồi tim ngay'"
+                        @click="useFromShop(item)"
+                      >
+                        ⚡ Dùng ngay (Hồi tim)
+                      </Button>
+                    </div>
                     <div class="flex items-center justify-between w-full">
                       <span class="shop__price" aria-label="Giá">
                         <Gem :size="14" aria-hidden="true" /> {{ formatNumber(item.priceGems) }}

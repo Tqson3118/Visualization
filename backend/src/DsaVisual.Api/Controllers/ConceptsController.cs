@@ -2267,6 +2267,34 @@ public class ConceptsController(
                     return BadRequest(new { message = "Điểm bài trắc nghiệm chưa đạt yêu cầu (cần tối thiểu 70%) để hoàn thành." });
                 }
             }
+
+            // Nghiệp vụ Codelab (fix blind-trust SaveProgress): node có exercise CODE đính kèm →
+            // CHỈ được pass khi có bài nộp code PASS toàn bộ test phía MÁY CHỦ (mirror nhánh Quiz 70%
+            // ở trên — không tin cờ CodelabCompleted/Completed từ client: POST thẳng API mà chưa từng
+            // nộp code vẫn pass node + cộng XP).
+            var codelabExerciseId = await _db.Exercises.AsNoTracking()
+                .Where(e => e.DeletedAt == null
+                    && e.Type == ExerciseType.Code
+                    && (e.NodeId == node.Id
+                        || (node.LabExerciseId != null && e.Id == node.LabExerciseId.Value)
+                        || (node.LessonId != null && e.LessonId == node.LessonId.Value && (e.NodeId == null || e.NodeId == node.Id))))
+                .OrderByDescending(e => e.Id)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefaultAsync(ct);
+            if (codelabExerciseId is { } labCodeId)
+            {
+                var bestCodeSub = await _db.CodeSubmissions.AsNoTracking()
+                    .Where(s => s.UserId == userId && s.ExerciseId == labCodeId)
+                    .OrderByDescending(s => s.PassedTests)
+                    .FirstOrDefaultAsync(ct);
+                var codePassed = bestCodeSub is not null
+                    && bestCodeSub.TotalTests > 0
+                    && bestCodeSub.PassedTests >= bestCodeSub.TotalTests;
+                if (!codePassed)
+                {
+                    return BadRequest(new { message = "Bài thực hành code chưa đạt (cần pass toàn bộ test case trên máy chủ) để hoàn thành." });
+                }
+            }
             var nodeProgress = await _db.UserNodeProgress
                 .FirstOrDefaultAsync(p => p.UserId == userId && p.NodeId == id, ct);
             var isFirstPass = nodeProgress is null || nodeProgress.Status != 2;
@@ -2295,8 +2323,21 @@ public class ConceptsController(
             if (isFirstPass)
             {
                 var xpEarned = GetNodeXpReward(node);
-                await _db.Database.ExecuteSqlInterpolatedAsync(
-                    $"UPDATE Users SET Xp = Xp + {xpEarned}, UpdatedAt = {DateTime.UtcNow} WHERE Id = {userId}", ct);
+                if (_db.Database.IsRelational())
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE Users SET Xp = Xp + {xpEarned}, UpdatedAt = {DateTime.UtcNow} WHERE Id = {userId}", ct);
+                }
+                else
+                {
+                    // InMemory (unit test) không chạy raw SQL — cập nhật qua EF, giống ExerciseService.
+                    var user = await _db.Users.FindAsync([userId], ct);
+                    if (user is not null)
+                    {
+                        user.Xp += xpEarned;
+                        user.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
             }
         }
 

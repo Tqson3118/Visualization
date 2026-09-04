@@ -473,17 +473,22 @@ public static partial class SeedDemoActivity
         var result = new List<PlannedNodeRow>(specs.Length);
         foreach (var (pathIndex, kind, status) in specs)
         {
+            if (pathIndex < 0 || pathIndex >= byPath.Count) continue;
             var pathNodes = byPath[pathIndex];
             var lessonNodes = pathNodes.Where(n => n.LessonId != null).ToList();
-            var finalNode = pathNodes.First(n => n.FinalTestId != null);
+            var finalNode = pathNodes.FirstOrDefault(n => n.FinalTestId != null);
+            if (lessonNodes.Count == 0) continue;
 
-            LearningPathNode node = kind switch
+            var selectedNode = kind switch
             {
                 NodeKind.Lesson0 => lessonNodes[0],
                 NodeKind.Lesson1 => lessonNodes.Count > 1 ? lessonNodes[1] : lessonNodes[0],
-                NodeKind.Practice => pathNodes.First(n => n.LessonId == null && n.FinalTestId == null),
+                NodeKind.Practice => pathNodes.FirstOrDefault(n => n.LessonId == null && n.FinalTestId == null),
                 _ => finalNode
             };
+            if (selectedNode is null) continue;
+            LearningPathNode node = selectedNode;
+            if (kind == NodeKind.Final && finalNode is null) continue;
 
             // Bài nộp full-score của exercise gắn node (rule: Status=2 ⇐ Score == MaxScore)
             PlannedSubmission? pass = kind switch
@@ -494,7 +499,7 @@ public static partial class SeedDemoActivity
                         s.Exercise.Type == ExerciseType.Mcq &&
                         s.Score == s.Exercise.MaxScore),
                 NodeKind.Final => submissions.FirstOrDefault(s =>
-                    s.Exercise.Id == finalNode.FinalTestId && s.Score == s.Exercise.MaxScore),
+                    s.Exercise.Id == finalNode!.FinalTestId && s.Score == s.Exercise.MaxScore),
                 _ => null
             };
 
@@ -507,7 +512,7 @@ public static partial class SeedDemoActivity
             }
             else
             {
-                var unlockedAt = UnlockTimeForActiveNode(kind, node, submissions, finalNode, rng, now);
+                var unlockedAt = UnlockTimeForActiveNode(kind, node, submissions, finalNode!, rng, now);
                 result.Add(new PlannedNodeRow(node, 1, 0, 0, unlockedAt, null, unlockedAt));
             }
         }

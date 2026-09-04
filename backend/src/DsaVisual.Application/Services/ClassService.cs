@@ -1345,10 +1345,18 @@ public sealed class ClassService(
 
             var completedByUserAndNode = nodeProgresses.Select(p => (p.UserId, p.NodeId)).ToHashSet();
             var completedByUserAndLesson = lessonProgresses.Select(p => (p.UserId, p.LessonId)).ToHashSet();
+            var reportSubmissions = (exerciseIds.Count > 0 && memberIds.Count > 0)
+                ? await db.ExerciseSubmissions.AsNoTracking()
+                    .Where(s => memberIds.Contains(s.UserId) && exerciseIds.Contains(s.ExerciseId))
+                    .OrderByDescending(s => s.SubmittedAt)
+                    .ToListAsync(ct)
+                : [];
 
             bool IsMemberCompleted(int mId, LearningPathNode n)
             {
                 if (completedByUserAndNode.Contains((mId, n.Id))) return true;
+                var completedExerciseId = n.FinalTestId ?? n.LabExerciseId;
+                if (completedExerciseId is { } completedEid && reportSubmissions.Any(s => s.UserId == mId && s.ExerciseId == completedEid)) return true;
                 if (n.LessonId is { } chkLessonId && completedByUserAndLesson.Contains((mId, chkLessonId))) return true;
                 return false;
             }
@@ -1364,6 +1372,11 @@ public sealed class ClassService(
                     : null;
 
                 var completedNodeProgressList = nodeProgresses.Where(p => p.NodeId == node.Id).ToList();
+                var nodeExerciseId = node.FinalTestId ?? node.LabExerciseId;
+                var nodeSubmissions = nodeExerciseId is { } nEid
+                    ? reportSubmissions.Where(s => s.ExerciseId == nEid).ToList()
+                    : [];
+                var submissionByUser = nodeSubmissions.GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First());
 
                 var overlayDueUtc = overlay?.DueAt != null ? DateTime.SpecifyKind(overlay.DueAt.Value, DateTimeKind.Utc) : (DateTime?)null;
 
@@ -1372,7 +1385,14 @@ public sealed class ClassService(
                 foreach (var mId in memberIds)
                 {
                     var np = completedNodeProgressList.FirstOrDefault(p => p.UserId == mId);
-                    if (np != null)
+                    if (submissionByUser.TryGetValue(mId, out var submission))
+                    {
+                        var submittedTime = DateTime.SpecifyKind(submission.SubmittedAt, DateTimeKind.Utc);
+                        if (overlayDueUtc == null || submittedTime <= overlayDueUtc.Value) onTime++;
+                        else late++;
+                        if (completedAssignmentsByUser.ContainsKey(mId)) completedAssignmentsByUser[mId]++;
+                    }
+                    else if (np != null)
                     {
                         var completedTime = DateTime.SpecifyKind(np.PassedAt ?? np.UpdatedAt, DateTimeKind.Utc);
                         if (overlayDueUtc == null || completedTime <= overlayDueUtc.Value) onTime++;
@@ -1389,9 +1409,9 @@ public sealed class ClassService(
                 }
 
                 int notSubmitted = totalMembers - (onTime + late);
-                double avg = completedNodeProgressList.Count > 0
-                    ? completedNodeProgressList.Average(p => (double)(p.NodeScore > 0 ? p.NodeScore : 100))
-                    : 0;
+                double avg = nodeSubmissions.Count > 0
+                    ? nodeSubmissions.GroupBy(s => s.UserId).Select(g => (double)g.First().Score).Average()
+                    : (completedNodeProgressList.Count > 0 ? completedNodeProgressList.Average(p => (double)p.NodeScore) : 0);
 
                 string itemType = node.ItemType switch
                 {
@@ -1517,7 +1537,7 @@ public sealed class ClassService(
             var fallbackAssignmentIds = fallbackAssignments.Where(a => a.ExerciseId != null).Select(a => a.Id).ToList();
             var fallbackSubmissions = fallbackAssignmentIds.Count > 0 && memberIds.Count > 0
                 ? await db.ExerciseSubmissions.AsNoTracking()
-                    .Where(s => memberIds.Contains(s.UserId) && s.ClassAssignmentId != null && fallbackAssignmentIds.Contains(s.ClassAssignmentId.Value) && s.Score > 0)
+                    .Where(s => memberIds.Contains(s.UserId) && s.ClassAssignmentId != null && fallbackAssignmentIds.Contains(s.ClassAssignmentId.Value))
                     .ToListAsync(ct)
                 : [];
 
@@ -1527,6 +1547,7 @@ public sealed class ClassService(
 
             foreach (var assignment in fallbackAssignments)
             {
+                var assignmentSubmissions = fallbackSubmissions.Where(s => s.ClassAssignmentId == assignment.Id).ToList();
                 var completedUserIds = new HashSet<int>();
                 if (assignment.LessonId is { } lid)
                 {
@@ -1537,7 +1558,7 @@ public sealed class ClassService(
                 }
                 else if (assignment.ExerciseId != null)
                 {
-                    foreach (var s in fallbackSubmissions.Where(s => s.ClassAssignmentId == assignment.Id))
+                    foreach (var s in assignmentSubmissions)
                     {
                         completedUserIds.Add(s.UserId);
                     }
@@ -1554,7 +1575,7 @@ public sealed class ClassService(
                     foreach (var uId in completedUserIds)
                     {
                         var lp = fallbackLessonProgress.FirstOrDefault(p => p.UserId == uId && p.LessonId == assignment.LessonId);
-                        var sub = fallbackSubmissions.FirstOrDefault(s => s.UserId == uId && s.ClassAssignmentId == assignment.Id);
+                        var sub = assignmentSubmissions.FirstOrDefault(s => s.UserId == uId);
                         var doneAt = lp?.CompletedAt ?? sub?.SubmittedAt;
                         if (doneAt.HasValue && doneAt.Value > assignment.DueAt.Value) late++;
                         else onTime++;
@@ -1571,6 +1592,10 @@ public sealed class ClassService(
                     }
                 }
 
+                var averageScore = assignmentSubmissions.Count > 0
+                    ? assignmentSubmissions.Average(s => (double)s.Score)
+                    : 0;
+
                 var title = assignment.LessonId is { } lId && fallbackLessonTitles.TryGetValue(lId, out var lt) ? lt
                     : (assignment.ExerciseId is { } eId && fallbackExerciseTitles.TryGetValue(eId, out var et) ? et : "Bài tập");
 
@@ -1584,7 +1609,7 @@ public sealed class ClassService(
                     OnTime = onTime,
                     Late = late,
                     NotSubmitted = Math.Max(0, notSubmitted),
-                    AvgScore = 100,
+                    AvgScore = Math.Round(averageScore, 1),
                     ItemType = assignment.LessonId != null ? "theory" : "code"
                 });
             }

@@ -165,11 +165,22 @@ public static partial class SeedGrokkingAlgorithmsData
                 TopicId = topics[1000].Id,
                 SortOrder = 2,
                 IsActive = true,
+                Status = LearningPathStatus.Active,
+                Visibility = PathVisibility.Public,
                 CreatedBy = adminId
             };
             db.LearningPaths.Add(path);
             await db.SaveChangesAsync(ct);
             logger.LogInformation("SeedGrokkingAlgorithms: LearningPaths thêm {Title} (Id={Id})", PathTitle, path.Id);
+        }
+
+        // Reconcile cả record cũ: đảm bảo khóa public/active sau khi nâng cấp seed.
+        if (path.Status != LearningPathStatus.Active || path.Visibility != PathVisibility.Public || !path.IsActive)
+        {
+            path.Status = LearningPathStatus.Active;
+            path.Visibility = PathVisibility.Public;
+            path.IsActive = true;
+            await db.SaveChangesAsync(ct);
         }
 
         // Author + marketing cho khóa

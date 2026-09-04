@@ -27,11 +27,11 @@ import { buildVietQrPayload, getVietQrImageUrl } from '@/lib/vietqr';
 
 // ── TK nhận tiền (pm-decision-log-gp.md) ──
 const MB_BENEFICIARY = {
-  bankBin: (import.meta.env.VITE_BANK_BIN as string) || '970422', // MB Bank
-  bankNumber: (import.meta.env.VITE_BANK_NUMBER as string) || '83863112088386',
-  name: (import.meta.env.VITE_BANK_NAME as string) || 'NGUYEN THI NHU HOA',
+  bankBin: (import.meta.env.VITE_BANK_BIN as string) || '970423', // TPBank
+  bankNumber: (import.meta.env.VITE_BANK_NUMBER as string) || '99148468888',
+  name: (import.meta.env.VITE_BANK_NAME as string) || 'MAI HOANG DANG KHOA',
 } as const;
-const ACCOUNT_DISPLAY = (import.meta.env.VITE_BANK_NUMBER_DISPLAY as string) || '8386 3112 0883 86';
+const ACCOUNT_DISPLAY = (import.meta.env.VITE_BANK_NUMBER_DISPLAY as string) || '9914 8468 888';
 
 
 // ── Chống bấm nhầm: nút xác nhận chỉ khả dụng sau 60s đếm ngược (DEV/Demo = 0s) ──
@@ -464,7 +464,7 @@ const planPerMonth = (plan: (typeof PLANS)[number]): string =>
           <div class="premium__qr-info">
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.bankLabel }}</span>
-              <span class="premium__qr-value">MB Bank (Ngân hàng Quân Đội)</span>
+              <span class="premium__qr-value">TPBank (Ngân hàng Tiên Phong)</span>
             </div>
             <div class="premium__qr-row">
               <span class="premium__qr-label">{{ messages.premium.ownerLabel }}</span>

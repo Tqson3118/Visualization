@@ -47,10 +47,8 @@ async function toggleEquip(item: InventoryItemDto): Promise<void> {
 async function useConsumable(item: InventoryItemDto): Promise<void> {
   usingItemId.value = item.itemId;
   try {
-    const res = await useInventoryItem(item.itemId);
+    const res = await gamification.useItem(item.itemId);
     item.quantity = res.remainingQuantity;
-    await gamification.fetchInventory();
-    await gamification.fetchHearts();
     ui.showToast(res.message || `Đã sử dụng ${item.name}!`, 'success');
   } catch (err: any) {
     ui.showToast(err?.response?.data?.message || err?.message || 'Không thể sử dụng vật phẩm.', 'error');

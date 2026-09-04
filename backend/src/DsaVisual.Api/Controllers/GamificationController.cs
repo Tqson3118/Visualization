@@ -267,6 +267,10 @@ public class GamificationController(
             {
                 headerSecret = headerSecret[7..].Trim();
             }
+            else if (headerSecret.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
+            {
+                headerSecret = headerSecret[7..].Trim();
+            }
 
             if (!string.Equals(headerSecret, configuredSecret, StringComparison.Ordinal))
             {
@@ -276,7 +280,16 @@ public class GamificationController(
         }
 
         var result = await _service.ProcessPaymentWebhookAsync(request, ct);
-        return MapResultExtensions.MapResult(this, result);
+        if (!result.IsSuccess)
+        {
+            return Ok(new PaymentWebhookResultDto
+            {
+                Success = false,
+                Message = result.ErrorMessage ?? "Bỏ qua giao dịch không hợp lệ"
+            });
+        }
+
+        return Ok(result.Value);
     }
 
     // ── Cheatsheet / benchmark ──

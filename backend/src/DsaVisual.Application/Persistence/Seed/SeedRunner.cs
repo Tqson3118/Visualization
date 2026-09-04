@@ -69,6 +69,9 @@ public static class SeedRunner
         // SeedGrokkingAlgorithms: import khóa "Grokking Algorithms" (backend/seed-data/grokking-algorithms.json) —
         // 8 topics + 32 lessons + path lớn + exercises + final test (lộ trình thứ 2, SortOrder=2).
         await SeedGrokkingAlgorithmsData.SeedAsync(db, adminId, now, logger, ct);
+        // --seed must include teacher-owned courses too; otherwise seed-only environments
+        // differ from normal startup and class fixtures are incomplete.
+        await SeedTeacherCoursesData.SeedAsync(db, logger, ct);
         await SeedQuestsAsync(db, logger, ct);
         await SeedShopItemsAsync(db, logger, ct);
         await SeedSettingsAsync(db, adminId, now, logger, ct);
@@ -242,7 +245,9 @@ public static class SeedRunner
         {
             var userIds = await db.UserNodeProgress.Select(p => p.UserId).Distinct().ToListAsync(ct);
             var paths = await db.LearningPaths.AsNoTracking().ToListAsync(ct);
-            var allNodes = await db.LearningPathNodes.AsNoTracking().OrderBy(n => n.SortOrder).ToListAsync(ct);
+            var allNodes = await db.LearningPathNodes.AsNoTracking()
+            .Where(n => paths.Where(p => p.IsActive && p.Status == LearningPathStatus.Active).Select(p => p.Id).Contains(n.PathId))
+            .OrderBy(n => n.SortOrder).ToListAsync(ct);
             var nodesByPath = allNodes.GroupBy(n => n.PathId).ToDictionary(g => g.Key, g => g.OrderBy(n => n.SortOrder).ToList());
 
             var repairedCount = 0;

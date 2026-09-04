@@ -36,9 +36,11 @@ public static partial class SeedDemoActivity
         }
 
         var students = await LoadFirstDemoStudentsAsync(db, take: 3, ct);
-        var exercises = await db.Exercises.AsNoTracking()
+        var exercises = (await db.Exercises.AsNoTracking()
             .Where(e => e.Type == ExerciseType.Code && e.DeletedAt == null && e.Status == ExerciseStatus.Active)
-            .ToDictionaryAsync(e => e.Title, ct);
+            .ToListAsync(ct))
+            .GroupBy(e => e.Title, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
         var rows = new (int StudentIndex, string ExerciseTitle, int Score, int Passed, int DaysAgo)[]
         {
