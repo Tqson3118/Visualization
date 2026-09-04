@@ -297,15 +297,26 @@ class MyLinkedList {
     // Helper chèn ExerciseSubmission (Quiz)
     void InsertQuizSub(int uId, int exId, int? aId, int score, DateTime subAt)
     {
+        // Tra cứu MaxScore của exercise để chuẩn hóa điểm số đúng thang
+        int maxScore = 5;
+        using (var cmdMax = new SqlCommand("SELECT MaxScore FROM [Exercises] WHERE Id = @exId", conn, tx))
+        {
+            cmdMax.Parameters.AddWithValue("@exId", exId);
+            var o = cmdMax.ExecuteScalar();
+            if (o != null && o != DBNull.Value) maxScore = (int)o;
+        }
+
+        int normalizedScore = score > maxScore 
+            ? (score >= 100 ? maxScore : Math.Clamp((int)Math.Round((double)score * maxScore / 100.0), 0, maxScore - 1))
+            : score;
+
         using var cmd = new SqlCommand(@"
             INSERT INTO [ExerciseSubmissions] (UserId, ExerciseId, ClassAssignmentId, Score, AnswersJson, ResultJson, DurationSeconds, SubmittedAt, ClientRequestId)
-            VALUES (@uId, @exId, @aId, @score, @ans, @res, 90, @subAt, NEWID())", conn, tx);
+            VALUES (@uId, @exId, @aId, @score, '[]', '[]', 90, @subAt, NEWID())", conn, tx);
         cmd.Parameters.AddWithValue("@uId", uId);
         cmd.Parameters.AddWithValue("@exId", exId);
         cmd.Parameters.AddWithValue("@aId", (object?)aId ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@score", score);
-        cmd.Parameters.AddWithValue("@ans", "[{\"QuestionId\":1,\"Selected\":[0]},{\"QuestionId\":2,\"Selected\":[1]}]");
-        cmd.Parameters.AddWithValue("@res", "[{\"QuestionId\":1,\"Correct\":true},{\"QuestionId\":2,\"Correct\":true}]");
+        cmd.Parameters.AddWithValue("@score", normalizedScore);
         cmd.Parameters.AddWithValue("@subAt", subAt);
         cmd.ExecuteNonQuery();
     }

@@ -334,8 +334,25 @@ function parseAttemptAnswers(attempt: SubmissionSummaryDto | null): Record<strin
       props.questions.forEach((q, idx) => {
         if (parsed.length > idx) {
           const item = parsed[idx];
-          if (Array.isArray(item)) mapping[String(q.id)] = item;
-          else if (typeof item === 'number' && item >= 0) mapping[String(q.id)] = [item];
+          if (Array.isArray(item)) {
+            mapping[String(q.id)] = item;
+            mapping[String(idx)] = item;
+          } else if (typeof item === 'number' && item >= 0) {
+            mapping[String(q.id)] = [item];
+            mapping[String(idx)] = [item];
+          } else if (typeof item === 'object' && item !== null) {
+            const sel = (item as any).Selected ?? (item as any).selected;
+            const qId = (item as any).QuestionId ?? (item as any).questionId;
+            if (Array.isArray(sel)) {
+              mapping[String(q.id)] = sel.map(Number);
+              mapping[String(idx)] = sel.map(Number);
+              if (qId !== undefined) mapping[String(qId)] = sel.map(Number);
+            } else if (typeof sel === 'number') {
+              mapping[String(q.id)] = [sel];
+              mapping[String(idx)] = [sel];
+              if (qId !== undefined) mapping[String(qId)] = [sel];
+            }
+          }
         }
       });
       return mapping;
@@ -373,7 +390,14 @@ function attemptCorrectIndices(q: QuizQuestion, attempt: SubmissionSummaryDto | 
     if (!result) return [];
     const indices = result.correctIndices ?? result.CorrectIndices ?? result.correctAnswer ?? result.CorrectAnswer;
     const index = result.correctIndex ?? result.CorrectIndex;
-    return Array.isArray(indices) ? indices.map(Number) : (typeof index === 'number' ? [index] : []);
+    if (Array.isArray(indices)) return indices.map(Number);
+    if (typeof index === 'number') return [index];
+    if (typeof indices === 'number') return [indices];
+    if (result.isCorrect || result.IsCorrect || result.correct || result.Correct) {
+      const selected = typeof qIdx === 'number' ? getAttemptAnswerForQuestion(q, qIdx, attempt) : (parseAttemptAnswers(attempt)[String(q.id)] ?? []);
+      if (selected.length > 0) return selected;
+    }
+    return [];
   } catch {
     return [];
   }
@@ -383,26 +407,32 @@ function isOptionCorrect(q: QuizQuestion, optionIdx: number, attempt: Submission
   const resultCorrect = attemptCorrectIndices(q, attempt, qIdx);
   if (resultCorrect.length > 0) return resultCorrect.includes(optionIdx);
   if (q.correctIndices && q.correctIndices.length > 0) return q.correctIndices.includes(optionIdx);
-  return q.correctIndex === optionIdx;
+  if (typeof q.correctIndex === 'number') return q.correctIndex === optionIdx;
+  return false;
 }
 
 function isQuestionCorrectInAttempt(q: QuizQuestion, attempt: SubmissionSummaryDto | null, qIdx?: number): boolean {
   if (attempt?.resultJson) {
     try {
       const results = JSON.parse(attempt.resultJson);
-      if (!Array.isArray(results)) {
-        // results is not array
-      } else {
+      if (Array.isArray(results)) {
         const result = results.find((r: any) => String(r.questionId ?? r.QuestionId) === String(q.id)) ?? (typeof qIdx === 'number' ? results[qIdx] : undefined);
         const verdict = result?.isCorrect ?? result?.IsCorrect ?? result?.correct ?? result?.Correct;
         if (typeof verdict === 'boolean') return verdict;
       }
     } catch {}
   }
+  if (getAttemptPercent(attempt) === 100) return true;
+  const attemptScore = getAttemptScore(attempt);
+  if (typeof qIdx === 'number' && attemptScore >= (props.questions.length || 1)) return true;
+
   const selected = typeof qIdx === 'number' ? getAttemptAnswerForQuestion(q, qIdx, attempt) : (parseAttemptAnswers(attempt)[String(q.id)] ?? []);
   const resultCorrect = attemptCorrectIndices(q, attempt, qIdx);
   const correct = resultCorrect.length > 0 ? resultCorrect : (q.correctIndices && q.correctIndices.length > 0 ? q.correctIndices : (q.correctIndex !== undefined ? [q.correctIndex] : []));
-  if (selected.length === 0 || correct.length === 0) return false;
+  if (selected.length === 0 || correct.length === 0) {
+    if (typeof qIdx === 'number' && qIdx < attemptScore) return true;
+    return false;
+  }
   return selected.length === correct.length && selected.every(idx => correct.includes(idx));
 }
 
